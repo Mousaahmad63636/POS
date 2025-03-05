@@ -554,7 +554,7 @@
              Style="{StaticResource ModernSearchBox}"
              FontSize="13"
              Height="50"/>
-                                    <TextBlock Text="{DynamicResource Transaction_SearchCustomer}"
+                                    <TextBlock Text=""
                Margin="12,0,0,0"
                VerticalAlignment="Center"
                Foreground="#9CA3AF"

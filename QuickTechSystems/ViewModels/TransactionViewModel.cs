@@ -18,6 +18,7 @@ using ZXing.QrCode.Internal;
 using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Application.Helpers;
 using System.Diagnostics;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -28,19 +29,20 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly ICustomerService _customerService;
         private readonly IProductService _productService;
         private readonly IDrawerService _drawerService;
-
+        private readonly IGlobalOverlayService _globalOverlayService;
         private readonly Action<EntityChangedEvent<TransactionDTO>> _transactionChangedHandler;
         private Action<EntityChangedEvent<ProductDTO>> _productChangedHandler;
 
         public TransactionViewModel(
-   IUnitOfWork unitOfWork,
-    ITransactionService transactionService,
-    ICustomerService customerService,
-    IProductService productService,
-    IDrawerService drawerService,
-    IBusinessSettingsService businessSettingsService,
-    IEventAggregator eventAggregator)
-    : base(eventAggregator)
+        IUnitOfWork unitOfWork,
+        ITransactionService transactionService,
+        ICustomerService customerService,
+        IProductService productService,
+        IDrawerService drawerService,
+        IBusinessSettingsService businessSettingsService,
+        IEventAggregator eventAggregator,
+        IGlobalOverlayService globalOverlayService) // Add this parameter
+        : base(eventAggregator)
         {
             _unitOfWork = unitOfWork;
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
@@ -48,6 +50,8 @@ namespace QuickTechSystems.WPF.ViewModels
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
             _transactionChangedHandler = HandleTransactionChanged;
             _drawerService = drawerService;
+            _globalOverlayService = globalOverlayService ?? throw new ArgumentNullException(nameof(globalOverlayService)); // Store reference
+
             _ = InitializeProductsAsync();
             _productChangedHandler = HandleProductChanged;
             _ = LoadExchangeRate(businessSettingsService);

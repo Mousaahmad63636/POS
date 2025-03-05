@@ -149,11 +149,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     CreatedAt = DateTime.Now
                 };
 
-                // Get the global overlay service
-                var overlayService = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<IGlobalOverlayService>();
-
-                // Show the customer editor form
-                overlayService.ShowCustomerEditor(this);
+                // Use the injected service directly
+                _globalOverlayService.ShowCustomerEditor(this);
             }
             catch (Exception ex)
             {
@@ -162,10 +159,11 @@ namespace QuickTechSystems.WPF.ViewModels
         }
         private void CancelNewCustomer()
         {
-            var overlayService = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<IGlobalOverlayService>();
-            overlayService.HideCustomerEditor();
+            // Use the injected service directly
+            _globalOverlayService.HideCustomerEditor();
             NewCustomer = null;
         }
+        // File: QuickTechSystems/ViewModels/TransactionParts/TransactionViewModel.Search.cs
         private async Task SaveNewCustomerAsync()
         {
             try
@@ -195,8 +193,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     var overlayService = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<IGlobalOverlayService>();
                     overlayService.HideCustomerEditor();
 
-                    // Show success message
-                    await ShowSuccessMessage("Customer created successfully");
+                    // Remove this line that shows the success message:
+                    // await ShowSuccessMessage("Customer created successfully");
                 }
             }
             catch (Exception ex)
