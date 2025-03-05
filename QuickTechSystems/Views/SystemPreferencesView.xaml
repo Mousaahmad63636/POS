@@ -1,0 +1,84 @@
+﻿
+    <UserControl x:Class="QuickTechSystems.WPF.Views.SystemPreferencesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="System Preferences"
+                     FontSize="24"
+                     FontWeight="Bold"
+                     Margin="0,0,0,10"/>
+            <TextBlock Text="Customize your application experience"
+                     Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+        </StackPanel>
+
+        <!-- Preferences Content -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="0,10">
+                <!-- Theme -->
+                <GroupBox Header="Appearance" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <Label Content="Theme"/>
+                        <ComboBox ItemsSource="{Binding AvailableThemes}"
+                                SelectedItem="{Binding CurrentTheme}"
+                                Margin="0,0,0,10"/>
+
+                        <Label Content="Language"/>
+                        <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                                SelectedItem="{Binding CurrentLanguage}"
+                                Margin="0,0,0,10"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Date & Time -->
+                <GroupBox Header="Date and Time" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <Label Content="Date Format"/>
+                        <ComboBox ItemsSource="{Binding DateFormats}"
+                                SelectedItem="{Binding DateFormat}"
+                                Margin="0,0,0,10"/>
+
+                        <Label Content="Time Format"/>
+                        <ComboBox ItemsSource="{Binding TimeFormats}"
+                                SelectedItem="{Binding TimeFormat}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Notifications -->
+                <GroupBox Header="Notifications" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <CheckBox Content="Enable Notifications"
+                                IsChecked="{Binding NotificationsEnabled}"
+                                Margin="0,0,0,10"/>
+
+                        <CheckBox Content="Sound Effects"
+                                IsChecked="{Binding SoundEffectsEnabled}"/>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Margin="0,15,0,0">
+            <Button Content="Reset to Default"
+                    Command="{Binding ResetCommand}"
+                    Width="120"
+                    Margin="0,0,10,0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

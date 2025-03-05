@@ -1,0 +1,766 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.TransactionView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="826">
+
+    <UserControl.Resources>
+        <!-- Effects -->
+        <DropShadowEffect x:Key="DropShadowEffect" 
+                          BlurRadius="5" 
+                          Direction="270" 
+                          ShadowDepth="2" 
+                          Opacity="0.25"/>
+
+        <!-- Modern Search TextBox Style -->
+        <Style x:Key="ModernSearchBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#3B82F6"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect BlurRadius="3" ShadowDepth="0" Opacity="0.3" Color="#3B82F6"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern Action Button Style -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#3B82F6"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="12,6">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2563EB"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#1D4ED8"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#9CA3AF"/>
+                    <Setter Property="Foreground" Value="#E5E7EB"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern Function Button Style -->
+        <Style x:Key="FunctionButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8"
+                                Padding="12,6">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E5E7EB"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="#D1D5DB"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Modern DataGrid Style -->
+        <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#F3F4F6"/>
+            <Setter Property="RowHeight" Value="42"/>
+            <Setter Property="RowBackground" Value="#FFFFFF"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9FAFB"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- DataGrid Header Style -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F9FAFB"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- Modern ComboBox Style (kept for potential future use) -->
+        <Style x:Key="ModernComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Height" Value="50"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <Grid>
+                                <ToggleButton x:Name="ToggleButton" 
+                                              BorderThickness="0"
+                                              Background="Transparent"
+                                              IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                <ContentPresenter x:Name="ContentSite"
+                                                  Margin="{TemplateBinding Padding}"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Left"/>
+                                <TextBox x:Name="PART_EditableTextBox"
+                                         Margin="{TemplateBinding Padding}"
+                                         VerticalAlignment="Center"
+                                         Visibility="Hidden"/>
+                                <Popup x:Name="Popup"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       Placement="Bottom"
+                                       AllowsTransparency="True"
+                                       Focusable="False"
+                                       PopupAnimation="Slide">
+                                    <Border MaxHeight="400"
+                                            MinWidth="{TemplateBinding ActualWidth}"
+                                            Background="#FFFFFF"
+                                            BorderBrush="#D1D5DB"
+                                            BorderThickness="1"
+                                            CornerRadius="6"
+                                            Effect="{StaticResource DropShadowEffect}">
+                                        <ScrollViewer>
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Background="#F3F4F6">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Panel -->
+        <Border Grid.Row="0" 
+                Background="#1F2937" 
+                Height="70"
+                Effect="{StaticResource DropShadowEffect}">
+            <Grid Margin="24,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" MinWidth="200"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto" MinWidth="200"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Transaction Info -->
+                <StackPanel Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <StackPanel Margin="0,0,32,0">
+                        <TextBlock Text="{DynamicResource Transaction_TransactionNumber}"
+                                   Foreground="#9CA3AF"
+                                   FontSize="13"/>
+                        <TextBlock Text="{Binding CurrentTransactionNumber}"
+                                   Foreground="White"
+                                   FontSize="22"
+                                   FontWeight="Bold"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding CurrentDate, StringFormat=dd/MM/yyyy HH:mm}"
+                               Foreground="#9CA3AF"
+                               FontSize="15"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <!-- Close Drawer Button -->
+                <Button Grid.Column="1"
+                        Content="{DynamicResource Transaction_CloseDrawer}"
+                        Command="{Binding CloseDrawerCommand}"
+                        Style="{StaticResource ActionButtonStyle}"
+                        Background="#EF4444"
+                        Width="140"
+                        HorizontalAlignment="Left"/>
+
+                <!-- Cashier and Terminal Info -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <StackPanel Margin="0,0,24,0">
+                        <TextBlock Text="{DynamicResource Transaction_Cashier}"
+                                   Foreground="#9CA3AF"
+                                   FontSize="13"/>
+                        <TextBlock Text="{Binding CashierName}"
+                                   Foreground="White"
+                                   FontSize="15"
+                                   FontWeight="Medium"/>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="{DynamicResource Transaction_Terminal}"
+                                   Foreground="#9CA3AF"
+                                   FontSize="13"/>
+                        <TextBlock Text="{Binding TerminalNumber}"
+                                   Foreground="White"
+                                   FontSize="15"
+                                   FontWeight="Medium"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*"/>
+                    <ColumnDefinition Width="1*" MinWidth="320"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Side - Transaction Details -->
+                <Border Background="#FFFFFF"
+                        Margin="0,0,8,0"
+                        CornerRadius="10"
+                        Effect="{StaticResource DropShadowEffect}">
+                    <Grid Margin="20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Barcode and Search Section -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Barcode Scanner Input -->
+                            <Grid Grid.Column="0" Margin="0,0,8,0">
+                                <TextBox x:Name="BarcodeTextBox"
+                                         Text="{Binding BarcodeText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource ModernSearchBox}"
+                                         FontSize="13"
+                                         Height="50">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding ProcessBarcodeCommand}"/>
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <TextBlock Text="{DynamicResource Transaction_ScanBarcode}"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="#9CA3AF"
+                                           IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=BarcodeTextBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Text, ElementName=BarcodeTextBox}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsFocused, ElementName=BarcodeTextBox}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <!-- Product Search -->
+                            <Grid Grid.Column="1">
+                                <TextBox x:Name="ProductSearchTextBox"
+                                         Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource ModernSearchBox}"
+                                         FontSize="13"
+                                         Height="50"/>
+                                <TextBlock Text="{DynamicResource Transaction_SearchProducts}"
+                                           Margin="12,0,0,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="#9CA3AF"
+                                           IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Text, ElementName=ProductSearchTextBox}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Text, ElementName=ProductSearchTextBox}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsFocused, ElementName=ProductSearchTextBox}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+
+                            <!-- Product Search Results Popup -->
+                            <Popup Grid.Column="1"
+                                   IsOpen="{Binding IsProductSearchVisible}"
+                                   PlacementTarget="{Binding ElementName=ProductSearchTextBox}"
+                                   Placement="Bottom"
+                                   Width="{Binding ElementName=ProductSearchTextBox, Path=ActualWidth}"
+                                   MaxHeight="400"
+                                   StaysOpen="False"
+                                   AllowsTransparency="True">
+                                <Border Background="#FFFFFF"
+                                        BorderBrush="#D1D5DB"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Effect="{StaticResource DropShadowEffect}">
+                                    <DataGrid ItemsSource="{Binding FilteredProducts}"
+                                              Style="{StaticResource ModernDataGridStyle}"
+                                              MouseDoubleClick="ProductSearchGrid_MouseDoubleClick"
+                                              KeyDown="ProductSearchGrid_KeyDown">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="{DynamicResource Transaction_Column_Code}" 
+                                                                Binding="{Binding Barcode}"
+                                                                Width="120"/>
+                                            <DataGridTextColumn Header="{DynamicResource Transaction_Column_Description}" 
+                                                                Binding="{Binding Name}"
+                                                                Width="*"/>
+                                            <DataGridTextColumn Header="{DynamicResource Transaction_Column_Category}" 
+                                                                Binding="{Binding CategoryName}"
+                                                                Width="120"/>
+                                            <DataGridTextColumn Header="{DynamicResource Transaction_Column_UnitPrice}" 
+                                                                Binding="{Binding SalePrice, StringFormat=C2}"
+                                                                Width="100">
+                                                <DataGridTextColumn.ElementStyle>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="TextAlignment" Value="Right"/>
+                                                        <Setter Property="Padding" Value="8,0"/>
+                                                    </Style>
+                                                </DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <!-- Transaction Items Grid -->
+                        <DataGrid Grid.Row="1"
+                                  Margin="0,16,0,16"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  SelectionChanged="DataGrid_SelectionChanged"
+                                  ItemsSource="{Binding CurrentTransaction.Details, UpdateSourceTrigger=PropertyChanged}"
+                                  IsReadOnly="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="{DynamicResource Transaction_Column_Code}" 
+                                                    Binding="{Binding ProductBarcode}"
+                                                    Width="120"/>
+                                <DataGridTextColumn Header="{DynamicResource Transaction_Column_Description}" 
+                                                    Binding="{Binding ProductName}"
+                                                    Width="*"/>
+                                <DataGridTextColumn Header="{DynamicResource Transaction_Column_Quantity}" 
+                                                    Binding="{Binding Quantity}"
+                                                    Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextAlignment" Value="Center"/>
+                                            <Setter Property="Padding" Value="8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="{DynamicResource Transaction_Column_UnitPrice}" 
+                                                    Binding="{Binding UnitPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
+                                                    Width="120"
+                                                    IsReadOnly="False">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="TextAlignment" Value="Right"/>
+                                            <Setter Property="Padding" Value="8,0"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                    <DataGridTextColumn.EditingElementStyle>
+                                        <Style TargetType="TextBox">
+                                            <Setter Property="TextAlignment" Value="Right"/>
+                                            <EventSetter Event="LostFocus" Handler="UnitPrice_LostFocus"/>
+                                        </Style>
+                                    </DataGridTextColumn.EditingElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Width="40">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="×"
+                                                    Command="{Binding DataContext.RemoveItemCommand, 
+                                                              RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Foreground="#EF4444"
+                                                    FontSize="18"
+                                                    FontWeight="Bold"/>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- Function Buttons -->
+                        <WrapPanel Grid.Row="2" 
+                                   Orientation="Horizontal"
+                                   Margin="0,12,0,0">
+                            <Button Content="{DynamicResource Transaction_VoidLastItem}"
+                                    Command="{Binding VoidLastItemCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="Change Quantity (F3)" 
+                                    Command="{Binding ChangeQuantityCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_PriceCheck}"
+                                    Command="{Binding PriceCheckCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_AddDiscount}"
+                                    Command="{Binding AddDiscountCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_HoldTransaction}"
+                                    Command="{Binding HoldTransactionCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_RecallTransaction}"
+                                    Command="{Binding RecallTransactionCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_ProcessReturn}"
+                                    Command="{Binding ProcessReturnCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_ReprintLast}"
+                                    Command="{Binding ReprintLastCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_ClearAll}"
+                                    Command="{Binding ClearTransactionCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Margin="4"/>
+                            <Button Content="{DynamicResource Transaction_Cancel}"
+                                    Command="{Binding CancelTransactionCommand}"
+                                    Style="{StaticResource FunctionButtonStyle}"
+                                    Background="#FEE2E2"
+                                    Foreground="#EF4444"
+                                    Margin="4"/>
+                        </WrapPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Right Side Panel -->
+                <Border Grid.Column="1" 
+                        Background="#FFFFFF"
+                        Margin="8,0,0,0"
+                        CornerRadius="10"
+                        Effect="{StaticResource DropShadowEffect}">
+                    <Grid Margin="20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Customer Section -->
+                        <Border Background="#F9FAFB"
+                                BorderThickness="1"
+                                BorderBrush="#E5E7EB"
+                                CornerRadius="8"
+                                Padding="16">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Customer Search -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBox x:Name="CustomerSearchBox"
+             Text="{Binding CustomerSearchText, UpdateSourceTrigger=PropertyChanged}"
+             Style="{StaticResource ModernSearchBox}"
+             FontSize="13"
+             Height="50"/>
+                                    <TextBlock Text="{DynamicResource Transaction_SearchCustomer}"
+               Margin="12,0,0,0"
+               VerticalAlignment="Center"
+               Foreground="#9CA3AF"
+               IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=CustomerSearchBox}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsFocused, ElementName=CustomerSearchBox}" Value="True">
+                                                        <Setter Property="Visibility" Value="Hidden"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Button Grid.Column="1"
+            Margin="8,0,0,0"
+            Command="{Binding ClearCustomerCommand}"
+            Style="{StaticResource FunctionButtonStyle}"
+            Content="Clear"
+            Width="80"
+            Height="40"
+            ToolTip="Clear selected customer"/>
+
+                                    <!-- Customer Search Results Popup -->
+                                    <Popup IsOpen="{Binding IsCustomerSearchVisible}"
+                                           PlacementTarget="{Binding ElementName=CustomerSearchBox}"
+                                           Placement="Bottom"
+                                           Width="{Binding ActualWidth, ElementName=CustomerSearchBox}"
+                                           MaxHeight="300"
+                                           AllowsTransparency="True">
+                                        <Border Background="#FFFFFF"
+                                                BorderBrush="#D1D5DB"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Effect="{StaticResource DropShadowEffect}">
+                                            <ListView ItemsSource="{Binding FilteredCustomers}"
+                                                      SelectedItem="{Binding SelectedCustomerFromSearch}"
+                                                      MaxHeight="300"
+                                                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                                      BorderThickness="0">
+                                                <ListView.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="8,4">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding Name}"
+                                                                           FontWeight="Medium"/>
+                                                                <TextBlock Text="{Binding Phone}"
+                                                                           Foreground="#6B7280"
+                                                                           FontSize="12"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="1"
+                                                                       Text="{Binding Balance, StringFormat=Balance: {0:C}}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="12,0,0,0"/>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ListView.ItemTemplate>
+                                            </ListView>
+                                        </Border>
+                                    </Popup>
+                                </Grid>
+
+                                <!-- Selected Customer and New Customer Button -->
+                                <Grid Grid.Row="1" Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding SelectedCustomer.Name}"
+                                               FontSize="15"
+                                               FontWeight="Medium"
+                                               VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1"
+                                            Content="{DynamicResource Transaction_NewCustomer}"
+                                            Command="{Binding NewCustomerCommand}"
+                                            Style="{StaticResource ActionButtonStyle}"
+                                            Background="#3B82F6"
+                                            Width="110"/>
+                                </Grid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Totals Section -->
+                        <Grid Grid.Row="1" Margin="0,16,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Items Count -->
+                            <Grid Margin="0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Transaction_Items}"
+                                           FontSize="15"
+                                           Foreground="#4B5563"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding ItemCount}"
+                                           FontSize="15"
+                                           FontWeight="Medium"/>
+                            </Grid>
+
+                            <!-- Subtotal -->
+                            <Grid Grid.Row="1" Margin="0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Transaction_Subtotal}"
+                                           FontSize="15"
+                                           Foreground="#4B5563"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SubTotal, StringFormat=C2}"
+                                           FontSize="15"
+                                           FontWeight="Medium"/>
+                            </Grid>
+
+                            <!-- Discount -->
+                            <Grid Grid.Row="2" Margin="0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{DynamicResource Transaction_Discount}"
+                                           FontSize="15"
+                                           Foreground="#EF4444"/>
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding DiscountAmount, StringFormat=C2}"
+                                           FontSize="15"
+                                           FontWeight="Medium"
+                                           Foreground="#EF4444"/>
+                            </Grid>
+
+                            <!-- Total -->
+                            <Border Grid.Row="3"
+                                    Background="#1F2937"
+                                    CornerRadius="10"
+                                    Padding="16"
+                                    Margin="0,12">
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource Transaction_Total}"
+                                               Foreground="#9CA3AF"
+                                               FontSize="13"/>
+                                    <TextBlock Foreground="White"
+                                               FontSize="22"
+                                               FontWeight="Bold">
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}{0} / {1}">
+                                                <Binding Path="TotalAmount" StringFormat="C2"/>
+                                                <Binding Path="TotalAmountLBP"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Payment Section -->
+                        <StackPanel Grid.Row="3" Margin="0,16,0,0">
+                            <!-- Payment Buttons -->
+                            <Button Content="{DynamicResource Transaction_CashPayment}"
+                                    Command="{Binding CashPaymentCommand}"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Background="#22C55E"
+                                    Height="50"
+                                    FontSize="16"
+                                    Margin="0,0,0,12"/>
+                            <Button Content="{DynamicResource Transaction_PayByDebt}"
+                                    Command="{Binding AddToCustomerDebtCommand}"
+                                    Style="{StaticResource ActionButtonStyle}"
+                                    Background="#3B82F6"
+                                    Height="50"
+                                    FontSize="16"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" 
+                   Background="#1F2937"
+                   Height="28">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusMessage}"
+                           Foreground="#9CA3AF"
+                           FontSize="12"/>
+            </StatusBarItem>
+            <Separator Background="#374151"/>
+            <StatusBarItem>
+                <TextBlock Text="{Binding ConnectionStatus}"
+                           Foreground="#9CA3AF"
+                           FontSize="12"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</UserControl>

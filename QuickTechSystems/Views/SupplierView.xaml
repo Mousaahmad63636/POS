@@ -1,0 +1,391 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.SupplierView"
+            xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+            xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+            FlowDirection="{Binding CurrentFlowDirection}"
+            xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+            xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+            xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+            mc:Ignorable="d" 
+            d:DesignHeight="600" d:DesignWidth="1000">
+
+    <UserControl.Resources>
+        <!-- Colors -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#007BFF"/>
+        <SolidColorBrush x:Key="SecondaryColor" Color="#6C757D"/>
+        <SolidColorBrush x:Key="TextColor" Color="#343A40"/>
+        <SolidColorBrush x:Key="BackgroundColor" Color="#F8F9FA"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
+        <SolidColorBrush x:Key="GrayTextColor" Color="#6C757D"/>
+
+        <!-- TabControl Styles -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Name="Border" 
+                                Background="Transparent"
+                                BorderBrush="{StaticResource BorderColor}"
+                                BorderThickness="0,0,0,2"
+                                Margin="0,0,20,0">
+                            <ContentPresenter x:Name="ContentSite"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Center"
+                                            ContentSource="Header"
+                                            Margin="10,5"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- DataGrid Styles -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9F9F9"/>
+            <Setter Property="RowHeight" Value="35"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- Button Styles -->
+        <Style x:Key="BaseButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SecondaryColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SuccessButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="Background" Value="{StaticResource SuccessColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#219A52"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource BaseButton}">
+            <Setter Property="Background" Value="{StaticResource DangerColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#A93226"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource SecondaryColor}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#F5F5F5"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Label Style -->
+        <Style TargetType="Label">
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="0,5"/>
+        </Style>
+
+        <!-- CheckBox Style -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="Margin" Value="0,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- GroupBox Style -->
+        <Style TargetType="GroupBox">
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+            <Setter Property="Padding" Value="15"/>
+            <Setter Property="HeaderTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}"
+                                 FontSize="16"
+                                 FontWeight="SemiBold"
+                                 Foreground="{StaticResource PrimaryColor}"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="350"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Supplier List -->
+        <Grid Grid.Column="0" Margin="0,0,20,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="{DynamicResource Supplier_Title}"
+                      FontSize="24"
+                      FontWeight="Bold"
+                      Foreground="{StaticResource PrimaryColor}"
+                      Margin="0,0,0,15"/>
+
+            <!-- Search Box -->
+            <Border Grid.Row="1" 
+                    Background="White"
+                    BorderBrush="{StaticResource BorderColor}"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Margin="0,0,0,15">
+                <Grid>
+                    <TextBox x:Name="searchBox" 
+                            Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                            BorderThickness="0"
+                            Margin="0"/>
+                    <TextBlock IsHitTestVisible="False"
+                             Text="{DynamicResource Supplier_Search}"
+                             VerticalAlignment="Center"
+                             Margin="10,0,0,0"
+                             Foreground="{StaticResource GrayTextColor}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=searchBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Border>
+
+            <!-- Supplier Grid -->
+            <Border Grid.Row="2" 
+                    Background="White"
+                    BorderBrush="{StaticResource BorderColor}"
+                    BorderThickness="1"
+                    CornerRadius="5">
+                <DataGrid ItemsSource="{Binding Suppliers}"
+                         SelectedItem="{Binding SelectedSupplier}"
+                         AutoGenerateColumns="False"
+                         IsReadOnly="True">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{DynamicResource Supplier_Name}" 
+                                          Binding="{Binding Name}"
+                                          Width="*"/>
+                        <DataGridTextColumn Header="{DynamicResource Supplier_Contact}" 
+                                          Binding="{Binding ContactPerson}"
+                                          Width="120"/>
+                        <DataGridTextColumn Header="{DynamicResource Supplier_Phone}" 
+                                          Binding="{Binding Phone}"
+                                          Width="100"/>
+                        <DataGridTextColumn Header="{DynamicResource Supplier_Balance}" 
+                                          Binding="{Binding Balance, StringFormat=C}"
+                                          Width="100"/>
+                        <DataGridCheckBoxColumn Header="{DynamicResource Supplier_Active}" 
+                                              Binding="{Binding IsActive}"
+                                              Width="60"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+
+        <!-- Supplier Details -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Button Content="{DynamicResource Supplier_AddNew}" 
+                    Command="{Binding AddCommand}"
+                    Style="{StaticResource BaseButton}"
+                    HorizontalAlignment="Left"
+                    Margin="0,0,0,15"/>
+
+            <TabControl Grid.Row="1">
+                <!-- Details Tab -->
+                <TabItem Header="{DynamicResource Supplier_Details}">
+                    <Border Background="White"
+                            BorderBrush="{StaticResource BorderColor}"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel IsEnabled="{Binding IsEditing}"
+                                      Margin="15">
+                                <Label Content="{DynamicResource Supplier_Name}"/>
+                                <TextBox Text="{Binding SelectedSupplier.Name}"/>
+
+                                <Label Content="{DynamicResource Supplier_Contact}"/>
+                                <TextBox Text="{Binding SelectedSupplier.ContactPerson}"/>
+
+                                <Label Content="{DynamicResource Supplier_Phone}"/>
+                                <TextBox Text="{Binding SelectedSupplier.Phone}"/>
+
+                                <Label Content="{DynamicResource Supplier_Email}"/>
+                                <TextBox Text="{Binding SelectedSupplier.Email}"/>
+
+                                <Label Content="{DynamicResource Supplier_TaxNumber}"/>
+                                <TextBox Text="{Binding SelectedSupplier.TaxNumber}"/>
+
+                                <Label Content="{DynamicResource Supplier_Address}"/>
+                                <TextBox Text="{Binding SelectedSupplier.Address}"
+                                        Height="60"
+                                        TextWrapping="Wrap"
+                                        AcceptsReturn="True"
+                                        VerticalScrollBarVisibility="Auto"/>
+
+                                <Label Content="{DynamicResource Supplier_Balance}"/>
+                                <TextBox Text="{Binding SelectedSupplier.Balance, StringFormat=C}"
+                                        IsReadOnly="True"
+                                        Background="#F5F5F5"/>
+
+                                <CheckBox Content="{DynamicResource Supplier_Active}" 
+                                        IsChecked="{Binding SelectedSupplier.IsActive}"
+                                        Margin="0,10"/>
+
+                                <StackPanel Orientation="Horizontal" 
+                                          HorizontalAlignment="Right"
+                                          Margin="0,10,0,0">
+                                    <Button Content="{DynamicResource Supplier_Save}" 
+                                           Command="{Binding SaveCommand}"
+                                           Style="{StaticResource SuccessButton}"
+                                           Width="80"
+                                           Margin="0,0,10,0"/>
+                                    <Button Content="{DynamicResource Supplier_Delete}" 
+                                           Command="{Binding DeleteCommand}"
+                                           Style="{StaticResource DangerButton}"
+                                           Width="80"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </TabItem>
+
+                <!-- Transactions Tab -->
+                <TabItem Header="{DynamicResource Supplier_Transactions}">
+                    <Border Background="White"
+                            BorderBrush="{StaticResource BorderColor}"
+                            BorderThickness="1"
+                            CornerRadius="5">
+                        <Grid Margin="15">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Payment Section -->
+                            <GroupBox Header="{DynamicResource Supplier_AddPayment}" 
+                                     Margin="0,0,0,15">
+                                <Grid Margin="5">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBox Text="{Binding PaymentAmount}"
+                                            Margin="0,5"
+                                            BorderBrush="{StaticResource BorderColor}"/>
+
+                                    <TextBox Grid.Row="1"
+                                            Text="{Binding Notes}"
+                                            Height="50"
+                                            TextWrapping="Wrap"
+                                            AcceptsReturn="True"
+                                            Margin="0,5"/>
+
+                                    <Button Grid.Row="2"
+                                           Content="{DynamicResource Supplier_AddPayment}"
+                                           Command="{Binding AddPaymentCommand}"
+                                           Style="{StaticResource SuccessButton}"
+                                           HorizontalAlignment="Right"
+                                           Margin="0,5"/>
+                                </Grid>
+                            </GroupBox>
+
+                            <!-- Transactions List -->
+                            <DataGrid Grid.Row="1"
+                                     ItemsSource="{Binding SupplierTransactions}"
+                                     AutoGenerateColumns="False"
+                                     IsReadOnly="True"
+                                     BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{DynamicResource Transaction_Date}" 
+                                                      Binding="{Binding TransactionDate, StringFormat=\{0:g\}}"
+                                                      Width="120"/>
+                                    <DataGridTextColumn Header="{DynamicResource Transaction_Type}" 
+                                                      Binding="{Binding TransactionType}"
+                                                      Width="80"/>
+                                    <DataGridTextColumn Header="{DynamicResource Transaction_Amount}" 
+                                                      Binding="{Binding Amount, StringFormat=C}"
+                                                      Width="100"/>
+                                    <DataGridTextColumn Header="{DynamicResource Transaction_Notes}" 
+                                                      Binding="{Binding Notes}"
+                                                      Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </TabItem>
+            </TabControl>
+        </Grid>
+    </Grid>
+</UserControl>

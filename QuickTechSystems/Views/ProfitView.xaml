@@ -1,0 +1,268 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.ProfitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <!-- Colors -->
+        <SolidColorBrush x:Key="PrimaryColor" Color="#007BFF"/>
+        <SolidColorBrush x:Key="SecondaryColor" Color="#6C757D"/>
+        <SolidColorBrush x:Key="TextColor" Color="#343A40"/>
+        <SolidColorBrush x:Key="BackgroundColor" Color="#F8F9FA"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="InfoColor" Color="#17A2B8"/>
+        <SolidColorBrush x:Key="WarningColor" Color="#FFC107"/>
+        <SolidColorBrush x:Key="GrayTextColor" Color="#6C757D"/>
+
+        <!-- Card Style -->
+        <Style x:Key="InfoCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource BackgroundColor}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+
+        <!-- DataGrid Styles -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{StaticResource BackgroundColor}"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="AlternatingRowBackground" Value="#E9ECEF"/>
+            <Setter Property="RowHeight" Value="35"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+        </Style>
+
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+
+        <!-- Button Style -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource SecondaryColor}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- DatePicker Style -->
+        <Style TargetType="DatePicker">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <!-- TextBlock Style -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="{DynamicResource Profit_Title}"
+                     FontSize="24"
+                     FontWeight="Bold"
+                     Foreground="{StaticResource PrimaryColor}"/>
+            <TextBlock Text="{DynamicResource Profit_Subtitle}"
+                     Foreground="{StaticResource GrayTextColor}"/>
+        </StackPanel>
+
+        <!-- Date Selection -->
+        <Border Grid.Row="1" 
+                Background="White"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                CornerRadius="5"
+                Margin="0,0,0,20">
+            <Grid Margin="15">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" 
+                           VerticalAlignment="Center">
+                    <TextBlock Text="{DynamicResource Profit_DateFrom}" 
+                             VerticalAlignment="Center"
+                             Margin="0,0,5,0"/>
+                    <DatePicker SelectedDate="{Binding StartDate}"
+                              Width="120"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" 
+                           Orientation="Horizontal" 
+                           Margin="20,0"
+                           VerticalAlignment="Center">
+                    <TextBlock Text="{DynamicResource Profit_DateTo}" 
+                             VerticalAlignment="Center"
+                             Margin="0,0,5,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}"
+                              Width="120"/>
+                </StackPanel>
+
+                <ComboBox Grid.Column="2"
+                         ItemsSource="{Binding DateRanges}"
+                         SelectedItem="{Binding SelectedDateRange}"
+                         Width="150"
+                         Margin="0,0,20,0"/>
+
+                <Button Grid.Column="4"
+                        Content="{DynamicResource Profit_ExportReport}"
+                        Command="{Binding ExportCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- Summary Cards -->
+        <UniformGrid Grid.Row="2" 
+                     Columns="3"
+                     Margin="0,0,0,20">
+            <!-- Gross Profit Card -->
+            <Border Style="{StaticResource InfoCard}">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{DynamicResource Profit_GrossProfit}"
+                             FontSize="16"
+                             Foreground="{StaticResource TextColor}"/>
+                    <TextBlock Grid.Row="1"
+                             Text="{Binding GrossProfit, StringFormat=C2}"
+                             FontSize="24"
+                             FontWeight="Bold"
+                             Foreground="{StaticResource SuccessColor}"
+                             Margin="0,10"/>
+                    <TextBlock Grid.Row="2"
+                             Text="{Binding GrossProfitPercentage, StringFormat='{}{0:N1}% margin'}"
+                             Foreground="{StaticResource GrayTextColor}"/>
+                </Grid>
+            </Border>
+
+            <!-- Net Profit Card -->
+            <Border Style="{StaticResource InfoCard}">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{DynamicResource Profit_NetProfit}"
+                             FontSize="16"
+                             Foreground="{StaticResource TextColor}"/>
+                    <TextBlock Grid.Row="1"
+                             Text="{Binding NetProfit, StringFormat=C2}"
+                             FontSize="24"
+                             FontWeight="Bold"
+                             Foreground="{StaticResource InfoColor}"
+                             Margin="0,10"/>
+                    <TextBlock Grid.Row="2"
+                             Text="{Binding NetProfitPercentage, StringFormat='{}{0:N1}% margin'}"
+                             Foreground="{StaticResource GrayTextColor}"/>
+                </Grid>
+            </Border>
+
+            <!-- Total Sales Card -->
+            <Border Style="{StaticResource InfoCard}">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="{DynamicResource Profit_TotalSales}"
+                             FontSize="16"
+                             Foreground="{StaticResource TextColor}"/>
+                    <TextBlock Grid.Row="1"
+                             Text="{Binding TotalSales, StringFormat=C2}"
+                             FontSize="24"
+                             FontWeight="Bold"
+                             Foreground="{StaticResource WarningColor}"
+                             Margin="0,10"/>
+                    <TextBlock Grid.Row="2"
+                             Text="{Binding TotalTransactions, StringFormat='{}{0} transactions'}"
+                             Foreground="{StaticResource GrayTextColor}"/>
+                </Grid>
+            </Border>
+        </UniformGrid>
+
+        <!-- Details Grid -->
+        <Border Grid.Row="3"
+                Background="White"
+                BorderBrush="{StaticResource BorderColor}"
+                BorderThickness="1"
+                CornerRadius="5">
+            <DataGrid ItemsSource="{Binding ProfitDetails}"
+                     AutoGenerateColumns="False"
+                     IsReadOnly="True"
+                     BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Date}" 
+                                      Binding="{Binding Date, StringFormat=d}"
+                                      Width="100"/>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Sales}" 
+                                      Binding="{Binding Sales, StringFormat=C2}"
+                                      Width="120"/>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Cost}" 
+                                      Binding="{Binding Cost, StringFormat=C2}"
+                                      Width="120"/>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_GrossProfit}" 
+                                      Binding="{Binding GrossProfit, StringFormat=C2}"
+                                      Width="120"/>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Margin}" 
+                                      Binding="{Binding ProfitMargin, StringFormat=P1}"
+                                      Width="100"/>
+                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Transactions}" 
+                                      Binding="{Binding TransactionCount}"
+                                      Width="100"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</UserControl>
