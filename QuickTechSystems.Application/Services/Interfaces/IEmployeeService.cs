@@ -6,7 +6,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
     {
         Task<EmployeeDTO?> GetByUsernameAsync(string username);
         Task ResetPasswordAsync(int employeeId, string newPassword);
-        Task UpdateAsync(int employeeId, EmployeeDTO dto);
+        Task UpdateEmployeeAsync(int employeeId, EmployeeDTO dto);
         Task UpdateLastLoginAsync(int employeeId);
     }
 }

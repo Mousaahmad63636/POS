@@ -211,16 +211,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Get password values directly from the control
                 if (parameter is EmployeeEditorControl control)
                 {
-                    newEmployeePassword = control.GetNewEmployeePassword();
-                    resetPassword = control.GetResetPassword();
-                    confirmPassword = control.GetConfirmPassword();
+                    Debug.WriteLine("Successfully got the EmployeeEditorControl reference");
 
-                    Debug.WriteLine($"Passwords retrieved - New: {newEmployeePassword.Length} chars, " +
-                        $"Reset: {resetPassword.Length} chars, Confirm: {confirmPassword.Length} chars");
+                    // Explicitly accessing the named password boxes from the control
+                    if (IsNewEmployee)
+                    {
+                        var newPasswordBox = control.FindName("NewEmployeePasswordBox") as PasswordBox;
+                        if (newPasswordBox != null)
+                        {
+                            newEmployeePassword = newPasswordBox.Password;
+                            Debug.WriteLine($"New employee password length: {newEmployeePassword.Length}");
+                        }
+                    }
+                    else if (IsResetingPassword)
+                    {
+                        var resetPasswordBox = control.FindName("ResetPasswordBox") as PasswordBox;
+                        var confirmPasswordBox = control.FindName("ConfirmPasswordBox") as PasswordBox;
+
+                        if (resetPasswordBox != null && confirmPasswordBox != null)
+                        {
+                            resetPassword = resetPasswordBox.Password;
+                            confirmPassword = confirmPasswordBox.Password;
+                            Debug.WriteLine($"Reset password length: {resetPassword.Length}, Confirm password length: {confirmPassword.Length}");
+                        }
+                    }
                 }
                 else
                 {
                     Debug.WriteLine($"Parameter is not an EmployeeEditorControl: {parameter?.GetType().Name ?? "null"}");
+                    MessageBox.Show("Could not access password fields", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
                 }
 
                 if (IsNewEmployee)
@@ -233,7 +254,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         return;
                     }
 
-                    Debug.WriteLine($"Creating new employee with password length: {newEmployeePassword.Length}");
+                    Debug.WriteLine("Creating new employee with password");
                     CurrentEmployee.PasswordHash = HashPassword(newEmployeePassword);
                     var result = await _employeeService.CreateAsync(CurrentEmployee);
                     _eventAggregator.Publish(new EntityChangedEvent<EmployeeDTO>("Create", result));
@@ -260,27 +281,13 @@ namespace QuickTechSystems.WPF.ViewModels
                             return;
                         }
 
-                        Debug.WriteLine($"Resetting password for employee ID: {CurrentEmployee.EmployeeId} with password length: {resetPassword.Length}");
+                        Debug.WriteLine($"Resetting password for employee ID: {CurrentEmployee.EmployeeId}");
 
                         try
                         {
-                            // Directly update password in database
-                            string hashedPassword = HashPassword(resetPassword);
-                            string sql = "UPDATE Employees SET PasswordHash = @hash, UpdatedAt = @now WHERE EmployeeId = @id";
-                            var parameters = new object[] {
-                                new Microsoft.Data.SqlClient.SqlParameter("@hash", hashedPassword),
-                                new Microsoft.Data.SqlClient.SqlParameter("@now", DateTime.Now),
-                                new Microsoft.Data.SqlClient.SqlParameter("@id", CurrentEmployee.EmployeeId)
-                            };
-
-                            // Execute direct SQL update
-                            int rowsAffected = await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
-                            Debug.WriteLine($"Password reset SQL executed, rows affected: {rowsAffected}");
-
-                            if (rowsAffected == 0)
-                            {
-                                throw new InvalidOperationException($"Failed to update password for employee ID {CurrentEmployee.EmployeeId}");
-                            }
+                            // Directly call the ResetPasswordAsync method
+                            await _employeeService.ResetPasswordAsync(CurrentEmployee.EmployeeId, resetPassword);
+                            Debug.WriteLine("Password reset successful");
                         }
                         catch (Exception ex)
                         {
@@ -297,7 +304,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        await _employeeService.UpdateAsync(CurrentEmployee.EmployeeId, CurrentEmployee);
+                        await _employeeService.UpdateEmployeeAsync(CurrentEmployee.EmployeeId, CurrentEmployee);
                         Debug.WriteLine("Employee update service call completed");
                         _eventAggregator.Publish(new EntityChangedEvent<EmployeeDTO>("Update", CurrentEmployee));
                     }

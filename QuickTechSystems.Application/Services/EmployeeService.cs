@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
@@ -22,7 +24,7 @@ namespace QuickTechSystems.Application.Services
         {
         }
 
-        public async Task UpdateAsync(int employeeId, EmployeeDTO dto)
+        public async Task UpdateEmployeeAsync(int employeeId, EmployeeDTO dto)
         {
             var existingEmployee = await _repository.GetByIdAsync(employeeId);
             if (existingEmployee == null)
@@ -31,6 +33,7 @@ namespace QuickTechSystems.Application.Services
             _mapper.Map(dto, existingEmployee);
             await _repository.UpdateAsync(existingEmployee);
             await _unitOfWork.SaveChangesAsync();
+            _eventAggregator.Publish(new EntityChangedEvent<EmployeeDTO>("Update", dto));
         }
 
         public async Task<EmployeeDTO?> GetByUsernameAsync(string username)
@@ -57,11 +60,10 @@ namespace QuickTechSystems.Application.Services
                 string hashedPassword = HashPassword(newPassword);
                 Debug.WriteLine($"ResetPasswordAsync: Password hashed, length: {hashedPassword.Length}");
 
-                // Use a direct SQL command to update the database
-                string sql = "UPDATE Employees SET PasswordHash = @hash, UpdatedAt = @now WHERE EmployeeId = @id";
+                // Modified SQL query to exclude the UpdatedAt column which doesn't exist
+                string sql = "UPDATE Employees SET PasswordHash = @hash WHERE EmployeeId = @id";
                 var parameters = new object[] {
             new Microsoft.Data.SqlClient.SqlParameter("@hash", hashedPassword),
-            new Microsoft.Data.SqlClient.SqlParameter("@now", DateTime.Now),
             new Microsoft.Data.SqlClient.SqlParameter("@id", employeeId)
         };
 
