@@ -213,28 +213,13 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     Debug.WriteLine("Successfully got the EmployeeEditorControl reference");
 
-                    // Explicitly accessing the named password boxes from the control
-                    if (IsNewEmployee)
-                    {
-                        var newPasswordBox = control.FindName("NewEmployeePasswordBox") as PasswordBox;
-                        if (newPasswordBox != null)
-                        {
-                            newEmployeePassword = newPasswordBox.Password;
-                            Debug.WriteLine($"New employee password length: {newEmployeePassword.Length}");
-                        }
-                    }
-                    else if (IsResetingPassword)
-                    {
-                        var resetPasswordBox = control.FindName("ResetPasswordBox") as PasswordBox;
-                        var confirmPasswordBox = control.FindName("ConfirmPasswordBox") as PasswordBox;
+                    // Using the direct accessor methods instead of FindName
+                    newEmployeePassword = control.GetNewEmployeePassword();
+                    resetPassword = control.GetResetPassword();
+                    confirmPassword = control.GetConfirmPassword();
 
-                        if (resetPasswordBox != null && confirmPasswordBox != null)
-                        {
-                            resetPassword = resetPasswordBox.Password;
-                            confirmPassword = confirmPasswordBox.Password;
-                            Debug.WriteLine($"Reset password length: {resetPassword.Length}, Confirm password length: {confirmPassword.Length}");
-                        }
-                    }
+                    Debug.WriteLine($"New employee password length: {newEmployeePassword.Length}");
+                    Debug.WriteLine($"Reset password length: {resetPassword.Length}, Confirm password length: {confirmPassword.Length}");
                 }
                 else
                 {
@@ -258,8 +243,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     CurrentEmployee.PasswordHash = HashPassword(newEmployeePassword);
                     var result = await _employeeService.CreateAsync(CurrentEmployee);
                     _eventAggregator.Publish(new EntityChangedEvent<EmployeeDTO>("Create", result));
-                    MessageBox.Show("Employee created successfully", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
@@ -285,9 +268,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         try
                         {
+                            // Add additional debugging here
+                            Debug.WriteLine($"About to call ResetPasswordAsync with password of length: {resetPassword.Length}");
+
                             // Directly call the ResetPasswordAsync method
                             await _employeeService.ResetPasswordAsync(CurrentEmployee.EmployeeId, resetPassword);
-                            Debug.WriteLine("Password reset successful");
+
                         }
                         catch (Exception ex)
                         {
@@ -315,13 +301,6 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxButton.OK, MessageBoxImage.Error);
                         return;
                     }
-
-                    string successMessage = IsResetingPassword ?
-                        "Employee updated and password reset successfully" :
-                        "Employee updated successfully";
-
-                    MessageBox.Show(successMessage, "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
                 }
 
                 await LoadDataAsync();
@@ -336,7 +315,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
         private void Cancel()
         {
             _overlayService.HideEmployeeEditor();

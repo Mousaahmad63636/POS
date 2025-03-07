@@ -14,6 +14,8 @@
         <SolidColorBrush x:Key="SecondaryText" Color="#6C757D"/>
         <SolidColorBrush x:Key="AccentColor" Color="#3498DB"/>
         <SolidColorBrush x:Key="BorderBrush" Color="#DEE2E6"/>
+        <SolidColorBrush x:Key="DeleteButtonColor" Color="#DC3545"/>
+        <SolidColorBrush x:Key="DeleteButtonHoverColor" Color="#C82333"/>
 
         <!-- Header Style -->
         <Style x:Key="PageHeaderStyle" TargetType="TextBlock">
@@ -39,7 +41,7 @@
             <Setter Property="GridLinesVisibility" Value="Horizontal"/>
             <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
-            <Setter Property="RowHeight" Value="40"/>
+            <Setter Property="RowHeight" Value="45"/>
             <Setter Property="AlternatingRowBackground" Value="#F8F9FA"/>
             <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
         </Style>
@@ -54,20 +56,32 @@
             <Setter Property="BorderThickness" Value="0,0,1,1"/>
         </Style>
 
-        <!-- Button Style -->
+        <!-- Action Button Style -->
         <Style x:Key="ActionButton" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource AccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Padding" Value="12,6"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#2980B9"/>
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Opacity" Value="0.6"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Delete Button Style -->
+        <Style x:Key="DeleteButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="{StaticResource DeleteButtonColor}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource DeleteButtonHoverColor}"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -153,13 +167,13 @@
 
                 <!-- Date Range -->
                 <ComboBox Grid.Column="2"
-          Width="200"
-          Margin="0,0,15,0"
-          Padding="10,8"
-          ItemsSource="{Binding DateRanges}"
-          SelectedItem="{Binding SelectedDateRange}"
-          ToolTip="Select date range for transactions"
-          AutomationProperties.Name="Date Range Filter"/>
+                          Width="200"
+                          Margin="0,0,15,0"
+                          Padding="10,8"
+                          ItemsSource="{Binding DateRanges}"
+                          SelectedItem="{Binding SelectedDateRange}"
+                          ToolTip="Select date range for transactions"
+                          AutomationProperties.Name="Date Range Filter"/>
 
                 <!-- Buttons StackPanel -->
                 <StackPanel Grid.Column="3" 
@@ -218,19 +232,19 @@
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_ID}" 
                                             Binding="{Binding TransactionId}"
-                                            Width="100"/>
+                                            Width="80"/>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Date}" 
                                             Binding="{Binding TransactionDate, StringFormat=g}"
                                             Width="150"/>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Customer}" 
                                             Binding="{Binding CustomerName}"
-                                            Width="200"/>
+                                            Width="180"/>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Type}" 
                                             Binding="{Binding TransactionType}"
-                                            Width="120"/>
+                                            Width="100"/>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Items}" 
                                             Binding="{Binding Details.Count}"
-                                            Width="100">
+                                            Width="80">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="TextAlignment" Value="Right"/>
@@ -240,7 +254,7 @@
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Total}" 
                                             Binding="{Binding TotalAmount, StringFormat=C2}"
-                                            Width="150">
+                                            Width="120">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="TextAlignment" Value="Right"/>
@@ -250,18 +264,28 @@
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Status}" 
                                             Binding="{Binding Status}"
-                                            Width="120"/>
-                        <DataGridTemplateColumn Width="120">
+                                            Width="100"/>
+                        <DataGridTemplateColumn Width="210">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="{DynamicResource TransactionHistory_DetailsButton}"
-                                            Style="{StaticResource ActionButton}"
-                                            Command="{Binding DataContext.ViewTransactionDetailsCommand, 
-                                                      RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}"
-                                            Margin="5"
-                                            Padding="15,5"
-                                            ToolTip="View transaction details"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="{DynamicResource TransactionHistory_DetailsButton}"
+                                                Style="{StaticResource ActionButton}"
+                                                Command="{Binding DataContext.ViewTransactionDetailsCommand, 
+                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Margin="5,3"
+                                                Padding="12,6"
+                                                ToolTip="View transaction details"/>
+                                        <Button Content="{DynamicResource TransactionHistory_DeleteButton}"
+                                                Style="{StaticResource DeleteButton}"
+                                                Command="{Binding DataContext.DeleteTransactionCommand, 
+                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Margin="5,3"
+                                                Padding="12,6"
+                                                ToolTip="Delete this transaction"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

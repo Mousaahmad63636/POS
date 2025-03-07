@@ -58,17 +58,21 @@ namespace QuickTechSystems.Application.Services
 
                 // Hash the password
                 string hashedPassword = HashPassword(newPassword);
-                Debug.WriteLine($"ResetPasswordAsync: Password hashed, length: {hashedPassword.Length}");
+                Debug.WriteLine($"ResetPasswordAsync: Password hashed: {hashedPassword}");
+                Debug.WriteLine($"ResetPasswordAsync: Hashed password length: {hashedPassword.Length}");
 
-                // Modified SQL query to exclude the UpdatedAt column which doesn't exist
+                // Use direct SQL for updating the password
                 string sql = "UPDATE Employees SET PasswordHash = @hash WHERE EmployeeId = @id";
-                var parameters = new object[] {
-            new Microsoft.Data.SqlClient.SqlParameter("@hash", hashedPassword),
-            new Microsoft.Data.SqlClient.SqlParameter("@id", employeeId)
-        };
 
-                // Execute the SQL and get number of affected rows
-                int rowsAffected = await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
+                var hashParam = new Microsoft.Data.SqlClient.SqlParameter("@hash", hashedPassword);
+                var idParam = new Microsoft.Data.SqlClient.SqlParameter("@id", employeeId);
+
+                Debug.WriteLine($"ResetPasswordAsync: SQL query: {sql}");
+                Debug.WriteLine($"ResetPasswordAsync: Parameters - @hash: [{hashedPassword.Substring(0, 5)}...], @id: {employeeId}");
+
+                // Execute SQL with explicit parameter creation
+                int rowsAffected = await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, hashParam, idParam);
+
                 Debug.WriteLine($"ResetPasswordAsync: SQL executed, rows affected: {rowsAffected}");
 
                 if (rowsAffected == 0)
@@ -77,11 +81,29 @@ namespace QuickTechSystems.Application.Services
                     throw new InvalidOperationException($"Employee with ID {employeeId} not found or update failed");
                 }
 
-                Debug.WriteLine("ResetPasswordAsync: Password updated successfully");
+                // Verify the update in the database
+                var updatedEmployee = await _repository.GetByIdAsync(employeeId);
+                if (updatedEmployee != null)
+                {
+                    Debug.WriteLine($"ResetPasswordAsync: Verification - Employee found with ID {employeeId}");
+                    Debug.WriteLine($"ResetPasswordAsync: Verification - PasswordHash: [{updatedEmployee.PasswordHash.Substring(0, 5)}...]");
+
+                    // Check if the hashes match
+                    if (updatedEmployee.PasswordHash == hashedPassword)
+                    {
+                        Debug.WriteLine("ResetPasswordAsync: Verification - Password hashes match");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("ResetPasswordAsync: Verification - Password hashes DO NOT match!");
+                    }
+                }
+
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"ResetPasswordAsync: Error: {ex.Message}\nStack trace: {ex.StackTrace}");
+                Debug.WriteLine($"ResetPasswordAsync: Error: {ex.Message}");
+                Debug.WriteLine($"ResetPasswordAsync: Stack trace: {ex.StackTrace}");
                 throw;
             }
         }

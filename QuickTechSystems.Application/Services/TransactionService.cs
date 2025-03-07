@@ -201,7 +201,83 @@ namespace QuickTechSystems.Application.Services
                 throw;
             }
         }
+        // Add this method to the TransactionService class
+        public async Task<bool> DeleteTransactionAsync(int transactionId)
+        {
+            using var dbTransaction = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                var transaction = await _repository.Query()
+                    .Include(t => t.TransactionDetails)
+                        .ThenInclude(td => td.Product)
+                    .FirstOrDefaultAsync(t => t.TransactionId == transactionId);
 
+                if (transaction == null)
+                    return false;
+
+                // For each transaction detail, update product stock
+                if (transaction.TransactionType == TransactionType.Sale)
+                {
+                    foreach (var detail in transaction.TransactionDetails)
+                    {
+                        // Return items to inventory
+                        await _productService.UpdateStockAsync(detail.ProductId, detail.Quantity);
+
+                        // Add inventory history entry
+                        await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
+                        {
+                            ProductId = detail.ProductId,
+                            QuantityChanged = detail.Quantity,
+                            OperationType = TransactionType.Adjustment,
+                            Date = DateTime.Now,
+                            Reference = $"DeleteTrx-{transaction.TransactionId}",
+                            Notes = $"Transaction {transaction.TransactionId} deletion adjustment"
+                        });
+                    }
+                }
+                else if (transaction.TransactionType == TransactionType.Return)
+                {
+                    foreach (var detail in transaction.TransactionDetails)
+                    {
+                        // Remove returned items from inventory
+                        await _productService.UpdateStockAsync(detail.ProductId, -detail.Quantity);
+
+                        // Add inventory history entry
+                        await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
+                        {
+                            ProductId = detail.ProductId,
+                            QuantityChanged = -detail.Quantity,
+                            OperationType = TransactionType.Adjustment,
+                            Date = DateTime.Now,
+                            Reference = $"DeleteTrx-{transaction.TransactionId}",
+                            Notes = $"Transaction {transaction.TransactionId} deletion adjustment"
+                        });
+                    }
+                }
+
+                // Delete the transaction details first
+                foreach (var detail in transaction.TransactionDetails.ToList())
+                {
+                    _unitOfWork.Context.Set<TransactionDetail>().Remove(detail);
+                }
+
+                // Delete the transaction
+                await _repository.DeleteAsync(transaction);
+                await _unitOfWork.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                // Publish the event that a transaction was deleted
+                var dto = _mapper.Map<TransactionDTO>(transaction);
+                _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Delete", dto));
+
+                return true;
+            }
+            catch (Exception)
+            {
+                await dbTransaction.RollbackAsync();
+                throw;
+            }
+        }
         public async Task<TransactionDTO?> GetTransactionForReturnAsync(int transactionId)
         {
             var transaction = await _repository.Query()

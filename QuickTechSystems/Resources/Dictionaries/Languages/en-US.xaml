@@ -249,7 +249,7 @@
     <system:String x:Key="Debt_Column_Method">Method</system:String>
     <system:String x:Key="Debt_Column_Notes">Notes</system:String>
     <system:String x:Key="Category_Cancel">Notes</system:String>
-
+    <system:String x:Key="TransactionHistory_DeleteButton">Delete</system:String>
     <!-- Add or ensure these keys exist -->
     <system:String x:Key="TransactionHistory_SearchPlaceholder">Search transactions...</system:String>
     <system:String x:Key="TransactionHistory_DateRangeFilter">Date Range</system:String>

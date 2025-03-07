@@ -13,6 +13,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<TransactionDTO> ProcessSaleAsync(TransactionDTO transaction);
         Task<TransactionDTO?> GetLastTransactionAsync();
         Task<int> GetLatestTransactionIdAsync();
+        Task<bool> DeleteTransactionAsync(int transactionId);
         // Add these new methods
         Task<TransactionDTO> ProcessPaymentTransactionAsync(TransactionDTO transaction);
         Task<TransactionDTO?> GetTransactionForReturnAsync(int transactionId);

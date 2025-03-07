@@ -160,6 +160,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand RefreshCommand { get; }
         public ICommand ViewTransactionDetailsCommand { get; }
         public ICommand ClearFiltersCommand { get; }
+        public ICommand DeleteTransactionCommand { get; }
 
         public TransactionHistoryViewModel(
             ITransactionService transactionService,
@@ -173,6 +174,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _transactions = new ObservableCollection<TransactionDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
             _transactionChangedHandler = HandleTransactionChanged;
+            DeleteTransactionCommand = new AsyncRelayCommand<TransactionDTO>(async (transaction) => await DeleteTransactionAsync(transaction), CanDeleteTransaction);
 
             ExportCommand = new AsyncRelayCommand(async _ => await ExportTransactionsAsync(), _ => !IsBusy);
             PrintReportCommand = new AsyncRelayCommand(async _ => await PrintTransactionReportAsync(), _ => !IsBusy);
@@ -222,7 +224,50 @@ namespace QuickTechSystems.WPF.ViewModels
                 ShowErrorMessageAsync($"Error showing transaction details: {ex.Message}");
             }
         }
+        private bool CanDeleteTransaction(TransactionDTO? transaction)
+        {
+            return transaction != null && !IsBusy;
+        }
 
+        private async Task DeleteTransactionAsync(TransactionDTO? transaction)
+        {
+            if (transaction == null) return;
+
+            try
+            {
+                var result = MessageBox.Show(
+                    $"Are you sure you want to delete transaction #{transaction.TransactionId}?\n\n" +
+                    $"This will adjust inventory levels and cannot be undone.",
+                    "Confirm Delete Transaction",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Warning);
+
+                if (result != MessageBoxResult.Yes) return;
+
+                IsBusy = true;
+
+                bool success = await _transactionService.DeleteTransactionAsync(transaction.TransactionId);
+
+                if (success)
+                {
+                    await ShowSuccessMessage($"Transaction #{transaction.TransactionId} was successfully deleted.");
+                    await LoadTransactionsForRange(); // Reload the transactions
+                }
+                else
+                {
+                    await ShowErrorMessageAsync("Failed to delete the transaction. The transaction may no longer exist.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error deleting transaction: {ex.Message}");
+                await ShowErrorMessageAsync($"Error deleting transaction: {ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
         private async Task LoadCategoriesAsync()
         {
             try
