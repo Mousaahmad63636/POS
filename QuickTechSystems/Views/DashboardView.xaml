@@ -1,0 +1,372 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/design/blend/2008"
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
+             mc:Ignorable="d"
+             Background="#F3F4F6">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+
+        <!-- Enhanced Color Scheme -->
+        <SolidColorBrush x:Key="CardBackground" Color="White"/>
+        <SolidColorBrush x:Key="PrimaryBlue" Color="#1e40af"/>
+        <SolidColorBrush x:Key="SecondaryBlue" Color="#3b82f6"/>
+        <SolidColorBrush x:Key="SecondaryGray" Color="#4b5563"/>
+        <SolidColorBrush x:Key="PositiveGreen" Color="#059669"/>
+        <SolidColorBrush x:Key="NegativeRed" Color="#dc2626"/>
+        <SolidColorBrush x:Key="BorderGray" Color="#e2e8f0"/>
+        <SolidColorBrush x:Key="BackgroundGray" Color="#f8fafc"/>
+        <SolidColorBrush x:Key="IconColor" Color="#6366f1"/>
+
+        <!-- Enhanced Section Title Style -->
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource PrimaryBlue}"/>
+            <Setter Property="Margin" Value="20,30,20,15"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="15" 
+                                    ShadowDepth="1" 
+                                    Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Enhanced Financial Card Style -->
+        <Style x:Key="FinancialCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderGray}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="15" 
+                                    ShadowDepth="2" 
+                                    Opacity="0.08"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Enhanced Dashboard Button Style -->
+        <Style x:Key="DashboardButton" TargetType="Button">
+            <Setter Property="Height" Value="130"/>
+            <Setter Property="Width" Value="300"/>
+            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderGray}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12"
+                                x:Name="ButtonBorder"
+                                Padding="24">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="15" 
+                                                ShadowDepth="2" 
+                                                Opacity="0.08"/>
+                            </Border.Effect>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Icon and Title -->
+                                <StackPanel Orientation="Horizontal" 
+                                          Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
+                                             FontFamily="Segoe MDL2 Assets"
+                                             FontSize="22"
+                                             Foreground="{StaticResource IconColor}"
+                                             Margin="0,0,12,0"/>
+                                    <TextBlock Text="{TemplateBinding Content}"
+                                             FontSize="18"
+                                             FontWeight="SemiBold"
+                                             Foreground="{StaticResource PrimaryBlue}"/>
+                                </StackPanel>
+
+                                <!-- Description -->
+                                <TextBlock Grid.Row="2" 
+                                         Text="{DynamicResource Dashboard_ViewDetails}"
+                                         FontSize="14"
+                                         Foreground="{StaticResource SecondaryGray}"
+                                         VerticalAlignment="Bottom"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource BackgroundGray}"/>
+                                <Setter TargetName="ButtonBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="20" 
+                                                        ShadowDepth="4" 
+                                                        Opacity="0.15"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid x:Name="RootGrid">
+        <!-- Date and Time Header -->
+        <DockPanel>
+            <Border DockPanel.Dock="Top" 
+                    Background="{StaticResource CardBackground}"
+                    Margin="20,10,20,0"
+                    CornerRadius="12"
+                    Padding="24,16">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" 
+                              HorizontalAlignment="Right">
+                        <StackPanel Orientation="Horizontal" 
+                                  Margin="0,0,24,0">
+                            <TextBlock Text="📅 " 
+                                     Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource Dashboard_Date}" 
+                                     Foreground="{StaticResource SecondaryGray}"/>
+                            <TextBlock x:Name="DateDisplay" 
+                                     Foreground="{StaticResource PrimaryBlue}"
+                                     FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⏰ "
+                                     Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource Dashboard_Time}" 
+                                     Foreground="{StaticResource SecondaryGray}"/>
+                            <TextBlock x:Name="TimeDisplay"
+                                     Foreground="{StaticResource PrimaryBlue}"
+                                     FontWeight="SemiBold"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20,10,20,20">
+                    <!-- Enhanced Financial Summary Cards -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Today's Sales Card -->
+                        <Border Style="{StaticResource FinancialCard}" Grid.Column="0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="📈 " FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Dashboard_TodaySales}"
+                                             FontWeight="SemiBold"
+                                             FontSize="16"
+                                             Foreground="{StaticResource PrimaryBlue}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding TodaySales, StringFormat=C2}"
+                                         FontSize="28"
+                                         FontWeight="Bold"
+                                         Margin="0,8,0,8"
+                                         Foreground="{StaticResource PositiveGreen}"/>
+                                <TextBlock Text="{DynamicResource Dashboard_TodaySalesDesc}"
+                                         Foreground="{StaticResource SecondaryGray}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Outstanding Debt Card -->
+                        <Border Style="{StaticResource FinancialCard}" Grid.Column="1">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="💳 " FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Dashboard_OutstandingDebt}"
+                                             FontWeight="SemiBold"
+                                             FontSize="16"
+                                             Foreground="{StaticResource PrimaryBlue}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding OutstandingDebt, StringFormat=C2}"
+                                         FontSize="28"
+                                         FontWeight="Bold"
+                                         Margin="0,8,0,8"
+                                         Foreground="{StaticResource NegativeRed}"/>
+                                <TextBlock Text="{DynamicResource Dashboard_OutstandingDebtDesc}"
+                                         Foreground="{StaticResource SecondaryGray}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Cash in Drawer Card -->
+                        <Border Style="{StaticResource FinancialCard}" Grid.Column="2">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="🏦 " FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Dashboard_CashInDrawer}"
+                                             FontWeight="SemiBold"
+                                             FontSize="16"
+                                             Foreground="{StaticResource PrimaryBlue}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding CashInDrawer, StringFormat=C2}"
+                                         FontSize="28"
+                                         FontWeight="Bold"
+                                         Margin="0,8,0,8"
+                                         Foreground="{StaticResource PrimaryBlue}"/>
+                                <TextBlock Text="{DynamicResource Dashboard_CashInDrawerDesc}"
+                                         Foreground="{StaticResource SecondaryGray}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Monthly Revenue Card -->
+                        <Border Style="{StaticResource FinancialCard}" Grid.Column="3">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                    <TextBlock Text="📊 " FontSize="20" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{DynamicResource Dashboard_MonthlyRevenue}"
+                                             FontWeight="SemiBold"
+                                             FontSize="16"
+                                             Foreground="{StaticResource PrimaryBlue}"/>
+                                </StackPanel>
+                                <TextBlock Text="{Binding MonthlyRevenue, StringFormat=C2}"
+                                         FontSize="28"
+                                         FontWeight="Bold"
+                                         Margin="0,8,0,8"
+                                         Foreground="{StaticResource PositiveGreen}"/>
+                                <TextBlock Text="{DynamicResource Dashboard_MonthlyRevenueDesc}"
+                                         Foreground="{StaticResource SecondaryGray}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Sales & Revenue Section -->
+                    <TextBlock Text="{DynamicResource Dashboard_SalesRevenue}" Style="{StaticResource SectionTitle}"/>
+                    <WrapPanel>
+                        <Button Content="{DynamicResource Dashboard_PointOfSale}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="💰"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Transactions"/>
+                        <Button Content="{DynamicResource Dashboard_TransactionHistory}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="📊"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="TransactionHistory"/>
+                        <Button Content="{DynamicResource Dashboard_Quotes}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="📝"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Quotes"/>
+                    </WrapPanel>
+
+                    <!-- Business Operations Section -->
+                    <TextBlock Text="{DynamicResource Dashboard_BusinessOperations}" Style="{StaticResource SectionTitle}"/>
+                    <WrapPanel>
+                        <Button Content="{DynamicResource Dashboard_CashFlow}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="🏦"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Drawer"/>
+                        <Button Content="{DynamicResource Dashboard_AccountsReceivable}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="💳"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="CustomerDebt"/>
+                        <Button Content="{DynamicResource Dashboard_BusinessExpenses}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="💸"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Expenses"/>
+                    </WrapPanel>
+
+                    <!-- Inventory Management Section -->
+                    <TextBlock Text="{DynamicResource Dashboard_InventoryManagement}" Style="{StaticResource SectionTitle}"/>
+                    <WrapPanel>
+                        <Button Content="{DynamicResource Dashboard_Products}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="📦"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Products"/>
+                        <Button Content="{DynamicResource Dashboard_ProductCategories}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="📂"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Categories"/>
+                        <Button Content="{DynamicResource Dashboard_VendorManagement}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="🚚"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Suppliers"/>
+                    </WrapPanel>
+
+                    <!-- Business Management Section -->
+                    <TextBlock Text="{DynamicResource Dashboard_BusinessManagement}" Style="{StaticResource SectionTitle}"/>
+                    <WrapPanel Margin="0,0,0,20">
+                        <Button Content="{DynamicResource Dashboard_WorkforceManagement}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="👥"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Employees"/>
+                        <Button Content="{DynamicResource Dashboard_BusinessPerformance}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="📈"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Profit"/>
+                        <Button Content="{DynamicResource Dashboard_SystemPreferences}" 
+                                Style="{StaticResource DashboardButton}"
+                                Tag="⚙️"
+                                Command="{Binding NavigateCommand}" 
+                                CommandParameter="Settings"/>
+                    </WrapPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+
+        <!-- Loading Overlay -->
+        <Border Style="{StaticResource LoadingOverlay}" 
+                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" 
+                       VerticalAlignment="Center">
+                <ProgressBar Style="{StaticResource ModernProgressBar}" 
+                           IsIndeterminate="True" 
+                           Width="120" 
+                           Margin="0,0,0,16"/>
+                <TextBlock Text="{DynamicResource Dashboard_Loading}" 
+                         Foreground="White" 
+                         FontWeight="SemiBold"
+                         FontSize="14"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Error Message -->
+        <Border Background="#FEE2E2"
+                BorderBrush="#EF4444"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16"
+                Margin="20"
+                MaxWidth="400"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Center"
+                Visibility="{Binding HasErrors, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="⚠️" 
+                         FontSize="16"
+                         Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding ErrorMessage}"
+                         Foreground="#991B1B"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

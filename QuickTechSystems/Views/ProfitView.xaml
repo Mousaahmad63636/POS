@@ -1,0 +1,400 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.ProfitView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
+             mc:Ignorable="d"
+             FlowDirection="{Binding FlowDirection}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Style="{StaticResource ResponsiveTwoColumnLayout}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header Section with Date Range -->
+            <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Grid.Row="0" Margin="0,0,0,24">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Title and Subtitle -->
+                    <StackPanel Grid.Row="0" Style="{StaticResource SectionHeader}">
+                        <TextBlock Text="{DynamicResource Profit_Title}" Style="{StaticResource SectionTitle}"/>
+                        <TextBlock Text="{DynamicResource Profit_Subtitle}" Style="{StaticResource SectionSubtitle}"/>
+                    </StackPanel>
+
+                    <!-- Date Range Controls with Visual Separation -->
+                    <Border Grid.Row="1" 
+                            Background="{StaticResource BackgroundColor}" 
+                            BorderThickness="0" 
+                            CornerRadius="6" 
+                            Padding="16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                <TextBlock Text="{DynamicResource Profit_DateRange}" 
+                                           Style="{StaticResource LabelLarge}"
+                                           VerticalAlignment="Center" 
+                                           Margin="0,0,16,0"/>
+                                <DatePicker SelectedDate="{Binding StartDate}" 
+                                            Style="{StaticResource ModernDatePicker}" 
+                                            Width="130"/>
+                                <TextBlock Text="{DynamicResource Profit_DateTo}" 
+                                           VerticalAlignment="Center" 
+                                           Margin="16,0" 
+                                           Foreground="{StaticResource TextSecondaryColor}"/>
+                                <DatePicker SelectedDate="{Binding EndDate}" 
+                                            Style="{StaticResource ModernDatePicker}" 
+                                            Width="130"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" 
+                                    Content="{DynamicResource Profit_Refresh}" 
+                                    Command="{Binding RefreshCommand}" 
+                                    Style="{StaticResource PrimaryButtonStyle}" 
+                                    MinWidth="120"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Main Content -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="320"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Panel - Summary & Details -->
+                <Grid Grid.Column="0" Margin="0,0,24,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Summary Cards -->
+                    <Grid Grid.Row="0" Margin="0,0,0,24">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Total Sales Card -->
+                        <Border Grid.Column="0" Style="{StaticResource MetricCard}" Margin="0,0,8,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{DynamicResource Profit_TotalSales}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding TotalSales, StringFormat=C2}" Style="{StaticResource MetricValue}" Foreground="{StaticResource SuccessColor}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Gross Profit Card -->
+                        <Border Grid.Column="1" Style="{StaticResource MetricCard}" Margin="8,0,8,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{DynamicResource Profit_GrossProfit}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding GrossProfit, StringFormat=C2}" Style="{StaticResource MetricValue}" Foreground="{StaticResource InfoColor}"/>
+                                <TextBlock Grid.Row="2" Text="{Binding GrossProfitPercentage, StringFormat={}{0:N1}%}" Style="{StaticResource MetricChangeNeutral}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Net Profit Card -->
+                        <Border Grid.Column="2" Style="{StaticResource MetricCard}" Margin="8,0,8,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{DynamicResource Profit_NetProfit}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding NetProfit, StringFormat=C2}" Style="{StaticResource MetricValue}" Foreground="{StaticResource PrimaryColor}"/>
+                                <TextBlock Grid.Row="2" Text="{Binding NetProfitPercentage, StringFormat={}{0:N1}%}" Style="{StaticResource MetricChangeNeutral}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Transactions Card -->
+                        <Border Grid.Column="3" Style="{StaticResource MetricCard}" Margin="8,0,0,0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Text="{DynamicResource Profit_Transactions}" Style="{StaticResource MetricLabel}"/>
+                                <TextBlock Grid.Row="1" Text="{Binding TotalTransactions}" Style="{StaticResource MetricValue}" Foreground="{StaticResource TextSecondaryColor}"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Transaction Details -->
+                    <Border Grid.Row="1" Style="{StaticResource DataTableContainer}">
+                        <Grid Margin="20">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Style="{StaticResource TableHeader}">
+                                <TextBlock Text="{DynamicResource Profit_TransactionDetails}" Style="{StaticResource TableTitle}"/>
+
+                                <!-- Fixed: Records count -->
+                                <StackPanel Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding ProfitDetails.Count}" Style="{StaticResource BodySmall}"/>
+                                    <TextBlock Text=" " Style="{StaticResource BodySmall}"/>
+                                    <TextBlock Text="{DynamicResource Profit_Records}" Style="{StaticResource BodySmall}"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <!-- DataGrid -->
+                            <DataGrid Grid.Row="1"
+                                      Style="{StaticResource ResponsiveDataGrid}"
+                                      ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                                      CellStyle="{StaticResource ModernDataGridCell}"
+                                      ItemsSource="{Binding ProfitDetails}"
+                                      AutoGenerateColumns="False"
+                                      IsReadOnly="True"
+                                      BorderThickness="0">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Time}" 
+                                                       Binding="{Binding Date, StringFormat=t}"
+                                                       Width="110"/>
+                                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Sales}" 
+                                                       Binding="{Binding Sales, StringFormat=C2}"
+                                                       Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="0,0,16,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Cost}" 
+                                                       Binding="{Binding Cost, StringFormat=C2}"
+                                                       Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="0,0,16,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="{DynamicResource Profit_Column_GrossProfit}" 
+                                                       Binding="{Binding GrossProfit, StringFormat=C2}"
+                                                       Width="140">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="0,0,16,0"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                    <DataGridTextColumn Header="{DynamicResource Profit_Column_Margin}" 
+                                                       Binding="{Binding ProfitMargin, StringFormat=P1}"
+                                                       Width="*">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="0,0,16,0"/>
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Right Panel - Profit Breakdown -->
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{DynamicResource Profit_Breakdown}" 
+                               Style="{StaticResource HeadlineSmall}"
+                               Foreground="{StaticResource TextPrimaryColor}"
+                               Margin="0,0,0,16"/>
+
+                    <!-- Gross Profit Calculation -->
+                    <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Header -->
+                            <TextBlock Grid.Row="0" 
+                                       Text="{DynamicResource Profit_GrossProfitCalc}" 
+                                       Style="{StaticResource HeadlineSmall}"
+                                       FontSize="16"/>
+
+                            <!-- Divider -->
+                            <Border Grid.Row="1" Style="{StaticResource PageDivider}"/>
+
+                            <!-- Content -->
+                            <StackPanel Grid.Row="2">
+                                <!-- Fixed: Total Sales -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="{DynamicResource Profit_TotalSalesLabel}" Style="{StaticResource BodyMedium}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}"/>
+                                    <TextBlock Text="{Binding TotalSales, StringFormat=C2}" Style="{StaticResource BodyMedium}"/>
+                                </StackPanel>
+
+                                <!-- Fixed: Cost of Goods -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                    <TextBlock Text="{DynamicResource Profit_CostOfGoodsLabel}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text="{Binding CostOfGoodsSold, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                </StackPanel>
+
+                                <Border Style="{StaticResource PageDivider}" 
+                                        Width="100" 
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,0,8"/>
+
+                                <!-- Fixed: Gross Profit -->
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{DynamicResource Profit_GrossProfitLabel}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource InfoColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource InfoColor}"/>
+                                    <TextBlock Text="{Binding GrossProfit, StringFormat=C2}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource InfoColor}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Net Profit Calculation -->
+                    <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Header -->
+                            <TextBlock Grid.Row="0" 
+                                       Text="{DynamicResource Profit_NetProfitCalc}" 
+                                       Style="{StaticResource HeadlineSmall}"
+                                       FontSize="16"/>
+
+                            <!-- Divider -->
+                            <Border Grid.Row="1" Style="{StaticResource PageDivider}"/>
+
+                            <!-- Content -->
+                            <StackPanel Grid.Row="2">
+                                <!-- Fixed: Gross Profit Value -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="{DynamicResource Profit_GrossProfitValueLabel}" Style="{StaticResource BodyMedium}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}"/>
+                                    <TextBlock Text="{Binding GrossProfit, StringFormat=C2}" Style="{StaticResource BodyMedium}"/>
+                                </StackPanel>
+
+                                <!-- Fixed: Expenses -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="{DynamicResource Profit_ExpensesLabel}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text="{Binding TotalExpenses, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                </StackPanel>
+
+                                <!-- Fixed: Returns -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                    <TextBlock Text="{DynamicResource Profit_ReturnsLabel}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text="{Binding TotalReturns, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                </StackPanel>
+
+                                <!-- Fixed: Supplier Payments -->
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,8">
+                                    <TextBlock Text="{DynamicResource Profit_SupplierPaymentsLabel}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                    <TextBlock Text="{Binding TotalSupplierPayments, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}"/>
+                                </StackPanel>
+
+                                <Border Style="{StaticResource PageDivider}" 
+                                        Width="100" 
+                                        HorizontalAlignment="Left"
+                                        Margin="0,0,0,8"/>
+
+                                <!-- Fixed: Net Profit -->
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{DynamicResource Profit_NetProfitLabel}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource PrimaryColor}"/>
+                                    <TextBlock Text=": " Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource PrimaryColor}"/>
+                                    <TextBlock Text="{Binding NetProfit, StringFormat=C2}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource PrimaryColor}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Export Report Button -->
+                    <Button Content="{DynamicResource Profit_ExportReport}"
+                            Command="{Binding ExportCommand}"
+                            Style="{StaticResource AccentButtonStyle}" 
+                            Height="44"
+                            FontSize="14"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Loading Overlay -->
+            <Border Grid.Row="0" Grid.RowSpan="2"
+                    Style="{StaticResource LoadingOverlay}" 
+                    Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel HorizontalAlignment="Center" 
+                           VerticalAlignment="Center">
+                    <ProgressBar Style="{StaticResource ModernProgressBar}" 
+                               IsIndeterminate="True" 
+                               Width="120" 
+                               Margin="0,0,0,16"/>
+                    <TextBlock Text="{DynamicResource Profit_LoadingData}" 
+                             Foreground="White" 
+                             FontWeight="SemiBold"
+                             FontSize="14"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Error Message -->
+            <Border Grid.Row="0" 
+                   Style="{StaticResource ErrorNotification}"
+                   HorizontalAlignment="Center"
+                   Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                   MaxWidth="500"
+                   Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="⚠️" FontSize="16" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding ErrorMessage}" 
+                              Foreground="{StaticResource DangerColor}" 
+                              TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

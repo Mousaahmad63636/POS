@@ -1,0 +1,87 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.Transaction.Components.ProductSummaryTable"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Border Background="White"
+            BorderBrush="#E5E7EB"
+            BorderThickness="1"
+            CornerRadius="8"
+            Padding="10"
+            Margin="10,0">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock Text="Selected Products" 
+                       FontWeight="Bold" 
+                       FontSize="16" 
+                       Margin="0,0,0,10"/>
+
+            <!-- Products Table -->
+            <DataGrid Grid.Row="1"
+          ItemsSource="{Binding CurrentTransaction.Details}"
+          AutoGenerateColumns="False"
+          HeadersVisibility="Column"
+          GridLinesVisibility="Horizontal"
+          BorderThickness="0"
+          IsReadOnly="True"
+          Background="Transparent"
+          HorizontalGridLinesBrush="#E5E7EB"
+          ColumnHeaderStyle="{StaticResource DataGridHeaderStyle}"
+          SelectionChanged="DataGrid_SelectionChanged"
+          RowHeight="30">
+                <!-- Add explicit row height -->
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" 
+                            Binding="{Binding ProductName}" 
+                            Width="*"/>
+                    <DataGridTextColumn Header="Qty" 
+                            Binding="{Binding Quantity}" 
+                            Width="60">
+                        <!-- Slightly wider -->
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="5,5"/>
+                                <!-- Add vertical padding -->
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <EventSetter Event="MouseLeftButtonDown" Handler="Quantity_MouseLeftButtonDown"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Price" 
+                            Binding="{Binding UnitPrice, StringFormat=C2}" 
+                            Width="90">
+                        <!-- Slightly wider -->
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="5,5"/>
+                                <!-- Add vertical padding -->
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Total" 
+                            Binding="{Binding Total, StringFormat=C2}" 
+                            Width="100">
+                        <!-- Slightly wider -->
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="TextAlignment" Value="Right"/>
+                                <Setter Property="Padding" Value="5,5"/>
+                                <!-- Add vertical padding -->
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Grid>
+    </Border>
+</UserControl>

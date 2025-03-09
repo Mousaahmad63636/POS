@@ -1,0 +1,75 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.SystemPreferencesView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="{DynamicResource SystemPreferences_Title}"
+                     FontSize="24"
+                     FontWeight="Bold"
+                     Margin="0,0,0,10"/>
+            <TextBlock Text="{DynamicResource SystemPreferences_Subtitle}"
+                     Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+        </StackPanel>
+        <!-- Preferences Content -->
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Margin="0,10">
+                <!-- Theme -->
+                <GroupBox Header="{DynamicResource SystemPreferences_Appearance}" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <Label Content="{DynamicResource SystemPreferences_Theme}"/>
+                        <ComboBox ItemsSource="{Binding AvailableThemes}"
+                                SelectedItem="{Binding CurrentTheme}"
+                                Margin="0,0,0,10"/>
+                        <Label Content="{DynamicResource SystemPreferences_Language}"/>
+                        <ComboBox ItemsSource="{Binding AvailableLanguages}"
+                                SelectedItem="{Binding CurrentLanguage}"
+                                Margin="0,0,0,10"/>
+                    </StackPanel>
+                </GroupBox>
+                <!-- Date & Time -->
+                <GroupBox Header="{DynamicResource SystemPreferences_DateAndTime}" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <Label Content="{DynamicResource SystemPreferences_DateFormat}"/>
+                        <ComboBox ItemsSource="{Binding DateFormats}"
+                                SelectedItem="{Binding DateFormat}"
+                                Margin="0,0,0,10"/>
+                        <Label Content="{DynamicResource SystemPreferences_TimeFormat}"/>
+                        <ComboBox ItemsSource="{Binding TimeFormats}"
+                                SelectedItem="{Binding TimeFormat}"/>
+                    </StackPanel>
+                </GroupBox>
+                <!-- Notifications -->
+                <GroupBox Header="{DynamicResource SystemPreferences_Notifications}" Margin="0,0,0,15" Padding="10">
+                    <StackPanel>
+                        <CheckBox Content="{DynamicResource SystemPreferences_EnableNotifications}"
+                                IsChecked="{Binding NotificationsEnabled}"
+                                Margin="0,0,0,10"/>
+                        <CheckBox Content="{DynamicResource SystemPreferences_SoundEffects}"
+                                IsChecked="{Binding SoundEffectsEnabled}"/>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Margin="0,15,0,0">
+            <Button Content="{DynamicResource SystemPreferences_ResetToDefault}"
+                    Command="{Binding ResetCommand}"
+                    Width="120"
+                    Margin="0,0,10,0"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

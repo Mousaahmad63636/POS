@@ -1,0 +1,153 @@
+﻿<Application x:Class="QuickTechSystems.WPF.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
+             xmlns:vm="clr-namespace:QuickTechSystems.WPF.ViewModels"
+             xmlns:views="clr-namespace:QuickTechSystems.WPF.Views">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/Dictionaries/Styles.xaml"/>
+                <ResourceDictionary Source="/Resources/Dictionaries/Languages/en-US.xaml"/>
+                <ResourceDictionary Source="/Views/Transaction/Styles/TransactionStyles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Converters -->
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+            <converters:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter"/>
+            <converters:LessThanZeroConverter x:Key="LessThanZeroConverter"/>
+            <converters:NegativeValueConverter x:Key="NegativeValueConverter"/>
+            <converters:CustomerSpecificPriceConverter x:Key="CustomerSpecificPriceConverter"/>
+            <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
+            <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <!-- Common Styles -->
+            <Style x:Key="CardBorderStyle" TargetType="Border">
+                <Setter Property="Background" Value="White"/>
+                <Setter Property="BorderBrush" Value="#E5E7EB"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="CornerRadius" Value="8"/>
+                <Setter Property="Effect">
+                    <Setter.Value>
+                        <DropShadowEffect BlurRadius="10" 
+                                        Direction="270" 
+                                        ShadowDepth="3" 
+                                        Opacity="0.2"/>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <Style x:Key="LightIconButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="Transparent"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="Transparent"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontSize" Value="14"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" 
+                                              Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#22FFFFFF"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#44FFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Toggle Button Style -->
+            <Style x:Key="ModernToggleButtonStyle" TargetType="ToggleButton">
+                <Setter Property="Background" Value="#F3F4F6"/>
+                <Setter Property="Foreground" Value="#374151"/>
+                <Setter Property="BorderBrush" Value="#E5E7EB"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="12,6"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToggleButton">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                                VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsChecked" Value="True">
+                                    <Setter Property="Background" Value="#2196F3"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                    <Setter Property="BorderBrush" Value="#1976D2"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- View DataTemplates -->
+            <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+                <views:DashboardView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProductViewModel}">
+                <views:ProductView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:CategoryViewModel}">
+                <views:CategoryView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:CustomerViewModel}">
+                <views:CustomerView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:TransactionViewModel}">
+                <views:TransactionView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+                <views:SettingsView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SupplierViewModel}">
+                <views:SupplierView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:TransactionHistoryViewModel}">
+                <views:TransactionHistoryView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProfitViewModel}">
+                <views:ProfitView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ExpenseViewModel}">
+                <views:ExpenseView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:DrawerViewModel}">
+                <views:DrawerView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:CustomerDebtViewModel}">
+                <views:CustomerDebtView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:EmployeeViewModel}">
+                <views:EmployeeView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:QuoteViewModel}">
+                <views:QuoteView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:LowStockHistoryViewModel}">
+                <views:LowStockHistoryView/>
+            </DataTemplate>
+            
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
