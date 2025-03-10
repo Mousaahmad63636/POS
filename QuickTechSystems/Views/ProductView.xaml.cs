@@ -67,7 +67,23 @@ namespace QuickTechSystems.WPF.Views
                 tabControl.Margin = new Thickness(8);
             }
         }
+        // Add this method to ProductView.xaml.cs
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button &&
+                button.DataContext is ProductDTO product &&
+                DataContext is ProductViewModel viewModel)
+            {
+                // Set the selected product before executing delete command
+                viewModel.SelectedProduct = product;
 
+                // Execute the delete command if it can execute
+                if (viewModel.DeleteCommand.CanExecute(null))
+                {
+                    viewModel.DeleteCommand.Execute(null);
+                }
+            }
+        }
         private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (sender is DataGrid grid &&

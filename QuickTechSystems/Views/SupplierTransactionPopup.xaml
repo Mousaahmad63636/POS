@@ -105,13 +105,13 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 HorizontalAlignment="Left"
                                 MinWidth="100"/>
-
+                        <!-- File: QuickTechSystems\Views\SupplierTransactionPopup.xaml -->
                         <Button Content="Save Payment" 
-                                Command="{Binding AddPaymentCommand}"
-                                Click="SaveButton_Click"
-                                Style="{StaticResource SuccessButtonStyle}"
-                                HorizontalAlignment="Right"
-                                MinWidth="120"/>
+        Command="{Binding AddPaymentCommand}"
+        Click="SaveButton_Click"
+        Style="{StaticResource SuccessButtonStyle}"
+        HorizontalAlignment="Right"
+        MinWidth="120"/>
                     </Grid>
                 </Border>
             </Grid>

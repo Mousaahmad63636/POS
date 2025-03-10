@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿// File: QuickTechSystems\Views\SupplierTransactionPopup.xaml.cs
+using System.Windows;
 using System.Windows.Controls;
 
 namespace QuickTechSystems.WPF.Views
@@ -6,7 +7,7 @@ namespace QuickTechSystems.WPF.Views
     public partial class SupplierTransactionPopup : UserControl
     {
         public event RoutedEventHandler CloseRequested;
-        public event RoutedEventHandler SaveCompleted;
+        public event RoutedEventHandler SaveCompleted;  // Make sure this event is declared
 
         public SupplierTransactionPopup()
         {

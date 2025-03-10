@@ -1073,6 +1073,24 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Store reference to product before any operations that might clear it
                 var productToUpdate = SelectedProduct;
 
+                // Check if barcode is empty and generate one if needed
+                if (string.IsNullOrWhiteSpace(productToUpdate.Barcode))
+                {
+                    Debug.WriteLine("No barcode provided, generating automatic barcode");
+                    // Generate a barcode using the same logic as GenerateAutomaticBarcode
+                    var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
+                    var random = new Random();
+                    var randomDigits = random.Next(1000, 9999).ToString();
+                    var categoryPrefix = productToUpdate.CategoryId.ToString().PadLeft(3, '0');
+
+                    productToUpdate.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
+                    productToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(productToUpdate.Barcode);
+
+                    // Update the UI image
+                    BarcodeImage = LoadBarcodeImage(productToUpdate.BarcodeImage);
+                    Debug.WriteLine($"Generated barcode: {productToUpdate.Barcode}");
+                }
+
                 if (!ValidateProduct(productToUpdate))
                 {
                     return;
@@ -1177,7 +1195,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         // Add this new method to refresh a specific product without reloading everything
         private async Task RefreshSpecificProduct(int productId)
         {
@@ -1271,8 +1288,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    return MessageBox.Show("Are you sure you want to delete this product?",
-                        "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    return MessageBox.Show($"Are you sure you want to delete product '{SelectedProduct.Name}'?",
+                        "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 });
 
                 if (result == MessageBoxResult.Yes)
@@ -1280,11 +1297,46 @@ namespace QuickTechSystems.WPF.ViewModels
                     IsSaving = true;
                     StatusMessage = "Deleting product...";
 
-                    await _productService.DeleteAsync(SelectedProduct.ProductId);
-                    CloseProductPopup();
-                    await LoadDataAsync();
+                    var productId = SelectedProduct.ProductId;
+                    var productName = SelectedProduct.Name;
 
-                    SelectedProduct = null;
+                    try
+                    {
+                        await _productService.DeleteAsync(productId);
+
+                        // Remove from the local collection
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            var productToRemove = Products.FirstOrDefault(p => p.ProductId == productId);
+                            if (productToRemove != null)
+                            {
+                                Products.Remove(productToRemove);
+                            }
+                        });
+
+                        // Close popup if it's open
+                        if (IsProductPopupOpen)
+                        {
+                            CloseProductPopup();
+                        }
+
+                        // Recalculate totals after deletion
+                        CalculateAggregatedValues();
+
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show($"Product '{productName}' has been deleted successfully.",
+                                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        });
+
+                        // Clear the selected product
+                        SelectedProduct = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error deleting product {productId}: {ex.Message}");
+                        throw;
+                    }
                 }
             }
             catch (Exception ex)
@@ -1298,7 +1350,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         private void GenerateBarcode()
         {
             if (SelectedProduct == null || string.IsNullOrWhiteSpace(SelectedProduct.Barcode))

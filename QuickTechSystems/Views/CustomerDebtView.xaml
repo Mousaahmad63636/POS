@@ -44,7 +44,7 @@
                                  Margin="0,0,8,0"/>
 
                         <TextBlock Grid.Column="1" 
-                                 Text="USD: "
+                                 Text="{DynamicResource Debt_CurrencyUSD}"
                                  Style="{StaticResource LabelLarge}"
                                  VerticalAlignment="Center"
                                  Margin="0,0,4,0"/>
@@ -56,7 +56,7 @@
                                  Margin="36,0,0,0"/>
 
                         <TextBlock Grid.Column="3" 
-                                 Text="LBP: "
+                                 Text="{DynamicResource Debt_CurrencyLBP}"
                                  Style="{StaticResource LabelLarge}"
                                  VerticalAlignment="Center"
                                  Margin="0,0,4,0"/>

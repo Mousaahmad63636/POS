@@ -142,6 +142,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // File: QuickTechSystems.Application\Services\SupplierService.cs
         public async Task<SupplierTransactionDTO> AddTransactionAsync(SupplierTransactionDTO transactionDto, bool updateDrawer = true)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -158,11 +159,22 @@ namespace QuickTechSystems.Application.Services
                         }
                     }
 
+                    // Validate the supplier exists
+                    var supplier = await _repository.GetByIdAsync(transactionDto.SupplierId);
+                    if (supplier == null)
+                    {
+                        throw new InvalidOperationException($"Supplier with ID {transactionDto.SupplierId} not found");
+                    }
+
                     var supplierTransaction = _mapper.Map<SupplierTransaction>(transactionDto);
                     await _unitOfWork.Context.Set<SupplierTransaction>().AddAsync(supplierTransaction);
 
                     // Update supplier balance
-                    await UpdateBalanceAsync(transactionDto.SupplierId, transactionDto.Amount, transaction);
+                    bool balanceUpdated = await UpdateBalanceAsync(transactionDto.SupplierId, transactionDto.Amount, transaction);
+                    if (!balanceUpdated)
+                    {
+                        throw new InvalidOperationException($"Failed to update supplier balance for ID {transactionDto.SupplierId}");
+                    }
 
                     if (updateDrawer)
                     {
@@ -186,15 +198,15 @@ namespace QuickTechSystems.Application.Services
                     // Publish supplier update event
                     _eventAggregator.Publish(new EntityChangedEvent<SupplierDTO>(
                         "Update",
-                        _mapper.Map<SupplierDTO>(supplierTransaction.Supplier)
+                        _mapper.Map<SupplierDTO>(supplier)
                     ));
 
                     return _mapper.Map<SupplierTransactionDTO>(supplierTransaction);
                 }
-                catch
+                catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    throw;
+                    throw new ApplicationException($"Failed to process supplier payment: {ex.Message}", ex);
                 }
             });
         }

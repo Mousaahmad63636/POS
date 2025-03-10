@@ -48,8 +48,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.Navy
                     };
-                    header.Inlines.Add("GalaxyNet\n");
-                    header.Inlines.Add(new Run("Your partner in all your IT problems\n 81 20 77 06\n 03 65 74 64 \n ")
+                    header.Inlines.Add("سوبرماركت هادي بلحص\n");
+                    header.Inlines.Add(new Run("81052944")
                     { FontSize = 14, FontWeight = FontWeights.Normal });
                     flowDocument.Blocks.Add(header);
                     flowDocument.Blocks.Add(CreateDivider());

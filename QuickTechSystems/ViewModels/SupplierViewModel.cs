@@ -606,6 +606,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // File: QuickTechSystems\ViewModels\SupplierViewModel.cs
         private async Task AddPaymentAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -657,17 +658,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Store if history popup was open before
                     bool wasHistoryOpen = IsTransactionsHistoryPopupOpen;
 
-                    // Close transaction popup first
-                    CloseTransactionPopup();
+                    // Process the transaction first
+                    var result = await _supplierService.AddTransactionAsync(supplierTransaction, true);
 
-                    // Close history popup if open
-                    if (wasHistoryOpen)
+                    // After successful transaction processing, close the popups
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        CloseTransactionsHistoryPopup();
-                    }
+                        // Close transaction popup first
+                        CloseTransactionPopup();
 
-                    // Let the service handle the transaction
-                    await _supplierService.AddTransactionAsync(supplierTransaction, true);
+                        // Close history popup if open
+                        if (wasHistoryOpen)
+                        {
+                            CloseTransactionsHistoryPopup();
+                        }
+                    });
 
                     // Reload supplier data to update balance
                     await LoadDataAsync();
@@ -708,7 +713,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Reopen transactions history if it was open
                     if (wasHistoryOpen)
                     {
-                        await Task.Delay(100); // Small delay to ensure UI updates
+                        await Task.Delay(300); // Increased delay to ensure UI updates
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             ShowTransactionsHistoryPopup();
@@ -723,7 +728,12 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 catch (Exception ex)
                 {
+                    Debug.WriteLine($"Error in payment processing: {ex}");
                     await HandleExceptionAsync("Error recording payment", ex);
+
+                    // Show detailed error message
+                    string errorDetail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                    ShowTemporaryErrorMessage($"Payment failed: {errorDetail}");
                 }
             }
             finally

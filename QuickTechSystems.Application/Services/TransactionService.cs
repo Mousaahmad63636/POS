@@ -148,6 +148,17 @@ namespace QuickTechSystems.Application.Services
                     if (existingTransaction == null)
                         return false;
 
+                    // First, delete related drawer transactions
+                    var drawerTransactions = await _unitOfWork.Context.Set<DrawerTransaction>()
+                        .Where(dt => dt.TransactionReference == transactionId.ToString() ||
+                               dt.TransactionReference == $"Transaction #{transactionId}")
+                        .ToListAsync();
+
+                    foreach (var drawerTransaction in drawerTransactions)
+                    {
+                        _unitOfWork.Context.Set<DrawerTransaction>().Remove(drawerTransaction);
+                    }
+
                     // Check if this is a completed sale and restore stock if needed
                     if (existingTransaction.TransactionType == TransactionType.Sale &&
                         existingTransaction.Status == TransactionStatus.Completed)
@@ -197,6 +208,13 @@ namespace QuickTechSystems.Application.Services
                     // Create a DTO for the event
                     var dto = _mapper.Map<TransactionDTO>(existingTransaction);
                     _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Delete", dto));
+
+                    // Also publish a drawer update event to refresh drawer views
+                    _eventAggregator.Publish(new DrawerUpdateEvent(
+                        "Transaction Deletion",
+                        0,
+                        $"Transaction #{transactionId} deleted"
+                    ));
 
                     // Publish product update events for affected products
                     foreach (var detail in existingTransaction.TransactionDetails)

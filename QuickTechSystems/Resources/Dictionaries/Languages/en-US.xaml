@@ -36,6 +36,8 @@
     <system:String x:Key="Supplier_Active">Active</system:String>
     <system:String x:Key="Supplier_AddNew">Add New Supplier</system:String>
     <system:String x:Key="Supplier_Save">Save</system:String>
+    <system:String x:Key="Debt_CurrencyUSD">USD:</system:String>
+    <system:String x:Key="Debt_CurrencyLBP">LBP:</system:String>
     <system:String x:Key="Supplier_Delete">Delete</system:String>
     <system:String x:Key="Supplier_Transactions">Transactions</system:String>
     <system:String x:Key="Supplier_AddPayment">Add Payment</system:String>
@@ -50,6 +52,8 @@
     <system:String x:Key="Profit_DateRange">Date Range:</system:String>
     <system:String x:Key="Profit_DateTo">to</system:String>
     <system:String x:Key="Profit_Refresh">Refresh</system:String>
+    <!-- Add to Resources/Dictionaries/Languages/en-US.xaml if not already present -->
+    <system:String x:Key="Product_Delete">Delete</system:String>
     <system:String x:Key="Profit_Transactions">Transactions</system:String>
     <system:String x:Key="Profit_TransactionDetails">Transaction Details</system:String>
     <system:String x:Key="Profit_RecordsFormat">({0} records)</system:String>
@@ -147,7 +151,7 @@
     <system:String x:Key="Product_GenerateBarcode">Generate Barcode</system:String>
     <system:String x:Key="Product_AutoGenerateBarcode">Auto Generate</system:String>
     <system:String x:Key="Product_Save">Save</system:String>
-    <system:String x:Key="Product_Delete">Delete</system:String>
+
 
     <system:String x:Key="TransactionHistory_Title">Transaction History</system:String>
     <system:String x:Key="TransactionHistory_Subtitle">View and analyze past transactions</system:String>

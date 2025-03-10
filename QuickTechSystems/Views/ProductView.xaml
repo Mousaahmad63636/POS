@@ -17,6 +17,8 @@
         <converters:ProductTotalValueConverter x:Key="ProductTotalValueConverter"/>
         <converters:ProductTotalProfitConverter x:Key="ProductTotalProfitConverter"/>
         <converters:ProfitColorConverter x:Key="ProfitColorConverter"/>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
+        <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -71,7 +73,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Product DataGrid -->
+                        <!-- Product DataGrid with enhanced column sizing and layout -->
                         <Border Grid.Row="2" Style="{StaticResource DataTableContainer}">
                             <DataGrid ItemsSource="{Binding Products}"
                                       SelectedItem="{Binding SelectedProduct}"
@@ -83,74 +85,108 @@
                                       IsEnabled="{Binding IsNotSaving}"
                                       BorderThickness="0"
                                       MouseDoubleClick="DataGrid_MouseDoubleClick">
+                                <DataGrid.Resources>
+                                    <!-- Style for right-aligned numeric cells -->
+                                    <Style x:Key="RightAlignedCell" TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right"/>
+                                        <Setter Property="Margin" Value="0,0,8,0"/>
+                                    </Style>
+                                </DataGrid.Resources>
                                 <DataGrid.Columns>
+                                    <!-- Image column with fixed width -->
                                     <DataGridTemplateColumn Header="{DynamicResource Product_Image}" Width="60">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <Image Source="{Binding Image, Converter={StaticResource ByteArrayToImageConverter}, ConverterParameter=40}" 
-                                                       Height="40" 
-                                                       Width="40" 
-                                                       Stretch="Uniform"
-                                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                <Border Width="40" Height="40" Background="#F5F5F5" CornerRadius="4" BorderBrush="#E0E0E0" BorderThickness="1">
+                                                    <Image Source="{Binding Image, Converter={StaticResource ByteArrayToImageConverter}, ConverterParameter=40}" 
+                                                           Height="36" 
+                                                           Width="36" 
+                                                           Stretch="Uniform"
+                                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                </Border>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
+
+                                    <!-- Main product information columns -->
                                     <DataGridTextColumn Header="{DynamicResource Product_Barcode}" 
-                                                      Binding="{Binding Barcode}"
-                                                      Width="120"/>
+                                                        Binding="{Binding Barcode}"
+                                                        Width="110"/>
                                     <DataGridTextColumn Header="{DynamicResource Product_Name}" 
-                                                      Binding="{Binding Name}"
-                                                      Width="*"/>
+                                                        Binding="{Binding Name}"
+                                                        Width="*"
+                                                        MinWidth="180"/>
                                     <DataGridTextColumn Header="{DynamicResource Product_Category}" 
-                                                      Binding="{Binding CategoryName}"
-                                                      Width="120"/>
-                                    <DataGridTextColumn Header="{DynamicResource Product_Supplier}" 
-                                                      Binding="{Binding SupplierName}"
-                                                      Width="120"/>
+                                                        Binding="{Binding CategoryName}"
+                                                        Width="120"/>
+
+                                    <!-- Inventory columns -->
                                     <DataGridTextColumn Header="{DynamicResource Product_CurrentStock}" 
-                                                      Binding="{Binding CurrentStock}"
-                                                      Width="100"/>
-                                    <DataGridTextColumn Header="{DynamicResource Product_Speed}" 
-                                                      Binding="{Binding Speed}"
-                                                      Width="80"/>
-                                    <DataGridTextColumn Header="{DynamicResource Product_SalePrice}" 
-                                                      Binding="{Binding SalePrice, StringFormat=C}"
-                                                      Width="100"/>
+                                                        Binding="{Binding CurrentStock}"
+                                                        Width="85">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedCell}"/>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Price columns with right-alignment -->
                                     <DataGridTextColumn Header="{DynamicResource Product_PurchasePrice}" 
-                                                      Binding="{Binding PurchasePrice, StringFormat=C}"
-                                                      Width="100"/>
-                                    <!-- Total Cost column -->
+                                                        Binding="{Binding PurchasePrice, StringFormat=C2}"
+                                                        Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedCell}"/>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <DataGridTextColumn Header="{DynamicResource Product_SalePrice}" 
+                                                        Binding="{Binding SalePrice, StringFormat=C2}"
+                                                        Width="100">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedCell}"/>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <!-- Value columns -->
                                     <DataGridTemplateColumn Header="{DynamicResource Product_TotalCost}" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalCostConverter}, StringFormat=C}"
-                                                           Foreground="{StaticResource PrimaryColor}"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalCostConverter}, StringFormat=C2}"
+                                                           Foreground="{StaticResource PrimaryColor}"
+                                                           TextAlignment="Right"
+                                                           Margin="0,0,8,0"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <!-- Total Value column -->
+
                                     <DataGridTemplateColumn Header="{DynamicResource Product_TotalValue}" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalValueConverter}, StringFormat=C}"
-                                                           Foreground="{StaticResource SuccessColor}"/>
+                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalValueConverter}, StringFormat=C2}"
+                                                           Foreground="{StaticResource SuccessColor}"
+                                                           TextAlignment="Right"
+                                                           Margin="0,0,8,0"/>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <!-- Total Profit column - Fixed version -->
+
+                                    <!-- Profit column with conditional formatting -->
                                     <DataGridTemplateColumn Header="{DynamicResource Product_TotalProfit}" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalProfitConverter}, StringFormat=C}">
+                                                <TextBlock Text="{Binding Converter={StaticResource ProductTotalProfitConverter}, StringFormat=C2}"
+                                                           TextAlignment="Right"
+                                                           Margin="0,0,8,0">
                                                     <TextBlock.Style>
                                                         <Style TargetType="TextBlock">
                                                             <Setter Property="Foreground" Value="Black"/>
                                                             <Style.Triggers>
                                                                 <DataTrigger Binding="{Binding Converter={StaticResource ProductTotalProfitConverter}, ConverterParameter=Check}" Value="Negative">
-                                                                    <Setter Property="Foreground" Value="Red"/>
+                                                                    <Setter Property="Foreground" Value="#E53935"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 </DataTrigger>
                                                                 <DataTrigger Binding="{Binding Converter={StaticResource ProductTotalProfitConverter}, ConverterParameter=Check}" Value="Positive">
-                                                                    <Setter Property="Foreground" Value="Green"/>
+                                                                    <Setter Property="Foreground" Value="#43A047"/>
+                                                                    <Setter Property="FontWeight" Value="SemiBold"/>
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>
@@ -159,21 +195,57 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridCheckBoxColumn Header="{DynamicResource Product_IsActive}" 
-                                                          Binding="{Binding IsActive}"
-                                                          Width="60"/>
-                                    <DataGridTemplateColumn Width="120">
+
+                                    <!-- Optional columns that can be placed at the end -->
+                                    <DataGridTextColumn Header="{DynamicResource Product_Speed}" 
+                                                        Binding="{Binding Speed}"
+                                                        Width="70">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource RightAlignedCell}"/>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+
+                                    <DataGridTextColumn Header="{DynamicResource Product_Supplier}" 
+                                                        Binding="{Binding SupplierName}"
+                                                        Width="120"/>
+
+                                    <!-- Status column -->
+                                    <DataGridTemplateColumn Header="{DynamicResource Product_IsActive}" Width="75">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}" 
+                                                        CornerRadius="4" 
+                                                        Padding="4,2" 
+                                                        HorizontalAlignment="Center">
+                                                    <TextBlock Text="{Binding IsActive, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Active|Inactive'}" 
+                                                               Foreground="White" 
+                                                               FontSize="11" 
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"/>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <!-- Action buttons column -->
+                                    <DataGridTemplateColumn Width="110">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal">
                                                     <Button Content="{DynamicResource Product_Edit}"
                                                             Click="EditButton_Click"
-                                                            Style="{StaticResource TextButtonStyle}"/>
+                                                            Style="{StaticResource TextButtonStyle}"
+                                                            Margin="0,0,8,0"/>
+                                                    <Button Content="{DynamicResource Product_Delete}"
+                                                            Click="DeleteButton_Click"
+                                                            Style="{StaticResource TextButtonStyle}" 
+                                                            Foreground="#E53935"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
+
                                 <DataGrid.ContextMenu>
                                     <ContextMenu>
                                         <MenuItem Header="{DynamicResource Product_EditMenuItem}" Click="EditMenuItem_Click"/>
