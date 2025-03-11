@@ -416,8 +416,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.Navy
                     };
-                    header.Inlines.Add("سوبرماركت هادي بلحص\n");
-                    header.Inlines.Add(new Run("81052944")
+                    header.Inlines.Add("Pheobula");
+                    header.Inlines.Add(new Run("PET SHOP")
                     { FontSize = 14, FontWeight = FontWeights.Normal });
                     flowDocument.Blocks.Add(header);
                     flowDocument.Blocks.Add(CreateDivider());
