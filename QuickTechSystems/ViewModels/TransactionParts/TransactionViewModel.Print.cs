@@ -48,8 +48,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.Navy
                     };
-                    header.Inlines.Add("Pheobula");
-                    header.Inlines.Add(new Run("PET SHOP")
+                    header.Inlines.Add("Family Market \n");
+                    header.Inlines.Add(new Run("76644036")
                     { FontSize = 14, FontWeight = FontWeights.Normal });
                     flowDocument.Blocks.Add(header);
                     flowDocument.Blocks.Add(CreateDivider());

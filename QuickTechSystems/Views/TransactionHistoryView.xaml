@@ -21,10 +21,52 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Header Section -->
+                <!-- Header Section with Summary Information -->
                 <StackPanel Grid.Row="0" Style="{StaticResource SectionHeader}">
-                    <TextBlock Text="{DynamicResource TransactionHistory_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
-                    <TextBlock Text="{DynamicResource TransactionHistory_Subtitle}" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,16"/>
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{DynamicResource TransactionHistory_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
+                            <TextBlock Text="{DynamicResource TransactionHistory_Subtitle}" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,0"/>
+                        </StackPanel>
+
+                        <!-- Financial Summary Moved to Header -->
+                        <Border Grid.Column="1" 
+                                Background="White" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="16,12"
+                                VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel Margin="0,0,24,0">
+                                    <TextBlock Text="{DynamicResource TransactionHistory_TotalSalesLabel}" 
+                                               Style="{StaticResource LabelLarge}"
+                                               Foreground="{StaticResource TextSecondaryColor}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalSales, StringFormat=C2}" 
+                                               Foreground="{StaticResource PrimaryColor}" 
+                                               Style="{StaticResource HeadlineMedium}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel>
+                                    <TextBlock Text="{DynamicResource TransactionHistory_TotalProfitLabel}" 
+                                               Style="{StaticResource LabelLarge}"
+                                               Foreground="{StaticResource TextSecondaryColor}"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding TotalProfit, StringFormat=C2}" 
+                                               Foreground="{StaticResource SuccessColor}" 
+                                               Style="{StaticResource HeadlineMedium}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
                     <Border Style="{StaticResource PageDivider}"/>
                 </StackPanel>
 
@@ -175,49 +217,14 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Summary Section -->
+                <!-- Error Message Box (Replacing the old summary section) -->
                 <Border Grid.Row="3"
-                        Style="{StaticResource EnhancedResponsiveCardContainer}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Error Message -->
-                        <TextBlock Grid.Column="0"
-                                   Text="{Binding ErrorMessage}" 
-                                   Foreground="{StaticResource DangerColor}" 
-                                   Style="{StaticResource BodyMedium}"
-                                   VerticalAlignment="Center" 
-                                   Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"/>
-
-                        <!-- Financial Summary -->
-                        <StackPanel Grid.Column="1" 
-                                    Orientation="Horizontal" 
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center">
-                            <TextBlock Text="{DynamicResource TransactionHistory_TotalSalesLabel}" 
-                                       Style="{StaticResource LabelLarge}"
-                                       Foreground="{StaticResource TextSecondaryColor}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding TotalSales, StringFormat=C2}" 
-                                       Foreground="{StaticResource PrimaryColor}" 
-                                       Style="{StaticResource HeadlineMedium}"
-                                       Margin="8,0,24,0" 
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="{DynamicResource TransactionHistory_TotalProfitLabel}" 
-                                       Style="{StaticResource LabelLarge}"
-                                       Foreground="{StaticResource TextSecondaryColor}"
-                                       VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding TotalProfit, StringFormat=C2}" 
-                                       Foreground="{StaticResource SuccessColor}" 
-                                       Style="{StaticResource HeadlineMedium}"
-                                       Margin="8,0,0,0" 
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
+                        Style="{StaticResource EnhancedResponsiveCardContainer}"
+                        Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
+                    <TextBlock Text="{Binding ErrorMessage}" 
+                               Foreground="{StaticResource DangerColor}" 
+                               Style="{StaticResource BodyMedium}"
+                               VerticalAlignment="Center"/>
                 </Border>
 
                 <!-- Loading Overlay -->

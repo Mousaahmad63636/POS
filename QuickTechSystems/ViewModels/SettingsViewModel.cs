@@ -90,7 +90,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
             InitializeCommands();
             _ = LoadDataAsync();
-            _ = LoadExchangeRate();
         }
 
         public decimal ExchangeRate
@@ -276,6 +275,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task LoadExchangeRate()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadExchangeRate skipped - operation in progress");
+                return;
+            }
+
             try
             {
                 var rateSetting = await _businessSettingsService.GetByKeyAsync("ExchangeRate");
@@ -288,6 +293,10 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 ShowTemporaryErrorMessage($"Error loading exchange rate: {ex.Message}");
+            }
+            finally
+            {
+                _operationLock.Release();
             }
         }
 
@@ -560,9 +569,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task LoadSystemPreferencesAsync()
         {
-            // Create a special lock for this method to avoid concurrent DbContext usage
-            using var asyncLock = new SemaphoreSlim(1, 1);
-            await asyncLock.WaitAsync();
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadSystemPreferencesAsync skipped - operation in progress");
+                return;
+            }
 
             try
             {
@@ -597,7 +608,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                asyncLock.Release();
+                _operationLock.Release();
             }
         }
 

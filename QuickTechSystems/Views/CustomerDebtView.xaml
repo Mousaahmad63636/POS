@@ -96,11 +96,11 @@
                             </Border>
 
                             <!-- Customers Grid -->
-                            <DataGrid ItemsSource="{Binding CustomersWithDebt}"
-                                     SelectedItem="{Binding SelectedCustomer}"
-                                     Style="{StaticResource ResponsiveDataGrid}"
-                                     ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                     CellStyle="{StaticResource ModernDataGridCell}">
+                            <DataGrid ItemsSource="{Binding CustomersWithDebt, Mode=OneWay, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}"
+          SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
+          Style="{StaticResource ResponsiveDataGrid}"
+          ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+          CellStyle="{StaticResource ModernDataGridCell}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{DynamicResource Debt_Column_Customer}" 
                                                       Binding="{Binding Name}"

@@ -1054,7 +1054,7 @@ namespace QuickTechSystems.WPF.ViewModels
             CalculateAggregatedValues();
         }
 
-        private async Task SaveAsync()
+        public async Task SaveAsync()
         {
             if (!await _operationLock.WaitAsync(0))
             {
@@ -1077,7 +1077,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (string.IsNullOrWhiteSpace(productToUpdate.Barcode))
                 {
                     Debug.WriteLine("No barcode provided, generating automatic barcode");
-                    // Generate a barcode using the same logic as GenerateAutomaticBarcode
                     var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
                     var random = new Random();
                     var randomDigits = random.Next(1000, 9999).ToString();
@@ -1125,45 +1124,25 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     var result = await _productService.CreateAsync(productCopy);
 
-                    // Important: Use dispatcher for UI updates
+                    // REMOVED: Direct Products collection manipulation
+                    // ONLY update SelectedProduct reference
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        Products.Add(result);
                         SelectedProduct = result;
                     });
 
-                    // Use the result for updating UI, not SelectedProduct which could be null after async operation
+                    // Use the result for updating UI
                     productToUpdate = result;
                 }
                 else
                 {
                     await _productService.UpdateAsync(productCopy);
 
-                    // Update the existing product in the collection using the dispatcher
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        // Find and update the existing product in the collection
-                        for (int i = 0; i < Products.Count; i++)
-                        {
-                            if (Products[i].ProductId == productCopy.ProductId)
-                            {
-                                Products[i] = productCopy;
-                                Debug.WriteLine($"Directly updated product in collection: {productCopy.Name}");
-                                break;
-                            }
-                        }
-                    });
+                    // REMOVED: Direct Products collection manipulation
+                    // Let event system handle collection updates consistently
                 }
 
-                // Explicitly publish the update event - use stored reference, not SelectedProduct
-                try
-                {
-                    Debug.WriteLine($"Publishing refresh event for product: {productToUpdate.Name}, IsActive: {productToUpdate.IsActive}");
-                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productToUpdate));
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error publishing product update event: {ex.Message}");
-                    // Continue execution even if event publishing fails
-                }
+                // REMOVED: Explicit event publication
+                // Relying on service events for consistency
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -1177,8 +1156,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 CloseProductPopup();
 
-                // Important: Don't reload full data which can overwrite our updates
-                // Instead, just refresh the one product we updated
+                // Refresh specific product
                 await RefreshSpecificProduct(productToUpdate.ProductId);
 
                 Debug.WriteLine("Save completed, product refreshed");
