@@ -8,8 +8,8 @@
              xmlns:popups="clr-namespace:QuickTechSystems.WPF.Views.Transaction.Popups"
              Loaded="TransactionView_Loaded"
              mc:Ignorable="d"                  
-             d:DesignWidth="1280" 
-             Height="720">
+             d:DesignWidth="1600" 
+             Height="900">
 
     <Grid Background="#F3F4F6">
         <Grid.RowDefinitions>

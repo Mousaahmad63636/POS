@@ -261,22 +261,25 @@ namespace QuickTechSystems.Application.Services
                         {
                             detail.PurchasePrice = product.PurchasePrice;
 
+                            // COMMENTED OUT: Stock reduction code
+                            /*
                             // Decrement stock - negative quantity because it's a sale
                             bool stockUpdated = await _productService.UpdateStockAsync(
                                 detail.ProductId,
                                 -detail.Quantity);
 
                             Debug.WriteLine($"Updated stock for product {detail.ProductId}: {(stockUpdated ? "Success" : "Failed")}");
+                            */
 
-                            // Add inventory history entry
+                            // Add inventory history entry without changing stock
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity,
+                                QuantityChanged = 0, // Changed from -detail.Quantity to 0
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
-                                Notes = $"Sold in transaction by {cashier.FirstName} {cashier.LastName}"
+                                Notes = $"Sold in transaction by {cashier.FirstName} {cashier.LastName} (stock not reduced)"
                             });
                         }
                     }
@@ -301,16 +304,6 @@ namespace QuickTechSystems.Application.Services
 
                     // Map the entity back to DTO for publishing event - AFTER transaction commit
                     var resultDto = _mapper.Map<TransactionDTO>(entity);
-
-                    // Publish events AFTER transaction is committed
-                    foreach (var detail in transactionDto.Details)
-                    {
-                        var updatedProduct = await _productService.GetByIdAsync(detail.ProductId);
-                        if (updatedProduct != null)
-                        {
-                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", updatedProduct));
-                        }
-                    }
 
                     // Publish transaction created event
                     _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>(
@@ -681,27 +674,30 @@ namespace QuickTechSystems.Application.Services
                         }
                     }
 
-                    // Now perform stock updates
+                    // Now perform stock updates (COMMENTED OUT)
                     foreach (var detail in transactionDto.Details)
                     {
                         if (productDict.ContainsKey(detail.ProductId))
                         {
+                            // COMMENTED OUT: Stock reduction code
+                            /*
                             // Decrement stock - negative quantity because it's a sale
                             bool stockUpdated = await _productService.UpdateStockAsync(
                                 detail.ProductId,
                                 -detail.Quantity);
 
                             Debug.WriteLine($"Updated stock for product {detail.ProductId}: {(stockUpdated ? "Success" : "Failed")}");
+                            */
 
-                            // Add inventory history entry
+                            // Add inventory history entry without changing stock
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity,
+                                QuantityChanged = 0, // Changed from -detail.Quantity to 0
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
-                                Notes = $"Sold in transaction"
+                                Notes = $"Sold in transaction (stock not reduced)"
                             });
                         }
                     }
@@ -711,16 +707,6 @@ namespace QuickTechSystems.Application.Services
 
                     // Create result DTO to return
                     var resultDto = _mapper.Map<TransactionDTO>(entity);
-
-                    // Publish events AFTER transaction is committed
-                    foreach (var detail in transactionDto.Details)
-                    {
-                        var updatedProduct = await _productService.GetByIdAsync(detail.ProductId);
-                        if (updatedProduct != null)
-                        {
-                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", updatedProduct));
-                        }
-                    }
 
                     // Publish transaction created event
                     _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>(

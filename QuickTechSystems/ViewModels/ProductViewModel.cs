@@ -1236,8 +1236,6 @@ namespace QuickTechSystems.WPF.ViewModels
             if (product.SalePrice <= 0)
                 errors.Add("Sale price must be greater than zero");
 
-            if (product.PurchasePrice <= 0)
-                errors.Add("Purchase price must be greater than zero");
 
             if (product.CurrentStock < 0)
                 errors.Add("Current stock cannot be negative");
