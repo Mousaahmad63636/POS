@@ -19,9 +19,21 @@ namespace QuickTechSystems.Application.DTOs
         private int _minimumStock;
         private byte[]? _barcodeImage;
         private bool _isSelected;
+        private bool _isSelectedForPrinting;
         private string? _speed;
+        private bool _isActive;
+        private byte[]? _image;
 
-
+        // Add this property
+        public byte[]? Image
+        {
+            get => _image;
+            set
+            {
+                _image = value;
+                OnPropertyChanged();
+            }
+        }
         public int ProductId
         {
             get => _productId;
@@ -51,6 +63,7 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
+
         public string? Speed
         {
             get => _speed;
@@ -60,6 +73,7 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
+
         public string? Description
         {
             get => _description;
@@ -170,11 +184,36 @@ namespace QuickTechSystems.Application.DTOs
             }
         }
 
+        public bool IsSelectedForPrinting
+        {
+            get => _isSelectedForPrinting;
+            set
+            {
+                _isSelectedForPrinting = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsActive
+        {
+            get => _isActive;
+            set
+            {
+                _isActive = value;
+                OnPropertyChanged();
+            }
+        }
+
         public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public override string ToString()
+        {
+            return $"{Name} ({Barcode})";
         }
     }
 }

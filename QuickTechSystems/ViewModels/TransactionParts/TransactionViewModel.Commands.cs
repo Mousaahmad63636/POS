@@ -1,12 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
+using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
-using Microsoft.Extensions.DependencyInjection; // For GetRequiredService
-using QuickTechSystems.WPF.Services; // For IGlobalOverlayService
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -30,54 +30,107 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? PrintReceiptCommand { get; private set; }
 
         public ICommand CloseDrawerCommand { get; private set; }
-        public ICommand AddToCustomerDebtCommand { get; private set; }
+       
         public ICommand ProcessReturnCommand { get; private set; }
-        public ICommand SaveCustomerCommand { get; private set; }
+        public ICommand SaveAsQuoteCommand { get; private set; }
+        public ICommand AddToCustomerDebtCommand { get; private set; }  // Change to private set
+        public ICommand SelectCategoryCommand { get; private set; }
         public ICommand ClearCustomerCommand { get; private set; }
-        public ICommand CancelCustomerCommand { get; private set; }
-
+        public ICommand LookupTransactionCommand { get; private set; }
+        public ICommand IncrementTransactionIdCommand { get; private set; }
+        public ICommand DecrementTransactionIdCommand { get; private set; }
         private void InitializeCommands()
         {
+
+            IncrementTransactionIdCommand = new RelayCommand(_ => IncrementTransactionId());
+            DecrementTransactionIdCommand = new RelayCommand(_ => DecrementTransactionId());
+
             // Existing commands
             ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
-            SearchProductsCommand = new RelayCommand(_ => SearchProducts());
-            CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
-            // Transaction management commands
-            HoldTransactionCommand = new AsyncRelayCommand(async _ => await HoldTransaction());
-            RecallTransactionCommand = new AsyncRelayCommand(async _ => await RecallTransaction());
-            VoidTransactionCommand = new AsyncRelayCommand(async _ => await VoidTransaction());
-            ClearTransactionCommand = new RelayCommand(_ => ClearTransaction());
-            CancelTransactionCommand = new RelayCommand(_ => CancelTransaction());
-            ChangeQuantityCommand = new AsyncRelayCommand(async _ => await ChangeQuantity());
-            NewCustomerCommand = new AsyncRelayCommand(async _ => await ShowNewCustomerDialog());
-            SaveCustomerCommand = new AsyncRelayCommand(async _ => await SaveNewCustomerAsync());
-            CancelCustomerCommand = new RelayCommand(_ => CancelNewCustomer());
-            NewCustomerCommand = new AsyncRelayCommand(async _ => await ShowNewCustomerDialog());
-            SaveCustomerCommand = new AsyncRelayCommand(async _ => await SaveNewCustomerAsync());
-            CancelCustomerCommand = new RelayCommand(_ => CancelNewCustomer());
-            ClearCustomerCommand = new RelayCommand(_ => ClearCustomer());
-            // Item management commands
-            RemoveItemCommand = new RelayCommand(RemoveItem);
-            VoidLastItemCommand = new RelayCommand(_ => VoidLastItem());
-            ChangeQuantityCommand = new AsyncRelayCommand(async _ => await ChangeItemQuantityAsync());
-            AddDiscountCommand = new RelayCommand(_ => AddDiscount());
+
+            // Transaction management commands with conditions
+            HoldTransactionCommand = new AsyncRelayCommand(
+                async _ => await HoldTransaction(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            RecallTransactionCommand = new AsyncRelayCommand(
+                async _ => await RecallTransaction(),
+                _ => HeldTransactions != null && HeldTransactions.Any());
+
+            VoidTransactionCommand = new AsyncRelayCommand(
+                async _ => await VoidTransaction(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            ClearTransactionCommand = new RelayCommand(
+                _ => ClearTransaction(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            CancelTransactionCommand = new RelayCommand(
+                _ => CancelTransaction(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            LookupTransactionCommand = new AsyncRelayCommand(
+      async _ => await LookupTransactionAsync(),
+      _ => !string.IsNullOrWhiteSpace(LookupTransactionId));
+            // Item management commands with conditions
+            RemoveItemCommand = new RelayCommand(
+                RemoveItem,
+                parameter => CurrentTransaction?.Details != null &&
+                             CurrentTransaction.Details.Any() &&
+                             parameter is TransactionDetailDTO);
+
+            VoidLastItemCommand = new RelayCommand(
+                _ => VoidLastItem(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            ChangeQuantityCommand = new AsyncRelayCommand(
+                async _ => await ChangeItemQuantityAsync(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
+            AddDiscountCommand = new RelayCommand(
+                _ => AddDiscount(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
             PriceCheckCommand = new AsyncRelayCommand(async _ => await CheckPrice());
-            NewCustomerCommand = new AsyncRelayCommand(async _ => await ShowNewCustomerDialog());
-            SaveCustomerCommand = new AsyncRelayCommand(async _ => await SaveNewCustomerAsync());
-            CancelCustomerCommand = new RelayCommand(_ => CancelNewCustomer());
+
+            SaveAsQuoteCommand = new AsyncRelayCommand(
+                async _ => await SaveAsQuoteAsync(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any() && SelectedCustomer != null);
+
             // Customer commands
             NewCustomerCommand = new AsyncRelayCommand(async _ => await ShowNewCustomerDialog());
 
             // Payment commands
-            CashPaymentCommand = new AsyncRelayCommand(async _ => await ProcessCashPayment());
+            CashPaymentCommand = new AsyncRelayCommand(
+        async _ =>
+        {
+            // Check if this is an existing transaction that's being edited
+            if (IsEditingTransaction && CurrentTransaction.TransactionId > 0)
+            {
+                await UpdateExistingTransactionAsync();
+            }
+            else
+            {
+                await ProcessCashPayment();
+            }
+        },
+        _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
-            AddToCustomerDebtCommand = new AsyncRelayCommand(async _ => await AddToCustomerDebtAsync(),
-       _ => SelectedCustomer != null && TotalAmount > 0);
+            ToggleViewCommand = new RelayCommand(_ => ToggleView());
+
+            AddToCartCommand = new RelayCommand<ProductDTO>(product =>
+            {
+                if (product != null)
+                    AddProductToTransaction(product);
+            });
 
             // Return and reprint commands
             ProcessReturnCommand = new AsyncRelayCommand(async _ => await ProcessReturn());
             ReprintLastCommand = new AsyncRelayCommand(async _ => await ReprintLast());
-            PrintReceiptCommand = new AsyncRelayCommand(async _ => await PrintReceipt());
+
+            PrintReceiptCommand = new AsyncRelayCommand(
+                async _ => await PrintReceipt(),
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
             SearchProductsCommand = new RelayCommand(_ =>
             {
@@ -85,137 +138,27 @@ namespace QuickTechSystems.WPF.ViewModels
                 SearchProducts();
             });
 
+            SelectCategoryCommand = new RelayCommand<CategoryDTO>(category =>
+            {
+                SelectedCategory = category;
+            });
+
+            AddToCustomerDebtCommand = new AsyncRelayCommand(
+                async _ => await AddToCustomerDebtAsync(),
+                _ => CanAddToCustomerDebt());
+
+            CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
+            ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
 
-        private async Task AddToCustomerDebtAsync()
+        private void ClearCustomerSelection()
         {
-            try
-            {
-                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
-                {
-                    await ShowErrorMessageAsync("No items to add to customer debt");
-                    return;
-                }
-
-                if (SelectedCustomer == null)
-                {
-                    await ShowErrorMessageAsync("Please select a customer");
-                    return;
-                }
-
-                // Validate customer's credit limit
-                if (SelectedCustomer.CreditLimit > 0 &&
-                    (SelectedCustomer.Balance + TotalAmount) > SelectedCustomer.CreditLimit)
-                {
-                    await ShowErrorMessageAsync(
-                        $"Adding this debt would exceed the customer's credit limit of {SelectedCustomer.CreditLimit:C2}");
-                    return;
-                }
-
-                // Confirm debt transaction with user
-                var confirmResult = MessageBox.Show(
-                    $"Add {TotalAmount:C2} to {SelectedCustomer.Name}'s debt?",
-                    "Confirm Debt Transaction",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (confirmResult != MessageBoxResult.Yes)
-                    return;
-
-                // Begin database transaction
-                using (var transaction = await _unitOfWork.BeginTransactionAsync())
-                {
-                    try
-                    {
-                        // Update customer balance
-                        await _customerService.AddToBalanceAsync(SelectedCustomer.CustomerId, TotalAmount);
-
-                        // Prepare transaction data
-                        CurrentTransaction.TransactionDate = DateTime.Now;
-                        CurrentTransaction.CustomerId = SelectedCustomer.CustomerId;
-                        CurrentTransaction.CustomerName = SelectedCustomer.Name;
-                        CurrentTransaction.TotalAmount = TotalAmount;
-                        CurrentTransaction.PaidAmount = 0;
-                        CurrentTransaction.Balance = TotalAmount;
-                        CurrentTransaction.Status = TransactionStatus.Completed;
-                        CurrentTransaction.TransactionType = TransactionType.Sale;
-                        CurrentTransaction.PaymentMethod = "Debt";
-                        CurrentTransaction.CashierId = GetCurrentUserId();
-                        CurrentTransaction.CashierName = GetCurrentUserName();
-
-                        // Process sale transaction
-                        var processedTransaction = await _transactionService.ProcessSaleAsync(CurrentTransaction);
-
-                        // Create customer payment record
-                        var customerPayment = new CustomerPaymentDTO
-                        {
-                            CustomerId = SelectedCustomer.CustomerId,
-                            Amount = TotalAmount,
-                            PaymentDate = DateTime.Now,
-                            PaymentMethod = "Debt",
-                            Notes = $"Debt transaction #{processedTransaction.TransactionId}"
-                        };
-
-                        // Save customer payment record
-                        await _customerService.ProcessPaymentAsync(customerPayment);
-
-                        // Commit transaction
-                        await transaction.CommitAsync();
-
-                        // Print receipt (optional)
-                        var printReceipt = MessageBox.Show(
-                            "Would you like to print a receipt?",
-                            "Print Receipt",
-                            MessageBoxButton.YesNo,
-                            MessageBoxImage.Question);
-
-                        if (printReceipt == MessageBoxResult.Yes)
-                        {
-                            await PrintReceipt();
-                        }
-
-                        // Reset transaction and show success message
-                        StartNewTransaction();
-                        StatusMessage = $"Debt transaction completed for {SelectedCustomer.Name}";
-                        MessageBox.Show(
-                            $"Transaction of {TotalAmount:C2} has been added to {SelectedCustomer.Name}'s debt",
-                            "Success",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-
-                        // Publish events for system-wide updates
-                        _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                            "Update",
-                            new CustomerDTO
-                            {
-                                CustomerId = SelectedCustomer.CustomerId,
-                                Name = SelectedCustomer.Name,
-                                Balance = TotalAmount,
-                                CreditLimit = SelectedCustomer.CreditLimit
-                            }));
-
-                        _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>(
-                            "Create",
-                            processedTransaction));
-                    }
-                    catch (Exception innerEx)
-                    {
-                        // Rollback transaction on failure
-                        await transaction.RollbackAsync();
-                        throw new InvalidOperationException(
-                            $"Error processing debt transaction: {innerEx.Message}", innerEx);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // Handle and log any unexpected errors
-                await ShowErrorMessageAsync($"Unexpected error: {ex.Message}");
-
-                // Optional: Log the full exception details
-                System.Diagnostics.Debug.WriteLine(ex.ToString());
-            }
+            SelectedCustomer = null;
+            CustomerSearchText = string.Empty;
+            OnPropertyChanged(nameof(SelectedCustomer));
+            OnPropertyChanged(nameof(CustomerSearchText));
         }
+
 
         private string GetCurrentUserId()
         {
@@ -231,40 +174,88 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void RemoveItem(object? parameter)
         {
-            if (parameter is TransactionDetailDTO detail && CurrentTransaction?.Details != null)
+            if (parameter is not TransactionDetailDTO detail || CurrentTransaction?.Details == null)
+            {
+                WindowManager.ShowWarning("No item selected to remove");
+                return;
+            }
+
+            try
             {
                 CurrentTransaction.Details.Remove(detail);
                 UpdateTotals();
+
+                // Notify UI of changes
+                OnPropertyChanged(nameof(CurrentTransaction.Details));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error removing item: {ex.Message}");
+                WindowManager.ShowError($"Error removing item: {ex.Message}");
             }
         }
 
         private void VoidLastItem()
         {
-            if (CurrentTransaction?.Details == null) return;
+            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+            {
+                WindowManager.ShowWarning("No items in transaction to void");
+                return;
+            }
 
             var lastItem = CurrentTransaction.Details.LastOrDefault();
             if (lastItem != null)
             {
                 CurrentTransaction.Details.Remove(lastItem);
                 UpdateTotals();
+
+                // Notify UI of changes
+                OnPropertyChanged(nameof(CurrentTransaction.Details));
+                OnPropertyChanged(nameof(CurrentTransaction));
             }
         }
 
         private void ClearTransaction()
         {
-            if (MessageBox.Show("Are you sure you want to clear this transaction?", "Confirm Clear",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            // Skip the warning check if there are no items - simply return silently
+            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
             {
+
+                return; // Return silently instead of showing warning
+            }
+
+            try
+            {
+                // Skip confirmation and clear directly
                 StartNewTransaction();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error clearing transaction: {ex.Message}");
+                WindowManager.ShowError($"Error clearing transaction: {ex.Message}");
             }
         }
 
         private void CancelTransaction()
         {
-            if (MessageBox.Show("Are you sure you want to cancel this transaction?", "Confirm Cancel",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
             {
-                StartNewTransaction();
+                WindowManager.ShowWarning("No items in transaction to cancel");
+                return;
+            }
+
+            try
+            {
+                if (MessageBox.Show("Are you sure you want to cancel this transaction?", "Confirm Cancel",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    StartNewTransaction();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error cancelling transaction: {ex.Message}");
+                WindowManager.ShowError($"Error cancelling transaction: {ex.Message}");
             }
         }
 
@@ -272,7 +263,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
             {
-                WindowManager.ShowWarning("No items in transaction");
+                WindowManager.ShowWarning("No items in transaction to apply discount");
                 return;
             }
 
@@ -281,12 +272,25 @@ namespace QuickTechSystems.WPF.ViewModels
 
             WindowManager.InvokeAsync(() =>
             {
-                dialog.Owner = mainWindow;
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-                if (dialog.ShowDialog() == true)
+                try
                 {
-                    DiscountAmount = dialog.DiscountAmount;
-                    UpdateTotals();
+                    dialog.Owner = mainWindow;
+                    dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    if (dialog.ShowDialog() == true)
+                    {
+                        DiscountAmount = dialog.DiscountAmount;
+                        UpdateTotals();
+
+                        // Notify UI of changes
+                        OnPropertyChanged(nameof(DiscountAmount));
+                        OnPropertyChanged(nameof(TotalAmount));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error applying discount: {ex.Message}");
+                    MessageBox.Show($"Error applying discount: {ex.Message}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });
         }

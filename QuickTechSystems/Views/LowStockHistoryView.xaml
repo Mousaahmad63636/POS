@@ -1,0 +1,654 @@
+﻿<!-- Path: QuickTechSystems.WPF.Views/LowStockHistoryView.xaml -->
+<UserControl x:Class="QuickTechSystems.WPF.Views.LowStockHistoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             mc:Ignorable="d"
+             d:DesignHeight="800" d:DesignWidth="1200"
+             PreviewMouseDown="UserControl_PreviewMouseDown"
+             FlowDirection="{Binding FlowDirection}">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- Status colors -->
+        <SolidColorBrush x:Key="ResolvedBackgroundBrush" Color="#f0fdf4"/>
+        <SolidColorBrush x:Key="ResolvedTextBrush" Color="#16a34a"/>
+        <SolidColorBrush x:Key="PendingBackgroundBrush" Color="#fff1f2"/>
+        <SolidColorBrush x:Key="PendingTextBrush" Color="#dc2626"/>
+
+        <!-- Drop Shadow -->
+        <DropShadowEffect x:Key="ShadowEffect" 
+                          BlurRadius="15"
+                          Direction="315"
+                          Opacity="0.2"
+                          ShadowDepth="5"
+                          Color="#0F172A"/>
+
+        <Style x:Key="CardShadow" TargetType="Border">
+            <Setter Property="Effect" Value="{StaticResource ShadowEffect}"/>
+        </Style>
+
+        <!-- Status Indicator Styles -->
+        <Style x:Key="StatusIndicator" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{StaticResource PendingBackgroundBrush}"/>
+        </Style>
+
+        <Style x:Key="StatusIndicatorResolved" TargetType="Border" BasedOn="{StaticResource StatusIndicator}">
+            <Setter Property="Background" Value="{StaticResource ResolvedBackgroundBrush}"/>
+        </Style>
+
+        <!-- Button Styles -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#1e40af"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#1e3a8a"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#1e3677"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#f8fafc"/>
+            <Setter Property="Foreground" Value="#1e293b"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#e2e8f0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#f1f5f9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#e2e8f0"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SuccessButton" TargetType="Button">
+            <Setter Property="Background" Value="#10b981"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#059669"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#047857"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HiddenSuccessButton" TargetType="Button" BasedOn="{StaticResource SuccessButton}">
+            <Setter Property="Visibility" Value="Collapsed"/>
+        </Style>
+
+        <!-- Filter Button Style -->
+        <Style x:Key="FilterToggleButton" TargetType="ToggleButton">
+            <Setter Property="Background" Value="#f8fafc"/>
+            <Setter Property="Foreground" Value="#1e293b"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#e2e8f0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Background" Value="#1e40af"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderBrush" Value="#1e3a8a"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#f1f5f9"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" Value="#1e3a8a"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Selectable Text Block Style -->
+        <Style x:Key="SelectableTextBlockStyle" TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Section -->
+        <Border Grid.Row="0" 
+                Background="White" 
+                BorderBrush="#e5e7eb" 
+                BorderThickness="0,0,0,1" 
+                Padding="24,20"
+                Style="{StaticResource CardShadow}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Title and Description -->
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="{DynamicResource LowStock_Title}" 
+                               FontSize="28" 
+                               FontWeight="Bold" 
+                               Foreground="#1e293b"/>
+                    <TextBlock Text="{DynamicResource LowStock_Subtitle}" 
+                               FontSize="16" 
+                               Foreground="#64748b" 
+                               Margin="0,8,0,0"/>
+                </StackPanel>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <Button Command="{Binding ResolveAllCommand}"
+                            Style="{StaticResource SuccessButton}"
+                            ToolTip="{DynamicResource LowStock_ResolveAllTooltip}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="✓" FontWeight="Bold" Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource LowStock_ResolveAll}"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding RefreshCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Margin="12,0,0,0"
+                            ToolTip="{DynamicResource LowStock_RefreshTooltip}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔄" Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource LowStock_Refresh}"/>
+                        </StackPanel>
+                    </Button>
+
+                    <Button Command="{Binding ExportCommand}"
+                            Style="{StaticResource SecondaryButton}"
+                            Margin="12,0,0,0"
+                            ToolTip="{DynamicResource LowStock_ExportTooltip}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="📊" Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource LowStock_Export}"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Filters Section -->
+        <Border Grid.Row="1"
+                Background="#f8fafc"
+                Padding="24,16"
+                BorderBrush="#e5e7eb"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Date Range -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{DynamicResource LowStock_DateRange}" VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold"/>
+                    <DatePicker SelectedDate="{Binding StartDate}" Width="140" VerticalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource LowStock_DateTo}" VerticalAlignment="Center" Margin="12,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}" Width="140" VerticalAlignment="Center"/>
+
+                    <Border Width="1" Background="#e2e8f0" Margin="20,0" Height="32"/>
+
+                    <!-- Status Filter -->
+                    <TextBlock Text="{DynamicResource LowStock_Status}" VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                        <ToggleButton Content="{DynamicResource LowStock_All}" 
+                                      Style="{StaticResource FilterToggleButton}" 
+                                      Margin="0,0,8,0" 
+                                      IsChecked="True"/>
+                        <ToggleButton Content="{DynamicResource LowStock_Pending}" 
+                                      Style="{StaticResource FilterToggleButton}" 
+                                      Margin="0,0,8,0" 
+                                      IsChecked="{Binding ShowPending}"/>
+                        <ToggleButton Content="{DynamicResource LowStock_Resolved}" 
+                                      Style="{StaticResource FilterToggleButton}"
+                                      IsChecked="{Binding ShowResolved}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Search Button -->
+                <Button Grid.Column="1"
+                        Command="{Binding SearchCommand}"
+                        Style="{StaticResource PrimaryButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="🔍" Margin="0,0,8,0"/>
+                        <TextBlock Text="{DynamicResource LowStock_ApplyFilters}"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="2" MouseDown="Grid_MouseDown">
+            <!-- Data Grid for showing records -->
+            <DataGrid x:Name="lowStockDataGrid"
+                      ItemsSource="{Binding LowStockHistories}" 
+                      SelectedItem="{Binding SelectedHistory}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      BorderThickness="0"
+                      Margin="0"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#e2e8f0"
+                      VerticalGridLinesBrush="Transparent"
+                      HeadersVisibility="Column"
+                      RowHeight="65"
+                      SelectionMode="Single"
+                      SelectionUnit="Cell">
+                <DataGrid.Style>
+                    <Style TargetType="DataGrid">
+                        <Setter Property="Visibility" Value="Visible"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasItems}" Value="False">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Style>
+
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="#f1f5f9"/>
+                        <Setter Property="Foreground" Value="#334155"/>
+                        <Setter Property="Padding" Value="16,12"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                        <Setter Property="BorderBrush" Value="#cbd5e1"/>
+                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                    </Style>
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="Padding" Value="16,12"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="VerticalAlignment" Value="Center"/>
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                        <Setter Property="IsTabStop" Value="False"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridCell">
+                                    <Border Padding="{TemplateBinding Padding}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            Background="{TemplateBinding Background}">
+                                        <ContentPresenter />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="White"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                <Setter Property="Background" Value="#f0fdf4"/>
+                            </DataTrigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#eff6ff"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsSelected" Value="True"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter Property="Background" Value="#dbeafe"/>
+                            </MultiTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.Resources>
+
+                <DataGrid.Columns>
+                    <!-- Status Column -->
+                    <DataGridTemplateColumn Header="{DynamicResource LowStock_StatusColumn}" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border>
+                                    <TextBlock FontWeight="SemiBold" 
+                           HorizontalAlignment="Center">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="{DynamicResource LowStock_Pending}"/>
+                                                <Setter Property="Foreground" Value="{StaticResource PendingTextBrush}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                        <Setter Property="Text" Value="{DynamicResource LowStock_Resolved}"/>
+                                                        <Setter Property="Foreground" Value="{StaticResource ResolvedTextBrush}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Border.Style>
+                                        <Style TargetType="Border" BasedOn="{StaticResource StatusIndicator}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource ResolvedBackgroundBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Alert Date Column -->
+                    <DataGridTextColumn Header="{DynamicResource LowStock_AlertDate}" 
+                                        Binding="{Binding AlertDate, StringFormat='{}{0:MMM dd, yyyy hh:mm tt}'}" 
+                                        Width="180">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SelectableTextBlockStyle}"/>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Product Name Column -->
+                    <DataGridTextColumn Header="{DynamicResource LowStock_Product}" 
+                                        Binding="{Binding ProductName}" 
+                                        Width="*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SelectableTextBlockStyle}"/>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Stock Levels Column -->
+                    <DataGridTemplateColumn Header="{DynamicResource LowStock_StockLevels}" Width="160">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical" Margin="0,4">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{DynamicResource LowStock_Current}" FontWeight="SemiBold" Foreground="#64748b"/>
+                                        <TextBlock Text="{Binding CurrentStock}" Style="{StaticResource SelectableTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{DynamicResource LowStock_Minimum}" FontWeight="SemiBold" Foreground="#64748b"/>
+                                        <TextBlock Text="{Binding MinimumStock}" Style="{StaticResource SelectableTextBlockStyle}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Cashier Column -->
+                    <DataGridTextColumn Header="{DynamicResource LowStock_ReportedBy}" 
+                                        Binding="{Binding CashierName}" 
+                                        Width="150">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource SelectableTextBlockStyle}"/>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+
+                    <!-- Resolved Info Column -->
+                    <DataGridTemplateColumn Header="{DynamicResource LowStock_ResolutionInfo}" Width="180">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <!-- For Resolved Items -->
+                                    <StackPanel>
+                                        <StackPanel.Style>
+                                            <Style TargetType="StackPanel">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </StackPanel.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{DynamicResource LowStock_ResolvedOn}" FontWeight="SemiBold" Foreground="#64748b"/>
+                                            <TextBlock Text="{Binding ResolvedDate, StringFormat='{}{0:MMM dd, yyyy}'}" 
+                                                       Style="{StaticResource SelectableTextBlockStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{DynamicResource LowStock_ResolvedBy}" FontWeight="SemiBold" Foreground="#64748b"/>
+                                            <TextBlock Text="{Binding ResolvedBy}" Style="{StaticResource SelectableTextBlockStyle}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- For Pending Items -->
+                                    <TextBlock Text="{DynamicResource LowStock_NotResolved}" 
+                                               Foreground="#94a3b8"
+                                               FontStyle="Italic">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource SelectableTextBlockStyle}">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </Grid>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+
+                    <!-- Actions Column -->
+                    <DataGridTemplateColumn Header="{DynamicResource LowStock_Actions}" Width="120">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Command="{Binding DataContext.ResolveCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                        CommandParameter="{Binding}"
+                                        Padding="10,5">
+                                    <TextBlock Text="{DynamicResource LowStock_MarkResolved}" />
+                                    <Button.Style>
+                                        <Style TargetType="Button" BasedOn="{StaticResource SuccessButton}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsResolved}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Empty State -->
+            <Border Background="White" Padding="40">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasItems}" Value="False">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="📦" FontSize="48" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource LowStock_NoAlertsFound}"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Margin="0,16,0,8"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource LowStock_EmptyStateMessage}"
+                               Foreground="#64748b"
+                               TextAlignment="Center"
+                               MaxWidth="400"
+                               TextWrapping="Wrap"/>
+                    <Button Content="{DynamicResource LowStock_RefreshData}"
+                            Command="{Binding RefreshCommand}"
+                            Style="{StaticResource PrimaryButton}"
+                            Margin="0,24,0,0"
+                            Padding="20,10"
+                            HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer Section - Status Bar -->
+        <Border Grid.Row="3" 
+                Background="#f8fafc" 
+                BorderBrush="#e2e8f0" 
+                BorderThickness="0,1,0,0" 
+                Padding="24,14">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status Message -->
+                <TextBlock Grid.Column="0" 
+                           Text="{Binding StatusMessage}" 
+                           VerticalAlignment="Center"/>
+
+                <!-- Stats Summary -->
+                <StackPanel Grid.Column="1" 
+                          Orientation="Horizontal"
+                          VerticalAlignment="Center">
+                    <Border Background="#eff6ff" 
+                            CornerRadius="4" 
+                            Padding="10,6" 
+                            Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{DynamicResource LowStock_Total}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding LowStockHistories.Count}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#f0fdf4" 
+                            CornerRadius="4" 
+                            Padding="10,6" 
+                            Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{DynamicResource LowStock_ResolvedCount}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding ResolvedCount}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#fff1f2" 
+                            CornerRadius="4" 
+                            Padding="10,6">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{DynamicResource LowStock_PendingCount}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding PendingCount}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Loading Overlay -->
+        <Grid Grid.Row="0" Grid.RowSpan="4" 
+              Background="#80FFFFFF" 
+              Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Background="White" 
+                    CornerRadius="8" 
+                    Width="280"
+                    Height="120"
+                    Style="{StaticResource CardShadow}">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" 
+                                 Height="4" 
+                                 Width="200" 
+                                 Background="Transparent" 
+                                 Foreground="#1e40af"/>
+                    <TextBlock Text="{Binding LoadingMessage, TargetNullValue={StaticResource LowStock_Loading}}" 
+                               Foreground="#1e293b"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,16,0,0"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

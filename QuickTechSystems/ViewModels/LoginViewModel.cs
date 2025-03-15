@@ -1,25 +1,29 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services;
-using QuickTechSystems.WPF;
-using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Services.Interfaces;
-using System.Windows.Controls;  // For PasswordBox
-using Microsoft.Extensions.DependencyInjection;  // For GetRequiredService
+using QuickTechSystems.WPF;
+using QuickTechSystems.WPF.Commands;
 
 namespace QuickTechSystems.ViewModels
 {
     public class LoginViewModel : ViewModelBase
     {
         private readonly IAuthService _authService;
-        private string _username = string.Empty;
         private readonly IDrawerService _drawerService;
+        private readonly IActivityLogger _activityLogger;
+        private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+
+        private string _username = string.Empty;
         private string _errorMessage = string.Empty;
+        private bool _isProcessing;
 
         public string Username
         {
@@ -33,58 +37,85 @@ namespace QuickTechSystems.ViewModels
             set => SetProperty(ref _errorMessage, value);
         }
 
+        public bool IsProcessing
+        {
+            get => _isProcessing;
+            set => SetProperty(ref _isProcessing, value);
+        }
+
         public ICommand LoginCommand { get; }
 
         public LoginViewModel(
             IAuthService authService,
             IDrawerService drawerService,
+            IActivityLogger activityLogger,
             IEventAggregator eventAggregator)
             : base(eventAggregator)
         {
-            _drawerService = drawerService;
             _authService = authService;
-            LoginCommand = new AsyncRelayCommand(ExecuteLoginAsync);
+            _drawerService = drawerService;
+            _activityLogger = activityLogger;
+            LoginCommand = new AsyncRelayCommand(ExecuteLoginAsync, CanExecuteLogin);
         }
 
-        private async Task CheckDrawerStatus(EmployeeDTO employee, PasswordBox passwordBox)
+        private bool CanExecuteLogin(object? parameter)
         {
+            return !IsProcessing && !string.IsNullOrWhiteSpace(Username);
+        }
+
+        private async Task ExecuteLoginAsync(object? parameter)
+        {
+            if (parameter is not PasswordBox passwordBox) return;
+
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Login operation already in progress. Please wait.");
+                return;
+            }
+
             try
             {
-                var drawerService = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<IDrawerService>();
-                var currentDrawer = await drawerService.GetCurrentDrawerAsync();
+                IsProcessing = true;
+                ErrorMessage = string.Empty;
 
-                if (currentDrawer == null)
+                try
                 {
-                    // No open drawer, show prompt
-                    var window = new CashDrawerPromptWindow();
-                    var viewModel = new CashDrawerPromptViewModel(
-                        drawerService,
-                        window,
-                        _eventAggregator);
-                    window.DataContext = viewModel;
+                    var employee = await _authService.LoginAsync(Username, passwordBox.Password);
 
-                    var result = window.ShowDialog();
-                    if (result != true)
+                    if (employee == null)
                     {
-                        // User cancelled drawer opening
-                        ErrorMessage = "Drawer must be opened to continue";
+                        ShowTemporaryErrorMessage("Invalid username or password");
                         return;
                     }
-                }
 
-                // Proceed to main window
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    // Ensure the role is valid
+                    if (!Enum.TryParse<UserRole>(employee.Role, true, out var role))
+                    {
+                        ShowTemporaryErrorMessage("Invalid user role configuration");
+                        return;
+                    }
+
+                    await _activityLogger.LogActivityAsync(
+                        employee.Username,
+                        "Login",
+                        $"User logged in successfully with role {role}"
+                    );
+
+                    App.Current.Properties["CurrentUser"] = employee;
+                    await CheckDrawerStatusAndProceed(passwordBox, employee);
+                }
+                catch (Exception ex)
                 {
-                    var mainWindow = new MainWindow();
-                    mainWindow.Show();
-                    Window.GetWindow(passwordBox)?.Close();
-                });
+                    await HandleExceptionAsync("Login error", ex);
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                ErrorMessage = $"Error checking drawer status: {ex.Message}";
+                IsProcessing = false;
+                _operationLock.Release();
             }
         }
+
         private async Task CheckDrawerStatusAndProceed(PasswordBox passwordBox, EmployeeDTO employee)
         {
             try
@@ -103,9 +134,21 @@ namespace QuickTechSystems.ViewModels
                     var result = window.ShowDialog();
                     if (result != true)
                     {
-                        ErrorMessage = "Drawer must be opened to continue";
+                        ShowTemporaryErrorMessage("Drawer must be opened to continue");
+                        await _activityLogger.LogActivityAsync(
+                            employee.Username,
+                            "Drawer Opening Cancelled",
+                            "User cancelled drawer opening process",
+                            false
+                        );
                         return;
                     }
+
+                    await _activityLogger.LogActivityAsync(
+                        employee.Username,
+                        "Drawer Opened",
+                        "New cash drawer opened"
+                    );
                 }
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -117,34 +160,66 @@ namespace QuickTechSystems.ViewModels
             }
             catch (Exception ex)
             {
-                ErrorMessage = $"Error checking drawer status: {ex.Message}";
+                await HandleExceptionAsync("Error checking drawer status", ex);
             }
         }
 
-        private async Task ExecuteLoginAsync(object? parameter)
+        private async Task HandleExceptionAsync(string context, Exception ex)
         {
-            if (parameter is not PasswordBox passwordBox) return;
+            Debug.WriteLine($"{context}: {ex}");
 
-            try
+            // Special handling for known database errors
+            if (ex.Message.Contains("A second operation was started") ||
+                (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
             {
-                ErrorMessage = string.Empty;
-                var employee = await _authService.LoginAsync(Username, passwordBox.Password);
-
-                if (employee == null)
-                {
-                    ErrorMessage = "Invalid username or password";
-                    return;
-                }
-
-                App.Current.Properties["CurrentUser"] = employee;
-                await CheckDrawerStatusAndProceed(passwordBox, employee);
+                ShowTemporaryErrorMessage("System is busy. Please try again in a moment.");
             }
-            catch (Exception ex)
+            else if (ex.Message.Contains("The connection was closed") ||
+                    (ex.InnerException != null && ex.InnerException.Message.Contains("The connection was closed")))
             {
-                ErrorMessage = "An error occurred during login. Please try again.";
-                Debug.WriteLine($"Login error: {ex.Message}");
+                ShowTemporaryErrorMessage("Database connection lost. Please check your connection and try again.");
+            }
+            else
+            {
+                ShowTemporaryErrorMessage($"An error occurred during login. Please try again.");
+
+                await _activityLogger.LogActivityAsync(
+                    Username,
+                    "Login Error",
+                    ex.Message,
+                    false,
+                    ex.Message
+                );
             }
         }
-      
+
+        private void ShowTemporaryErrorMessage(string message)
+        {
+            ErrorMessage = message;
+
+            // Automatically clear error after delay
+            Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (ErrorMessage == message) // Only clear if still the same message
+                    {
+                        ErrorMessage = string.Empty;
+                    }
+                });
+            });
+        }
+
+        protected override Task LoadDataAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public override void Dispose()
+        {
+            _operationLock?.Dispose();
+            base.Dispose();
+        }
     }
 }

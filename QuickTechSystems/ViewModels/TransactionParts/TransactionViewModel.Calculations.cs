@@ -17,6 +17,9 @@ using System.Windows.Media;
 using System.Windows.Controls;
 using QuickTechSystems.Application.Helpers;
 using System.Windows.Media.Imaging;
+using QuickTechSystems.Application.Events;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Diagnostics;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -29,10 +32,7 @@ namespace QuickTechSystems.WPF.ViewModels
             TaxAmount = 0;
             DiscountAmount = 0;
             TotalAmount = 0;
-            PaymentAmount = 0;
-            ChangeDue = 0;
         }
-
 
         public void UpdateTotals()
         {
@@ -61,33 +61,20 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(TotalAmountLBP));
         }
 
-
-        private void UpdateChangeDue()
-        {
-            ChangeDue = PaymentAmount - TotalAmount;
-        }
-
-        private decimal ParsePaymentAmount(string value)
-        {
-            return decimal.TryParse(value, out decimal result) ? result : 0m;
-        }
-
         private async Task ChangeQuantity()
         {
-            try
+            await ExecuteOperationSafelyAsync(async () =>
             {
                 if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
                 {
-                    await ShowErrorMessageAsync("No items in transaction");
-                    return;
+                    throw new InvalidOperationException("No items in transaction");
                 }
 
                 // Get the selected item or the last item added
                 var selectedDetail = CurrentTransaction.Details.LastOrDefault();
                 if (selectedDetail == null)
                 {
-                    await ShowErrorMessageAsync("No item selected");
-                    return;
+                    throw new InvalidOperationException("No item selected");
                 }
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -99,140 +86,149 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     if (dialog.ShowDialog() == true)
                     {
-                        try
-                        {
-                            // Update quantity and recalculate total
-                            selectedDetail.Quantity = dialog.NewQuantity;
-                            selectedDetail.Total = selectedDetail.Quantity * selectedDetail.UnitPrice;
+                        // Update quantity and recalculate total
+                        selectedDetail.Quantity = dialog.NewQuantity;
+                        selectedDetail.Total = selectedDetail.Quantity * selectedDetail.UnitPrice;
 
-                            // Force UI refresh
-                            var index = CurrentTransaction.Details.IndexOf(selectedDetail);
-                            if (index >= 0)
-                            {
-                                CurrentTransaction.Details.RemoveAt(index);
-                                CurrentTransaction.Details.Insert(index, selectedDetail);
-                            }
-
-                            // Update totals and notify UI
-                            UpdateTotals();
-                            OnPropertyChanged(nameof(CurrentTransaction.Details));
-                            OnPropertyChanged(nameof(CurrentTransaction));
-                        }
-                        catch (Exception ex)
+                        // Force UI refresh
+                        var index = CurrentTransaction.Details.IndexOf(selectedDetail);
+                        if (index >= 0)
                         {
-                            await ShowErrorMessageAsync($"Error updating quantity: {ex.Message}");
+                            CurrentTransaction.Details.RemoveAt(index);
+                            CurrentTransaction.Details.Insert(index, selectedDetail);
                         }
+
+                        // Update totals and notify UI
+                        UpdateTotals();
+                        OnPropertyChanged(nameof(CurrentTransaction.Details));
+                        OnPropertyChanged(nameof(CurrentTransaction));
                     }
                 });
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error changing quantity: {ex.Message}");
-            }
+            }, "Changing quantity");
         }
-
         private async Task ProcessCashPayment()
         {
-            try
+            // Preliminary check before entering the safe operation
+            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
             {
-                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+                Debug.WriteLine("No items in transaction to process payment");
+                return;
+            }
+
+            await ShowLoadingAsync("Processing payment...", async () =>
+            {
+                // Validate active drawer
+                var drawer = await _drawerService.GetCurrentDrawerAsync();
+                if (drawer == null)
                 {
-                    await ShowErrorMessageAsync("No items in transaction");
-                    return;
+                    throw new InvalidOperationException("No active cash drawer. Please open a drawer first.");
                 }
 
-                // Automatically set payment amount equal to total amount
-                PaymentAmount = TotalAmount;
-
-                // Update the change due (will be zero since payment equals total)
-                UpdateChangeDue();
-
-                var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
-
-                var transactionToProcess = new TransactionDTO
+                IDbContextTransaction dbTransaction = null;
+                try
                 {
-                    TransactionDate = DateTime.Now,
-                    CustomerId = SelectedCustomer?.CustomerId,
-                    CustomerName = SelectedCustomer?.Name ?? "Walk-in Customer",
-                    PaidAmount = PaymentAmount,
-                    TotalAmount = TotalAmount,
-                    Balance = 0, // Since payment equals total, balance is zero
-                    TransactionType = TransactionType.Sale,
-                    Status = TransactionStatus.Completed,
-                    CashierId = currentUser?.EmployeeId.ToString() ?? "0",
-                    CashierName = currentUser?.FullName ?? "Unknown",
-                    Details = new ObservableCollection<TransactionDetailDTO>(CurrentTransaction.Details.Select(d =>
-                        new TransactionDetailDTO
-                        {
-                            ProductId = d.ProductId,
-                            ProductName = d.ProductName,
-                            ProductBarcode = d.ProductBarcode,
-                            Quantity = d.Quantity,
-                            UnitPrice = d.UnitPrice,
-                            PurchasePrice = d.PurchasePrice,
-                            Discount = d.Discount,
-                            Total = d.Total
-                        }))
-                };
+                    dbTransaction = await _unitOfWork.BeginTransactionAsync();
 
-                var result = await _transactionService.ProcessSaleAsync(transactionToProcess);
+                    var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+                    var transactionToProcess = new TransactionDTO
+                    {
+                        TransactionDate = DateTime.Now,
+                        CustomerId = SelectedCustomer?.CustomerId,
+                        CustomerName = SelectedCustomer?.Name ?? "Walk-in Customer",
+                        TotalAmount = TotalAmount,
+                        Balance = 0,
+                        TransactionType = TransactionType.Sale,
+                        Status = TransactionStatus.Completed,
+                        PaymentMethod = "Cash",
+                        CashierId = currentUser?.EmployeeId.ToString() ?? "0",
+                        CashierName = currentUser?.FullName ?? "Unknown",
+                        Details = new ObservableCollection<TransactionDetailDTO>(CurrentTransaction.Details.Select(d =>
+                            new TransactionDetailDTO
+                            {
+                                ProductId = d.ProductId,
+                                ProductName = d.ProductName,
+                                ProductBarcode = d.ProductBarcode,
+                                Quantity = d.Quantity,
+                                UnitPrice = d.UnitPrice,
+                                PurchasePrice = d.PurchasePrice,
+                                Discount = d.Discount,
+                                Total = d.Total
+                            }))
+                    };
 
-                if (result != null)
-                {
-                    // Force refresh of products after a successful transaction
-                    var updatedProducts = await _productService.GetAllAsync();
-                    AllProducts = new ObservableCollection<ProductDTO>(updatedProducts);
+                    var result = await _transactionService.ProcessSaleAsync(transactionToProcess);
 
-                    // Update filtered products
-                    var internetProducts = updatedProducts
-                        .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
-                        .ToList();
-                    FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
+                    await _drawerService.ProcessCashSaleAsync(
+                        TotalAmount,
+                        $"Transaction #{result.TransactionId}"
+                    );
 
-                    await PrintReceipt();
+                    _eventAggregator.Publish(new DrawerUpdateEvent(
+                        "Cash Sale",
+                        TotalAmount,
+                        $"Transaction #{result.TransactionId}"
+                    ));
+
+                    await dbTransaction.CommitAsync();
+
+                    // Skip printing receipt
                     StartNewTransaction();
 
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show("Transaction completed successfully", "Success",
-                            MessageBoxButton.OK, MessageBoxImage.Information));
+                    // Update the lookup transaction ID with the next transaction number
+                    try
+                    {
+                        await UpdateLookupTransactionIdAsync();
+                    }
+                    catch (Exception lookupEx)
+                    {
+                        Debug.WriteLine($"Error updating lookup ID: {lookupEx.Message}");
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                await WindowManager.InvokeAsync(() =>
-                    MessageBox.Show($"Error processing payment: {ex.Message}",
-                        "Error",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error));
-            }
-        }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Transaction error: {ex.Message}");
 
+                    if (dbTransaction != null)
+                    {
+                        try
+                        {
+                            await dbTransaction.RollbackAsync();
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            Debug.WriteLine($"Error during rollback: {rollbackEx.Message}");
+                        }
+                    }
+                    throw;
+                }
+            }, null); // Pass null to skip success message
+        }
 
         private async Task ProcessReturn()
         {
-            try
+            await ShowLoadingAsync("Processing return...", async () =>
             {
-                // Create the dialog without setting owner initially
-                var dialog = new InputDialog("Process Return", "Enter transaction number to return");
+                // Validate drawer first
+                var drawer = await _drawerService.GetCurrentDrawerAsync();
+                if (drawer == null)
+                {
+                    throw new InvalidOperationException("No active cash drawer. Please open a drawer first.");
+                }
 
+                var dialog = new InputDialog("Process Return", "Enter transaction number to return");
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     if (dialog.ShowDialog() == true)
                     {
-                        string transactionId = dialog.Input;
-                        if (string.IsNullOrEmpty(transactionId) || !int.TryParse(transactionId, out int id))
+                        if (!int.TryParse(dialog.Input, out int id))
                         {
-                            MessageBox.Show("Please enter a valid transaction number", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return;
+                            throw new InvalidOperationException("Please enter a valid transaction number");
                         }
 
                         var transaction = await _transactionService.GetTransactionForReturnAsync(id);
                         if (transaction == null)
                         {
-                            MessageBox.Show("Transaction not found or not eligible for return", "Error",
-                                MessageBoxButton.OK, MessageBoxImage.Warning);
-                            return;
+                            throw new InvalidOperationException("Transaction not found or not eligible for return");
                         }
 
                         var returnDialog = new ReturnItemSelectionDialog(transaction);
@@ -241,52 +237,61 @@ namespace QuickTechSystems.WPF.ViewModels
                             var returnItems = returnDialog.SelectedItems;
                             if (returnItems.Any())
                             {
+                                // Process return and update drawer
                                 var result = await _transactionService.ProcessReturnAsync(id, returnItems);
+                                var totalRefund = returnItems.Sum(ri => ri.RefundAmount);
+
+                                // Process refund in drawer
+                                await _drawerService.ProcessTransactionAsync(
+                                    totalRefund,
+                                    "Return",
+                                    $"Return for transaction #{id}"
+                                );
+
                                 await PrintReturnReceipt(result, returnItems);
-                                MessageBox.Show("Return processed successfully", "Success",
-                                    MessageBoxButton.OK, MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("No items selected for return");
                             }
                         }
                     }
                 });
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error processing return: {ex.Message}");
-            }
+            }, "Return processed successfully");
         }
+
+        private async Task<bool> ValidateDrawerAsync()
+        {
+            var drawer = await _drawerService.GetCurrentDrawerAsync();
+            if (drawer == null)
+            {
+                await ShowErrorMessageAsync("No active cash drawer. Please open a drawer first.");
+                return false;
+            }
+            return true;
+        }
+
         private async Task ProcessReturnAsync(TransactionDTO transaction, List<ReturnItemDTO> returnItems)
         {
-            try
+            await ExecuteOperationSafelyAsync(async () =>
             {
                 decimal totalRefundAmount = returnItems.Sum(ri => ri.RefundAmount);
                 var result = await _transactionService.ProcessReturnAsync(transaction.TransactionId, returnItems);
 
                 // Clear current transaction
                 StartNewTransaction();
-
-                // Show success message
-                MessageBox.Show($"Return processed successfully. Refund amount: {totalRefundAmount:C2}",
-                    "Return Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Error processing return: {ex.Message}");
-            }
+            }, "Processing return");
         }
-
-
 
         private async Task ProcessRefund()
         {
-            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+            await ShowLoadingAsync("Processing refund...", async () =>
             {
-                await ShowErrorMessageAsync("No items to refund");
-                return;
-            }
+                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+                {
+                    throw new InvalidOperationException("No items to refund");
+                }
 
-            try
-            {
                 var transactionToRefund = new TransactionDTO
                 {
                     TransactionDate = DateTime.Now,
@@ -301,15 +306,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 var result = await _transactionService.ProcessRefundAsync(transactionToRefund);
                 await PrintReceipt();
                 StartNewTransaction();
-                MessageBox.Show("Refund processed successfully", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error processing refund: {ex.Message}");
-            }
+            }, "Refund processed successfully");
         }
-        
+
         private async Task<List<ReturnItemDTO>> ShowReturnItemSelectionDialog(TransactionDTO transaction)
         {
             var returnItems = new List<ReturnItemDTO>();
@@ -332,7 +331,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task PrintReturnReceipt(TransactionDTO transaction, List<ReturnItemDTO> returnItems)
         {
-            try
+            await ExecuteOperationSafelyAsync(async () =>
             {
                 var printDialog = new PrintDialog();
                 if (printDialog.ShowDialog() != true)
@@ -354,25 +353,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     paragraph.Inlines.Add(new Run(
                         $"{item.ProductName}\n" +
                         $"Quantity: {item.QuantityToReturn}\n" +
-                        $"Refund Amount: {item.RefundAmount:C2}\n" +
+                        $"Refund Amount: {item.RefundAmount:N}\n" +
                         $"Reason: {item.ReturnReason}\n\n"));
                 }
 
                 // Total
-                paragraph.Inlines.Add(new Bold(new Run($"Total Refund Amount: {returnItems.Sum(i => i.RefundAmount):C2}\n")));
+                paragraph.Inlines.Add(new Bold(new Run($"Total Refund Amount: {returnItems.Sum(i => i.RefundAmount):N}\n")));
 
                 document.Blocks.Add(paragraph);
                 printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, "Return Receipt");
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error printing return receipt: {ex.Message}");
-            }
+            }, "Printing return receipt", "PrintOperation");
         }
 
         private async Task ReprintLast()
         {
-            try
+            await ExecuteOperationSafelyAsync(async () =>
             {
                 var lastTransaction = await _transactionService.GetLastTransactionAsync();
                 if (lastTransaction == null || !lastTransaction.Details.Any())
@@ -405,8 +400,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.Navy
                     };
-                    header.Inlines.Add("GalaxyNet\n");
-                    header.Inlines.Add(new Run("Your partner in all your IT problems\n 81 20 77 06\n 03 65 74 64 \n")
+                    header.Inlines.Add("Family Market \n");
+                    header.Inlines.Add(new Run("76644036")
                     { FontSize = 14, FontWeight = FontWeights.Normal });
                     flowDocument.Blocks.Add(header);
                     flowDocument.Blocks.Add(CreateDivider());
@@ -443,8 +438,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         var row = new TableRow();
                         row.Cells.Add(CreateCell(item.ProductName.Trim(), alignment: TextAlignment.Left));
                         row.Cells.Add(CreateCell(item.Quantity.ToString(), alignment: TextAlignment.Center));
-                        row.Cells.Add(CreateCell(item.UnitPrice.ToString("C2"), alignment: TextAlignment.Right));
-                        row.Cells.Add(CreateCell(item.Total.ToString("C2"), alignment: TextAlignment.Right));
+                        row.Cells.Add(CreateCell(item.UnitPrice.ToString("N"), alignment: TextAlignment.Right));
+                        row.Cells.Add(CreateCell(item.Total.ToString("N"), alignment: TextAlignment.Right));
                         itemsTable.RowGroups[0].Rows.Add(row);
                     }
                     flowDocument.Blocks.Add(itemsTable);
@@ -457,10 +452,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     totalsTable.RowGroups.Add(new TableRowGroup());
                     var subtotal = lastTransaction.Details.Sum(d => d.Total);
-                    AddTotalRow(totalsTable, "SUBTOTAL:", subtotal.ToString("C2"));
-                    AddTotalRow(totalsTable, "TOTAL:", lastTransaction.TotalAmount.ToString("C2"), true);
-                    AddTotalRow(totalsTable, "PAID:", lastTransaction.PaidAmount.ToString("C2"));
-                    AddTotalRow(totalsTable, "CHANGE:", (lastTransaction.PaidAmount - lastTransaction.TotalAmount).ToString("C2"));
+                    AddTotalRow(totalsTable, "SUBTOTAL:", subtotal.ToString("N"));
+                    AddTotalRow(totalsTable, "TOTAL:", lastTransaction.TotalAmount.ToString("N"), true);
+                    AddTotalRow(totalsTable, "PAID:", lastTransaction.PaidAmount.ToString("N"));
+                    AddTotalRow(totalsTable, "CHANGE:", (lastTransaction.PaidAmount - lastTransaction.TotalAmount).ToString("N"));
 
                     flowDocument.Blocks.Add(totalsTable);
                     flowDocument.Blocks.Add(CreateDivider());
@@ -479,17 +474,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         ((IDocumentPaginatorSource)flowDocument).DocumentPaginator,
                         "Duplicate Receipt");
                 });
-            }
-            catch (Exception ex)
-            {
-                await WindowManager.InvokeAsync(() =>
-                    MessageBox.Show($"Reprint Error: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error));
-            }
+            }, "Reprinting last receipt", "PrintOperation");
         }
-
-
-
-
     }
 }

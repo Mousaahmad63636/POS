@@ -3,135 +3,191 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d" 
-             d:DesignHeight="600" d:DesignWidth="1000">
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
+             mc:Ignorable="d">
 
     <UserControl.Resources>
-        <!-- Colors -->
-        <SolidColorBrush x:Key="PrimaryColor" Color="#007BFF"/>
-        <SolidColorBrush x:Key="SecondaryColor" Color="#6C757D"/>
-        <SolidColorBrush x:Key="TextColor" Color="#343A40"/>
-        <SolidColorBrush x:Key="BackgroundColor" Color="#F8F9FA"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
-        <SolidColorBrush x:Key="GrayTextColor" Color="#6C757D"/>
-
-        <!-- DataGrid Styles -->
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="{StaticResource BackgroundColor}"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="AlternatingRowBackground" Value="#E9ECEF"/>
-            <Setter Property="RowHeight" Value="35"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-        </Style>
-
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-
-        <!-- Button Styles -->
-        <Style x:Key="BaseButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource SecondaryColor}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <Grid Grid.Row="0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Style="{StaticResource ResponsiveTwoColumnLayout}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="350"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Text="{DynamicResource Employee_Title}"
-                       FontSize="24"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource PrimaryColor}"
-                       Margin="0,0,0,20"/>
+            <!-- Employee List -->
+            <Border Grid.Column="0" Style="{StaticResource DataTableContainer}" Margin="0,0,24,0">
+                <DataGrid ItemsSource="{Binding Employees}"
+                          SelectedItem="{Binding SelectedEmployee}"
+                          Style="{StaticResource ResponsiveDataGrid}"
+                          ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                          CellStyle="{StaticResource ModernDataGridCell}"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          BorderThickness="0">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{DynamicResource Employee_Column_Username}" 
+                                            Binding="{Binding Username}"
+                                            Width="*"/>
+                        <DataGridTextColumn Header="{DynamicResource Employee_Column_Name}" 
+                                            Binding="{Binding FullName}"
+                                            Width="*"/>
+                        <DataGridTextColumn Header="{DynamicResource Employee_Column_Role}" 
+                                            Binding="{Binding Role}"
+                                            Width="100"/>
+                        <DataGridTextColumn Header="{DynamicResource Employee_Column_LastLogin}" 
+                                            Binding="{Binding LastLogin, StringFormat=g}"
+                                            Width="150"/>
+                        <DataGridCheckBoxColumn Header="{DynamicResource Employee_Column_Active}"
+                                                Binding="{Binding IsActive}"
+                                                Width="60"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
 
-            <Button Grid.Column="1" 
-                    Content="{DynamicResource Employee_AddEmployee}"
-                    Command="{Binding AddCommand}"
-                    Style="{StaticResource BaseButton}"
-                    Margin="0,0,0,20"/>
+            <!-- Employee Details -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Button Grid.Row="0" 
+                        Content="{DynamicResource Employee_AddEmployee}"
+                        Command="{Binding AddCommand}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        HorizontalAlignment="Left"
+                        Margin="0,0,0,16"/>
+
+                <Border Grid.Row="1" Style="{StaticResource EnhancedResponsiveCardContainer}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Style="{StaticResource FormSection}">
+                            <TextBlock Text="{DynamicResource Employee_Title}" 
+                                       Style="{StaticResource HeadlineSmall}"
+                                       Foreground="{StaticResource PrimaryColor}"
+                                       Margin="0,0,0,16"/>
+
+                            <TextBlock Text="{DynamicResource Employee_Username}" Style="{StaticResource FormLabel}"/>
+                            <TextBox Text="{Binding CurrentEmployee.Username}" Style="{StaticResource FormField}"/>
+
+                            <TextBlock Text="{DynamicResource Employee_FirstName}" Style="{StaticResource FormLabel}"/>
+                            <TextBox Text="{Binding CurrentEmployee.FirstName}" Style="{StaticResource FormField}"/>
+
+                            <TextBlock Text="{DynamicResource Employee_LastName}" Style="{StaticResource FormLabel}"/>
+                            <TextBox Text="{Binding CurrentEmployee.LastName}" Style="{StaticResource FormField}"/>
+
+                            <TextBlock Text="{DynamicResource Employee_Password}" Style="{StaticResource FormLabel}"
+                                       Visibility="{Binding IsNewEmployee, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <PasswordBox x:Name="PasswordBox" Style="{StaticResource ModernPasswordBox}"
+                                         Visibility="{Binding IsNewEmployee, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                         Margin="0,0,0,16"/>
+
+                            <TextBlock Text="{DynamicResource Employee_Role}" Style="{StaticResource FormLabel}"/>
+                            <ComboBox ItemsSource="{Binding Roles}"
+                                      Style="{StaticResource ModernComboBox}"
+                                      SelectedItem="{Binding CurrentEmployee.Role}"
+                                      Margin="0,0,0,16"/>
+
+                            <CheckBox Content="{DynamicResource Employee_IsActive}"
+                                      IsChecked="{Binding CurrentEmployee.IsActive}"
+                                      Margin="0,0,0,24"/>
+
+                            <!-- Salary Fields -->
+                            <TextBlock Text="{DynamicResource Employee_MonthlySalary}" Style="{StaticResource FormLabel}"/>
+                            <TextBox Text="{Binding CurrentEmployee.MonthlySalary, StringFormat=N}" Style="{StaticResource FormField}"/>
+
+                            <TextBlock Text="{DynamicResource Employee_CurrentBalance}" Style="{StaticResource FormLabel}"/>
+                            <TextBox Text="{Binding CurrentEmployee.CurrentBalance, StringFormat=N}"
+                                     Style="{StaticResource FormField}"
+                                     IsReadOnly="True"/>
+
+                            <!-- Salary History Grid -->
+                            <TextBlock Text="{DynamicResource Employee_SalaryHistory}"
+                                       Style="{StaticResource HeadlineSmall}"
+                                       Margin="0,16,0,8"/>
+
+                            <Border Style="{StaticResource DataTableContainer}" Padding="0" Margin="0,0,0,16">
+                                <DataGrid ItemsSource="{Binding SalaryTransactions}"
+                                          Style="{StaticResource ResponsiveDataGrid}"
+                                          ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                                          CellStyle="{StaticResource ModernDataGridCell}"
+                                          AutoGenerateColumns="False"
+                                          IsReadOnly="True"
+                                          BorderThickness="0"
+                                          MaxHeight="200">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="{DynamicResource Transaction_Date}" 
+                                                          Binding="{Binding TransactionDate, StringFormat=g}"
+                                                          Width="150"/>
+                                        <DataGridTextColumn Header="{DynamicResource Transaction_Type}" 
+                                                          Binding="{Binding TransactionType}"
+                                                          Width="100"/>
+                                        <DataGridTextColumn Header="{DynamicResource Transaction_Amount}" 
+                                                          Binding="{Binding Amount, StringFormat=N}"
+                                                          Width="100"/>
+                                        <DataGridTextColumn Header="{DynamicResource Transaction_Notes}" 
+                                                          Binding="{Binding Notes}"
+                                                          Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+
+                            <!-- Salary Actions -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
+                                <Button Content="{DynamicResource Employee_ProcessSalary}"
+                                        Command="{Binding ProcessSalaryCommand}"
+                                        Style="{StaticResource PrimaryButtonStyle}"
+                                        Margin="0,0,8,0"/>
+                                <Button Content="{DynamicResource Employee_Withdrawal}"
+                                        Command="{Binding WithdrawalCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}"/>
+                            </StackPanel>
+
+                            <!-- Action Buttons -->
+                            <Grid Style="{StaticResource FormActions}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button Grid.Column="1" 
+                                        Content="{DynamicResource Employee_Save}"
+                                        Command="{Binding SaveCommand}"
+                                        CommandParameter="{Binding ElementName=PasswordBox}"
+                                        Style="{StaticResource SuccessButtonStyle}"
+                                        Width="80"
+                                        Margin="0,0,8,0"/>
+                                <Button Grid.Column="2" 
+                                        Content="{DynamicResource Employee_ResetPassword}"
+                                        Command="{Binding ResetPasswordCommand}"
+                                        Style="{StaticResource DangerButtonStyle}"
+                                        Width="120"/>
+                            </Grid>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Loading Overlay -->
+            <Border Grid.ColumnSpan="2"
+                   Style="{StaticResource LoadingOverlay}" 
+                   Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <StackPanel HorizontalAlignment="Center" 
+                           VerticalAlignment="Center">
+                    <ProgressBar Style="{StaticResource ModernProgressBar}" 
+                               IsIndeterminate="True" 
+                               Width="120" 
+                               Margin="0,0,0,16"/>
+                    <TextBlock Text="{DynamicResource General_Processing}" 
+                             Foreground="White" 
+                             FontWeight="SemiBold"
+                             FontSize="14"/>
+                </StackPanel>
+            </Border>
         </Grid>
-
-        <!-- Employee List -->
-        <Border Grid.Row="1" 
-                Background="White"
-                BorderBrush="{StaticResource BorderColor}"
-                BorderThickness="1"
-                CornerRadius="5">
-            <DataGrid ItemsSource="{Binding Employees}"
-                     SelectedItem="{Binding SelectedEmployee}"
-                     AutoGenerateColumns="False"
-                     IsReadOnly="True"
-                     BorderThickness="0"
-                     Margin="1">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="{DynamicResource Employee_Column_Username}" 
-                                      Binding="{Binding Username}"
-                                      Width="*"/>
-                    <DataGridTextColumn Header="{DynamicResource Employee_Column_Name}" 
-                                      Binding="{Binding FullName}"
-                                      Width="*"/>
-                    <DataGridTextColumn Header="{DynamicResource Employee_Column_Role}" 
-                                      Binding="{Binding Role}"
-                                      Width="100"/>
-                    <DataGridTextColumn Header="{DynamicResource Employee_Column_LastLogin}" 
-                                      Binding="{Binding LastLogin, StringFormat=g}"
-                                      Width="150"/>
-                    <DataGridCheckBoxColumn Header="{DynamicResource Employee_Column_Active}"
-                                          Binding="{Binding IsActive}"
-                                          Width="60"/>
-                    <DataGridTemplateColumn Width="Auto">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="Edit" 
-                                        Command="{Binding DataContext.EditCommand, 
-                                                RelativeSource={RelativeSource AncestorType=DataGrid}}" 
-                                        CommandParameter="{Binding}"
-                                        Style="{StaticResource BaseButton}"
-                                        Padding="10,5"
-                                        Margin="5"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-    </Grid>
+    </ScrollViewer>
 </UserControl>

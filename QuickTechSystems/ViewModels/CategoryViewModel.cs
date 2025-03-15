@@ -1,91 +1,167 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using Microsoft.EntityFrameworkCore;
-using QuickTechSystems.Application.DTOs;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
-using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
     public class CategoryViewModel : ViewModelBase
     {
         private readonly ICategoryService _categoryService;
-        private readonly IGlobalOverlayService _overlayService;
-        private ObservableCollection<CategoryDTO> _categories;
-        private CategoryDTO? _selectedCategory;
-        private bool _isEditing;
-        private bool _isAddMode;
-        private string _formTitle = "Add New Category";
+        private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+        private bool _isDisposed;
+
+        private ObservableCollection<CategoryDTO> _productCategories;
+        private ObservableCollection<CategoryDTO> _expenseCategories;
+        private CategoryDTO? _selectedProductCategory;
+        private CategoryDTO? _selectedExpenseCategory;
+        private bool _isEditingProduct;
+        private bool _isEditingExpense;
+        private bool _isLoading;
+        private string _loadingMessage;
+        private Dictionary<string, string> _validationErrors;
         private Action<EntityChangedEvent<CategoryDTO>> _categoryChangedHandler;
 
-        public ObservableCollection<CategoryDTO> Categories
-        {
-            get => _categories;
-            set => SetProperty(ref _categories, value);
-        }
+        // Popup properties
+        private bool _isProductCategoryPopupOpen;
+        private bool _isExpenseCategoryPopupOpen;
+        private bool _isNewProductCategory;
+        private bool _isNewExpenseCategory;
 
-        public CategoryDTO? SelectedCategory
+        #region Constructor
+        public CategoryViewModel(
+            ICategoryService categoryService,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
-            get => _selectedCategory;
-            set
-            {
-                if (SetProperty(ref _selectedCategory, value))
-                {
-                    IsEditing = value != null;
-                }
-            }
-        }
-
-        public bool IsEditing
-        {
-            get => _isEditing;
-            set => SetProperty(ref _isEditing, value);
-        }
-
-        public bool IsAddMode
-        {
-            get => _isAddMode;
-            set => SetProperty(ref _isAddMode, value);
-        }
-
-        public string FormTitle
-        {
-            get => _formTitle;
-            set => SetProperty(ref _formTitle, value);
-        }
-
-        public ICommand LoadCommand { get; }
-        public ICommand AddCommand { get; }
-        public ICommand EditCommand { get; }
-        public ICommand SaveCommand { get; }
-        public ICommand DeleteCommand { get; }
-        public ICommand CancelCommand { get; }
-
-        public CategoryViewModel(ICategoryService categoryService, IEventAggregator eventAggregator, IGlobalOverlayService overlayService)
-            : base(eventAggregator)
-        {
-            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
-            _overlayService = overlayService ?? throw new ArgumentNullException(nameof(overlayService));
-            _categories = new ObservableCollection<CategoryDTO>();
+            _categoryService = categoryService;
+            _productCategories = new ObservableCollection<CategoryDTO>();
+            _expenseCategories = new ObservableCollection<CategoryDTO>();
+            _validationErrors = new Dictionary<string, string>();
             _categoryChangedHandler = HandleCategoryChanged;
+            _loadingMessage = "";
 
-            LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync());
-            AddCommand = new RelayCommand(_ => AddNew());
-            EditCommand = new RelayCommand(param => Edit((CategoryDTO)param));
-            SaveCommand = new AsyncRelayCommand(async _ => await SaveAsync());
-            DeleteCommand = new AsyncRelayCommand(async _ => await DeleteAsync());
-            CancelCommand = new RelayCommand(_ => Cancel());
+            // Initialize Commands
+            AddProductCommand = new RelayCommand(_ => AddProduct());
+            AddExpenseCommand = new RelayCommand(_ => AddExpense());
+            SaveProductCommand = new AsyncRelayCommand(async _ => await SaveProductAsync());
+            SaveExpenseCommand = new AsyncRelayCommand(async _ => await SaveExpenseAsync());
+            DeleteProductCommand = new AsyncRelayCommand(async _ => await DeleteProductAsync());
+            DeleteExpenseCommand = new AsyncRelayCommand(async _ => await DeleteExpenseAsync());
+            RefreshCommand = new AsyncRelayCommand(async _ => await ForceRefreshAsync());
 
             _ = LoadDataAsync();
         }
+        #endregion
 
+        #region Properties
+        public ObservableCollection<CategoryDTO> ProductCategories
+        {
+            get => _productCategories;
+            set => SetProperty(ref _productCategories, value);
+        }
+
+        public ObservableCollection<CategoryDTO> ExpenseCategories
+        {
+            get => _expenseCategories;
+            set => SetProperty(ref _expenseCategories, value);
+        }
+
+        public CategoryDTO? SelectedProductCategory
+        {
+            get => _selectedProductCategory;
+            set
+            {
+                SetProperty(ref _selectedProductCategory, value);
+                IsEditingProduct = value != null;
+            }
+        }
+
+        public CategoryDTO? SelectedExpenseCategory
+        {
+            get => _selectedExpenseCategory;
+            set
+            {
+                SetProperty(ref _selectedExpenseCategory, value);
+                IsEditingExpense = value != null;
+            }
+        }
+
+        public bool IsEditingProduct
+        {
+            get => _isEditingProduct;
+            set => SetProperty(ref _isEditingProduct, value);
+        }
+
+        public bool IsEditingExpense
+        {
+            get => _isEditingExpense;
+            set => SetProperty(ref _isEditingExpense, value);
+        }
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        public string LoadingMessage
+        {
+            get => _loadingMessage;
+            set => SetProperty(ref _loadingMessage, value);
+        }
+
+        public Dictionary<string, string> ValidationErrors
+        {
+            get => _validationErrors;
+            set => SetProperty(ref _validationErrors, value);
+        }
+
+        // Popup properties
+        public bool IsProductCategoryPopupOpen
+        {
+            get => _isProductCategoryPopupOpen;
+            set => SetProperty(ref _isProductCategoryPopupOpen, value);
+        }
+
+        public bool IsExpenseCategoryPopupOpen
+        {
+            get => _isExpenseCategoryPopupOpen;
+            set => SetProperty(ref _isExpenseCategoryPopupOpen, value);
+        }
+
+        public bool IsNewProductCategory
+        {
+            get => _isNewProductCategory;
+            set => SetProperty(ref _isNewProductCategory, value);
+        }
+
+        public bool IsNewExpenseCategory
+        {
+            get => _isNewExpenseCategory;
+            set => SetProperty(ref _isNewExpenseCategory, value);
+        }
+        #endregion
+
+        #region Commands
+        public ICommand AddProductCommand { get; }
+        public ICommand AddExpenseCommand { get; }
+        public ICommand SaveProductCommand { get; }
+        public ICommand SaveExpenseCommand { get; }
+        public ICommand DeleteProductCommand { get; }
+        public ICommand DeleteExpenseCommand { get; }
+        public ICommand RefreshCommand { get; }
+        #endregion
+
+        #region Event Subscriptions
         protected override void SubscribeToEvents()
         {
             _eventAggregator.Subscribe<EntityChangedEvent<CategoryDTO>>(_categoryChangedHandler);
@@ -98,163 +174,511 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async void HandleCategoryChanged(EntityChangedEvent<CategoryDTO> evt)
         {
+            await LoadDataAsync();
+        }
+        #endregion
+
+        #region Data Loading
+        protected override async Task LoadDataAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadDataAsync skipped - operation in progress");
+                return;
+            }
+
             try
             {
-                Debug.WriteLine($"CategoryViewModel: Handling category change: {evt.Action}");
+                IsLoading = true;
+                LoadingMessage = "Loading categories...";
+
+                var productCategories = await _categoryService.GetByTypeAsync("Product");
+                var expenseCategories = await _categoryService.GetByTypeAsync("Expense");
+
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    switch (evt.Action)
-                    {
-                        case "Create":
-                            if (!Categories.Any(c => c.CategoryId == evt.Entity.CategoryId))
-                            {
-                                Categories.Add(evt.Entity);
-                                Debug.WriteLine($"Added new category {evt.Entity.Name}");
-                            }
-                            break;
-                        case "Update":
-                            var existingIndex = Categories.ToList().FindIndex(c => c.CategoryId == evt.Entity.CategoryId);
-                            if (existingIndex != -1)
-                            {
-                                Categories[existingIndex] = evt.Entity;
-                                Debug.WriteLine($"Updated category {evt.Entity.Name}");
-                            }
-                            break;
-                        case "Delete":
-                            var categoryToRemove = Categories.FirstOrDefault(c => c.CategoryId == evt.Entity.CategoryId);
-                            if (categoryToRemove != null)
-                            {
-                                Categories.Remove(categoryToRemove);
-                                Debug.WriteLine($"Removed category {categoryToRemove.Name}");
-                            }
-                            break;
-                    }
+                    ProductCategories = new ObservableCollection<CategoryDTO>(productCategories);
+                    ExpenseCategories = new ObservableCollection<CategoryDTO>(expenseCategories);
+
+                    // Force property notification
+                    OnPropertyChanged(nameof(ProductCategories));
+                    OnPropertyChanged(nameof(ExpenseCategories));
                 });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"CategoryViewModel: Error handling category change: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error loading categories: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
 
-        protected override async Task LoadDataAsync()
+        private async Task ForceRefreshAsync()
         {
-            try
-            {
-                var categories = await _categoryService.GetAllAsync();
-                Categories = new ObservableCollection<CategoryDTO>(categories);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error loading categories: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            await LoadDataAsync();
+        }
+        #endregion
+
+        #region Popup Management
+        public void ShowProductCategoryPopup()
+        {
+            IsProductCategoryPopupOpen = true;
         }
 
-        private void AddNew()
+        public void CloseProductCategoryPopup()
         {
-            SelectedCategory = new CategoryDTO
+            IsProductCategoryPopupOpen = false;
+        }
+
+        public void ShowExpenseCategoryPopup()
+        {
+            IsExpenseCategoryPopupOpen = true;
+        }
+
+        public void CloseExpenseCategoryPopup()
+        {
+            IsExpenseCategoryPopupOpen = false;
+        }
+
+        private void AddProduct()
+        {
+            SelectedProductCategory = new CategoryDTO
             {
-                IsActive = true
+                Type = "Product",
+                IsActive = true,
+                CreatedAt = DateTime.Now
             };
-            IsAddMode = true;
-            _overlayService.ShowCategoryEditor(this);
+            IsNewProductCategory = true;
+            ShowProductCategoryPopup();
         }
 
-        private void Edit(CategoryDTO category)
+        private void AddExpense()
         {
-            SelectedCategory = category;
-            IsAddMode = false;
-            _overlayService.ShowCategoryEditor(this);
+            SelectedExpenseCategory = new CategoryDTO
+            {
+                Type = "Expense",
+                IsActive = true,
+                CreatedAt = DateTime.Now
+            };
+            IsNewExpenseCategory = true;
+            ShowExpenseCategoryPopup();
         }
 
-        private async Task SaveAsync()
+        public void EditProductCategory(CategoryDTO category)
         {
+            if (category != null)
+            {
+                SelectedProductCategory = category;
+                IsNewProductCategory = false;
+                ShowProductCategoryPopup();
+            }
+        }
+
+        public void EditExpenseCategory(CategoryDTO category)
+        {
+            if (category != null)
+            {
+                SelectedExpenseCategory = category;
+                IsNewExpenseCategory = false;
+                ShowExpenseCategoryPopup();
+            }
+        }
+        #endregion
+
+        #region Save Operations
+        private async Task SaveProductAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Save operation already in progress. Please wait.");
+                return;
+            }
+
             try
             {
-                Debug.WriteLine("Starting category save operation");
-                if (SelectedCategory == null) return;
-
-                if (string.IsNullOrWhiteSpace(SelectedCategory.Name))
-                {
-                    MessageBox.Show("Category name is required.", "Validation Error",
-                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (!ValidateCategory(SelectedProductCategory))
                     return;
-                }
 
-                if (SelectedCategory.CategoryId == 0)
+                IsLoading = true;
+                LoadingMessage = SelectedProductCategory.CategoryId == 0 ?
+                    "Creating new product category..." :
+                    "Updating product category...";
+
+                // Store a reference to the category being saved
+                var categoryBeingSaved = SelectedProductCategory;
+                bool isNew = categoryBeingSaved.CategoryId == 0;
+
+                if (isNew)
                 {
-                    var result = await _categoryService.CreateAsync(SelectedCategory);
-                    Categories.Add(result);
-                    Debug.WriteLine($"Publishing category created event for ID: {result.CategoryId}");
-                    _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Create", result));
+                    categoryBeingSaved.CreatedAt = DateTime.Now;
+                    var savedCategory = await _categoryService.CreateAsync(categoryBeingSaved);
+                    await ShowSuccessMessage("Product category created successfully.");
+
+                    // Ensure UI update by adding to collection
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        ProductCategories.Add(savedCategory);
+                    });
                 }
                 else
                 {
-                    Debug.WriteLine("Updating existing category");
-                    await _categoryService.UpdateAsync(SelectedCategory);
-                    var index = Categories.IndexOf(Categories.First(c => c.CategoryId == SelectedCategory.CategoryId));
-                    Categories[index] = SelectedCategory;
-                    _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Update", SelectedCategory));
-                    Debug.WriteLine("Category update event published");
+                    categoryBeingSaved.UpdatedAt = DateTime.Now;
+                    await _categoryService.UpdateAsync(categoryBeingSaved);
+                    await ShowSuccessMessage("Product category updated successfully.");
+
+                    // Update collection item
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        int index = -1;
+                        for (int i = 0; i < ProductCategories.Count; i++)
+                        {
+                            if (ProductCategories[i].CategoryId == categoryBeingSaved.CategoryId)
+                            {
+                                index = i;
+                                break;
+                            }
+                        }
+
+                        if (index >= 0)
+                        {
+                            ProductCategories[index] = categoryBeingSaved;
+                        }
+                    });
                 }
 
-                await LoadDataAsync();
-                _overlayService.HideCategoryEditor();
-                SelectedCategory = null;
-                IsAddMode = false;
-                Debug.WriteLine("Category data reloaded");
-                MessageBox.Show("Category saved successfully.", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                // Always refresh to ensure latest data
+                await ForceRefreshAsync();
+                SelectedProductCategory = null;
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Save error: {ex.Message}");
-                MessageBox.Show($"Error saving category: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowTemporaryErrorMessage($"Error saving product category: {ex.Message}");
             }
-        }
-
-        private void Cancel()
-        {
-            _overlayService.HideCategoryEditor();
-            if (IsAddMode)
+            finally
             {
-                SelectedCategory = null;
+                IsLoading = false;
+                _operationLock.Release();
             }
-            IsAddMode = false;
         }
 
-        private async Task DeleteAsync()
+        private async Task SaveExpenseAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Save operation already in progress. Please wait.");
+                return;
+            }
+
             try
             {
-                if (SelectedCategory == null) return;
+                if (!ValidateCategory(SelectedExpenseCategory))
+                    return;
 
-                if (MessageBox.Show("Are you sure you want to delete this category?",
-                    "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                IsLoading = true;
+                LoadingMessage = SelectedExpenseCategory.CategoryId == 0 ?
+                    "Creating new expense category..." :
+                    "Updating expense category...";
+
+                // Store a reference to the category being saved
+                var categoryBeingSaved = SelectedExpenseCategory;
+                bool isNew = categoryBeingSaved.CategoryId == 0;
+
+                if (isNew)
                 {
-                    try
+                    categoryBeingSaved.CreatedAt = DateTime.Now;
+                    var savedCategory = await _categoryService.CreateAsync(categoryBeingSaved);
+                    await ShowSuccessMessage("Expense category created successfully.");
+
+                    // Ensure UI update by adding to collection
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        await _categoryService.DeleteAsync(SelectedCategory.CategoryId);
-                        await LoadDataAsync();
-                        _overlayService.HideCategoryEditor();
-                        SelectedCategory = null;
-                        MessageBox.Show("Category deleted successfully.", "Success",
-                            MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    catch (InvalidOperationException ex)
+                        ExpenseCategories.Add(savedCategory);
+                    });
+                }
+                else
+                {
+                    categoryBeingSaved.UpdatedAt = DateTime.Now;
+                    await _categoryService.UpdateAsync(categoryBeingSaved);
+                    await ShowSuccessMessage("Expense category updated successfully.");
+
+                    // Update collection item
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        MessageBox.Show(ex.Message, "Cannot Delete Category",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                    }
+                        int index = -1;
+                        for (int i = 0; i < ExpenseCategories.Count; i++)
+                        {
+                            if (ExpenseCategories[i].CategoryId == categoryBeingSaved.CategoryId)
+                            {
+                                index = i;
+                                break;
+                            }
+                        }
+
+                        if (index >= 0)
+                        {
+                            ExpenseCategories[index] = categoryBeingSaved;
+                        }
+                    });
+                }
+
+                // Always refresh to ensure latest data
+                await ForceRefreshAsync();
+                SelectedExpenseCategory = null;
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error saving expense category: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+        #endregion
+
+        #region Delete Operations
+        private async Task DeleteProductAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Delete operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                if (SelectedProductCategory == null) return;
+
+                var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    return MessageBox.Show("Are you sure you want to delete this product category?",
+                        "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                });
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    IsLoading = true;
+                    LoadingMessage = "Deleting product category...";
+
+                    // Store category ID for reference after deletion
+                    int categoryId = SelectedProductCategory.CategoryId;
+
+                    await _categoryService.DeleteAsync(categoryId);
+
+                    // Remove from local collection
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        var categoryToRemove = ProductCategories.FirstOrDefault(c => c.CategoryId == categoryId);
+                        if (categoryToRemove != null)
+                        {
+                            ProductCategories.Remove(categoryToRemove);
+                        }
+                    });
+
+                    await ForceRefreshAsync();
+                    SelectedProductCategory = null;
+                    CloseProductCategoryPopup();
+                    await ShowSuccessMessage("Product category deleted successfully.");
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error deleting category: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                if (ex.Message.Contains("references") || ex.Message.Contains("constraint"))
+                {
+                    ShowTemporaryErrorMessage("This category is in use and cannot be deleted. Consider marking it as inactive instead.");
+
+                    // Ask if user wants to mark as inactive instead
+                    var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        return MessageBox.Show("Would you like to mark this category as inactive instead?",
+                            "Mark as Inactive", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    });
+
+                    if (result == MessageBoxResult.Yes && SelectedProductCategory != null)
+                    {
+                        SelectedProductCategory.IsActive = false;
+                        await SaveProductAsync();
+                    }
+                }
+                else
+                {
+                    ShowTemporaryErrorMessage($"Error deleting product category: {ex.Message}");
+                }
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
+
+        private async Task DeleteExpenseAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Delete operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                if (SelectedExpenseCategory == null) return;
+
+                var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    return MessageBox.Show("Are you sure you want to delete this expense category?",
+                        "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                });
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    IsLoading = true;
+                    LoadingMessage = "Deleting expense category...";
+
+                    // Store category ID for reference after deletion
+                    int categoryId = SelectedExpenseCategory.CategoryId;
+
+                    await _categoryService.DeleteAsync(categoryId);
+
+                    // Remove from local collection
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        var categoryToRemove = ExpenseCategories.FirstOrDefault(c => c.CategoryId == categoryId);
+                        if (categoryToRemove != null)
+                        {
+                            ExpenseCategories.Remove(categoryToRemove);
+                        }
+                    });
+
+                    await ForceRefreshAsync();
+                    SelectedExpenseCategory = null;
+                    CloseExpenseCategoryPopup();
+                    await ShowSuccessMessage("Expense category deleted successfully.");
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("references") || ex.Message.Contains("constraint"))
+                {
+                    ShowTemporaryErrorMessage("This category is in use and cannot be deleted. Consider marking it as inactive instead.");
+
+                    // Ask if user wants to mark as inactive instead
+                    var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        return MessageBox.Show("Would you like to mark this category as inactive instead?",
+                            "Mark as Inactive", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    });
+
+                    if (result == MessageBoxResult.Yes && SelectedExpenseCategory != null)
+                    {
+                        SelectedExpenseCategory.IsActive = false;
+                        await SaveExpenseAsync();
+                    }
+                }
+                else
+                {
+                    ShowTemporaryErrorMessage($"Error deleting expense category: {ex.Message}");
+                }
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+        #endregion
+
+        #region Validation and Notification
+        private bool ValidateCategory(CategoryDTO? category)
+        {
+            ValidationErrors.Clear();
+
+            if (category == null)
+            {
+                ValidationErrors.Add("General", "No category selected.");
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(category.Name))
+                ValidationErrors.Add("Name", "Category name is required.");
+
+            if (category.Name?.Length > 100)
+                ValidationErrors.Add("Name", "Category name cannot exceed 100 characters.");
+
+            if (category.Description?.Length > 500)
+                ValidationErrors.Add("Description", "Description cannot exceed 500 characters.");
+
+            OnPropertyChanged(nameof(ValidationErrors));
+
+            if (ValidationErrors.Count > 0)
+            {
+                ShowValidationErrors(ValidationErrors.Values.ToList());
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ShowValidationErrors(List<string> errors)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(string.Join("\n", errors), "Validation Errors",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            });
+        }
+
+        private async Task ShowSuccessMessage(string message)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                MessageBox.Show(message, "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+        }
+
+        private void ShowTemporaryErrorMessage(string message)
+        {
+            LoadingMessage = message;
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(message, "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            });
+
+            // Automatically clear error after delay
+            Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (LoadingMessage == message) // Only clear if still the same message
+                    {
+                        LoadingMessage = string.Empty;
+                    }
+                });
+            });
+        }
+        #endregion
+
+        #region IDisposable Implementation
+        public override void Dispose()
+        {
+            if (!_isDisposed)
+            {
+                _operationLock?.Dispose();
+                UnsubscribeFromEvents();
+
+                _isDisposed = true;
+            }
+
+            base.Dispose();
+        }
+        #endregion
     }
 }

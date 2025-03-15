@@ -3,325 +3,260 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             mc:Ignorable="d"
+             x:Name="ExpenseViewRoot"
+             FlowDirection="{Binding FlowDirection}">
 
     <UserControl.Resources>
-        <!-- Keep existing resource definitions -->
-        <!-- Colors -->
-        <SolidColorBrush x:Key="PrimaryColor" Color="#007BFF"/>
-        <SolidColorBrush x:Key="SecondaryColor" Color="#6C757D"/>
-        <SolidColorBrush x:Key="TextColor" Color="#343A40"/>
-        <SolidColorBrush x:Key="BackgroundColor" Color="#F8F9FA"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
-        <SolidColorBrush x:Key="GrayTextColor" Color="#6C757D"/>
-
-        <!-- DataGrid Styles -->
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="{StaticResource BackgroundColor}"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="AlternatingRowBackground" Value="#E9ECEF"/>
-            <Setter Property="RowHeight" Value="35"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-        </Style>
-
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-
-        <!-- Base Button Style -->
-        <Style x:Key="BaseButton" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource PrimaryColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="{StaticResource SecondaryColor}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Input Control Styles -->
-        <Style TargetType="TextBox">
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Style.Triggers>
-                <Trigger Property="IsFocused" Value="True">
-                    <Setter Property="BorderBrush" Value="{StaticResource SecondaryColor}"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style TargetType="ComboBox">
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style TargetType="DatePicker">
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-        </Style>
-
-        <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
-            <Setter Property="Margin" Value="0,0,0,5"/>
-        </Style>
-
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource TextColor}"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </UserControl.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="{DynamicResource Expense_Title}"
-                       FontSize="24"
-                       FontWeight="Bold"
-                       Foreground="{StaticResource PrimaryColor}"/>
-            <TextBlock Text="Track and manage your business expenses"
-                       Foreground="{StaticResource GrayTextColor}"/>
-        </StackPanel>
-
-        <!-- Filter Section -->
-        <Border Grid.Row="1" 
-                Background="White"
-                BorderBrush="{StaticResource BorderColor}"
-                BorderThickness="1"
-                CornerRadius="5"
-                Margin="0,0,0,20"
-                Padding="20">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Filter by Category" Margin="0,0,0,5"/>
-                    <ComboBox ItemsSource="{Binding Categories}"
-                             SelectedItem="{Binding SelectedCategory}"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2">
-                    <TextBlock Text="From Date" Margin="0,0,0,5"/>
-                    <DatePicker SelectedDate="{Binding FilterStartDate}"/>
-                </StackPanel>
-
-                <Button Grid.Column="4"
-                        Content="Apply Filter"
-                        Command="{Binding ApplyFilterCommand}"
-                        Style="{StaticResource BaseButton}"
-                        VerticalAlignment="Bottom"
-                        Width="120"/>
-            </Grid>
-        </Border>
-
-        <!-- Category Summary -->
-        <Border Grid.Row="2" 
-                Background="White"
-                BorderBrush="{StaticResource BorderColor}"
-                BorderThickness="1"
-                CornerRadius="5"
-                Margin="0,0,0,20">
-            <DataGrid ItemsSource="{Binding CategorySummaries}"
-                     AutoGenerateColumns="False"
-                     IsReadOnly="True"
-                     HeadersVisibility="Column"
-                     GridLinesVisibility="All">
-                <DataGrid.Resources>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsTotal}" Value="True">
-                                <Setter Property="Background" Value="#E3F2FD"/>
-                                <Setter Property="FontWeight" Value="Bold"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.Resources>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Category" 
-                                      Binding="{Binding CategoryName}"
-                                      Width="*"/>
-                    <DataGridTextColumn Header="Count" 
-                                      Binding="{Binding Count}"
-                                      Width="100"/>
-                    <DataGridTextColumn Header="Total Amount" 
-                                      Binding="{Binding TotalAmount, StringFormat=C2}"
-                                      Width="150"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
-
-        <!-- Input Form -->
-        <Border Grid.Row="3" 
-                Background="White"
-                BorderBrush="{StaticResource BorderColor}"
-                BorderThickness="1"
-                CornerRadius="5"
-                Margin="0,0,0,20">
-            <!-- Keep existing input form content -->
-            <Grid Margin="20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <Grid Style="{StaticResource ResponsivePageLayout}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Left Column -->
-                <StackPanel Grid.Column="0" Grid.Row="0">
-                    <TextBlock Text="{DynamicResource Expense_Reason}"/>
-                    <TextBox Text="{Binding CurrentExpense.Reason, UpdateSourceTrigger=PropertyChanged}"/>
+                <!-- Header Section -->
+                <StackPanel Grid.Row="0" Style="{StaticResource SectionHeader}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel>
+                            <TextBlock Text="{DynamicResource Expense_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
+                            <TextBlock Text="{DynamicResource Expense_Subtitle}" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,16"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" 
+                                Content="{DynamicResource Expense_AddNew}" 
+                                Command="{Binding ClearCommand}"
+                                Style="{StaticResource SuccessButtonStyle}"
+                                VerticalAlignment="Top"
+                                Margin="0,8,0,0"
+                                Width="150"/>
+                    </Grid>
+                    <Border Style="{StaticResource PageDivider}"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="0" Grid.Row="1" Margin="0,10,0,0">
-                    <TextBlock Text="{DynamicResource Expense_Amount}"/>
-                    <TextBox Text="{Binding CurrentExpense.Amount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
+                <!-- Filter Section -->
+                <Border Grid.Row="1" 
+                        Style="{StaticResource EnhancedResponsiveCardContainer}"
+                        Margin="0,0,0,24">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                <!-- Right Column -->
-                <StackPanel Grid.Column="2" Grid.Row="0">
-                    <TextBlock Text="{DynamicResource Expense_Category}"/>
-                    <ComboBox ItemsSource="{Binding Categories}"
-                             SelectedItem="{Binding CurrentExpense.Category}"/>
-                </StackPanel>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{DynamicResource Expense_FilterByCategory}" Style="{StaticResource FormLabel}" Margin="0,0,0,5"/>
+                            <ComboBox ItemsSource="{Binding Categories}"
+                                     SelectedItem="{Binding SelectedCategory}"
+                                     Style="{StaticResource ModernComboBox}"
+                                     Margin="0"/>
+                        </StackPanel>
 
-                <StackPanel Grid.Column="2" Grid.Row="1" Margin="0,10,0,0">
-                    <TextBlock Text="{DynamicResource Expense_Date}"/>
-                    <DatePicker SelectedDate="{Binding CurrentExpense.Date}"/>
-                </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{DynamicResource Expense_FromDate}" Style="{StaticResource FormLabel}" Margin="0,0,0,5"/>
+                            <DatePicker SelectedDate="{Binding FilterStartDate}"
+                                       Style="{StaticResource ModernDatePicker}"
+                                       Margin="0"/>
+                        </StackPanel>
 
-                <!-- Notes -->
-                <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="2" Margin="0,10,0,0">
-                    <TextBlock Text="{DynamicResource Expense_Notes}"/>
-                    <TextBox Text="{Binding CurrentExpense.Notes}"
-                            TextWrapping="Wrap"
-                            Height="60"/>
-                </StackPanel>
+                        <Button Grid.Column="4"
+                                Content="{DynamicResource Expense_ApplyFilter}"
+                                Command="{Binding ApplyFilterCommand}"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                VerticalAlignment="Bottom"
+                                Width="120"/>
+                    </Grid>
+                </Border>
 
-                <!-- Buttons -->
-                <StackPanel Grid.Column="0" Grid.ColumnSpan="3" 
-                          Grid.Row="3"
-                          Orientation="Horizontal"
-                          HorizontalAlignment="Right"
-                          Margin="0,20,0,0">
-                    <CheckBox Content="{DynamicResource Expense_IsRecurring}"
-                             IsChecked="{Binding CurrentExpense.IsRecurring}"
-                             VerticalAlignment="Center"
-                             Margin="0,0,20,0"/>
-                    <Button Content="{DynamicResource Expense_Clear}"
-                            Command="{Binding ClearCommand}"
-                            Style="{StaticResource BaseButton}"
-                            Width="100"
-                            Margin="0,0,10,0"/>
-                    <Button Content="{DynamicResource Expense_Save}"
-                            Command="{Binding SaveCommand}"
-                            Style="{StaticResource BaseButton}"
-                            Background="{StaticResource SuccessColor}"
-                            Width="100"/>
-                </StackPanel>
+                <!-- Category Summary -->
+                <Border Grid.Row="2" 
+                        Style="{StaticResource EnhancedResponsiveCardContainer}"
+                        Margin="0,0,0,24">
+                    <DataGrid ItemsSource="{Binding CategorySummaries}"
+                             Style="{StaticResource ResponsiveDataGrid}"
+                             ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                             CellStyle="{StaticResource ModernDataGridCell}">
+                        <DataGrid.Resources>
+                            <Style TargetType="DataGridRow" BasedOn="{StaticResource ModernDataGridRow}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsTotal}" Value="True">
+                                        <Setter Property="Background" Value="#E3F2FD"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.Resources>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Category}" 
+                                              Binding="{Binding CategoryName}"
+                                              Width="*"/>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Count}" 
+                                              Binding="{Binding Count}"
+                                              Width="100"/>
+                            <DataGridTextColumn Header="{DynamicResource Expense_TotalAmount}" 
+                                              Binding="{Binding TotalAmount, StringFormat=N}"
+                                              Width="150"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <!-- Expenses Grid -->
+                <Border Grid.Row="3"
+                        Style="{StaticResource EnhancedResponsiveCardContainer}">
+                    <DataGrid ItemsSource="{Binding Expenses}"
+                             SelectedItem="{Binding SelectedExpense}"
+                             Style="{StaticResource ResponsiveDataGrid}"
+                             RowHeight="50"
+                             ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                             CellStyle="{StaticResource ModernDataGridCell}"
+                             MouseDoubleClick="DataGrid_MouseDoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Date}" 
+                                              Binding="{Binding Date, StringFormat=d}"
+                                              Width="100"/>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Reason}" 
+                                              Binding="{Binding Reason}"
+                                              Width="*"/>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Category}" 
+                                              Binding="{Binding Category}"
+                                              Width="120"/>
+                            <DataGridTextColumn Header="{DynamicResource Expense_Amount}" 
+                                              Binding="{Binding Amount, StringFormat=N}"
+                                              Width="120"/>
+                            <DataGridCheckBoxColumn Header="{DynamicResource Expense_IsRecurring}" 
+                                                  Binding="{Binding IsRecurring}"
+                                                  Width="80"/>
+                            <DataGridTemplateColumn Width="140">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Edit Button -->
+                                            <Button Grid.Column="0"
+                                                    Content="{DynamicResource Expense_Edit}"
+                                                    Command="{Binding DataContext.EditCommand, 
+                                                        RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#2196F3"
+                                                    Foreground="White"
+                                                    Height="30"
+                                                    Width="60"
+                                                    Margin="0,4,4,4"
+                                                    FontSize="12">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="4"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Center" 
+                                                                            VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#1976D2"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+
+                                            <!-- Delete Button -->
+                                            <Button Grid.Column="1"
+                                                    Content="{DynamicResource Expense_Delete}"
+                                                    Command="{Binding DataContext.DeleteCommand, 
+                                                        RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#E53935"
+                                                    Foreground="White"
+                                                    Height="30"
+                                                    Width="60"
+                                                    Margin="4,4,0,4"
+                                                    FontSize="12">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="{TemplateBinding Background}"
+                                                                CornerRadius="4"
+                                                                BorderThickness="0">
+                                                            <ContentPresenter HorizontalAlignment="Center" 
+                                                                            VerticalAlignment="Center"/>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter Property="Background" Value="#D32F2F"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{DynamicResource Expense_Edit}" Click="EditMenuItem_Click"/>
+                                <Separator/>
+                                <MenuItem Header="{DynamicResource Expense_Delete}" Click="DeleteMenuItem_Click"/>
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                    </DataGrid>
+                </Border>
+
+                <!-- Loading Overlay -->
+                <Border Grid.Row="0" 
+                        Grid.RowSpan="4" 
+                        Style="{StaticResource LoadingOverlay}" 
+                        Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel HorizontalAlignment="Center" 
+                                VerticalAlignment="Center">
+                        <ProgressBar Style="{StaticResource ModernProgressBar}" 
+                                     IsIndeterminate="True" 
+                                     Width="120" 
+                                     Margin="0,0,0,16"/>
+                        <TextBlock Text="{DynamicResource Expense_Processing}" 
+                                   Foreground="White" 
+                                   FontSize="14" 
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
             </Grid>
-        </Border>
+        </ScrollViewer>
 
-        <!-- Expenses Grid -->
-        <Border Grid.Row="4"
-                Background="White"
-                BorderBrush="{StaticResource BorderColor}"
-                BorderThickness="1"
-                CornerRadius="5">
-            <!-- Keep existing expenses grid content -->
-            <DataGrid ItemsSource="{Binding Expenses}"
-                     SelectedItem="{Binding SelectedExpense}"
-                     AutoGenerateColumns="False"
-                     IsReadOnly="True"
-                     BorderThickness="0">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="{DynamicResource Expense_Date}" 
-                                      Binding="{Binding Date, StringFormat=d}"
-                                      Width="100"/>
-                    <DataGridTextColumn Header="{DynamicResource Expense_Reason}" 
-                                      Binding="{Binding Reason}"
-                                      Width="*"/>
-                    <DataGridTextColumn Header="{DynamicResource Expense_Category}" 
-                                      Binding="{Binding Category}"
-                                      Width="120"/>
-                    <DataGridTextColumn Header="{DynamicResource Expense_Amount}" 
-                                      Binding="{Binding Amount, StringFormat=C2}"
-                                      Width="120"/>
-                    <DataGridCheckBoxColumn Header="{DynamicResource Expense_IsRecurring}" 
-                                          Binding="{Binding IsRecurring}"
-                                          Width="80"/>
-                    <DataGridTemplateColumn Width="120">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="{DynamicResource Expense_Edit}"
-                                            Command="{Binding DataContext.EditCommand, 
-                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource BaseButton}"
-                                            Background="{StaticResource SecondaryColor}"
-                                            Margin="0,0,5,0"
-                                            Padding="8,4"/>
-                                    <Button Content="{DynamicResource Expense_Delete}"
-                                            Command="{Binding DataContext.DeleteCommand, 
-                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                            CommandParameter="{Binding}"
-                                            Style="{StaticResource BaseButton}"
-                                            Background="{StaticResource DangerColor}"
-                                            Padding="8,4"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-            </DataGrid>
-        </Border>
+        <!-- Expense Details Popup -->
+        <Popup IsOpen="{Binding IsExpensePopupOpen, Mode=TwoWay}"
+               StaysOpen="True"
+               AllowsTransparency="True"
+               PlacementTarget="{Binding ElementName=ExpenseViewRoot}"
+               Placement="Center"
+               PopupAnimation="Fade"
+               Focusable="True">
+            <local:ExpenseDetailsPopup x:Name="ExpenseDetailsPopup"
+                                      DataContext="{Binding}"
+                                      CloseRequested="ExpenseDetailsPopup_CloseRequested"
+                                      SaveCompleted="ExpenseDetailsPopup_SaveCompleted"/>
+        </Popup>
     </Grid>
 </UserControl>

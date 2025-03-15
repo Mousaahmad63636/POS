@@ -17,7 +17,12 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(c => c.Description)
                 .HasMaxLength(500);
 
-            builder.HasIndex(c => c.Name)
+            builder.Property(c => c.Type)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("Product");
+
+            builder.HasIndex(c => new { c.Name, c.Type })
                 .IsUnique();
         }
     }

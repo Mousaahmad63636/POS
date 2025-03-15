@@ -18,5 +18,9 @@ namespace QuickTechSystems.Domain.Entities
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLogin { get; set; }
+        public decimal MonthlySalary { get; set; }
+        public decimal CurrentBalance { get; set; }
+        public virtual ICollection<EmployeeSalaryTransaction> SalaryTransactions { get; set; }
+            = new List<EmployeeSalaryTransaction>();
     }
 }

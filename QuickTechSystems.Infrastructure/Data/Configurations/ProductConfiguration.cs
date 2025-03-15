@@ -37,6 +37,8 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.Property(p => p.Image)
+       .IsRequired(false);
         }
     }
 }

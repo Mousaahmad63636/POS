@@ -1,4 +1,6 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Windows.Media.Imaging;
 using QuickTechSystems.Application.DTOs;
 
 namespace QuickTechSystems.WPF.ViewModels
@@ -12,8 +14,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _currentTransactionNumber = string.Empty;
         private TransactionDTO? _currentTransaction;
         private CustomerDTO? _selectedCustomer;
-        private decimal _paymentAmount;
-        private decimal _changeDue;
         private int _itemCount;
         private decimal _subTotal;
         private decimal _taxAmount;
@@ -30,21 +30,165 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isProductSearchVisible;
         private ProductDTO? _selectedSearchProduct;
         private ProductDTO _selectedDropdownProduct;
-
-
-
+        private decimal _dailySales;
+        private decimal _dailyReturns;
+        private decimal _netSales;
+        private decimal _debtPayments;
+        private decimal _supplierPayments;
+        private decimal _dailyExpenses;
+        private decimal _netCashflow;
         private ObservableCollection<ProductDTO> _allProducts = new();
-        
-       
         private string _dropdownSearchText = string.Empty;
-
         private string _totalAmountLBP = "0 LBP";
+        // New properties for loading and validation
+        private bool _isLoading;
+        private string _loadingMessage = "Processing...";
+        private Dictionary<string, string> _validationErrors = new();
+        private bool _isProductCardsVisible;
+        private DateTime _currentDate = DateTime.Now;
+        private bool _isRestaurantMode;
+        private CategoryDTO _selectedCategory;
+        private string _lookupTransactionId = string.Empty;
+        private bool _isBarcodeFieldVisible = true;
+        private bool _isEditingTransaction;
+
+
+        public bool IsEditingTransaction
+        {
+            get => _isEditingTransaction;
+            set => SetProperty(ref _isEditingTransaction, value);
+        }
+        public string LookupTransactionId
+        {
+            get => _lookupTransactionId;
+            set
+            {
+                // Only trigger lookup if the value actually changed
+                bool valueChanged = _lookupTransactionId != value;
+                SetProperty(ref _lookupTransactionId, value);
+
+                // If value was changed through UI editing (not from code)
+                // and we have a valid ID, auto-trigger lookup
+                if (valueChanged && !string.IsNullOrWhiteSpace(value) &&
+                    int.TryParse(value, out _) &&
+                    !IsEditingTransaction)
+                {
+                    // Use a small delay to avoid triggering lookup while user is still typing
+                    _lookupDebounceTimer?.Stop();
+                    _lookupDebounceTimer = new System.Timers.Timer(500); // 500ms delay
+                    _lookupDebounceTimer.Elapsed += async (s, e) =>
+                    {
+                        _lookupDebounceTimer.Stop();
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (LookupTransactionCommand.CanExecute(null))
+                            {
+                                LookupTransactionCommand.Execute(null);
+                            }
+                        });
+                    };
+                    _lookupDebounceTimer.Start();
+                }
+            }
+        }
+        public bool IsBarcodeFieldVisible
+        {
+            get => _isBarcodeFieldVisible;
+            set => SetProperty(ref _isBarcodeFieldVisible, value);
+        }
+        // Add a timer field to debounce lookup requests
+        private System.Timers.Timer _lookupDebounceTimer;
+        public CategoryDTO SelectedCategory
+        {
+            get => _selectedCategory;
+            set
+            {
+                if (SetProperty(ref _selectedCategory, value))
+                {
+                    FilterProductsByCategory(value);
+                }
+            }
+        }
+
+        private ObservableCollection<CategoryDTO> _productCategories = new ObservableCollection<CategoryDTO>();
+        public ObservableCollection<CategoryDTO> ProductCategories
+        {
+            get => _productCategories;
+            set => SetProperty(ref _productCategories, value);
+        }
+        public bool IsRestaurantMode
+        {
+            get => _isRestaurantMode;
+            set
+            {
+                Debug.WriteLine($"Setting IsRestaurantMode to {value}");
+                if (SetProperty(ref _isRestaurantMode, value))
+                {
+                    Debug.WriteLine("IsRestaurantMode property changed");
+                    OnPropertyChanged(nameof(IsRestaurantMode));
+
+                    // Do not automatically load categories here
+                    // The loading should only happen from explicit calls
+                }
+            }
+        }
+        public DateTime CurrentDate
+        {
+            get => _currentDate;
+            set => SetProperty(ref _currentDate, value);
+        }
+        public bool IsProductCardsVisible
+        {
+            get => _isProductCardsVisible;
+            set => SetProperty(ref _isProductCardsVisible, value);
+        }
+        public ICommand AddToCartCommand { get; private set; }
+        private Dictionary<int, BitmapImage> _imageCache = new Dictionary<int, BitmapImage>();
+        public ICommand ToggleViewCommand { get; private set; }
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        public string LoadingMessage
+        {
+            get => _loadingMessage;
+            set => SetProperty(ref _loadingMessage, value);
+        }
+
+        public bool HasErrors => _validationErrors.Any();
 
         public string TotalAmountLBP
         {
             get => _totalAmountLBP;
             set => SetProperty(ref _totalAmountLBP, value);
         }
+
+        public decimal DebtPayments
+        {
+            get => _debtPayments;
+            set => SetProperty(ref _debtPayments, value);
+        }
+
+        public decimal SupplierPayments
+        {
+            get => _supplierPayments;
+            set => SetProperty(ref _supplierPayments, value);
+        }
+
+        public decimal NetCashflow
+        {
+            get => _netCashflow;
+            set => SetProperty(ref _netCashflow, value);
+        }
+
+        public decimal DailyExpenses
+        {
+            get => _dailyExpenses;
+            set => SetProperty(ref _dailyExpenses, value);
+        }
+
         public ProductDTO? SelectedSearchProduct
         {
             get => _selectedSearchProduct;
@@ -64,6 +208,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _allProducts;
             set => SetProperty(ref _allProducts, value);
         }
+
         public string StatusMessage
         {
             get => _statusMessage;
@@ -74,6 +219,24 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _connectionStatus;
             set => SetProperty(ref _connectionStatus, value);
+        }
+
+        public decimal DailySales
+        {
+            get => _dailySales;
+            set => SetProperty(ref _dailySales, value);
+        }
+
+        public decimal DailyReturns
+        {
+            get => _dailyReturns;
+            set => SetProperty(ref _dailyReturns, value);
+        }
+
+        public decimal NetSales
+        {
+            get => _netSales;
+            set => SetProperty(ref _netSales, value);
         }
 
         public string CashierName
@@ -103,26 +266,30 @@ namespace QuickTechSystems.WPF.ViewModels
         public CustomerDTO? SelectedCustomer
         {
             get => _selectedCustomer;
-            set => SetProperty(ref _selectedCustomer, value);
-        }
-
-        public decimal PaymentAmount
-        {
-            get => _paymentAmount;
             set
             {
-                if (SetProperty(ref _paymentAmount, value))
+                if (SetProperty(ref _selectedCustomer, value))
                 {
-                    UpdateChangeDue();
+                    // Use Task.Run to properly manage the async operation
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await LoadCustomerSpecificPrices();
+                        }
+                        catch (Exception ex)
+                        {
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                ShowErrorMessageAsync($"Error loading customer prices: {ex.Message}");
+                            });
+                        }
+                    });
                 }
             }
         }
 
-        public decimal ChangeDue
-        {
-            get => _changeDue;
-            set => SetProperty(ref _changeDue, value);
-        }
+
 
         public int ItemCount
         {
@@ -172,6 +339,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private bool _isNavigating = false;
         public string CustomerSearchText
         {
             get => _customerSearchText;
@@ -179,7 +347,11 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _customerSearchText, value))
                 {
-                    SearchCustomers();
+                    // Only trigger search if not navigating between transactions
+                    if (!_isNavigating)
+                    {
+                        SearchCustomers();
+                    }
                 }
             }
         }
@@ -196,6 +368,9 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _filteredCustomers, value);
         }
 
+        // Add this private field near the other fields
+        private bool _suppressCustomerDropdown = false;
+
         public CustomerDTO? SelectedCustomerFromSearch
         {
             get => _selectedCustomerFromSearch;
@@ -203,9 +378,29 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedCustomerFromSearch, value) && value != null)
                 {
+                    // Prevent search from occurring by setting a flag before changing text
+                    _suppressCustomerDropdown = true;
+
+                    // Update customer selection first
                     SelectedCustomer = value;
+
+                    // Set search text (this will trigger SearchCustomers)
                     CustomerSearchText = value.Name;
+
+                    // Force hide the dropdown
                     IsCustomerSearchVisible = false;
+
+                    // Clear the filtered customer list to prevent popup showing same customer
+                    FilteredCustomers.Clear();
+
+                    // Make sure UI is immediately updated
+                    OnPropertyChanged(nameof(FilteredCustomers));
+                    OnPropertyChanged(nameof(IsCustomerSearchVisible));
+
+                    // Keep suppression active longer with a much longer delay
+                    Task.Delay(1000).ContinueWith(_ => {
+                        _suppressCustomerDropdown = false;
+                    });
                 }
             }
         }
@@ -235,6 +430,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         public string DropdownSearchText
         {
             get => _dropdownSearchText;
@@ -246,26 +442,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-        private void FilterProductsForDropdown(string searchText)
-        {
-            // First, filter to only show Internet category products
-            var internetProducts = _allProducts
-                .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
-                .ToList();
 
-            if (string.IsNullOrWhiteSpace(searchText))
-            {
-                FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
-                return;
-            }
-
-            var filteredList = internetProducts
-                .Where(p => p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                            p.Barcode.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
-        }
         public bool IsProductSearchVisible
         {
             get => _isProductSearchVisible;

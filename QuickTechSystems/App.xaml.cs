@@ -9,25 +9,24 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Infrastructure.Data;
 using QuickTechSystems.Infrastructure.Repositories;
+using QuickTechSystems.Infrastructure.Services;
 using QuickTechSystems.ViewModels;
 using QuickTechSystems.Views;
 using QuickTechSystems.WPF.ViewModels;
 using QuickTechSystems.WPF.Views;
-using QuickTechSystems.Infrastructure.Services;
-using System.Windows;
+using QuickTechSystems.WPF.Services;
+using System;
 using System.IO;
+using System.Windows;
 using QuickTechSystems.Application.Helpers;
 using QuickTechSystems.Helpers;
-using QuickTechSystems.WPF.Services;
-
-
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using QuickTechSystems.Application.Interfaces;
 
 namespace QuickTechSystems.WPF
 {
     public partial class App : System.Windows.Application
     {
-
-
         private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _configuration;
         public IServiceProvider ServiceProvider => _serviceProvider;
@@ -50,100 +49,94 @@ namespace QuickTechSystems.WPF
             services.AddSingleton<IEventAggregator, EventAggregator>();
             services.AddAutoMapper(typeof(MappingProfile));
             services.AddSingleton<IWindowService, WindowService>();
-            services.AddSingleton<IGlobalOverlayService, GlobalOverlayService>();
+            services.AddSingleton<LanguageManager>();
+            services.AddScoped<IActivityLogger, ActivityLogger>();
 
-            // Database
-            services.AddDbContext<ApplicationDbContext>(options =>
+
+            // Database Context - Using DbContextPool for better management
+            services.AddDbContextPool<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     _configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly("QuickTechSystems.Infrastructure"))
                 .EnableSensitiveDataLogging()
                 .EnableDetailedErrors());
 
-            // Repositories
-            services.AddTransient<MonthlySubscriptionViewModel>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
-            // In ConfigureServices method
+            // DbContext Factory
+            services.AddSingleton<IDbContextFactory<ApplicationDbContext>>(provider =>
+                new PooledDbContextFactory<ApplicationDbContext>(
+                    new DbContextOptionsBuilder<ApplicationDbContext>()
+                        .UseSqlServer(_configuration.GetConnectionString("DefaultConnection"),
+                            b => b.MigrationsAssembly("QuickTechSystems.Infrastructure"))
+                        .EnableSensitiveDataLogging()
+                        .EnableDetailedErrors()
+                        .Options));
+
+            // Database Scope Service - Changed to Scoped to resolve DI issue
+            services.AddScoped<IDbContextScopeService, DbContextScopeService>();
+
+            // Repositories and Unit of Work
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
+
             // Application Services
+            services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
             services.AddScoped<IBusinessSettingsService, BusinessSettingsService>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICustomerService, CustomerService>();
+            services.AddScoped<ICustomerDebtService, CustomerDebtService>();
+            services.AddScoped<IDrawerService, DrawerService>();
+            services.AddScoped<IEmployeeService, EmployeeService>();
+            services.AddScoped<IExpenseService, ExpenseService>();
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
             services.AddScoped<ITransactionService, TransactionService>();
-            services.AddScoped<CustomerDebtViewModel>();
-            // In ConfigureServices method
-            services.AddScoped<ICustomerSubscriptionService, CustomerSubscriptionService>();
-            services.AddScoped<DashboardViewModel>();
-            services.AddTransient<BulkProductViewModel>();
-            services.AddTransient<QuantityDialog>();
+            services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
+
             // View Models
-            // In ConfigureServices method
-            services.AddSingleton<IGlobalOverlayService, GlobalOverlayService>();
-            services.AddScoped<CategoryViewModel>();
             services.AddScoped<MainViewModel>();
+            services.AddScoped<LoginViewModel>();
+            services.AddScoped<DashboardViewModel>();
             services.AddScoped<CategoryViewModel>();
             services.AddScoped<CustomerViewModel>();
-            services.AddScoped<ProductViewModel>();
-            services.AddScoped<SettingsViewModel>();
-            // In ConfigureServices method
-            services.AddSingleton<IGlobalOverlayService, GlobalOverlayService>();
+            services.AddScoped<CustomerDebtViewModel>();
+            services.AddScoped<DrawerViewModel>();
             services.AddScoped<EmployeeViewModel>();
-            // In ConfigureServices method
-            services.AddSingleton<QuickTechSystems.WPF.Services.IGlobalOverlayService, QuickTechSystems.WPF.Services.GlobalOverlayService>();
+            services.AddScoped<ExpenseViewModel>();
+            services.AddScoped<ProductViewModel>();
+            services.AddScoped<ProfitViewModel>();
+            services.AddScoped<QuoteViewModel>();
+            services.AddScoped<SettingsViewModel>();
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
             services.AddScoped<TransactionViewModel>();
-            services.AddScoped<ProfitViewModel>();
-            services.AddScoped<IExpenseService, ExpenseService>();
-            services.AddScoped<IDrawerService, DrawerService>();
+            services.AddTransient<BulkProductViewModel>();
+            services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
+            services.AddScoped<LowStockHistoryViewModel>();
+
             // Views
-            services.AddScoped<IMonthlySubscriptionSettingsService, MonthlySubscriptionSettingsService>();
-            services.AddScoped<ISubscriptionTypeService, SubscriptionTypeService>();
-            services.AddTransient<MonthlySubscriptionView>();
             services.AddTransient<MainWindow>();
+            services.AddTransient<LoginView>();
             services.AddTransient<CategoryView>();
             services.AddTransient<CustomerView>();
+            services.AddTransient<CustomerDebtView>();
+            services.AddTransient<DrawerView>();
+            services.AddTransient<EmployeeView>();
+            services.AddTransient<ExpenseView>();
             services.AddTransient<ProductView>();
+            services.AddTransient<ProfitView>();
+            services.AddTransient<QuoteView>();
             services.AddTransient<SettingsView>();
             services.AddTransient<SupplierView>();
             services.AddTransient<SystemPreferencesView>();
             services.AddTransient<TransactionHistoryView>();
             services.AddTransient<TransactionView>();
-            services.AddTransient<CustomerDebtView>();
-            services.AddScoped<ExpenseViewModel>();
-            services.AddScoped<DrawerViewModel>();
-            services.AddScoped<MonthlySubscriptionViewModel>();
+            services.AddTransient<QuantityDialog>();
+            services.AddScoped<DamagedGoodsViewModel>();
 
-
-            services.AddScoped<IAuthService, AuthService>();
-            services.AddScoped<IEmployeeService, EmployeeService>();
-            services.AddScoped<LoginViewModel>();
-            services.AddScoped<EmployeeViewModel>();
-            services.AddTransient<LoginView>();
-            services.AddTransient<EmployeeView>();
-
-
-
-            services.AddDbContextFactory<ApplicationDbContext>(options =>
-        options.UseSqlServer(
-            _configuration.GetConnectionString("DefaultConnection"),
-            b => b.MigrationsAssembly("QuickTechSystems.Infrastructure"))
-        .EnableSensitiveDataLogging()
-        .EnableDetailedErrors());
-
-
-
-            services.AddSingleton<LanguageManager>();
-            services.AddScoped<IDrawerService, DrawerService>();
-            services.AddDbContextFactory<ApplicationDbContext>(options =>
-        options.UseSqlServer(
-        _configuration.GetConnectionString("DefaultConnection"))
-        );
         }
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -152,7 +145,6 @@ namespace QuickTechSystems.WPF
 
             try
             {
-                // Create a log directory if it doesn't exist
                 var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
                 Directory.CreateDirectory(logPath);
                 File.WriteAllText(Path.Combine(logPath, "startup.log"), $"Application starting at {DateTime.Now}...");
@@ -164,64 +156,62 @@ namespace QuickTechSystems.WPF
                     var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
                     var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
 
-                    // Ensure database exists and is up to date
                     try
                     {
-                        File.AppendAllText(Path.Combine(logPath, "startup.log"), "\nChecking database...");
                         await context.Database.EnsureCreatedAsync();
-
-                        // Initialize database if needed
                         DatabaseInitializer.Initialize(context);
                         DatabaseInitializer.SeedDefaultAdmin(context);
-                        File.AppendAllText(Path.Combine(logPath, "startup.log"), "\nDatabase initialized successfully.");
+
+                        // Ensure default preferences are initialized
+                        const string userId = "default";
+                        var hasPreferences = await systemPreferencesService.GetPreferenceValueAsync(userId, "Initialized", "false");
+                        if (hasPreferences != "true")
+                        {
+                            await systemPreferencesService.InitializeUserPreferencesAsync(userId);
+                            await systemPreferencesService.SavePreferenceAsync(userId, "Initialized", "true");
+                        }
                     }
                     catch (Exception dbEx)
                     {
-                        File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nDatabase error: {dbEx.Message}");
-                        MessageBox.Show($"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server LocalDB is installed.",
-                            "Database Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBox.Show(
+                            $"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server is installed and accessible with the provided credentials.",
+                            "Database Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
                         Shutdown();
                         return;
                     }
 
                     try
                     {
-                        // Load exchange rate
                         var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
                         if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
                         {
                             CurrencyHelper.UpdateExchangeRate(rate);
                         }
 
-                        // Load default language
                         var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
                         await languageManager.SetLanguage(defaultLanguage);
-
-                        File.AppendAllText(Path.Combine(logPath, "startup.log"), "\nSettings loaded successfully.");
                     }
                     catch (Exception settingsEx)
                     {
                         File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nSettings error: {settingsEx.Message}");
-                        // Continue with default settings if there's an error
                     }
                 }
 
                 var loginView = _serviceProvider.GetRequiredService<LoginView>();
                 loginView.Show();
-
-                File.AppendAllText(Path.Combine(logPath, "startup.log"), "\nApplication started successfully.");
             }
             catch (Exception ex)
             {
                 var errorMessage = $"An error occurred while starting the application: {ex.Message}\n\n" +
                                   "Please ensure:\n" +
-                                  "1. SQL Server LocalDB is installed\n" +
+                                  "1. SQL Server is installed and accessible\n" +
                                   "2. .NET 8.0 Desktop Runtime is installed\n" +
                                   "3. You have necessary permissions to access the application folder";
 
                 MessageBox.Show(errorMessage, "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
 
-                // Log the full error details
                 try
                 {
                     var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
@@ -230,13 +220,12 @@ namespace QuickTechSystems.WPF
                 }
                 catch
                 {
-                    // If we can't even log the error, just shutdown
+                    // If we can't log the error, just shutdown
                 }
 
                 Shutdown();
             }
         }
-
 
         protected override void OnExit(ExitEventArgs e)
         {

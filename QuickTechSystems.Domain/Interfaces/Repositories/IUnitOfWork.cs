@@ -6,6 +6,8 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
 {
     public interface IUnitOfWork : IDisposable
     {
+  
+      
         IGenericRepository<Product> Products { get; }
         IGenericRepository<Category> Categories { get; }
         IGenericRepository<Customer> Customers { get; }
@@ -15,12 +17,15 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
         IGenericRepository<Supplier> Suppliers { get; }
         IGenericRepository<Expense> Expenses { get; }
         IGenericRepository<Drawer> Drawers { get; }
-        IGenericRepository<CustomerSubscription> CustomerSubscriptions { get; }
+    
         IGenericRepository<Employee> Employees { get; }
-        IGenericRepository<SubscriptionType> SubscriptionTypes { get; }
-        IGenericRepository<MonthlySubscriptionSettings> MonthlySubscriptionSettings { get; }
-        DbContext Context { get; }
+
+        IGenericRepository<Quote> Quotes { get; }
+     
+        IGenericRepository<T> GetRepository<T>() where T : class;
+
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
+        DbContext Context { get; }
     }
 }

@@ -11,11 +11,15 @@ namespace QuickTechSystems.WPF.Converters
         {
             if (value is decimal amount)
             {
-                if (parameter?.ToString() == "LBP")
+                // If parameter is "LBP", convert USD to LBP
+                if (parameter is string currencyCode && currencyCode == "LBP")
                 {
-                    return CurrencyHelper.FormatLBP(CurrencyHelper.ConvertToLBP(amount));
+                    // Convert USD to LBP using the helper
+                    decimal lbpAmount = CurrencyHelper.ConvertToLBP(amount);
+                    return CurrencyHelper.FormatLBP(lbpAmount);
                 }
-                return amount.ToString("C2");
+                // Default to USD
+                return string.Format("{0:N}", amount);
             }
             return "0.00";
         }

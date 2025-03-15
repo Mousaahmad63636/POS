@@ -1,6 +1,4 @@
-﻿// Path: QuickTechSystems.WPF/ViewModels/ProfitViewModel.cs
-
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using QuickTechSystems.Application.DTOs;
@@ -10,18 +8,34 @@ using QuickTechSystems.WPF.Commands;
 using Microsoft.Win32;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using QuickTechSystems.Domain.Interfaces.Repositories;
+using System.Diagnostics;
+using System.Linq;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
     public class ProfitViewModel : ViewModelBase
     {
         private readonly ITransactionService _transactionService;
-        private DateTime _startDate;
-        private DateTime _endDate;
-        private string _selectedDateRange;
+        private readonly IDrawerService _drawerService;
+        private readonly IUnitOfWork _unitOfWork;
+        private bool _isLoading;
+        private string _errorMessage = string.Empty;
+        private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+        private DateTime _startDate = DateTime.Today;
+        private DateTime _endDate = DateTime.Today;
+        private bool _isDisposed;
+        private CancellationTokenSource _cts;
+
         private decimal _grossProfit;
         private decimal _netProfit;
         private decimal _totalSales;
+        private decimal _totalExpenses;
+        private decimal _totalReturns;
+        private decimal _totalSupplierPayments;
+        private decimal _costOfGoodsSold;
         private int _totalTransactions;
         private decimal _grossProfitPercentage;
         private decimal _netProfitPercentage;
@@ -29,16 +43,36 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public ProfitViewModel(
             ITransactionService transactionService,
+            IDrawerService drawerService,
+            IUnitOfWork unitOfWork,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _transactionService = transactionService;
+            _drawerService = drawerService;
+            _unitOfWork = unitOfWork;
             _profitDetails = new ObservableCollection<ProfitDetailDTO>();
-            _startDate = DateTime.Today.AddDays(-30);
-            _endDate = DateTime.Today;
-            _selectedDateRange = "Last 30 Days"; // Set default selection
+            _cts = new CancellationTokenSource();
 
-            ExportCommand = new AsyncRelayCommand(async _ => await ExportReport());
+            ExportCommand = new AsyncRelayCommand(async _ => await ExportReportAsync(), CanExecuteCommand);
+            RefreshCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), CanExecuteCommand);
+
+            _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(HandleTransactionChanged);
+            _eventAggregator.Subscribe<DrawerUpdateEvent>(HandleDrawerUpdate);
+
             _ = LoadDataAsync();
+        }
+
+        #region Properties
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set => SetProperty(ref _errorMessage, value);
         }
 
         public DateTime StartDate
@@ -65,27 +99,16 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public ObservableCollection<string> DateRanges { get; } = new()
+        public decimal TotalSales
         {
-            "Today",
-            "Yesterday",
-            "Last 7 Days",
-            "Last 30 Days",
-            "This Month",
-            "Last Month",
-            "This Year"
-        };
+            get => _totalSales;
+            set => SetProperty(ref _totalSales, value);
+        }
 
-        public string SelectedDateRange
+        public decimal CostOfGoodsSold
         {
-            get => _selectedDateRange;
-            set
-            {
-                if (SetProperty(ref _selectedDateRange, value))
-                {
-                    UpdateDateRange(value);
-                }
-            }
+            get => _costOfGoodsSold;
+            set => SetProperty(ref _costOfGoodsSold, value);
         }
 
         public decimal GrossProfit
@@ -94,16 +117,28 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _grossProfit, value);
         }
 
+        public decimal TotalExpenses
+        {
+            get => _totalExpenses;
+            set => SetProperty(ref _totalExpenses, value);
+        }
+
+        public decimal TotalReturns
+        {
+            get => _totalReturns;
+            set => SetProperty(ref _totalReturns, value);
+        }
+
+        public decimal TotalSupplierPayments
+        {
+            get => _totalSupplierPayments;
+            set => SetProperty(ref _totalSupplierPayments, value);
+        }
+
         public decimal NetProfit
         {
             get => _netProfit;
             set => SetProperty(ref _netProfit, value);
-        }
-
-        public decimal TotalSales
-        {
-            get => _totalSales;
-            set => SetProperty(ref _totalSales, value);
         }
 
         public int TotalTransactions
@@ -131,87 +166,118 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         public ICommand ExportCommand { get; }
+        public ICommand RefreshCommand { get; }
+        #endregion
+
+        private bool CanExecuteCommand(object? parameter)
+        {
+            return !IsLoading;
+        }
 
         protected override async Task LoadDataAsync()
         {
+            // Skip if already loading
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadDataAsync skipped - already in progress");
+                return;
+            }
+
+            // Create a new CancellationTokenSource for this operation
+            _cts?.Cancel();
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
+
             try
             {
-                var transactions = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
-                var transactionsList = transactions.ToList(); // Materialize the enumerable
+                IsLoading = true;
+                ErrorMessage = string.Empty;
 
-                // Calculate profits
-                TotalSales = transactionsList.Sum(t => t.TotalAmount);
-                TotalTransactions = transactionsList.Count;
+                try
+                {
+                    // Add a timeout for the operation
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
-                GrossProfit = transactionsList.Sum(t =>
-                    t.Details?.Sum(d => (d.UnitPrice - d.PurchasePrice) * d.Quantity) ?? 0);
+                    // Get transactions with the current UnitOfWork
+                    var transactions = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
+                    if (linkedCts.Token.IsCancellationRequested) return;
 
-                // Assuming 20% overhead costs for net profit calculation
-                NetProfit = GrossProfit * 0.8m;
+                    var transactionsList = transactions.ToList();
+                    TotalTransactions = transactionsList.Count;
 
-                GrossProfitPercentage = TotalSales > 0 ? (GrossProfit / TotalSales) * 100 : 0;
-                NetProfitPercentage = TotalSales > 0 ? (NetProfit / TotalSales) * 100 : 0;
+                    // Get financial summary
+                    var financialSummary = await _drawerService.GetFinancialSummaryAsync(StartDate, EndDate);
+                    if (linkedCts.Token.IsCancellationRequested) return;
 
-                // Group by date for details
-                var details = transactionsList
-                    .GroupBy(t => t.TransactionDate.Date)
-                    .Select(g => new ProfitDetailDTO
+                    TotalSales = financialSummary.Sales;
+                    TotalReturns = financialSummary.Returns;
+                    TotalExpenses = financialSummary.Expenses;
+                    TotalSupplierPayments = financialSummary.SupplierPayments;
+
+                    // Calculate COGS
+                    CostOfGoodsSold = transactionsList
+                        .SelectMany(t => t.Details)
+                        .Sum(d => d.PurchasePrice * d.Quantity);
+
+                    // Calculate profits
+                    GrossProfit = TotalSales - CostOfGoodsSold;
+                    NetProfit = GrossProfit - TotalExpenses - TotalReturns - TotalSupplierPayments;
+
+                    // Calculate percentages
+                    GrossProfitPercentage = TotalSales > 0 ? (GrossProfit / TotalSales) * 100 : 0;
+                    NetProfitPercentage = TotalSales > 0 ? (NetProfit / TotalSales) * 100 : 0;
+
+                    // Create detailed profit breakdown
+                    if (linkedCts.Token.IsCancellationRequested) return;
+
+                    var details = transactionsList
+                        .SelectMany(t => t.Details.Select(d => new ProfitDetailDTO
+                        {
+                            Date = t.TransactionDate,
+                            Sales = d.UnitPrice * d.Quantity,
+                            Cost = d.PurchasePrice * d.Quantity,
+                            TransactionCount = 1
+                        }))
+                        .OrderByDescending(d => d.Date)
+                        .ToList();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Date = g.Key,
-                        Sales = g.Sum(t => t.TotalAmount),
-                        Cost = g.Sum(t => t.Details?.Sum(d => d.PurchasePrice * d.Quantity) ?? 0),
-                        TransactionCount = g.Count()
-                    })
-                    .OrderByDescending(d => d.Date)
-                    .ToList();
-
-                ProfitDetails = new ObservableCollection<ProfitDetailDTO>(details);
+                        if (!linkedCts.Token.IsCancellationRequested)
+                        {
+                            ProfitDetails = new ObservableCollection<ProfitDetailDTO>(details);
+                        }
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.WriteLine("Operation was canceled");
+                }
+                catch (Exception ex)
+                {
+                    await HandleExceptionAsync("Error loading profit data", ex);
+                }
             }
-            catch (Exception ex)
+            finally
             {
-                await ShowErrorMessageAsync($"Error loading profit data: {ex.Message}");
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
 
-        private void UpdateDateRange(string range)
+        private async Task ExportReportAsync()
         {
-            switch (range)
+            if (!await _operationLock.WaitAsync(0))
             {
-                case "Today":
-                    StartDate = DateTime.Today;
-                    EndDate = DateTime.Today;
-                    break;
-                case "Yesterday":
-                    StartDate = DateTime.Today.AddDays(-1);
-                    EndDate = DateTime.Today.AddDays(-1);
-                    break;
-                case "Last 7 Days":
-                    StartDate = DateTime.Today.AddDays(-7);
-                    EndDate = DateTime.Today;
-                    break;
-                case "Last 30 Days":
-                    StartDate = DateTime.Today.AddDays(-30);
-                    EndDate = DateTime.Today;
-                    break;
-                case "This Month":
-                    StartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-                    EndDate = DateTime.Today;
-                    break;
-                case "Last Month":
-                    StartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-1);
-                    EndDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddDays(-1);
-                    break;
-                case "This Year":
-                    StartDate = new DateTime(DateTime.Today.Year, 1, 1);
-                    EndDate = DateTime.Today;
-                    break;
+                ShowTemporaryErrorMessage("Export operation already in progress. Please wait.");
+                return;
             }
-        }
 
-        private async Task ExportReport()
-        {
             try
             {
+                IsLoading = true;
+
                 var saveFileDialog = new SaveFileDialog
                 {
                     Filter = "CSV files (*.csv)|*.csv|All files (*.*)|*.*",
@@ -222,27 +288,159 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (saveFileDialog.ShowDialog() == true)
                 {
                     var csv = new StringBuilder();
-                    csv.AppendLine("Date,Sales,Cost,Gross Profit,Profit Margin %,Transactions");
+
+                    // Add header summary
+                    csv.AppendLine($"Profit Report for {StartDate:d} to {EndDate:d}");
+                    csv.AppendLine();
+                    csv.AppendLine($"Total Sales,{TotalSales:F2}");
+                    csv.AppendLine($"Cost of Goods Sold,{CostOfGoodsSold:F2}");
+                    csv.AppendLine($"Gross Profit,{GrossProfit:F2}");
+                    csv.AppendLine($"Gross Profit Percentage,{GrossProfitPercentage:F2}%");
+                    csv.AppendLine($"Total Expenses,{TotalExpenses:F2}");
+                    csv.AppendLine($"Total Returns,{TotalReturns:F2}");
+                    csv.AppendLine($"Supplier Payments,{TotalSupplierPayments:F2}");
+                    csv.AppendLine($"Net Profit,{NetProfit:F2}");
+                    csv.AppendLine($"Net Profit Percentage,{NetProfitPercentage:F2}%");
+                    csv.AppendLine();
+
+                    // Add transaction details
+                    csv.AppendLine("Date,Time,Sales,Cost,Gross Profit,Profit Margin");
 
                     foreach (var detail in ProfitDetails)
                     {
-                        csv.AppendLine($"{detail.Date:d}," +
+                        csv.AppendLine($"{detail.Date:d},{detail.Date:t}," +
                             $"{detail.Sales:F2}," +
                             $"{detail.Cost:F2}," +
                             $"{detail.GrossProfit:F2}," +
-                            $"{detail.ProfitMargin:P1}," +
-                            $"{detail.TransactionCount}");
+                            $"{detail.ProfitMargin:P2}");
                     }
 
                     await File.WriteAllTextAsync(saveFileDialog.FileName, csv.ToString());
-                    MessageBox.Show("Report exported successfully.", "Export Complete",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await ShowMessageAsync("Report exported successfully.", "Export Complete");
                 }
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error exporting report: {ex.Message}");
+                await HandleExceptionAsync("Error exporting report", ex);
             }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task HandleExceptionAsync(string context, Exception ex)
+        {
+            Debug.WriteLine($"{context}: {ex}");
+
+            // Special handling for known database errors
+            if (ex.Message.Contains("A second operation was started") ||
+                (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
+            {
+                ShowTemporaryErrorMessage("Database is busy processing another request. Please try again in a moment.");
+            }
+            else if (ex.Message.Contains("entity with the specified primary key") ||
+                    (ex.InnerException != null && ex.InnerException.Message.Contains("entity with the specified primary key")))
+            {
+                ShowTemporaryErrorMessage("Requested record not found. It may have been deleted.");
+            }
+            else if (ex.Message.Contains("The connection was closed") ||
+                    (ex.InnerException != null && ex.InnerException.Message.Contains("The connection was closed")))
+            {
+                ShowTemporaryErrorMessage("Database connection lost. Please check your connection and try again.");
+            }
+            else
+            {
+                ShowTemporaryErrorMessage($"{context}: {ex.Message}");
+            }
+        }
+
+        private void ShowTemporaryErrorMessage(string message)
+        {
+            ErrorMessage = message;
+
+            // Automatically clear error after delay
+            Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (ErrorMessage == message) // Only clear if still the same message
+                    {
+                        ErrorMessage = string.Empty;
+                    }
+                });
+            });
+        }
+
+        private async Task ShowMessageAsync(string message, string title)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                System.Windows.MessageBox.Show(message, title,
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            });
+        }
+
+        // Debounced event handlers to prevent multiple calls
+        private DateTime _lastTransactionEventTime = DateTime.MinValue;
+        private DateTime _lastDrawerEventTime = DateTime.MinValue;
+        private readonly object _eventLock = new object();
+
+        private void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
+        {
+            if (IsLoading) return;
+
+            lock (_eventLock)
+            {
+                var now = DateTime.Now;
+                if ((now - _lastTransactionEventTime).TotalMilliseconds < 500)
+                {
+                    return; // Ignore events that come too quickly
+                }
+                _lastTransactionEventTime = now;
+            }
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(500); // Debounce delay
+                await LoadDataAsync();
+            });
+        }
+
+        private void HandleDrawerUpdate(DrawerUpdateEvent evt)
+        {
+            if (IsLoading) return;
+
+            lock (_eventLock)
+            {
+                var now = DateTime.Now;
+                if ((now - _lastDrawerEventTime).TotalMilliseconds < 500)
+                {
+                    return; // Ignore events that come too quickly
+                }
+                _lastDrawerEventTime = now;
+            }
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(500); // Debounce delay
+                await LoadDataAsync();
+            });
+        }
+
+        public override void Dispose()
+        {
+            if (!_isDisposed)
+            {
+                _cts?.Cancel();
+                _cts?.Dispose();
+                _operationLock?.Dispose();
+                _isDisposed = true;
+            }
+            base.Dispose();
         }
     }
 }

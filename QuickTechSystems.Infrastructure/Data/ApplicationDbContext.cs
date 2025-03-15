@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Path: QuickTechSystems.Infrastructure/Data/ApplicationDbContext.cs
+using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Infrastructure.Data.Configurations;
 using System.Reflection;
@@ -11,6 +12,7 @@ namespace QuickTechSystems.Infrastructure.Data
             : base(options)
         {
         }
+
         public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<Product> Products => Set<Product>();
         public DbSet<Category> Categories => Set<Category>();
@@ -24,19 +26,27 @@ namespace QuickTechSystems.Infrastructure.Data
         public DbSet<SupplierTransaction> SupplierTransactions => Set<SupplierTransaction>();
         public DbSet<Expense> Expenses => Set<Expense>();
         public DbSet<Drawer> Drawers => Set<Drawer>();
-        public DbSet<CustomerSubscription> CustomerSubscriptions => Set<CustomerSubscription>();
-        public DbSet<SubscriptionPayment> SubscriptionPayments => Set<SubscriptionPayment>();
-        public DbSet<CounterHistory> CounterHistories => Set<CounterHistory>();
         public DbSet<DrawerHistoryEntry> DrawerHistory => Set<DrawerHistoryEntry>();
         public DbSet<DrawerTransaction> DrawerTransactions => Set<DrawerTransaction>();
-        public DbSet<MonthlySubscriptionSettings> MonthlySubscriptionSettings { get; set; }
-        public DbSet<SubscriptionType> SubscriptionTypes { get; set; }
+        public DbSet<Quote> Quotes => Set<Quote>();
+        public DbSet<QuoteDetail> QuoteDetails => Set<QuoteDetail>();
+        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+        public DbSet<EmployeeSalaryTransaction> EmployeeSalaryTransactions => Set<EmployeeSalaryTransaction>();
+        public DbSet<CustomerProductPrice> CustomerProductPrices => Set<CustomerProductPrice>();
+        public DbSet<DamagedGoods> DamagedGoods => Set<DamagedGoods>();
+        public DbSet<LowStockHistory> LowStockHistories => Set<LowStockHistory>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
-            modelBuilder.ApplyConfiguration(new MonthlySubscriptionSettingsConfiguration());
-            modelBuilder.ApplyConfiguration(new SubscriptionTypeConfiguration());
+            modelBuilder.ApplyConfiguration(new ActivityLogConfiguration());
+        }
+
+        public DbContextOptions<ApplicationDbContext> GetConfiguration()
+        {
+            return (DbContextOptions<ApplicationDbContext>)this.GetType()
+                .GetProperty("ContextOptions")
+                .GetValue(this);
         }
     }
 }

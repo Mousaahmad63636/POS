@@ -18,5 +18,6 @@ namespace QuickTechSystems.Application.DTOs
         public string CashierId { get; set; } = string.Empty;
         public string CashierName { get; set; } = string.Empty;
         public ObservableCollection<TransactionDetailDTO> Details { get; set; } = new ObservableCollection<TransactionDetailDTO>();
+        public string CashierRole { get; set; } = string.Empty;
     }
 }

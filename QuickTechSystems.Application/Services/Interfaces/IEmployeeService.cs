@@ -6,7 +6,12 @@ namespace QuickTechSystems.Application.Services.Interfaces
     {
         Task<EmployeeDTO?> GetByUsernameAsync(string username);
         Task ResetPasswordAsync(int employeeId, string newPassword);
-        Task UpdateEmployeeAsync(int employeeId, EmployeeDTO dto);
+        Task UpdateAsync(int employeeId, EmployeeDTO dto);
         Task UpdateLastLoginAsync(int employeeId);
+
+        // Add these new methods
+        Task ProcessMonthlySalaryAsync(int employeeId);
+        Task<bool> ProcessSalaryWithdrawalAsync(int employeeId, decimal amount, string notes);
+        Task<IEnumerable<EmployeeSalaryTransactionDTO>> GetSalaryHistoryAsync(int employeeId);
     }
 }

@@ -1,17 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-
 
 namespace QuickTechSystems.WPF.Views
 {
@@ -20,6 +8,53 @@ namespace QuickTechSystems.WPF.Views
         public ProfitView()
         {
             InitializeComponent();
+
+            // Register to the Loaded event to adjust layout based on container size
+            this.Loaded += OnControlLoaded;
+            this.SizeChanged += OnControlSizeChanged;
+        }
+
+        private void OnControlLoaded(object sender, RoutedEventArgs e)
+        {
+            AdjustLayoutForSize();
+        }
+
+        private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            AdjustLayoutForSize();
+        }
+
+        private void AdjustLayoutForSize()
+        {
+            var parentWindow = Window.GetWindow(this);
+            if (parentWindow == null) return;
+
+            // Get actual window dimensions
+            double windowWidth = parentWindow.ActualWidth;
+
+            // Set margins and paddings based on window size
+            var scrollViewer = this.Content as ScrollViewer;
+            if (scrollViewer == null) return;
+
+            var rootGrid = scrollViewer.Content as Grid;
+            if (rootGrid == null) return;
+
+            if (windowWidth >= 1920) // Large screens
+            {
+                rootGrid.Margin = new Thickness(32);
+            }
+            else if (windowWidth >= 1366) // Medium screens
+            {
+                rootGrid.Margin = new Thickness(24);
+            }
+            else if (windowWidth >= 800) // Small screens
+            {
+                rootGrid.Margin = new Thickness(16);
+            }
+            else // Very small screens
+            {
+                rootGrid.Margin = new Thickness(8);
+            }
         }
     }
 }

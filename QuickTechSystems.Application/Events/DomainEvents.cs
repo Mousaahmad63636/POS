@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using QuickTechSystems.Application.DTOs;
 
 namespace QuickTechSystems.Application.Events
 {
@@ -16,17 +15,6 @@ namespace QuickTechSystems.Application.Events
         {
             Action = action;
             Entity = entity;
-        }
-    }
-    public class LowStockWarningEvent
-    {
-        public ProductDTO Product { get; }
-        public int MinimumStock { get; }
-
-        public LowStockWarningEvent(ProductDTO product, int minimumStock)
-        {
-            Product = product;
-            MinimumStock = minimumStock;
         }
     }
 }

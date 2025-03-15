@@ -1,0 +1,429 @@
+- QuickTechSystems.sln
+
+QuickTechSystems
+- App.config
+- app.ico
+- App.xaml
+- App.xaml.cs
+- appsettings.json
+- AssemblyInfo.cs
+- GlobalUsings.cs
+- MainWindow.xaml
+- MainWindow.xaml.cs
+- QuickTechSystems.csproj
+- QuickTechSystems.csproj.user
+- README.txt
+
+QuickTechSystems\Commands
+- RelayCommand.cs
+
+QuickTechSystems\Controls
+- AutoCompleteTextBox.xaml
+- AutoCompleteTextBox.xaml.cs
+
+QuickTechSystems\Converters
+- BooleanToVisibilityConverter.cs
+- BooleanToVisibilityValueConverter.cs
+- BoolToColorConverter.cs
+- BoolToTextConverter.cs
+- ByteArrayToImageConverter.cs
+- ByteArrayToImageSourceConverter.cs
+- CategoryHighlightConverter.cs
+- CurrencyConverter.cs
+- CustomerSpecificPriceConverter.cs
+- DecimalConverter.cs
+- EqualityConverter.cs
+- GreaterThanConverter.cs
+- InverseBooleanToVisibilityConverter.cs
+- IsResolvedConverter.cs
+- LessThanConverter.cs
+- LessThanValueConverter.cs
+- LessThanZeroConverter.cs
+- LocalStringToVisibilityConverter.cs
+- NegativeValueConverter.cs
+- NotEqualToVisibilityConverter.cs
+- NullToBooleanConverter.cs
+- NullToVisibilityConverter.cs
+- PriceChangeConverter.cs
+- ProductTotalCostConverter.cs
+- ProductTotalProfitConverter.cs
+- ProductTotalValueConverter.cs
+- ProfitColorConverter.cs
+- StringIsNotEmptyConverter.cs
+- StringToVisibilityConverter.cs
+- TitleConverter.cs
+- TransactionTypeToColorConverter.cs
+
+QuickTechSystems\Extensions
+- UIElementExtensions.cs
+
+QuickTechSystems\Helpers
+- GridLengthAnimation.cs
+- LanguageManager.cs
+
+QuickTechSystems\Properties
+
+QuickTechSystems\Properties\PublishProfiles
+- FolderProfile.pubxml
+- FolderProfile.pubxml.user
+
+QuickTechSystems\Resources
+
+QuickTechSystems\Resources\Dictionaries
+- Styles.xaml
+
+QuickTechSystems\Resources\Dictionaries\Languages
+- ar-SA.xaml
+- en-US.xaml
+- fr-FR.xaml
+
+QuickTechSystems\Resources\Images
+- logo.png
+
+QuickTechSystems\Services
+- IWindowService.cs
+- WindowService.cs
+
+QuickTechSystems\ViewModels
+- BulkProductViewModel.cs
+- CashDrawerPromptViewModel.cs
+- CategoryViewModel.cs
+- CustomerDebtViewModel.cs
+- CustomerViewModel.cs
+- DamagedGoodsViewModel.cs
+- DashboardViewModel.cs
+- DrawerViewModel.Commands.cs
+- DrawerViewModel.cs
+- DrawerViewModel.Events.cs
+- DrawerViewModel.Finance.cs
+- DrawerViewModel.Properties.cs
+- DrawerViewModel.Reports.cs
+- DrawerViewModel.Transactions.cs
+- DrawerViewModel.Updates.cs
+- EmployeeViewModel.cs
+- ExpenseViewModel.cs
+- LoginViewModel.cs
+- LowStockHistoryViewModel.cs
+- MainViewModel.cs
+- ProductViewModel.cs
+- ProfitViewModel.cs
+- QuoteViewModel.cs
+- SettingsViewModel.cs
+- SupplierViewModel.cs
+- SystemPreferencesViewModel.cs
+- TransactionHistoryViewModel.cs
+- TransactionViewModel.cs
+- ViewModelBase.cs
+- WindowManager.cs
+
+QuickTechSystems\ViewModels\TransactionParts
+- TransactionViewModel.Calculations.cs
+- TransactionViewModel.Commands.cs
+- TransactionViewModel.Methods.cs
+- TransactionViewModel.Print.cs
+- TransactionViewModel.Properties.cs
+- TransactionViewModel.Search.cs
+
+QuickTechSystems\Views
+- BulkProductDialog.xaml
+- BulkProductDialog.xaml.cs
+- CashDrawerPromptWindow.xaml
+- CashDrawerPromptWindow.xaml.cs
+- CategoryDetailsPopup.xaml
+- CategoryDetailsPopup.xaml.cs
+- CategoryView.xaml
+- CategoryView.xaml.cs
+- CustomerDebtView.xaml
+- CustomerDebtView.xaml.cs
+- CustomerDetailsPopup.xaml
+- CustomerDetailsPopup.xaml.cs
+- CustomerView.xaml
+- CustomerView.xaml.cs
+- DamagedGoodsPopup.xaml
+- DamagedGoodsPopup.xaml.cs
+- DamagedGoodsProductSearch.xaml
+- DamagedGoodsProductSearch.xaml.cs
+- DamagedGoodsView.xaml
+- DamagedGoodsView.xaml.cs
+- DashboardView.xaml
+- DashboardView.xaml.cs
+- DiscountDialog.xaml
+- DiscountDialog.xaml.cs
+- DrawerView.xaml
+- DrawerView.xaml.cs
+- EmployeeView.xaml
+- EmployeeView.xaml.cs
+- ExpenseDetailsPopup.xaml
+- ExpenseDetailsPopup.xaml.cs
+- ExpenseView.xaml
+- ExpenseView.xaml.cs
+- InputDialog.xaml
+- InputDialog.xaml.cs
+- LoginView.xaml
+- LoginView.xaml.cs
+- LowStockHistoryView.xaml
+- LowStockHistoryView.xaml.cs
+- ProductDetailsPopup.xaml
+- ProductDetailsPopup.xaml.cs
+- ProductSearchPopupForDamaged.xaml
+- ProductSearchPopupForDamaged.xaml.cs
+- ProductView.xaml
+- ProductView.xaml.cs
+- ProfitView.xaml
+- ProfitView.xaml.cs
+- QuantityDialog.xaml
+- QuantityDialog.xaml.cs
+- QuoteView.xaml
+- QuoteView.xaml.cs
+- ReturnItemSelectionDialog.xaml
+- ReturnItemSelectionDialog.xaml.cs
+- SettingsView.xaml
+- SettingsView.xaml.cs
+- SupplierDetailsPopup.xaml
+- SupplierDetailsPopup.xaml.cs
+- SupplierTransactionPopup.xaml
+- SupplierTransactionPopup.xaml.cs
+- SupplierTransactionsHistoryPopup.xaml
+- SupplierTransactionsHistoryPopup.xaml.cs
+- SupplierView.xaml
+- SupplierView.xaml.cs
+- SystemPreferencesView.xaml
+- SystemPreferencesView.xaml.cs
+- TransactionDetailsPopup.xaml
+- TransactionDetailsPopup.xaml.cs
+- TransactionDetailWindow.xaml
+- TransactionDetailWindow.xaml.cs
+- TransactionHistoryView.xaml
+- TransactionHistoryView.xaml.cs
+- TransactionPopup.xaml
+- TransactionPopup.xaml.cs
+
+QuickTechSystems\Views\Dialogs
+- NumericKeypadDialog.xaml
+- NumericKeypadDialog.xaml.cs
+
+QuickTechSystems\Views\Transaction
+- TransactionView.xaml
+- TransactionView.xaml.cs
+
+QuickTechSystems\Views\Transaction\Components
+- CustomerPanel.xaml
+- CustomerPanel.xaml.cs
+- FunctionButtons.xaml
+- FunctionButtons.xaml.cs
+- HeaderPanel.xaml
+- HeaderPanel.xaml.cs
+- PaymentPanel.xaml
+- PaymentPanel.xaml.cs
+- ProductCard.xaml
+- ProductCard.xaml.cs
+- ProductCardsPanel.xaml
+- ProductCardsPanel.xaml.cs
+- ProductSummaryTable.xaml
+- ProductSummaryTable.xaml.cs
+- SearchPanel.xaml
+- SearchPanel.xaml.cs
+- StatusBar.xaml
+- StatusBar.xaml.cs
+- TotalsPanel.xaml
+- TotalsPanel.xaml.cs
+- TransactionGrid.xaml
+- TransactionGrid.xaml.cs
+
+QuickTechSystems\Views\Transaction\Popups
+- ProductSearchPopup.xaml
+- ProductSearchPopup.xaml.cs
+
+QuickTechSystems\Views\Transaction\Styles
+- ButtonStyles.xaml
+- CommonStyles.xaml
+- DataGridStyles.xaml
+- ProductCardStyles.xaml
+- TextBoxStyles.xaml
+- TransactionStyles.xaml
+
+QuickTechSystems.Application
+- Class1.cs
+- GlobalUsings.cs
+- QuickTechSystems.Application.csproj
+
+QuickTechSystems.Application\DTOs
+- ActivityLogDTO.cs
+- BaseDTO.cs
+- BusinessSettingDTO.cs
+- CategoryDTO.cs
+- CustomerDTO.cs
+- CustomerPaymentDTO.cs
+- CustomerProductPriceDTO.cs
+- CustomerProductPriceViewModel.cs
+- DamagedGoodsDTO.cs
+- DrawerDTO.cs
+- DrawerTransactionDTO.cs
+- EmployeeDTO.cs
+- EmployeeSalaryTransactionDTO.cs
+- ExpenseDTO.cs
+- InventoryHistoryDTO.cs
+- LowStockHistoryDTO.cs
+- ProductDTO.cs
+- ProfitDetailDTO.cs
+- QuoteDTO.cs
+- ReturnItemDTO.cs
+- SupplierDTO.cs
+- SupplierTransactionDTO.cs
+- SystemPreferenceDTO.cs
+- TransactionDetailDTO.cs
+- TransactionDTO.cs
+
+QuickTechSystems.Application\Events
+- ApplicationModeChangedEvent.cs
+- DomainEvents.cs
+- DrawerUpdateEvent.cs
+- EventAggregator.cs
+- SupplierPaymentEvent.cs
+
+QuickTechSystems.Application\Helpers
+- CurrencyHelper.cs
+
+QuickTechSystems.Application\Interfaces
+- IDamagedGoodsService.cs
+- IDbContextScopeService.cs
+
+QuickTechSystems.Application\Mappings
+- MappingProfile.cs
+
+QuickTechSystems.Application\Services
+- ActivityLogger.cs
+- AuthService.cs
+- BarcodeService.cs
+- BaseService.cs
+- BusinessSettingsService.cs
+- CategoryService.cs
+- CustomerDebtService.cs
+- CustomerService.cs
+- DamagedGoodsService.cs
+- DrawerService.cs
+- EmployeeService.cs
+- ExpenseService.cs
+- LowStockHistoryService.cs
+- PrinterService.cs
+- ProductService.cs
+- QuoteService.cs
+- SupplierService.cs
+- SystemPreferencesService.cs
+- TransactionService.cs
+
+QuickTechSystems.Application\Services\Interfaces
+- IActivityLogger.cs
+- IBackupService.cs
+- IBarcodeService.cs
+- IBaseService.cs
+- IBusinessSettingsService.cs
+- ICategoryService.cs
+- ICustomerDebtService.cs
+- ICustomerService.cs
+- IDrawerService.cs
+- IEmployeeService.cs
+- IExpenseService.cs
+- ILowStockHistoryService.cs
+- IPrinterService.cs
+- IProductService.cs
+- IQuoteService.cs
+- ISupplierService.cs
+- ISystemPreferencesService.cs
+- ITransactionService.cs
+
+QuickTechSystems.Application\Validators
+
+QuickTechSystems.Domain
+- Class1.cs
+- Class2.cs
+- GlobalUsings.cs
+- QuickTechSystems.Domain.csproj
+
+QuickTechSystems.Domain\Common
+
+QuickTechSystems.Domain\Entities
+- ActivityLog.cs
+- BusinessSetting.cs
+- Category.cs
+- Customer.cs
+- CustomerProductPrice.cs
+- DamagedGoods.cs
+- Drawer.cs
+- DrawerHistoryEntry.cs
+- DrawerTransaction.cs
+- Employee.cs
+- EmployeeSalaryTransaction.cs
+- Expense.cs
+- InventoryHistory.cs
+- LowStockHistory.cs
+- Product.cs
+- Quote.cs
+- Supplier.cs
+- SupplierTransaction.cs
+- SystemPreference.cs
+- Transaction.cs
+- TransactionDetail.cs
+
+QuickTechSystems.Domain\Enums
+- TransactionType.cs
+- UserRole.cs
+
+QuickTechSystems.Domain\Interfaces
+
+QuickTechSystems.Domain\Interfaces\Repositories
+- IGenericRepository.cs
+- IUnitOfWork.cs
+
+QuickTechSystems.Infrastructure
+- Class1.cs
+- GlobalUsings.cs
+- QuickTechSystems.Infrastructure.csproj
+
+QuickTechSystems.Infrastructure\Data
+- ApplicationDbContext.cs
+- ApplicationDbContextFactory.cs
+- DatabaseInitializer.cs
+- ExpenseConfiguration.cs
+
+QuickTechSystems.Infrastructure\Data\Configurations
+- ActivityLogConfiguration.cs
+- BusinessSettingConfiguration.cs
+- CategoryConfiguration.cs
+- CustomerConfiguration.cs
+- CustomerProductPriceConfiguration.cs
+- DamagedGoodsConfiguration.cs
+- DrawerConfiguration.cs
+- DrawerTransactionConfiguration.cs
+- EmployeeConfiguration.cs
+- EmployeeSalaryTransactionConfiguration.cs
+- LowStockHistoryConfiguration.cs
+- ProductConfiguration.cs
+- SupplierConfiguration.cs
+- SupplierTransactionConfiguration.cs
+- SystemPreferenceConfiguration.cs
+- TransactionConfiguration.cs
+- TransactionDetailConfiguration.cs
+
+QuickTechSystems.Infrastructure\Migrations
+- 20250306190223_InitialCreate.cs
+- 20250306190223_InitialCreate.Designer.cs
+- ApplicationDbContextModelSnapshot.cs
+
+QuickTechSystems.Infrastructure\Repositories
+- GenericRepository.cs
+- UnitOfWork.cs
+
+QuickTechSystems.Infrastructure\Services
+- BackupService.cs
+- DbContextScopeService.cs
+
+QuickTechSystems.Shared
+- Class1.cs
+- QuickTechSystems.Shared.csproj
+
+QuickTechSystems.Shared\Constants
+
+QuickTechSystems.Shared\Extensions
+
+QuickTechSystems.Shared\Helpers

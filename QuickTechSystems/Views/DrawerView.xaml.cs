@@ -1,17 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
 
 namespace QuickTechSystems.WPF.Views
 {
@@ -20,7 +7,37 @@ namespace QuickTechSystems.WPF.Views
         public DrawerView()
         {
             InitializeComponent();
+            this.Loaded += DrawerView_Loaded;
         }
 
+        private async void DrawerView_Loaded(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (DataContext is DrawerViewModel viewModel)
+            {
+                await viewModel.RefreshDrawerDataAsync();
+                viewModel.LoadFinancialDataCommand.Execute(null);
+            }
+        }
+
+        private void DataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            var row = e.Row;
+            var item = row.DataContext as DrawerTransactionDTO;
+            if (item != null)
+            {
+                switch (item.ActionType.ToLower())
+                {
+                    case "cash sale":
+                    case "debt payment":
+                        row.Background = (System.Windows.Media.Brush)FindResource("SuccessColor");
+                        break;
+                    case "return":
+                    case "expense":
+                    case "supplier payment":
+                        row.Background = (System.Windows.Media.Brush)FindResource("DangerColor");
+                        break;
+                }
+            }
+        }
     }
 }

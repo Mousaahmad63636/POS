@@ -17,5 +17,7 @@ namespace QuickTechSystems.Application.DTOs
         public string Role { get; set; } = string.Empty;
         public DateTime? LastLogin { get; set; }
         public string FullName => $"{FirstName} {LastName}";
+        public decimal MonthlySalary { get; set; }
+        public decimal CurrentBalance { get; set; }
     }
 }

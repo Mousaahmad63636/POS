@@ -37,6 +37,14 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
 
             builder.HasIndex(e => e.Username)
                 .IsUnique();
+
+            builder.Property(e => e.MonthlySalary)
+    .HasPrecision(18, 2)
+    .HasDefaultValue(0);
+
+            builder.Property(e => e.CurrentBalance)
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0);
         }
     }
 }

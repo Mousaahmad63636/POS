@@ -1,79 +1,162 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// QuickTechSystems.Infrastructure.Repositories/GenericRepository.cs
+using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Infrastructure.Data;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace QuickTechSystems.Infrastructure.Repositories
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
-        protected readonly ApplicationDbContext _context;
+        protected ApplicationDbContext _context;
         protected readonly DbSet<T> _dbSet;
+        protected readonly IDbContextFactory<ApplicationDbContext>? _contextFactory;
 
-        public GenericRepository(ApplicationDbContext context)
+        public GenericRepository(ApplicationDbContext context, IDbContextFactory<ApplicationDbContext>? contextFactory = null)
         {
             _context = context;
+            _contextFactory = contextFactory;
             _dbSet = context.Set<T>();
         }
 
         public virtual async Task<T?> GetByIdAsync(int id)
         {
-            return await _dbSet.FindAsync(id);
+            try
+            {
+                return await _dbSet.FindAsync(id);
+            }
+            catch (ObjectDisposedException)
+            {
+                if (_contextFactory != null)
+                {
+                    // Use a fresh context for this operation
+                    using var freshContext = _contextFactory.CreateDbContext();
+                    return await freshContext.Set<T>().FindAsync(id);
+                }
+                throw;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("disposed") || ex.Message.Contains("second operation"))
+            {
+                if (_contextFactory != null)
+                {
+                    // Use a fresh context for this operation
+                    using var freshContext = _contextFactory.CreateDbContext();
+                    return await freshContext.Set<T>().FindAsync(id);
+                }
+                throw;
+            }
         }
 
         public virtual async Task<IEnumerable<T>> GetAllAsync()
         {
-            return await _dbSet.ToListAsync();
+            try
+            {
+                return await _dbSet.ToListAsync();
+            }
+            catch (ObjectDisposedException)
+            {
+                if (_contextFactory != null)
+                {
+                    // Use a fresh context for this operation
+                    using var freshContext = _contextFactory.CreateDbContext();
+                    return await freshContext.Set<T>().ToListAsync();
+                }
+                throw;
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("disposed") || ex.Message.Contains("second operation"))
+            {
+                if (_contextFactory != null)
+                {
+                    // Use a fresh context for this operation
+                    using var freshContext = _contextFactory.CreateDbContext();
+                    return await freshContext.Set<T>().ToListAsync();
+                }
+                throw;
+            }
         }
 
         public virtual async Task<T> AddAsync(T entity)
         {
-            await _dbSet.AddAsync(entity);
-            return entity;
+            try
+            {
+                await _dbSet.AddAsync(entity);
+                return entity;
+            }
+            catch (ObjectDisposedException)
+            {
+                if (_contextFactory != null)
+                {
+                    // Get a new context if the current one is disposed
+                    _context = _contextFactory.CreateDbContext();
+                    _dbSet.Attach(entity);
+                    _context.Entry(entity).State = EntityState.Added;
+                    return entity;
+                }
+                throw;
+            }
         }
 
         public virtual Task UpdateAsync(T entity)
         {
-            // First check if the entity is already being tracked
-            var entry = _context.Entry(entity);
-
-            if (entry.State == EntityState.Detached)
+            try
             {
-                // If entity is detached, try to find the entity by key values
-                var keyValues = _context.Model.FindEntityType(typeof(T))
-                    .FindPrimaryKey().Properties
-                    .Select(p => entry.Property(p.Name).CurrentValue)
-                    .ToArray();
-
-                // Look for the entity with these key values
-                var attachedEntity = _dbSet.Find(keyValues);
-
-                // If entity exists in context, detach it first
-                if (attachedEntity != null)
-                {
-                    _context.Entry(attachedEntity).State = EntityState.Detached;
-                }
-
-                // Now set the incoming entity to Modified state
                 _context.Entry(entity).State = EntityState.Modified;
+                return Task.CompletedTask;
             }
-            else
+            catch (ObjectDisposedException)
             {
-                // If the entity is already being tracked, just mark it as modified
-                entry.State = EntityState.Modified;
+                if (_contextFactory != null)
+                {
+                    // Get a new context if the current one is disposed
+                    _context = _contextFactory.CreateDbContext();
+                    _dbSet.Attach(entity);
+                    _context.Entry(entity).State = EntityState.Modified;
+                    return Task.CompletedTask;
+                }
+                throw;
             }
-
-            return Task.CompletedTask;
         }
 
         public virtual Task DeleteAsync(T entity)
         {
-            _dbSet.Remove(entity);
-            return Task.CompletedTask;
+            try
+            {
+                _dbSet.Remove(entity);
+                return Task.CompletedTask;
+            }
+            catch (ObjectDisposedException)
+            {
+                if (_contextFactory != null)
+                {
+                    // Get a new context if the current one is disposed
+                    _context = _contextFactory.CreateDbContext();
+                    _dbSet.Attach(entity);
+                    _context.Entry(entity).State = EntityState.Deleted;
+                    return Task.CompletedTask;
+                }
+                throw;
+            }
         }
 
         public virtual IQueryable<T> Query()
         {
-            return _dbSet.AsQueryable();
+            try
+            {
+                return _dbSet.AsQueryable();
+            }
+            catch (ObjectDisposedException)
+            {
+                if (_contextFactory != null)
+                {
+                    // Use a fresh context for this operation
+                    _context = _contextFactory.CreateDbContext();
+                    return _context.Set<T>().AsQueryable();
+                }
+                throw;
+            }
         }
     }
 }

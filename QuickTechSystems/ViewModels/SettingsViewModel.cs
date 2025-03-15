@@ -1,5 +1,4 @@
-﻿// QuickTechSystems.WPF/ViewModels/SettingsViewModel.cs
-using Microsoft.VisualBasic;
+﻿using Microsoft.VisualBasic;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Helpers;
 using QuickTechSystems.Helpers;
@@ -7,62 +6,99 @@ using QuickTechSystems.WPF;
 using System.Windows.Forms;
 using Microsoft.Win32;
 using System.IO;
+using System.Threading;
+using System.Diagnostics;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
     public class SettingsViewModel : ViewModelBase
-{
+    {
         private readonly LanguageManager _languageManager;
-        private string _selectedLanguage;
-
-        public ObservableCollection<LanguageInfo> AvailableLanguages => LanguageManager.AvailableLanguages;
-
         private readonly IBusinessSettingsService _businessSettingsService;
-    private readonly ISystemPreferencesService _systemPreferencesService;
-    private ObservableCollection<BusinessSettingDTO> _businessSettings;
-    private BusinessSettingDTO? _selectedBusinessSetting;
-    private string _selectedGroup = "All";
-    private bool _isEditing;
-    private Action<EntityChangedEvent<BusinessSettingDTO>> _settingChangedHandler;
+        private readonly ISystemPreferencesService _systemPreferencesService;
+        private readonly IBackupService _backupService;
+        private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+        private bool _isDisposed;
+
+        private string _selectedLanguage;
+        private ObservableCollection<BusinessSettingDTO> _businessSettings;
+        private BusinessSettingDTO? _selectedBusinessSetting;
+        private string _selectedGroup = "All";
+        private bool _isEditing;
+        private Action<EntityChangedEvent<BusinessSettingDTO>> _settingChangedHandler;
         private decimal _exchangeRate;
+        private bool _isLoading;
+        private string _errorMessage;
 
         // System Preferences Properties
-        private readonly IBackupService _backupService;
         private bool _autoBackupEnabled;
-        private string _selectedDay;
-        private string _backupTime;
+        private string _selectedDay = "Monday"; // Default value to avoid binding errors
+        private string _backupTime = "12:00";  // Default value to avoid binding errors
         private string _backupPath;
         private string _lastBackupStatus;
 
         private string _currentTheme = "Light";
-    private string _currentLanguage = "en-US";
-    private bool _soundEffectsEnabled = true;
-    private bool _notificationsEnabled = true;
-    private string _dateFormat = "MM/dd/yyyy";
-    private string _timeFormat = "HH:mm:ss";
+        private string _currentLanguage = "en-US";
+        private bool _soundEffectsEnabled = true;
+        private bool _notificationsEnabled = true;
+        private string _dateFormat = "MM/dd/yyyy";
+        private string _timeFormat = "HH:mm:ss";
+        private bool _isRestaurantMode;
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set => SetProperty(ref _isLoading, value);
+        }
+
+        public string ErrorMessage
+        {
+            get => _errorMessage;
+            set => SetProperty(ref _errorMessage, value);
+        }
+
+        public bool IsRestaurantMode
+        {
+            get => _isRestaurantMode;
+            set
+            {
+                if (SetProperty(ref _isRestaurantMode, value))
+                {
+                    _ = SavePreferenceAsync("RestaurantMode", value.ToString());
+                    // Update the application mode immediately
+                    _eventAggregator.Publish(new ApplicationModeChangedEvent(value));
+                }
+            }
+        }
+
+        public ObservableCollection<LanguageInfo> AvailableLanguages => LanguageManager.AvailableLanguages;
 
         public SettingsViewModel(
-    IBusinessSettingsService businessSettingsService,
-    ISystemPreferencesService systemPreferencesService,
-    IBackupService backupService,
-    LanguageManager languageManager,
-    IEventAggregator eventAggregator) : base(eventAggregator)
+            IBusinessSettingsService businessSettingsService,
+            ISystemPreferencesService systemPreferencesService,
+            IBackupService backupService,
+            LanguageManager languageManager,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _businessSettingsService = businessSettingsService;
             _systemPreferencesService = systemPreferencesService;
             _backupService = backupService;
             _languageManager = languageManager;
             _settingChangedHandler = HandleSettingChanged;
+            _businessSettings = new ObservableCollection<BusinessSettingDTO>();
+            _errorMessage = string.Empty;
 
             InitializeCommands();
             _ = LoadDataAsync();
             _ = LoadExchangeRate();
         }
+
         public decimal ExchangeRate
         {
             get => _exchangeRate;
             set => SetProperty(ref _exchangeRate, value);
         }
+
         public string SelectedLanguage
         {
             get => _selectedLanguage;
@@ -74,6 +110,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         private void InitializeCommands()
         {
             LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync());
@@ -82,21 +119,24 @@ namespace QuickTechSystems.WPF.ViewModels
             ResetPreferencesCommand = new AsyncRelayCommand(async _ => await ResetPreferencesAsync());
             BackupNowCommand = new AsyncRelayCommand(async _ => await BackupNowAsync());
             BrowseCommand = new RelayCommand(_ => BrowseForBackupPath());
-            SaveScheduleCommand = new AsyncRelayCommand(async _ => await SaveScheduleAsync());
             RestoreCommand = new AsyncRelayCommand(async _ => await RestoreBackupAsync());
             SaveExchangeRateCommand = new AsyncRelayCommand(async _ => await SaveExchangeRate());
+
+            // Keep this property for XAML binding but make it do nothing
+            SaveScheduleCommand = new AsyncRelayCommand(_ => Task.CompletedTask);
         }
+
         private async Task LoadBackupSettingsAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadBackupSettingsAsync skipped - operation in progress");
+                return;
+            }
+
             try
             {
-                var schedule = await _backupService.GetBackupScheduleAsync();
-                if (schedule.HasValue)
-                {
-                    AutoBackupEnabled = schedule.Value.IsEnabled;
-                    SelectedDay = schedule.Value.Day.ToString();
-                    BackupTime = schedule.Value.Time.ToString(@"hh\:mm");
-                }
+                IsLoading = true;
 
                 var lastBackup = await _backupService.GetLastBackupTimeAsync();
                 LastBackupStatus = lastBackup.HasValue
@@ -105,13 +145,27 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error loading backup settings: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error loading backup settings: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
+
         private async Task BackupNowAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Backup operation already in progress. Please wait.");
+                return;
+            }
+
             try
             {
+                IsLoading = true;
+
                 if (string.IsNullOrEmpty(BackupPath))
                 {
                     BackupPath = "C:\\QuickTechBackup"; // Default backup location
@@ -122,12 +176,21 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await _backupService.CreateBackupAsync(BackupPath);
                 await LoadBackupSettingsAsync();
-                MessageBox.Show("Backup completed successfully.", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show("Backup completed successfully.", "Success",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error performing backup: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error performing backup: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
 
@@ -146,56 +209,18 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private async Task SaveScheduleAsync()
-        {
-            try
-            {
-                if (AutoBackupEnabled)
-                {
-                    if (string.IsNullOrEmpty(BackupPath))
-                    {
-                        BackupPath = "C:\\QuickTechBackup"; // Default backup location
-                    }
-
-                    // Create the backup directory if it doesn't exist
-                    Directory.CreateDirectory(BackupPath);
-
-                    if (!TimeSpan.TryParse(BackupTime, out TimeSpan scheduledTime))
-                    {
-                        MessageBox.Show("Please enter a valid time in HH:mm format.", "Validation Error",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                        return;
-                    }
-
-                    if (string.IsNullOrEmpty(SelectedDay))
-                    {
-                        MessageBox.Show("Please select a day for automatic backup.", "Validation Error",
-                            MessageBoxButton.OK, MessageBoxImage.Warning);
-                        return;
-                    }
-
-                    var day = Enum.Parse<DayOfWeek>(SelectedDay);
-                    await _backupService.ScheduleAutomaticBackupAsync(BackupPath, day, scheduledTime);
-                    MessageBox.Show("Automatic backup schedule saved successfully.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    await _backupService.DisableAutomaticBackupAsync();
-                    MessageBox.Show("Automatic backup disabled.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error saving backup schedule: {ex.Message}");
-            }
-        }
-
         private async Task RestoreBackupAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Restore operation already in progress. Please wait.");
+                return;
+            }
+
             try
             {
+                IsLoading = true;
+
                 var dialog = new Microsoft.Win32.OpenFileDialog
                 {
                     DefaultExt = ".bak",
@@ -203,48 +228,73 @@ namespace QuickTechSystems.WPF.ViewModels
                     Title = "Select Backup File to Restore"
                 };
 
-                if (dialog.ShowDialog() == true)
+                // Simplify this code to avoid tuple issues
+                bool? dialogResult = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    dialog.ShowDialog());
+
+                if (dialogResult == true)
                 {
-                    var result = MessageBox.Show(
-                        "Restoring a backup will replace all current data. Are you sure you want to continue?",
-                        "Confirm Restore",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning);
+                    MessageBoxResult confirmResult = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        MessageBox.Show(
+                            "Restoring a backup will replace all current data. Are you sure you want to continue?",
+                            "Confirm Restore",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning));
 
-                    if (result == MessageBoxResult.Yes)
+                    if (confirmResult == MessageBoxResult.Yes)
                     {
-                        await _backupService.RestoreBackupAsync(dialog.FileName);
-                        MessageBox.Show("Database restored successfully. The application will now restart.",
-                            "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                        string fileName = dialog.FileName; // Get the filename directly
+                        await _backupService.RestoreBackupAsync(fileName);
 
-                        // Restart application
-                        System.Windows.Application.Current.Shutdown();
-                        System.Diagnostics.Process.Start(System.Windows.Application.ResourceAssembly.Location);
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show("Database restored successfully. The application will now restart.",
+                                "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                            // Restart application
+                            System.Windows.Application.Current.Shutdown();
+                            System.Diagnostics.Process.Start(System.Windows.Application.ResourceAssembly.Location);
+                        });
                     }
                 }
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error restoring backup: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error restoring backup: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
+
         protected override void SubscribeToEvents()
-    {
-        _eventAggregator.Subscribe<EntityChangedEvent<BusinessSettingDTO>>(_settingChangedHandler);
-    }
+        {
+            _eventAggregator.Subscribe<EntityChangedEvent<BusinessSettingDTO>>(_settingChangedHandler);
+        }
+
         private async Task LoadExchangeRate()
         {
-            var rateSetting = await _businessSettingsService.GetByKeyAsync("ExchangeRate");
-            if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
+            try
             {
-                ExchangeRate = rate;
-                CurrencyHelper.UpdateExchangeRate(rate);
+                var rateSetting = await _businessSettingsService.GetByKeyAsync("ExchangeRate");
+                if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
+                {
+                    ExchangeRate = rate;
+                    CurrencyHelper.UpdateExchangeRate(rate);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error loading exchange rate: {ex.Message}");
             }
         }
+
         protected override void UnsubscribeFromEvents()
-    {
-        _eventAggregator.Unsubscribe<EntityChangedEvent<BusinessSettingDTO>>(_settingChangedHandler);
-    }
+        {
+            _eventAggregator.Unsubscribe<EntityChangedEvent<BusinessSettingDTO>>(_settingChangedHandler);
+        }
 
         private async void HandleSettingChanged(EntityChangedEvent<BusinessSettingDTO> evt)
         {
@@ -273,6 +323,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             });
         }
+
+        // Keep these properties for XAML binding but disable functionality
         public bool AutoBackupEnabled
         {
             get => _autoBackupEnabled;
@@ -303,312 +355,547 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _lastBackupStatus, value);
         }
 
-        protected override async Task LoadDataAsync()
-    {
-        try
-        {
-            await LoadBusinessSettingsAsync();
-            await LoadSystemPreferencesAsync();
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error loading settings: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async Task LoadBusinessSettingsAsync()
-    {
-        var settings = await _businessSettingsService.GetAllAsync();
-        BusinessSettings = new ObservableCollection<BusinessSettingDTO>(settings);
-    }
+        // Need this property for binding but we can make it empty
         public ObservableCollection<string> DaysOfWeek { get; } = new(
             Enum.GetNames(typeof(DayOfWeek)));
 
-        private async Task LoadSettingsByGroupAsync()
-    {
-        try
+        protected override async Task LoadDataAsync()
         {
-            if (SelectedGroup == "All")
+            if (!await _operationLock.WaitAsync(0))
             {
-                await LoadBusinessSettingsAsync();
+                Debug.WriteLine("LoadDataAsync skipped - operation in progress");
                 return;
             }
 
-            var settings = await _businessSettingsService.GetByGroupAsync(SelectedGroup);
-            BusinessSettings = new ObservableCollection<BusinessSettingDTO>(settings);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error loading settings: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async Task SaveBusinessSettingAsync()
-    {
-        try
-        {
-            if (SelectedBusinessSetting == null) return;
-
-            if (string.IsNullOrWhiteSpace(SelectedBusinessSetting.Value))
-            {
-                MessageBox.Show("Setting value cannot be empty.", "Validation Error",
-                    MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-
-            await _businessSettingsService.UpdateSettingAsync(
-                SelectedBusinessSetting.Key,
-                SelectedBusinessSetting.Value,
-                "CurrentUser" // Replace with actual user info when authentication is implemented
-            );
-
-            await LoadSettingsByGroupAsync();
-            MessageBox.Show("Setting updated successfully.", "Success",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error saving setting: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    private async Task InitializeBusinessSettingsAsync()
-    {
-        try
-        {
-            if (MessageBox.Show("This will initialize default business settings. Continue?",
-                "Confirm Initialize", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-            {
-                await _businessSettingsService.InitializeDefaultSettingsAsync();
-                await LoadBusinessSettingsAsync();
-                MessageBox.Show("Default settings initialized successfully.", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error initializing settings: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-        private async Task LoadSystemPreferencesAsync()
-        {
             try
             {
-                const string userId = "default";
-                CurrentTheme = await _systemPreferencesService.GetPreferenceValueAsync(userId, "Theme", "Light");
+                IsLoading = true;
+                ErrorMessage = string.Empty;
 
-                // Load and set the selected language
-                var savedLanguage = await _systemPreferencesService.GetPreferenceValueAsync(userId, "Language", "en-US");
-                SelectedLanguage = savedLanguage;  // This will trigger the language change through the property setter
+                // Execute these in sequence, waiting for each to complete
+                try
+                {
+                    await LoadBusinessSettingsAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error loading business settings: {ex.Message}");
+                }
 
-                SoundEffectsEnabled = bool.Parse(await _systemPreferencesService.GetPreferenceValueAsync(userId, "SoundEffects", "true"));
-                NotificationsEnabled = bool.Parse(await _systemPreferencesService.GetPreferenceValueAsync(userId, "EnableNotifications", "true"));
-                DateFormat = await _systemPreferencesService.GetPreferenceValueAsync(userId, "DateFormat", "MM/dd/yyyy");
-                TimeFormat = await _systemPreferencesService.GetPreferenceValueAsync(userId, "TimeFormat", "HH:mm:ss");
+                try
+                {
+                    await LoadSystemPreferencesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error loading system preferences: {ex.Message}");
+                }
+
+                try
+                {
+                    await LoadBackupSettingsAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error loading backup settings: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading preferences: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowTemporaryErrorMessage($"Error loading settings: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task LoadBusinessSettingsAsync()
+        {
+            try
+            {
+                // Use the standard method instead of the context-aware one
+                var settings = await _businessSettingsService.GetAllAsync();
+
+                // Create a new collection to break any reference tie to the previous collection
+                BusinessSettings = new ObservableCollection<BusinessSettingDTO>(
+                    settings.Select(s => s.Clone()).ToList());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading business settings: {ex.Message}");
+                throw;
+            }
+        }
+
+        private async Task LoadSettingsByGroupAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadSettingsByGroupAsync skipped - operation in progress");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+
+                if (SelectedGroup == "All")
+                {
+                    // Use the standard method
+                    var settings = await _businessSettingsService.GetAllAsync();
+                    // Create a new collection to break any reference tie
+                    BusinessSettings = new ObservableCollection<BusinessSettingDTO>(
+                        settings.Select(s => s.Clone()).ToList());
+                    return;
+                }
+
+                // Use the standard method
+                var groupSettings = await _businessSettingsService.GetByGroupAsync(SelectedGroup);
+                // Create a new collection to break any reference tie
+                BusinessSettings = new ObservableCollection<BusinessSettingDTO>(
+                    groupSettings.Select(s => s.Clone()).ToList());
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error loading settings: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task SaveBusinessSettingAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Save operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+
+                if (SelectedBusinessSetting == null)
+                {
+                    ShowTemporaryErrorMessage("No setting selected.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(SelectedBusinessSetting.Value))
+                {
+                    ShowTemporaryErrorMessage("Setting value cannot be empty.");
+                    return;
+                }
+
+                await _businessSettingsService.UpdateSettingAsync(
+                    SelectedBusinessSetting.Key,
+                    SelectedBusinessSetting.Value,
+                    "CurrentUser" // Replace with actual user info when authentication is implemented
+                );
+
+                await LoadSettingsByGroupAsync();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show("Setting updated successfully.", "Success",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error saving setting: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task InitializeBusinessSettingsAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+
+                var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    return MessageBox.Show("This will initialize default business settings. Continue?",
+                        "Confirm Initialize", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                });
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    await _businessSettingsService.InitializeDefaultSettingsAsync();
+                    await LoadBusinessSettingsAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Default settings initialized successfully.", "Success",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error initializing settings: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task LoadSystemPreferencesAsync()
+        {
+            // Create a special lock for this method to avoid concurrent DbContext usage
+            using var asyncLock = new SemaphoreSlim(1, 1);
+            await asyncLock.WaitAsync();
+
+            try
+            {
+                const string userId = "default";
+
+                // Load each preference with individual calls to avoid concurrent DbContext operations
+                CurrentTheme = await _systemPreferencesService.GetPreferenceValueAsync(userId, "Theme", "Light");
+
+                // Load language in a separate call
+                var savedLanguage = await _systemPreferencesService.GetPreferenceValueAsync(userId, "Language", "en-US");
+                SelectedLanguage = savedLanguage;
+
+                // Load each boolean preference in separate calls
+                var soundEffectsStr = await _systemPreferencesService.GetPreferenceValueAsync(userId, "SoundEffects", "true");
+                SoundEffectsEnabled = bool.Parse(soundEffectsStr);
+
+                var notificationsStr = await _systemPreferencesService.GetPreferenceValueAsync(userId, "EnableNotifications", "true");
+                NotificationsEnabled = bool.Parse(notificationsStr);
+
+                // Load format preferences
+                DateFormat = await _systemPreferencesService.GetPreferenceValueAsync(userId, "DateFormat", "MM/dd/yyyy");
+                TimeFormat = await _systemPreferencesService.GetPreferenceValueAsync(userId, "TimeFormat", "HH:mm:ss");
+
+                // Load restaurant mode in a separate call
+                var restaurantModeStr = await _systemPreferencesService.GetPreferenceValueAsync(userId, "RestaurantMode", "false");
+                IsRestaurantMode = bool.Parse(restaurantModeStr);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading preferences: {ex.Message}");
+                throw;
+            }
+            finally
+            {
+                asyncLock.Release();
             }
         }
 
         private async Task SavePreferenceAsync(string key, string value)
-    {
-        try
         {
-            const string userId = "default";
-            await _systemPreferencesService.SavePreferenceAsync(userId, key, value);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Error saving preference: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-        private async Task SaveExchangeRate()
-        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("SavePreferenceAsync skipped - operation in progress");
+                return;
+            }
+
             try
             {
+                IsLoading = true;
+
+                const string userId = "default";
+                await _systemPreferencesService.SavePreferenceAsync(userId, key, value);
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error saving preference: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task SaveExchangeRate()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Save operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+
                 await _businessSettingsService.UpdateSettingAsync(
                     "ExchangeRate",
                     ExchangeRate.ToString(),
                     "System");
 
                 CurrencyHelper.UpdateExchangeRate(ExchangeRate);
-                MessageBox.Show("Exchange rate updated successfully", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show("Exchange rate updated successfully", "Success",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving exchange rate: {ex.Message}", "Error",
+                ShowTemporaryErrorMessage($"Error saving exchange rate: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task ResetPreferencesAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Reset operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+
+                var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    return MessageBox.Show("Are you sure you want to reset all preferences to default?",
+                        "Confirm Reset", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                });
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    const string userId = "default";
+                    await _systemPreferencesService.InitializeUserPreferencesAsync(userId);
+                    await LoadSystemPreferencesAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Preferences have been reset to default values.", "Success",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error resetting preferences: {ex.Message}");
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private void ShowTemporaryErrorMessage(string message)
+        {
+            ErrorMessage = message;
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(message, "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
+            });
 
-    private async Task ResetPreferencesAsync()
-    {
-        try
-        {
-            if (MessageBox.Show("Are you sure you want to reset all preferences to default?",
-                "Confirm Reset", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            // Automatically clear error after delay
+            Task.Run(async () =>
             {
-                const string userId = "default";
-                await _systemPreferencesService.InitializeUserPreferencesAsync(userId);
-                await LoadSystemPreferencesAsync();
-                MessageBox.Show("Preferences have been reset to default values.", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
+                await Task.Delay(5000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (ErrorMessage == message) // Only clear if still the same message
+                    {
+                        ErrorMessage = string.Empty;
+                    }
+                });
+            });
         }
-        catch (Exception ex)
+
+        // Properties
+        public ObservableCollection<BusinessSettingDTO> BusinessSettings
         {
-            MessageBox.Show($"Error resetting preferences: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            get => _businessSettings;
+            set => SetProperty(ref _businessSettings, value);
         }
-    }
 
-    // Properties
-    public ObservableCollection<BusinessSettingDTO> BusinessSettings
-    {
-        get => _businessSettings;
-        set => SetProperty(ref _businessSettings, value);
-    }
-
-    public BusinessSettingDTO? SelectedBusinessSetting
-    {
-        get => _selectedBusinessSetting;
-        set
+        public BusinessSettingDTO? SelectedBusinessSetting
         {
-            SetProperty(ref _selectedBusinessSetting, value);
-            IsEditing = value != null;
-        }
-    }
-
-    public string SelectedGroup
-    {
-        get => _selectedGroup;
-        set
-        {
-            SetProperty(ref _selectedGroup, value);
-            _ = LoadSettingsByGroupAsync();
-        }
-    }
-
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set => SetProperty(ref _isEditing, value);
-    }
-
-    public string CurrentTheme
-    {
-        get => _currentTheme;
-        set
-        {
-            if (SetProperty(ref _currentTheme, value))
+            get => _selectedBusinessSetting;
+            set
             {
-                _ = SavePreferenceAsync("Theme", value);
+                SetProperty(ref _selectedBusinessSetting, value);
+                IsEditing = value != null;
             }
         }
-    }
 
-    public string CurrentLanguage
-    {
-        get => _currentLanguage;
-        set
+        public string SelectedGroup
         {
-            if (SetProperty(ref _currentLanguage, value))
+            get => _selectedGroup;
+            set
             {
-                _ = SavePreferenceAsync("Language", value);
+                SetProperty(ref _selectedGroup, value);
+                _ = LoadSettingsByGroupAsync();
             }
         }
-    }
 
-    public bool SoundEffectsEnabled
-    {
-        get => _soundEffectsEnabled;
-        set
+        public bool IsEditing
         {
-            if (SetProperty(ref _soundEffectsEnabled, value))
-            {
-                _ = SavePreferenceAsync("SoundEffects", value.ToString());
-            }
+            get => _isEditing;
+            set => SetProperty(ref _isEditing, value);
         }
-    }
 
-    public bool NotificationsEnabled
-    {
-        get => _notificationsEnabled;
-        set
+        public string CurrentTheme
         {
-            if (SetProperty(ref _notificationsEnabled, value))
+            get => _currentTheme;
+            set
             {
-                _ = SavePreferenceAsync("EnableNotifications", value.ToString());
+                if (SetProperty(ref _currentTheme, value))
+                {
+                    _ = SavePreferenceAsync("Theme", value);
+                }
             }
         }
-    }
 
-    public string DateFormat
-    {
-        get => _dateFormat;
-        set
+        public string CurrentLanguage
         {
-            if (SetProperty(ref _dateFormat, value))
+            get => _currentLanguage;
+            set
             {
-                _ = SavePreferenceAsync("DateFormat", value);
+                if (SetProperty(ref _currentLanguage, value))
+                {
+                    _ = SavePreferenceAsync("Language", value);
+                }
             }
         }
-    }
 
-    public string TimeFormat
-    {
-        get => _timeFormat;
-        set
+        public bool SoundEffectsEnabled
         {
-            if (SetProperty(ref _timeFormat, value))
+            get => _soundEffectsEnabled;
+            set
             {
-                _ = SavePreferenceAsync("TimeFormat", value);
+                if (SetProperty(ref _soundEffectsEnabled, value))
+                {
+                    _ = SavePreferenceAsync("SoundEffects", value.ToString());
+                }
             }
         }
-    }
 
-    public ObservableCollection<string> AvailableThemes { get; } = new()
-{
-   "Light", "Dark", "System"
-};
+        public bool NotificationsEnabled
+        {
+            get => _notificationsEnabled;
+            set
+            {
+                if (SetProperty(ref _notificationsEnabled, value))
+                {
+                    _ = SavePreferenceAsync("EnableNotifications", value.ToString());
+                }
+            }
+        }
 
+        public string DateFormat
+        {
+            get => _dateFormat;
+            set
+            {
+                if (SetProperty(ref _dateFormat, value))
+                {
+                    _ = SavePreferenceAsync("DateFormat", value);
+                }
+            }
+        }
 
+        public string TimeFormat
+        {
+            get => _timeFormat;
+            set
+            {
+                if (SetProperty(ref _timeFormat, value))
+                {
+                    _ = SavePreferenceAsync("TimeFormat", value);
+                }
+            }
+        }
+
+        public ObservableCollection<string> AvailableThemes { get; } = new()
+        {
+           "Light", "Dark", "System"
+        };
 
         public ObservableCollection<string> DateFormats { get; } = new()
-{
-   "MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd"
-};
+        {
+           "MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd"
+        };
 
-    public ObservableCollection<string> TimeFormats { get; } = new()
-{
-   "HH:mm:ss", "hh:mm:ss tt"
-};
+        public ObservableCollection<string> TimeFormats { get; } = new()
+        {
+           "HH:mm:ss", "hh:mm:ss tt"
+        };
 
-    public ObservableCollection<string> Groups { get; } = new()
-{
-   "All", "General", "Financial", "Inventory", "Sales"
-};
+        public ObservableCollection<string> Groups { get; } = new()
+        {
+           "All", "General", "Financial", "Inventory", "Sales"
+        };
 
-    // Commands
-    public ICommand LoadCommand { get; private set; }
-    public ICommand SaveBusinessSettingCommand { get; private set; }
-    public ICommand InitializeBusinessSettingsCommand { get; private set; }
-    public ICommand ResetPreferencesCommand { get; private set; }
+        // Commands
+        public ICommand LoadCommand { get; private set; }
+        public ICommand SaveBusinessSettingCommand { get; private set; }
+        public ICommand InitializeBusinessSettingsCommand { get; private set; }
+        public ICommand ResetPreferencesCommand { get; private set; }
         public ICommand BackupNowCommand { get; private set; }
         public ICommand BrowseCommand { get; private set; }
-        public ICommand SaveScheduleCommand { get; private set; }
         public ICommand RestoreCommand { get; private set; }
         public ICommand SaveExchangeRateCommand { get; private set; }
+        public ICommand SaveScheduleCommand { get; private set; } // Keep this for binding but make it do nothing
 
+        public override void Dispose()
+        {
+            if (!_isDisposed)
+            {
+                _operationLock?.Dispose();
+                UnsubscribeFromEvents();
+
+                _isDisposed = true;
+            }
+
+            base.Dispose();
+        }
+    }
+
+    // Add this extension method inside the namespace but outside the class
+    public static class BusinessSettingDTOExtensions
+    {
+        public static BusinessSettingDTO Clone(this BusinessSettingDTO source)
+        {
+            return new BusinessSettingDTO
+            {
+                Id = source.Id,
+                Key = source.Key,
+                Value = source.Value,
+                Group = source.Group,
+                Description = source.Description,
+                DataType = source.DataType,
+                IsSystem = source.IsSystem,
+                LastModified = source.LastModified,
+                ModifiedBy = source.ModifiedBy
+            };
+        }
     }
 }

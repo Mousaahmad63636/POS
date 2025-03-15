@@ -11,6 +11,7 @@
         public DateTime CreatedAt { get; set; }
         public decimal Balance { get; set; }
         public decimal CreditLimit { get; set; }
+        public DateTime? UpdatedAt { get; set; }
         public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
         public virtual ICollection<CustomerPayment> Payments { get; set; } = new List<CustomerPayment>();
     }

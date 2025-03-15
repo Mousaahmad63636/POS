@@ -1,4 +1,4 @@
-﻿// QuickTechSystems.Application/Services/Interfaces/ICustomerService.cs
+﻿// Application/Services/Interfaces/ICustomerService.cs
 using QuickTechSystems.Application.DTOs;
 
 namespace QuickTechSystems.Application.Services.Interfaces
@@ -11,6 +11,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task ProcessPaymentAsync(int customerId, decimal amount);
         Task AddToBalanceAsync(int customerId, decimal amount);
         Task ProcessPaymentAsync(CustomerPaymentDTO payment);
-        Task SoftDeleteAsync(int id); // Add new method for soft delete
+        Task SetCustomProductPricesAsync(int customerId, IEnumerable<CustomerProductPriceDTO> prices);
+        Task<IEnumerable<CustomerProductPriceDTO>> GetCustomProductPricesAsync(int customerId);
     }
 }

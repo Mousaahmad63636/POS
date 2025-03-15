@@ -19,11 +19,12 @@ namespace QuickTechSystems.Domain.Entities
         public DateTime CreatedAt { get; set; }
         public string? Speed { get; set; }
         public DateTime? UpdatedAt { get; set; }
-
+        public byte[]? Image { get; set; }
         // Navigation properties
         public virtual Category? Category { get; set; }
         public virtual ICollection<TransactionDetail> TransactionDetails { get; set; } = new List<TransactionDetail>();
         public virtual ICollection<InventoryHistory> InventoryHistories { get; set; } = new List<InventoryHistory>();
         public virtual Supplier? Supplier { get; set; }
+
     }
 }
