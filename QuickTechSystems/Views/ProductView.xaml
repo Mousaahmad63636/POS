@@ -263,7 +263,6 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
@@ -333,55 +332,7 @@
                             </Grid>
                         </Border>
 
-                        <!-- Inventory Summary Section -->
-                        <Border Grid.Row="3" 
-                                Style="{StaticResource EnhancedResponsiveCardContainer}"
-                                Margin="0,0,0,16">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <TextBlock Text="{DynamicResource Product_InventorySummary}" 
-                                          Style="{StaticResource HeadlineMedium}"
-                                          Margin="0,0,0,16"/>
-
-                                <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                                    <TextBlock Text="{DynamicResource Product_TotalPurchaseValue}" 
-                                              Style="{StaticResource BodyMedium}"/>
-                                    <TextBlock Text="{Binding TotalPurchaseValue, StringFormat=C}"
-                                              Style="{StaticResource HeadlineSmall}"
-                                              Foreground="{StaticResource PrimaryColor}"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="2" Margin="0,0,0,12">
-                                    <TextBlock Text="{DynamicResource Product_TotalSaleValue}" 
-                                              Style="{StaticResource BodyMedium}"/>
-                                    <TextBlock Text="{Binding TotalSaleValue, StringFormat=C}"
-                                              Style="{StaticResource HeadlineSmall}"
-                                              Foreground="{StaticResource SuccessColor}"/>
-                                </StackPanel>
-
-                                <StackPanel Grid.Row="3">
-                                    <TextBlock Text="{DynamicResource Product_TotalProfit}" 
-                                              Style="{StaticResource BodyMedium}"/>
-                                    <!-- Fixed the multiple Style definition issue -->
-                                    <TextBlock Text="{Binding TotalProfit, StringFormat=C}"
-                                              Style="{StaticResource HeadlineSmall}">
-                                        <TextBlock.Foreground>
-                                            <Binding Path="TotalProfit">
-                                                <Binding.Converter>
-                                                    <converters:ProfitColorConverter/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </TextBlock.Foreground>
-                                    </TextBlock>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
+                        <!-- Inventory Summary Section has been removed -->
                     </Grid>
 
                     <!-- Loading Overlay -->
