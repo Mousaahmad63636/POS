@@ -18,15 +18,19 @@ using System.Globalization;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
-    public class CustomerDebtViewModel : ViewModelBase
+    public class CustomerDebtViewModel : ViewModelBase, IDisposable
     {
         #region Private Fields
         private readonly ICustomerService _customerService;
+        private readonly ICustomerDebtService _customerDebtService;
         private readonly ITransactionService _transactionService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IDrawerService _drawerService;
+        private readonly IActivityLogger _activityLogger;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+        private bool _isDataLoading = false;
+
         private Action<EntityChangedEvent<CustomerDTO>> _customerDebtChangedHandler;
         private Action<EntityChangedEvent<CustomerDTO>> _customerChangedHandler;
         private Action<EntityChangedEvent<TransactionDTO>> _transactionChangedHandler;
@@ -197,8 +201,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedTransactionType, value))
                 {
-                    // Just notify that the property changed
                     OnPropertyChanged(nameof(ShowPaymentMethod));
+                    OnPropertyChanged(nameof(CanSaveTransaction));
                 }
             }
         }
@@ -232,12 +236,6 @@ namespace QuickTechSystems.WPF.ViewModels
         public bool CanSaveTransaction => !IsProcessing && SelectedCustomer != null &&
                                    NewTransactionAmount > 0 && !string.IsNullOrEmpty(SelectedTransactionType);
 
-        public ICommand ProcessPaymentCommand { get; }
-        public ICommand ViewTransactionDetailCommand { get; }
-        public ICommand SearchCommand { get; }
-        public ICommand AddTransactionCommand { get; }
-        public ICommand SaveTransactionCommand { get; }
-
         public decimal TotalDebtUSD
         {
             get => _totalDebtUSD;
@@ -250,30 +248,44 @@ namespace QuickTechSystems.WPF.ViewModels
         }
         #endregion
 
+        #region Commands
+        public ICommand ProcessPaymentCommand { get; }
+        public ICommand ViewTransactionDetailCommand { get; }
+        public ICommand SearchCommand { get; }
+        public ICommand AddTransactionCommand { get; }
+        public ICommand SaveTransactionCommand { get; }
+        public ICommand RefreshCommand { get; }
+        public ICommand CloseTransactionPopupCommand { get; }
+        #endregion
+
         #region Constructor
         public CustomerDebtViewModel(
             ICustomerService customerService,
+            ICustomerDebtService customerDebtService,
             ITransactionService transactionService,
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IDrawerService drawerService,
+            IActivityLogger activityLogger,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _customerService = customerService ?? throw new ArgumentNullException(nameof(customerService));
+            _customerDebtService = customerDebtService ?? throw new ArgumentNullException(nameof(customerDebtService));
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _drawerService = drawerService ?? throw new ArgumentNullException(nameof(drawerService));
+            _activityLogger = activityLogger ?? throw new ArgumentNullException(nameof(activityLogger));
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
 
             // Initialize collections
             _customersWithDebt = new ObservableCollection<CustomerDTO>();
             _paymentHistory = new ObservableCollection<CustomerPaymentDTO>();
             _transactionHistory = new ObservableCollection<TransactionDTO>();
-            _transactionTypes = new ObservableCollection<string> { "Charge", "Payment" };
+            _transactionTypes = new ObservableCollection<string> { "Payment", "Charge" };
             _paymentMethods = new ObservableCollection<string> { "Cash", "Bank Transfer", "Check", "Credit Card" };
 
             // Initialize default values
-            SelectedTransactionType = "Charge";
+            SelectedTransactionType = "Payment";
             SelectedPaymentMethod = "Cash";
 
             // Initialize handlers
@@ -282,28 +294,40 @@ namespace QuickTechSystems.WPF.ViewModels
             _transactionChangedHandler = HandleTransactionChanged;
             _paymentChangedHandler = HandlePaymentChanged;
 
-            // Initialize commands with proper CanExecute conditions
+            // Initialize commands
             ProcessPaymentCommand = new AsyncRelayCommand(
                 async _ => await ProcessPaymentAsync(),
                 _ => CanProcessPayment
             );
-            ViewTransactionDetailCommand = new RelayCommand(ShowTransactionDetail);
-            SearchCommand = new AsyncRelayCommand(async _ => await SearchCustomersAsync());
-            AddTransactionCommand = new RelayCommand(_ => ShowTransactionPopup());
+            ViewTransactionDetailCommand = new AsyncRelayCommand(
+                async param => await ShowTransactionDetailAsync(param),
+                _ => !IsProcessing
+            );
+            SearchCommand = new AsyncRelayCommand(async _ => await SearchCustomersAsync(), _ => !IsProcessing);
+            AddTransactionCommand = new RelayCommand(_ => ShowTransactionPopup(), _ => !IsProcessing);
             SaveTransactionCommand = new AsyncRelayCommand(
                 async _ => await SaveTransactionAsync(),
                 _ => CanSaveTransaction
             );
+            RefreshCommand = new AsyncRelayCommand(async _ => await ForceRefreshDataAsync(), _ => !IsProcessing);
+
+            CloseTransactionPopupCommand = new RelayCommand(_ =>
+            {
+                IsTransactionPopupOpen = false;
+                NewTransactionAmount = 0;
+                TransactionNotes = string.Empty;
+            }, _ => !IsProcessing);
 
             // Load initial data
             _ = LoadDataAsync();
         }
         #endregion
 
-        #region Protected Methods
+        #region Event Subscription
         protected override void SubscribeToEvents()
         {
             base.SubscribeToEvents();
+            Debug.WriteLine("CustomerDebtViewModel: Subscribing to events");
 
             _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
             _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
@@ -313,19 +337,63 @@ namespace QuickTechSystems.WPF.ViewModels
 
         protected override void UnsubscribeFromEvents()
         {
+            Debug.WriteLine("CustomerDebtViewModel: Unsubscribing from events");
+
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
             _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerPaymentDTO>>(_paymentChangedHandler);
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerDebtChangedHandler);
+
+            base.UnsubscribeFromEvents();
+        }
+        #endregion
+
+        #region Data Loading
+        private async Task ForceRefreshDataAsync()
+        {
+            if (_isDataLoading) return;
+
+            _isDataLoading = true;
+
+            try
+            {
+                IsLoading = true;
+                LoadingMessage = "Refreshing data...";
+                ClearError();
+
+                // Force reload all data
+                await LoadDataAsync(forceRefresh: true);
+
+                // If a customer is selected, reload their details too
+                if (SelectedCustomer != null)
+                {
+                    await LoadCustomerDetailsAsync(forceRefresh: true);
+                }
+
+                ShowSuccess("Data refreshed successfully");
+            }
+            catch (Exception ex)
+            {
+                await HandleExceptionAsync("Error refreshing data", ex);
+            }
+            finally
+            {
+                IsLoading = false;
+                _isDataLoading = false;
+            }
         }
 
         protected override async Task LoadDataAsync()
         {
-            // Use a reasonable timeout instead of 0 to avoid silently skipping updates
-            if (!await _operationLock.WaitAsync(500))
+            await LoadDataAsync(false);
+        }
+
+        private async Task LoadDataAsync(bool forceRefresh = false)
+        {
+            // Use a reasonable timeout instead of 0
+            if (!await _operationLock.WaitAsync(500) && !forceRefresh)
             {
                 Debug.WriteLine("LoadDataAsync waiting for lock - operation in progress");
-                // Wait for a reasonable amount of time instead of skipping
                 if (!await _operationLock.WaitAsync(3000))
                 {
                     Debug.WriteLine("LoadDataAsync timed out waiting for lock");
@@ -335,12 +403,21 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
+                if (!forceRefresh && _isDataLoading)
+                {
+                    Debug.WriteLine("LoadDataAsync - Data is already loading, skipping");
+                    return;
+                }
+
+                _isDataLoading = true;
                 IsLoading = true;
-                LoadingMessage = "Refreshing customer data...";
+                LoadingMessage = "Loading customer debt data...";
                 ClearError();
 
+                Debug.WriteLine("LoadDataAsync: Starting to load customers with debt");
+
                 var customers = await ExecuteDbOperationSafelyAsync(
-                    () => _customerService.GetCustomersWithDebtAsync(),
+                    () => _customerDebtService.GetCustomersWithDebtAsync(),
                     "Loading customers with debt");
 
                 Debug.WriteLine($"LoadDataAsync: Loaded {customers.Count()} customers with debt");
@@ -348,28 +425,17 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Update on UI thread properly
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    // Update existing collection rather than creating a new one
-                    if (CustomersWithDebt == null)
+                    int? selectedId = SelectedCustomer?.CustomerId;
+
+                    // Create a new collection to avoid collection modification issues
+                    var newCollection = new ObservableCollection<CustomerDTO>(customers);
+                    CustomersWithDebt = newCollection;
+
+                    // Restore selection if possible
+                    if (selectedId.HasValue)
                     {
-                        CustomersWithDebt = new ObservableCollection<CustomerDTO>();
-                    }
-                    else
-                    {
-                        // Store current selected customer ID to maintain selection
-                        int? selectedId = SelectedCustomer?.CustomerId;
-
-                        CustomersWithDebt.Clear();
-
-                        foreach (var customer in customers)
-                        {
-                            CustomersWithDebt.Add(customer);
-                        }
-
-                        // Restore selection if possible
-                        if (selectedId.HasValue)
-                        {
-                            SelectedCustomer = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == selectedId);
-                        }
+                        SelectedCustomer = CustomersWithDebt
+                            .FirstOrDefault(c => c.CustomerId == selectedId.Value);
                     }
 
                     // Calculate totals
@@ -392,131 +458,14 @@ namespace QuickTechSystems.WPF.ViewModels
             finally
             {
                 IsLoading = false;
+                _isDataLoading = false;
                 _operationLock.Release();
             }
         }
-        #endregion
 
-        #region Private Methods
-        private async Task<T> ExecuteDbOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Database operation")
+        private async Task LoadCustomerDetailsAsync(bool forceRefresh = false)
         {
-            Debug.WriteLine($"BEGIN: {operationName}");
-
-            try
-            {
-                Debug.WriteLine($"Executing operation: {operationName}");
-                // Add a small delay to ensure any previous operation is fully complete
-                await Task.Delay(200);
-                var result = await operation();
-                Debug.WriteLine($"Operation completed successfully: {operationName}");
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"ERROR in {operationName}: {ex.Message}");
-                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                await HandleExceptionAsync(operationName, ex);
-                throw;
-            }
-        }
-
-        // Overload for void operations
-        private async Task ExecuteDbOperationSafelyAsync(Func<Task> operation, string operationName = "Database operation")
-        {
-            await ExecuteDbOperationSafelyAsync<bool>(async () =>
-            {
-                await operation();
-                return true;
-            }, operationName);
-        }
-
-        private async Task HandleExceptionAsync(string context, Exception ex)
-        {
-            Debug.WriteLine($"{context}: {ex}");
-
-            // Special handling for known database errors
-            if (ex.Message.Contains("A second operation was started") ||
-                (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
-            {
-                ShowError("Database is busy processing another request. Please try again in a moment.");
-            }
-            else if (ex.Message.Contains("entity with the specified primary key") ||
-                    (ex.InnerException != null && ex.InnerException.Message.Contains("entity with the specified primary key")))
-            {
-                ShowError("Requested record not found. It may have been deleted.");
-            }
-            else if (ex.Message.Contains("The connection was closed") ||
-                    (ex.InnerException != null && ex.InnerException.Message.Contains("The connection was closed")))
-            {
-                ShowError("Database connection lost. Please check your connection and try again.");
-            }
-            else
-            {
-                ShowError($"{context}: {ex.Message}");
-            }
-        }
-
-        private void ShowError(string message)
-        {
-            HasErrors = true;
-            ErrorMessage = message;
-
-            // Automatically clear error after delay
-            Task.Run(async () =>
-            {
-                await Task.Delay(5000);
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    if (ErrorMessage == message) // Only clear if still the same message
-                    {
-                        HasErrors = false;
-                        ErrorMessage = string.Empty;
-                    }
-                });
-            });
-        }
-
-        private void ClearError()
-        {
-            HasErrors = false;
-            ErrorMessage = string.Empty;
-        }
-
-        private void UpdateTotalAmountLBP()
-        {
-            try
-            {
-                // Make sure we're getting a valid decimal from the selected customer
-                _totalAmountLBP = SelectedCustomer?.Balance ?? 0;
-                // Using invariant culture for consistent decimal handling
-                _totalAmountLBP = CurrencyHelper.ConvertToLBP(_totalAmountLBP);
-                OnPropertyChanged(nameof(TotalAmountLBP));
-
-                // Debug message to verify values
-                Debug.WriteLine($"UpdateTotalAmountLBP: Customer Balance: {SelectedCustomer?.Balance ?? 0}, Converted LBP: {_totalAmountLBP}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error updating LBP amount: {ex}");
-                _totalAmountLBP = 0;
-                OnPropertyChanged(nameof(TotalAmountLBP));
-            }
-        }
-
-        private void ClearCollections()
-        {
-            if (PaymentHistory != null)
-                PaymentHistory.Clear();
-            if (TransactionHistory != null)
-                TransactionHistory.Clear();
-
-            OnPropertyChanged(nameof(PaymentHistory));
-            OnPropertyChanged(nameof(TransactionHistory));
-        }
-
-        private async Task LoadCustomerDetailsAsync()
-        {
-            if (!await _operationLock.WaitAsync(500))
+            if (!await _operationLock.WaitAsync(500) && !forceRefresh)
             {
                 Debug.WriteLine("LoadCustomerDetailsAsync waiting for lock - operation in progress");
                 if (!await _operationLock.WaitAsync(3000))
@@ -555,12 +504,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Get the data using safe execution
                 var payments = await ExecuteDbOperationSafelyAsync(
-                    () => _customerService.GetPaymentHistoryAsync(customerId),
+                    () => _customerDebtService.GetPaymentHistoryAsync(customerId),
                     "Loading payment history");
 
                 var transactions = await ExecuteDbOperationSafelyAsync(
                     () => _transactionService.GetByCustomerAsync(customerId),
                     "Loading transaction history");
+
+                // Get fresh customer data to ensure balance is current
+                var freshCustomerData = await ExecuteDbOperationSafelyAsync(
+                    () => _customerService.GetByIdAsync(customerId),
+                    "Loading fresh customer data");
 
                 // Check if customer is still the same (hasn't changed during async operation)
                 if (SelectedCustomer?.CustomerId != customerId)
@@ -568,31 +522,24 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    PaymentHistory.Clear();
-                    TransactionHistory.Clear();
-
-                    if (payments != null)
+                    // Update the selected customer with fresh data
+                    if (freshCustomerData != null)
                     {
-                        foreach (var payment in payments)
-                        {
-                            PaymentHistory.Add(payment);
-                        }
+                        SelectedCustomer.Balance = freshCustomerData.Balance;
+                        UpdateTotalAmountLBP();
                     }
 
-                    if (transactions != null)
-                    {
-                        foreach (var trans in transactions.OrderByDescending(t => t.TransactionDate))
-                        {
-                            TransactionHistory.Add(trans);
-                        }
-                    }
+                    // Create new collections to avoid modification issues
+                    PaymentHistory = new ObservableCollection<CustomerPaymentDTO>(
+                        payments?.OrderByDescending(p => p.PaymentDate) ?? Enumerable.Empty<CustomerPaymentDTO>());
+
+                    TransactionHistory = new ObservableCollection<TransactionDTO>(
+                        transactions?.OrderByDescending(t => t.TransactionDate) ?? Enumerable.Empty<TransactionDTO>());
 
                     // Make sure to notify property changes
                     OnPropertyChanged(nameof(PaymentHistory));
                     OnPropertyChanged(nameof(TransactionHistory));
-
-                    // Update LBP amount in case the customer's balance changed
-                    UpdateTotalAmountLBP();
+                    OnPropertyChanged(nameof(SelectedCustomer));
                 });
             }
             catch (Exception ex)
@@ -645,12 +592,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     var customersWithDebt = customers.Where(c => c.Balance > 0).ToList();
                     Debug.WriteLine($"SearchCustomersAsync: Found {customersWithDebt.Count} customers with debt matching '{SearchText}'");
 
-                    // Clear and repopulate the collection
-                    CustomersWithDebt.Clear();
-                    foreach (var customer in customersWithDebt)
-                    {
-                        CustomersWithDebt.Add(customer);
-                    }
+                    // Create a new collection to avoid modification issues
+                    CustomersWithDebt = new ObservableCollection<CustomerDTO>(customersWithDebt);
 
                     // Restore selection if possible
                     if (selectedId.HasValue)
@@ -671,7 +614,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+        #endregion
 
+        #region Transaction Operations
         private void ShowTransactionPopup()
         {
             if (SelectedCustomer == null)
@@ -682,16 +627,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Reset form fields
             NewTransactionAmount = 0;
-            SelectedTransactionType = "Charge";
+            SelectedTransactionType = "Payment";
             SelectedPaymentMethod = "Cash";
             TransactionNotes = string.Empty;
 
             IsTransactionPopupOpen = true;
-        }
-
-        private void CloseTransactionPopup()
-        {
-            IsTransactionPopupOpen = false;
         }
 
         private async Task SaveTransactionAsync()
@@ -737,105 +677,99 @@ namespace QuickTechSystems.WPF.ViewModels
                         if (customer == null)
                             throw new InvalidOperationException("Customer not found");
 
-                        // Special check for payment transactions that exceed balance
-                        if (SelectedTransactionType == "Payment" && NewTransactionAmount > customer.Balance)
+                        var previousBalance = customer.Balance;
+                        var userId = System.Windows.Application.Current.Resources["CurrentUserId"]?.ToString() ?? "system";
+
+                        // Handle payment vs. charge differently
+                        if (SelectedTransactionType == "Payment")
                         {
-                            ShowError($"Payment amount cannot exceed the current balance of {customer.Balance:N}");
-                            return;
+                            // Special check for payments that exceed balance
+                            if (NewTransactionAmount > customer.Balance)
+                            {
+                                ShowError($"Payment amount cannot exceed the current balance of {customer.Balance:N}");
+                                return;
+                            }
+
+                            // Process drawer transaction for cash payments
+                            if (SelectedPaymentMethod == "Cash")
+                            {
+                                await ExecuteDbOperationSafelyAsync(
+                                    () => _drawerService.ProcessDebtPaymentAsync(
+                                        NewTransactionAmount,
+                                        customer.Name,
+                                        $"Debt payment - {customer.CustomerId}"),
+                                    "Processing drawer payment");
+                            }
+
+                            // Record customer payment
+                            var payment = new CustomerPaymentDTO
+                            {
+                                CustomerId = SelectedCustomer.CustomerId,
+                                Amount = NewTransactionAmount,
+                                PaymentDate = DateTime.Now,
+                                PaymentMethod = SelectedPaymentMethod,
+                                Notes = string.IsNullOrEmpty(TransactionNotes)
+                                    ? $"Debt payment - Balance: {customer.Balance:N}"
+                                    : TransactionNotes
+                            };
+
+                            await ExecuteDbOperationSafelyAsync(
+                                () => _customerDebtService.ProcessDebtPaymentAsync(
+                                    customer.CustomerId, NewTransactionAmount, SelectedPaymentMethod),
+                                "Processing debt payment");
+
+                            // Log activity
+                            await _activityLogger.LogActivityAsync(
+                                userId,
+                                "Debt Payment",
+                                $"Processed payment of {NewTransactionAmount:N} for customer {customer.Name}");
+
+                            _eventAggregator.Publish(new EntityChangedEvent<CustomerPaymentDTO>("Create", payment));
+                        }
+                        else // Charge
+                        {
+                            // Add to customer debt
+                            await ExecuteDbOperationSafelyAsync(
+                                () => _customerDebtService.AddToDebtAsync(
+                                    customer.CustomerId,
+                                    NewTransactionAmount,
+                                    TransactionNotes),
+                                "Adding to customer debt");
+
+                            // Log activity
+                            await _activityLogger.LogActivityAsync(
+                                userId,
+                                "Debt Charge",
+                                $"Added debt charge of {NewTransactionAmount:N} to customer {customer.Name}");
                         }
 
-                        // For cash payments, process drawer transaction
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _drawerService.ProcessDebtPaymentAsync(
-                                NewTransactionAmount,
-                                customer.Name,
-                                $"Debt payment - {customer.CustomerId}"),
-                            "Processing drawer payment");
-
-                        // Record customer payment
-                        var payment = new CustomerPaymentDTO
-                        {
-                            CustomerId = SelectedCustomer.CustomerId,
-                            Amount = NewTransactionAmount,
-                            PaymentDate = DateTime.Now,
-                            PaymentMethod = SelectedPaymentMethod,
-                            Notes = string.IsNullOrEmpty(TransactionNotes)
-                                ? $"Debt payment - Balance: {customer.Balance:N}"
-                                : TransactionNotes
-                        };
-
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _customerService.ProcessPaymentAsync(payment),
-                            "Recording payment");
-
-                        // Reduce customer balance
-                        var previousBalance = customer.Balance;
-                        customer.Balance -= NewTransactionAmount;
-
-                        // Update customer in database
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _unitOfWork.Customers.UpdateAsync(customer),
-                            "Updating customer balance");
-
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _unitOfWork.SaveChangesAsync(),
-                            "Saving changes");
-
-                        // Publish events to update UI
-                        _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                            "Update",
-                            new CustomerDTO
-                            {
-                                CustomerId = customer.CustomerId,
-                                Name = customer.Name,
-                                Balance = customer.Balance
-                            }));
-
-                        _eventAggregator.Publish(new DrawerUpdateEvent(
-                            "Debt Payment",
-                            NewTransactionAmount,
-                            $"Debt payment from {customer.Name}"
-                        ));
+                        // Get updated customer data
+                        var updatedCustomer = await ExecuteDbOperationSafelyAsync(
+                            () => _customerService.GetByIdAsync(customer.CustomerId),
+                            "Getting updated customer data");
 
                         await transaction.CommitAsync();
 
-                        // Close popup before data refresh to avoid race conditions
-                        IsTransactionPopupOpen = false;
-
-                        // Ensure we update on the UI thread
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                        // Notify UI about changes
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
-                            // Add a small delay to ensure transaction is fully committed
-                            await Task.Delay(200);
-
-                            // Refresh data
-                            await LoadDataAsync();
-                            await LoadCustomerDetailsAsync();
-
-                            // Explicitly notify key property changes
-                            OnPropertyChanged(nameof(TotalDebtUSD));
-                            OnPropertyChanged(nameof(TotalDebtLBP));
-                            OnPropertyChanged(nameof(CustomersWithDebt));
-
-                            // If the selected customer is still the same, force refresh its properties
-                            if (SelectedCustomer?.CustomerId == customer.CustomerId)
-                            {
-                                // Update the selected customer's balance
-                                SelectedCustomer.Balance = customer.Balance;
-                                OnPropertyChanged(nameof(SelectedCustomer));
-                                UpdateTotalAmountLBP();
-                            }
+                            // Close popup
+                            IsTransactionPopupOpen = false;
 
                             // Show success message
+                            string actionType = SelectedTransactionType == "Payment" ? "Payment" : "Charge";
                             MessageBox.Show(
-                                $"Payment of {NewTransactionAmount:N} processed successfully for {customer.Name}.\n" +
+                                $"{actionType} of {NewTransactionAmount:N} processed successfully for {customer.Name}.\n" +
                                 $"Previous balance: {previousBalance:N}\n" +
-                                $"New balance: {customer.Balance:N}",
+                                $"New balance: {updatedCustomer?.Balance ?? 0:N}",
                                 "Success",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information
                             );
                         });
+
+                        // Force refresh data after transaction
+                        await ForceRefreshDataAsync();
                     }
                     catch (Exception ex)
                     {
@@ -856,169 +790,28 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private void ShowTransactionDetail(object? parameter)
+        private async Task ShowTransactionDetailAsync(object? parameter)
         {
             if (parameter is TransactionDTO transaction)
             {
                 try
                 {
-                    var mainWindow = System.Windows.Application.Current.MainWindow;
-                    var detailWindow = new TransactionDetailWindow(transaction)
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Owner = mainWindow,
-                        WindowStartupLocation = WindowStartupLocation.CenterOwner
-                    };
-                    detailWindow.ShowDialog();
+                        var mainWindow = System.Windows.Application.Current.MainWindow;
+                        var detailWindow = new TransactionDetailWindow(transaction)
+                        {
+                            Owner = mainWindow,
+                            WindowStartupLocation = WindowStartupLocation.CenterOwner
+                        };
+                        detailWindow.ShowDialog();
+                    });
                 }
                 catch (Exception ex)
                 {
                     ShowError($"Error showing transaction details: {ex.Message}");
                 }
             }
-        }
-
-        private async void HandleCustomerChanged(EntityChangedEvent<CustomerDTO> evt)
-        {
-            Debug.WriteLine($"Customer changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
-
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                try
-                {
-                    switch (evt.Action)
-                    {
-                        case "Update":
-                            // Force a refresh
-                            await LoadDataAsync();
-
-                            // If the updated customer is the currently selected one, refresh details too
-                            if (SelectedCustomer?.CustomerId == evt.Entity.CustomerId)
-                            {
-                                // Update the selected customer with latest data
-                                SelectedCustomer.Balance = evt.Entity.Balance;
-                                UpdateTotalAmountLBP();
-                                OnPropertyChanged(nameof(SelectedCustomer));
-
-                                await LoadCustomerDetailsAsync();
-                            }
-                            break;
-
-                        case "Create":
-                            await LoadDataAsync();
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error handling customer changed event: {ex}");
-                }
-            });
-        }
-
-        private async void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
-        {
-            Debug.WriteLine($"Transaction changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
-
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                try
-                {
-                    // If the transaction is for the selected customer, update customer details
-                    if (evt.Entity.CustomerId == SelectedCustomer?.CustomerId)
-                    {
-                        await LoadCustomerDetailsAsync();
-
-                        // Also reload all data as the balance might have changed
-                        await LoadDataAsync();
-                    }
-                    // For new transactions with balance, always reload data
-                    else if (evt.Action == "Create" && evt.Entity.Balance > 0)
-                    {
-                        await LoadDataAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error handling transaction changed event: {ex}");
-                }
-            });
-        }
-
-        private async void HandlePaymentChanged(EntityChangedEvent<CustomerPaymentDTO> evt)
-        {
-            Debug.WriteLine($"Payment changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
-
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                try
-                {
-                    // Always reload all data as payments affect balances
-                    await LoadDataAsync();
-
-                    // If the payment is for the selected customer, also update details
-                    if (evt.Entity.CustomerId == SelectedCustomer?.CustomerId)
-                    {
-                        await LoadCustomerDetailsAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error handling payment changed event: {ex}");
-                }
-            });
-        }
-
-        private async void HandleCustomerDebtChanged(EntityChangedEvent<CustomerDTO> evt)
-        {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-            {
-                try
-                {
-                    Debug.WriteLine($"Customer debt changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
-
-                    switch (evt.Action)
-                    {
-                        case "Update":
-                            var existingCustomer = CustomersWithDebt
-                                .FirstOrDefault(c => c.CustomerId == evt.Entity.CustomerId);
-                            if (existingCustomer != null)
-                            {
-                                Debug.WriteLine($"Updating balance for customer {existingCustomer.Name} from {existingCustomer.Balance} to {existingCustomer.Balance + evt.Entity.Balance}");
-                                existingCustomer.Balance = evt.Entity.Balance; // Replace with actual value instead of adding
-
-                                // Update UI
-                                OnPropertyChanged(nameof(CustomersWithDebt));
-
-                                // If this is the selected customer, update total LBP amount too
-                                if (SelectedCustomer?.CustomerId == existingCustomer.CustomerId)
-                                {
-                                    SelectedCustomer.Balance = existingCustomer.Balance;
-                                    UpdateTotalAmountLBP();
-                                }
-
-                                // Also need to update total for all customers
-                                TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
-                                _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
-                                OnPropertyChanged(nameof(TotalDebtUSD));
-                                OnPropertyChanged(nameof(TotalDebtLBP));
-                            }
-                            else
-                            {
-                                Debug.WriteLine($"Customer {evt.Entity.CustomerId} not found in collection, forcing reload");
-                                await LoadDataAsync();
-                            }
-                            break;
-                        case "Create":
-                            Debug.WriteLine($"New customer created, forcing reload");
-                            await LoadDataAsync();
-                            break;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in HandleCustomerDebtChanged: {ex}");
-                }
-            });
         }
 
         private async Task ProcessPaymentAsync()
@@ -1070,69 +863,53 @@ namespace QuickTechSystems.WPF.ViewModels
                             return;
                         }
 
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _drawerService.ProcessDebtPaymentAsync(
-                                PaymentAmount,
-                                customer.Name,
-                                $"Debt payment - {customer.CustomerId}"),
-                            "Processing drawer payment");
-
-                        var payment = new CustomerPaymentDTO
-                        {
-                            CustomerId = SelectedCustomer.CustomerId,
-                            Amount = PaymentAmount,
-                            PaymentDate = DateTime.Now,
-                            PaymentMethod = "Cash",
-                            Notes = $"Debt payment - Balance: {customer.Balance:N}"
-                        };
-
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _customerService.ProcessPaymentAsync(payment),
-                            "Recording payment");
-
                         var previousBalance = customer.Balance;
-                        customer.Balance -= PaymentAmount;
+                        var userId = System.Windows.Application.Current.Resources["CurrentUserId"]?.ToString() ?? "system";
 
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _unitOfWork.Customers.UpdateAsync(customer),
-                            "Updating customer balance");
+                        // Process payment using the debt service
+                        var success = await ExecuteDbOperationSafelyAsync(
+                            () => _customerDebtService.ProcessDebtPaymentAsync(
+                                customer.CustomerId, PaymentAmount, "Cash"),
+                            "Processing debt payment");
 
-                        await ExecuteDbOperationSafelyAsync(
-                            () => _unitOfWork.SaveChangesAsync(),
-                            "Saving changes");
+                        if (success)
+                        {
+                            // Get updated customer data
+                            var updatedCustomer = await ExecuteDbOperationSafelyAsync(
+                                () => _customerService.GetByIdAsync(customer.CustomerId),
+                                "Getting updated customer data");
 
-                        _eventAggregator.Publish(new EntityChangedEvent<CustomerPaymentDTO>("Create", payment));
-                        _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                            "Update",
-                            new CustomerDTO
+                            // Log the activity
+                            await _activityLogger.LogActivityAsync(
+                                userId,
+                                "Debt Payment",
+                                $"Processed payment of {PaymentAmount:N} for customer {customer.Name}");
+
+                            await transaction.CommitAsync();
+
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                CustomerId = customer.CustomerId,
-                                Name = customer.Name,
-                                Balance = customer.Balance
-                            }));
+                                MessageBox.Show(
+                                    $"Payment of {PaymentAmount:N} processed successfully.\n" +
+                                    $"Previous balance: {previousBalance:N}\n" +
+                                    $"New balance: {updatedCustomer?.Balance ?? 0:N}",
+                                    "Success",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information
+                                );
 
-                        _eventAggregator.Publish(new DrawerUpdateEvent(
-                            "Debt Payment",
-                            PaymentAmount,
-                            $"Debt payment from {customer.Name}"
-                        ));
+                                // Reset payment amount
+                                PaymentAmount = 0;
+                            });
 
-                        await transaction.CommitAsync();
-
-                        await LoadDataAsync();
-                        await LoadCustomerDetailsAsync();
-                        PaymentAmount = 0;
-
-                        await WindowManager.InvokeAsync(() =>
-                            MessageBox.Show(
-                                $"Payment of {payment.Amount:N} processed successfully.\n" +
-                                $"Previous balance: {previousBalance:N}\n" +
-                                $"New balance: {customer.Balance:N}",
-                                "Success",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information
-                            )
-                        );
+                            // Force refresh data after successful payment
+                            await ForceRefreshDataAsync();
+                        }
+                        else
+                        {
+                            await transaction.RollbackAsync();
+                            ShowError("Failed to process payment. Please try again.");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1150,6 +927,509 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
                 ProcessingMessage = string.Empty;
                 _operationLock.Release();
+            }
+        }
+        #endregion
+
+        #region Event Handlers
+        private async void HandleCustomerChanged(EntityChangedEvent<CustomerDTO> evt)
+        {
+            Debug.WriteLine($"Customer changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    switch (evt.Action)
+                    {
+                        case "Update":
+                            // First check if we need to update our local customer list
+                            var existingCustomer = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == evt.Entity.CustomerId);
+
+                            if (existingCustomer != null)
+                            {
+                                // Update the balance and other properties
+                                existingCustomer.Balance = evt.Entity.Balance;
+                                existingCustomer.Name = evt.Entity.Name;
+                                existingCustomer.Phone = evt.Entity.Phone;
+                                existingCustomer.Email = evt.Entity.Email;
+                                existingCustomer.IsActive = evt.Entity.IsActive;
+                                existingCustomer.UpdatedAt = evt.Entity.UpdatedAt;
+
+                                // Update selected customer if it's the same one
+                                if (SelectedCustomer?.CustomerId == evt.Entity.CustomerId)
+                                {
+                                    SelectedCustomer.Balance = evt.Entity.Balance;
+                                    SelectedCustomer.Name = evt.Entity.Name;
+                                    SelectedCustomer.Phone = evt.Entity.Phone;
+                                    SelectedCustomer.Email = evt.Entity.Email;
+                                    SelectedCustomer.IsActive = evt.Entity.IsActive;
+                                    SelectedCustomer.UpdatedAt = evt.Entity.UpdatedAt;
+
+                                    // Update LBP conversion
+                                    UpdateTotalAmountLBP();
+                                    OnPropertyChanged(nameof(SelectedCustomer));
+                                }
+
+                                // If balance is now 0, and we're not searching, remove them from the list
+                                if (existingCustomer.Balance <= 0 && string.IsNullOrWhiteSpace(SearchText))
+                                {
+                                    CustomersWithDebt.Remove(existingCustomer);
+
+                                    // If this was the selected customer, clear the selection
+                                    if (SelectedCustomer?.CustomerId == existingCustomer.CustomerId)
+                                    {
+                                        SelectedCustomer = null;
+                                    }
+                                }
+
+                                // Recalculate total debt
+                                TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                                _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                                OnPropertyChanged(nameof(TotalDebtUSD));
+                                OnPropertyChanged(nameof(TotalDebtLBP));
+                                OnPropertyChanged(nameof(CustomersWithDebt));
+                            }
+                            else if (evt.Entity.Balance > 0)
+                            {
+                                // This is a customer that now has debt but wasn't in our list
+                                // We need to add them (if not searching)
+                                if (string.IsNullOrWhiteSpace(SearchText))
+                                {
+                                    CustomersWithDebt.Add(evt.Entity);
+
+                                    // Recalculate total debt
+                                    TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                                    _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                                    OnPropertyChanged(nameof(TotalDebtUSD));
+                                    OnPropertyChanged(nameof(TotalDebtLBP));
+                                    OnPropertyChanged(nameof(CustomersWithDebt));
+                                }
+                            }
+
+                            // If this is the selected customer, reload their details
+                            if (SelectedCustomer?.CustomerId == evt.Entity.CustomerId)
+                            {
+                                await LoadCustomerDetailsAsync();
+                            }
+                            break;
+
+                        case "Create":
+                            // If the new customer has debt, add them to our list
+                            if (evt.Entity.Balance > 0)
+                            {
+                                if (string.IsNullOrWhiteSpace(SearchText) ||
+                                    evt.Entity.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    CustomersWithDebt.Add(evt.Entity);
+
+                                    // Recalculate total debt
+                                    TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                                    _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                                    OnPropertyChanged(nameof(TotalDebtUSD));
+                                    OnPropertyChanged(nameof(TotalDebtLBP));
+                                    OnPropertyChanged(nameof(CustomersWithDebt));
+                                }
+                            }
+                            break;
+
+                        case "Delete":
+                            // Remove the customer from our list if they're in it
+                            var customerToRemove = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == evt.Entity.CustomerId);
+                            if (customerToRemove != null)
+                            {
+                                CustomersWithDebt.Remove(customerToRemove);
+
+                                // If this was the selected customer, clear the selection
+                                if (SelectedCustomer?.CustomerId == customerToRemove.CustomerId)
+                                {
+                                    SelectedCustomer = null;
+                                }
+
+                                // Recalculate total debt
+                                TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                                _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                                OnPropertyChanged(nameof(TotalDebtUSD));
+                                OnPropertyChanged(nameof(TotalDebtLBP));
+                                OnPropertyChanged(nameof(CustomersWithDebt));
+                            }
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error handling customer changed event: {ex}");
+                }
+            });
+        }
+
+        private async void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
+        {
+            Debug.WriteLine($"Transaction changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    // If the transaction is for the selected customer, update customer details
+                    if (evt.Entity.CustomerId == SelectedCustomer?.CustomerId)
+                    {
+                        // Add the transaction to the transaction history if it's new
+                        if (evt.Action == "Create")
+                        {
+                            // Add at the beginning for correct chronological order
+                            TransactionHistory.Insert(0, evt.Entity);
+                            OnPropertyChanged(nameof(TransactionHistory));
+                        }
+
+                        // Get fresh customer data to ensure balance is up to date
+                        var freshCustomerData = await ExecuteDbOperationSafelyAsync(
+                            () => _customerService.GetByIdAsync(SelectedCustomer.CustomerId),
+                            "Loading fresh customer data after transaction change");
+
+                        if (freshCustomerData != null)
+                        {
+                            SelectedCustomer.Balance = freshCustomerData.Balance;
+                            UpdateTotalAmountLBP();
+                            OnPropertyChanged(nameof(SelectedCustomer));
+
+                            // Update the customer in the list too
+                            var listCustomer = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == freshCustomerData.CustomerId);
+                            if (listCustomer != null)
+                            {
+                                listCustomer.Balance = freshCustomerData.Balance;
+
+                                // If balance is now 0 and we're not searching, remove them
+                                if (listCustomer.Balance <= 0 && string.IsNullOrWhiteSpace(SearchText))
+                                {
+                                    CustomersWithDebt.Remove(listCustomer);
+                                }
+                            }
+
+                            // Recalculate total debt
+                            TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                            _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                            OnPropertyChanged(nameof(TotalDebtUSD));
+                            OnPropertyChanged(nameof(TotalDebtLBP));
+                            OnPropertyChanged(nameof(CustomersWithDebt));
+                        }
+                    }
+                    // For new transactions with non-zero balance, update customer list
+                    else if (evt.Action == "Create" && evt.Entity.Balance > 0)
+                    {
+                        // Get the customer data
+                        var customer = await ExecuteDbOperationSafelyAsync(
+                            () => _customerService.GetByIdAsync(evt.Entity.CustomerId),
+                            "Loading customer data after transaction");
+
+                        if (customer != null && customer.Balance > 0)
+                        {
+                            // Check if customer is already in the list
+                            var existingCustomer = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == customer.CustomerId);
+
+                            if (existingCustomer != null)
+                            {
+                                // Update existing customer
+                                existingCustomer.Balance = customer.Balance;
+                            }
+                            else if (string.IsNullOrWhiteSpace(SearchText) ||
+                                     customer.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Add the customer to the list
+                                CustomersWithDebt.Add(customer);
+                            }
+
+                            // Recalculate total debt
+                            TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                            _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                            OnPropertyChanged(nameof(TotalDebtUSD));
+                            OnPropertyChanged(nameof(TotalDebtLBP));
+                            OnPropertyChanged(nameof(CustomersWithDebt));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error handling transaction changed event: {ex}");
+                }
+            });
+        }
+
+        private async void HandlePaymentChanged(EntityChangedEvent<CustomerPaymentDTO> evt)
+        {
+            Debug.WriteLine($"Payment changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    // Get fresh customer data
+                    var customer = await ExecuteDbOperationSafelyAsync(
+                        () => _customerService.GetByIdAsync(evt.Entity.CustomerId),
+                        "Loading customer data after payment change");
+
+                    if (customer != null)
+                    {
+                        // Update the customer in our list if present
+                        var listCustomer = CustomersWithDebt.FirstOrDefault(c => c.CustomerId == customer.CustomerId);
+
+                        if (listCustomer != null)
+                        {
+                            // Update the balance
+                            listCustomer.Balance = customer.Balance;
+
+                            // If balance is now 0 and we're not searching, remove them
+                            if (listCustomer.Balance <= 0 && string.IsNullOrWhiteSpace(SearchText))
+                            {
+                                CustomersWithDebt.Remove(listCustomer);
+
+                                // If this was the selected customer, clear selection
+                                if (SelectedCustomer?.CustomerId == listCustomer.CustomerId)
+                                {
+                                    SelectedCustomer = null;
+                                }
+                            }
+                        }
+
+                        // If this is the selected customer, update details
+                        if (SelectedCustomer?.CustomerId == customer.CustomerId)
+                        {
+                            // Update balance
+                            SelectedCustomer.Balance = customer.Balance;
+                            UpdateTotalAmountLBP();
+                            OnPropertyChanged(nameof(SelectedCustomer));
+
+                            // Add the payment to payment history if it's new
+                            if (evt.Action == "Create")
+                            {
+                                // Add at the beginning for correct chronological order
+                                PaymentHistory.Insert(0, evt.Entity);
+                                OnPropertyChanged(nameof(PaymentHistory));
+                            }
+                        }
+
+                        // Recalculate total debt
+                        TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                        _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                        OnPropertyChanged(nameof(TotalDebtUSD));
+                        OnPropertyChanged(nameof(TotalDebtLBP));
+                        OnPropertyChanged(nameof(CustomersWithDebt));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error handling payment changed event: {ex}");
+                }
+            });
+        }
+
+        private async void HandleCustomerDebtChanged(EntityChangedEvent<CustomerDTO> evt)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    Debug.WriteLine($"Customer debt changed event received: {evt.Action}, CustomerId: {evt.Entity?.CustomerId}");
+
+                    // Get fresh customer data to ensure accuracy
+                    var customer = await ExecuteDbOperationSafelyAsync(
+                        () => _customerService.GetByIdAsync(evt.Entity.CustomerId),
+                        "Loading customer data for debt change");
+
+                    if (customer != null)
+                    {
+                        var existingCustomer = CustomersWithDebt
+                            .FirstOrDefault(c => c.CustomerId == customer.CustomerId);
+
+                        if (existingCustomer != null)
+                        {
+                            Debug.WriteLine($"Updating balance for customer {existingCustomer.Name} from {existingCustomer.Balance} to {customer.Balance}");
+
+                            // Update with new data
+                            existingCustomer.Balance = customer.Balance;
+                            existingCustomer.Name = customer.Name;
+                            existingCustomer.Phone = customer.Phone;
+                            existingCustomer.Email = customer.Email;
+                            existingCustomer.IsActive = customer.IsActive;
+                            existingCustomer.UpdatedAt = customer.UpdatedAt;
+
+                            // If balance is now 0 and we're not searching, remove them
+                            if (existingCustomer.Balance <= 0 && string.IsNullOrWhiteSpace(SearchText))
+                            {
+                                CustomersWithDebt.Remove(existingCustomer);
+
+                                // If this was the selected customer, clear selection
+                                if (SelectedCustomer?.CustomerId == existingCustomer.CustomerId)
+                                {
+                                    SelectedCustomer = null;
+                                }
+                            }
+                        }
+                        else if (customer.Balance > 0)
+                        {
+                            // This is a customer with debt who wasn't in our list
+                            // Add them if not searching or if they match search
+                            if (string.IsNullOrWhiteSpace(SearchText) ||
+                                customer.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                            {
+                                CustomersWithDebt.Add(customer);
+                            }
+                        }
+
+                        // If this is the selected customer, update its details
+                        if (SelectedCustomer?.CustomerId == customer.CustomerId)
+                        {
+                            SelectedCustomer.Balance = customer.Balance;
+                            SelectedCustomer.Name = customer.Name;
+                            SelectedCustomer.Phone = customer.Phone;
+                            SelectedCustomer.Email = customer.Email;
+                            SelectedCustomer.IsActive = customer.IsActive;
+                            SelectedCustomer.UpdatedAt = customer.UpdatedAt;
+
+                            UpdateTotalAmountLBP();
+                            OnPropertyChanged(nameof(SelectedCustomer));
+
+                            // Reload customer details
+                            await LoadCustomerDetailsAsync();
+                        }
+
+                        // Recalculate total debt
+                        TotalDebtUSD = CustomersWithDebt.Sum(c => c.Balance);
+                        _totalDebtLBP = CurrencyHelper.ConvertToLBP(TotalDebtUSD);
+                        OnPropertyChanged(nameof(TotalDebtUSD));
+                        OnPropertyChanged(nameof(TotalDebtLBP));
+                        OnPropertyChanged(nameof(CustomersWithDebt));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in HandleCustomerDebtChanged: {ex}");
+                }
+            });
+        }
+        #endregion
+
+        #region Helper Methods
+        private async Task<T> ExecuteDbOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Database operation")
+        {
+            Debug.WriteLine($"BEGIN: {operationName}");
+
+            try
+            {
+                Debug.WriteLine($"Executing operation: {operationName}");
+                var result = await operation();
+                Debug.WriteLine($"Operation completed successfully: {operationName}");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ERROR in {operationName}: {ex.Message}");
+                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                await HandleExceptionAsync(operationName, ex);
+                throw;
+            }
+        }
+
+        private async Task ExecuteDbOperationSafelyAsync(Func<Task> operation, string operationName = "Database operation")
+        {
+            await ExecuteDbOperationSafelyAsync<bool>(async () =>
+            {
+                await operation();
+                return true;
+            }, operationName);
+        }
+
+        private async Task HandleExceptionAsync(string context, Exception ex)
+        {
+            Debug.WriteLine($"{context}: {ex}");
+
+            // Special handling for known database errors
+            if (ex.Message.Contains("A second operation was started") ||
+                (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
+            {
+                ShowError("Database is busy processing another request. Please try again in a moment.");
+            }
+            else if (ex.Message.Contains("entity with the specified primary key") ||
+                    (ex.InnerException != null && ex.InnerException.Message.Contains("entity with the specified primary key")))
+            {
+                ShowError("Requested record not found. It may have been deleted.");
+            }
+            else if (ex.Message.Contains("The connection was closed") ||
+                    (ex.InnerException != null && ex.InnerException.Message.Contains("The connection was closed")))
+            {
+                ShowError("Database connection lost. Please check your connection and try again.");
+            }
+            else
+            {
+                ShowError($"{context}: {ex.Message}");
+            }
+        }
+
+        private void ShowError(string message)
+        {
+            HasErrors = true;
+            ErrorMessage = message;
+
+            // Log the error
+            Debug.WriteLine($"ERROR: {message}");
+
+            // Automatically clear error after delay
+            Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (ErrorMessage == message) // Only clear if still the same message
+                    {
+                        HasErrors = false;
+                        ErrorMessage = string.Empty;
+                    }
+                });
+            });
+        }
+
+        private void ShowSuccess(string message)
+        {
+            Debug.WriteLine($"SUCCESS: {message}");
+
+            Task.Run(async () =>
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show(
+                        message,
+                        "Success",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                });
+            });
+        }
+
+        private void ClearError()
+        {
+            HasErrors = false;
+            ErrorMessage = string.Empty;
+        }
+
+        private void UpdateTotalAmountLBP()
+        {
+            try
+            {
+                // Make sure we're getting a valid decimal from the selected customer
+                _totalAmountLBP = SelectedCustomer?.Balance ?? 0;
+                // Using invariant culture for consistent decimal handling
+                _totalAmountLBP = CurrencyHelper.ConvertToLBP(_totalAmountLBP);
+                OnPropertyChanged(nameof(TotalAmountLBP));
+
+                // Debug message to verify values
+                Debug.WriteLine($"UpdateTotalAmountLBP: Customer Balance: {SelectedCustomer?.Balance ?? 0}, Converted LBP: {_totalAmountLBP}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating LBP amount: {ex}");
+                _totalAmountLBP = 0;
+                OnPropertyChanged(nameof(TotalAmountLBP));
             }
         }
         #endregion

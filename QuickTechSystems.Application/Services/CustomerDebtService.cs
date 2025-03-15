@@ -5,7 +5,11 @@ using QuickTechSystems.Application.Interfaces;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Domain.Interfaces.Repositories;
-using QuickTechSystems.Domain.Enums;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace QuickTechSystems.Application.Services
 {
@@ -24,23 +28,33 @@ namespace QuickTechSystems.Application.Services
             IEventAggregator eventAggregator,
             IDbContextScopeService dbContextScopeService)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
-            _drawerService = drawerService;
-            _eventAggregator = eventAggregator;
-            _dbContextScopeService = dbContextScopeService;
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
+            _drawerService = drawerService ?? throw new ArgumentNullException(nameof(drawerService));
+            _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
+            _dbContextScopeService = dbContextScopeService ?? throw new ArgumentNullException(nameof(dbContextScopeService));
         }
 
         public async Task<IEnumerable<CustomerDTO>> GetCustomersWithDebtAsync()
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var customers = await _unitOfWork.Customers.Query()
-                    .Where(c => c.Balance > 0)
-                    .OrderByDescending(c => c.Balance)
-                    .ToListAsync();
+                try
+                {
+                    Debug.WriteLine("Getting customers with debt");
+                    var customers = await _unitOfWork.Customers.Query()
+                        .Where(c => c.Balance > 0 && c.IsActive)
+                        .OrderByDescending(c => c.Balance)
+                        .ToListAsync();
 
-                return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
+                    Debug.WriteLine($"Found {customers.Count} customers with debt");
+                    return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting customers with debt: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -48,13 +62,23 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var payments = await _unitOfWork.Context.Set<CustomerPayment>()
-                    .Include(p => p.Customer)
-                    .Where(p => p.CustomerId == customerId)
-                    .OrderByDescending(p => p.PaymentDate)
-                    .ToListAsync();
+                try
+                {
+                    Debug.WriteLine($"Getting payment history for customer {customerId}");
+                    var payments = await _unitOfWork.Context.Set<CustomerPayment>()
+                        .Include(p => p.Customer)
+                        .Where(p => p.CustomerId == customerId)
+                        .OrderByDescending(p => p.PaymentDate)
+                        .ToListAsync();
 
-                return _mapper.Map<IEnumerable<CustomerPaymentDTO>>(payments);
+                    Debug.WriteLine($"Found {payments.Count} payment records");
+                    return _mapper.Map<IEnumerable<CustomerPaymentDTO>>(payments);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting payment history: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -65,45 +89,68 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
+                    Debug.WriteLine($"Processing debt payment of {amount} for customer {customerId}");
                     var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
-                    if (customer == null) return false;
+                    if (customer == null)
+                    {
+                        Debug.WriteLine("Customer not found");
+                        return false;
+                    }
 
                     if (amount > customer.Balance)
-                        throw new InvalidOperationException("Payment amount cannot exceed debt balance");
-
-                    if (paymentMethod == "Cash")
                     {
+                        Debug.WriteLine($"Payment amount {amount} exceeds debt balance {customer.Balance}");
+                        throw new InvalidOperationException("Payment amount cannot exceed debt balance");
+                    }
+
+                    if (paymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase))
+                    {
+                        Debug.WriteLine("Processing cash drawer transaction");
                         await _drawerService.ProcessDebtPaymentAsync(amount, customer.Name, $"Debt payment - {customer.CustomerId}");
                     }
 
+                    // Record previous balance for event reporting
+                    var previousBalance = customer.Balance;
                     customer.Balance -= amount;
 
                     // Create payment record
                     var payment = new CustomerPayment
                     {
                         CustomerId = customerId,
-                        Customer = customer,  // Set the required Customer property
+                        Customer = customer,
                         Amount = amount,
                         PaymentDate = DateTime.Now,
                         PaymentMethod = paymentMethod,
-                        Notes = $"Debt payment - Balance: {customer.Balance:N}"
+                        Notes = $"Debt payment - Previous Balance: {previousBalance:N}, New Balance: {customer.Balance:N}"
                     };
 
+                    Debug.WriteLine("Adding payment record to database");
                     await _unitOfWork.Context.Set<CustomerPayment>().AddAsync(payment);
+
+                    Debug.WriteLine("Updating customer");
                     await _unitOfWork.Customers.UpdateAsync(customer);
+
+                    Debug.WriteLine("Saving changes");
                     await _unitOfWork.SaveChangesAsync();
 
                     await transaction.CommitAsync();
+                    Debug.WriteLine("Transaction committed successfully");
 
-                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                        "Update",
-                        _mapper.Map<CustomerDTO>(customer)
-                    ));
+                    // Publish events to update UI
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    var paymentDto = _mapper.Map<CustomerPaymentDTO>(payment);
+
+                    Debug.WriteLine("Publishing customer update event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    Debug.WriteLine("Publishing payment creation event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerPaymentDTO>("Create", paymentDto));
 
                     return true;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.WriteLine($"Error processing debt payment: {ex.Message}");
                     await transaction.RollbackAsync();
                     throw;
                 }
@@ -117,27 +164,64 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
+                    Debug.WriteLine($"Adding debt of {amount} for customer {customerId}");
                     var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
-                    if (customer == null) return false;
+                    if (customer == null)
+                    {
+                        Debug.WriteLine("Customer not found");
+                        return false;
+                    }
 
                     if (!await ValidateDebtLimitAsync(customerId, amount))
+                    {
+                        Debug.WriteLine("Debt limit would be exceeded");
                         throw new InvalidOperationException("This would exceed the customer's credit limit");
+                    }
 
+                    // Record previous balance for event reporting
+                    var previousBalance = customer.Balance;
                     customer.Balance += amount;
 
+                    // Create a payment record with negative amount to represent debt increase
+                    var debtRecord = new CustomerPayment
+                    {
+                        CustomerId = customerId,
+                        Customer = customer,
+                        Amount = -amount, // Negative amount indicates debt increase
+                        PaymentDate = DateTime.Now,
+                        PaymentMethod = "Charge",
+                        Notes = string.IsNullOrEmpty(reference)
+                            ? $"Debt increase - Previous Balance: {previousBalance:N}, New Balance: {customer.Balance:N}"
+                            : reference
+                    };
+
+                    Debug.WriteLine("Adding debt record to database");
+                    await _unitOfWork.Context.Set<CustomerPayment>().AddAsync(debtRecord);
+
+                    Debug.WriteLine("Updating customer");
                     await _unitOfWork.Customers.UpdateAsync(customer);
+
+                    Debug.WriteLine("Saving changes");
                     await _unitOfWork.SaveChangesAsync();
 
-                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                        "Update",
-                        _mapper.Map<CustomerDTO>(customer)
-                    ));
-
                     await transaction.CommitAsync();
+                    Debug.WriteLine("Transaction committed successfully");
+
+                    // Publish events to update UI
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    var debtRecordDto = _mapper.Map<CustomerPaymentDTO>(debtRecord);
+
+                    Debug.WriteLine("Publishing customer update event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    Debug.WriteLine("Publishing debt record creation event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerPaymentDTO>("Create", debtRecordDto));
+
                     return true;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.WriteLine($"Error adding to debt: {ex.Message}");
                     await transaction.RollbackAsync();
                     throw;
                 }
@@ -148,11 +232,27 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var customer = await _unitOfWork.Customers.Query()
-                    .Include(c => c.Transactions)
-                    .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+                try
+                {
+                    Debug.WriteLine($"Getting debt details for customer {customerId}");
+                    var customer = await _unitOfWork.Customers.Query()
+                        .Include(c => c.Transactions)
+                        .Include(c => c.Payments)
+                        .FirstOrDefaultAsync(c => c.CustomerId == customerId);
 
-                return _mapper.Map<CustomerDTO>(customer);
+                    if (customer == null)
+                    {
+                        Debug.WriteLine("Customer not found");
+                        return null;
+                    }
+
+                    return _mapper.Map<CustomerDTO>(customer);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting customer debt details: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -160,8 +260,21 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                return await _unitOfWork.Customers.Query()
-                    .SumAsync(c => c.Balance);
+                try
+                {
+                    Debug.WriteLine("Getting total outstanding debt");
+                    var totalDebt = await _unitOfWork.Customers.Query()
+                        .Where(c => c.IsActive)
+                        .SumAsync(c => c.Balance);
+
+                    Debug.WriteLine($"Total outstanding debt: {totalDebt}");
+                    return totalDebt;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting total outstanding debt: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -169,11 +282,27 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
-                if (customer == null) return false;
+                try
+                {
+                    Debug.WriteLine($"Validating debt limit for customer {customerId}, new debt: {newDebtAmount}");
+                    var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
+                    if (customer == null)
+                    {
+                        Debug.WriteLine("Customer not found");
+                        return false;
+                    }
 
-                return customer.CreditLimit == 0 || // 0 means no limit
-                       (customer.Balance + newDebtAmount) <= customer.CreditLimit;
+                    // If credit limit is 0, it means no limit is enforced
+                    var result = customer.CreditLimit == 0 || (customer.Balance + newDebtAmount) <= customer.CreditLimit;
+
+                    Debug.WriteLine($"Debt limit validation result: {result}. Current balance: {customer.Balance}, Credit limit: {customer.CreditLimit}");
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error validating debt limit: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -181,14 +310,25 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var transactions = await _unitOfWork.Transactions.Query()
-                    .Include(t => t.Customer)
-                    .Include(t => t.TransactionDetails)
-                    .Where(t => t.CustomerId == customerId && t.Balance > 0)
-                    .OrderByDescending(t => t.TransactionDate)
-                    .ToListAsync();
+                try
+                {
+                    Debug.WriteLine($"Getting debt transactions for customer {customerId}");
+                    var transactions = await _unitOfWork.Transactions.Query()
+                        .Include(t => t.Customer)
+                        .Include(t => t.TransactionDetails)
+                            .ThenInclude(td => td.Product)
+                        .Where(t => t.CustomerId == customerId && t.Balance > 0)
+                        .OrderByDescending(t => t.TransactionDate)
+                        .ToListAsync();
 
-                return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+                    Debug.WriteLine($"Found {transactions.Count} debt transactions");
+                    return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting debt transactions: {ex.Message}");
+                    throw;
+                }
             });
         }
 
@@ -199,35 +339,65 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
+                    Debug.WriteLine($"Adjusting debt balance for customer {customerId} by {adjustment}");
                     var customer = await _unitOfWork.Customers.GetByIdAsync(customerId);
-                    if (customer == null) return false;
+                    if (customer == null)
+                    {
+                        Debug.WriteLine("Customer not found");
+                        return false;
+                    }
 
+                    // For negative adjustments (reducing debt), ensure it doesn't exceed the current balance
+                    if (adjustment < 0 && Math.Abs(adjustment) > customer.Balance)
+                    {
+                        Debug.WriteLine($"Adjustment amount {adjustment} exceeds current balance {customer.Balance}");
+                        throw new InvalidOperationException("Adjustment amount cannot exceed current balance");
+                    }
+
+                    // Record previous balance for event reporting
+                    var previousBalance = customer.Balance;
                     customer.Balance += adjustment;
 
+                    var adjustmentType = adjustment < 0 ? "Adjustment (Decrease)" : "Adjustment (Increase)";
                     var historyEntry = new CustomerPayment
                     {
                         CustomerId = customerId,
-                        Customer = customer,  // Set the required Customer property
-                        Amount = Math.Abs(adjustment),
+                        Customer = customer,
+                        Amount = adjustment < 0 ? Math.Abs(adjustment) : -adjustment, // Positive for decrease, negative for increase
                         PaymentDate = DateTime.Now,
-                        PaymentMethod = adjustment < 0 ? "Adjustment (Decrease)" : "Adjustment (Increase)",
-                        Notes = reason
+                        PaymentMethod = adjustmentType,
+                        Notes = string.IsNullOrEmpty(reason)
+                            ? $"Balance adjustment - Previous: {previousBalance:N}, New: {customer.Balance:N}"
+                            : $"{reason} - Previous: {previousBalance:N}, New: {customer.Balance:N}"
                     };
 
+                    Debug.WriteLine("Adding adjustment record to database");
                     await _unitOfWork.Context.Set<CustomerPayment>().AddAsync(historyEntry);
+
+                    Debug.WriteLine("Updating customer");
                     await _unitOfWork.Customers.UpdateAsync(customer);
+
+                    Debug.WriteLine("Saving changes");
                     await _unitOfWork.SaveChangesAsync();
 
-                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                        "Update",
-                        _mapper.Map<CustomerDTO>(customer)
-                    ));
-
                     await transaction.CommitAsync();
+                    Debug.WriteLine("Transaction committed successfully");
+
+                    // Publish events to update UI
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    var historyEntryDto = _mapper.Map<CustomerPaymentDTO>(historyEntry);
+
+                    Debug.WriteLine("Publishing customer update event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    Debug.WriteLine("Publishing adjustment creation event");
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerPaymentDTO>("Create", historyEntryDto));
+
                     return true;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.WriteLine($"Error adjusting debt balance: {ex.Message}");
                     await transaction.RollbackAsync();
                     throw;
                 }

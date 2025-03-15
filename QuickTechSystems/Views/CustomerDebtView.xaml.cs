@@ -1,167 +1,68 @@
 ﻿using System.Windows;
-
 using System.Windows.Controls;
 
-
-
 namespace QuickTechSystems.WPF.Views
-
 {
-
     public partial class CustomerDebtView : UserControl
-
     {
-
         public CustomerDebtView()
-
         {
-
             InitializeComponent();
-
             this.Loaded += CustomerDebtView_Loaded;
-
             this.SizeChanged += OnControlSizeChanged;
-
         }
-
-
 
         private void CustomerDebtView_Loaded(object sender, RoutedEventArgs e)
-
         {
-
             // Ensure DataContext is set properly
-
             if (DataContext != null)
-
             {
-
                 // Any initialization needed
-
             }
-
-
 
             // Adjust layout based on size
-
             AdjustLayoutForSize();
-
         }
-
-
 
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
-
         {
-
             AdjustLayoutForSize();
-
         }
-
-
 
         private void AdjustLayoutForSize()
-
         {
-
             var parentWindow = Window.GetWindow(this);
-
             if (parentWindow == null) return;
 
-
-
             // Get actual window dimensions
-
             double windowWidth = parentWindow.ActualWidth;
 
-
-
-            // Set margins and paddings based on window size
-
-            var scrollViewer = this.Content as Grid;
-
-            if (scrollViewer == null) return;
-
-
-
-            var rootGrid = scrollViewer.Children[0] as ScrollViewer;
-
-            if (rootGrid == null) return;
-
-
-
-            var contentGrid = rootGrid.Content as Grid;
-
-            if (contentGrid == null) return;
-
-
-
+            // Adjust layout based on window width
             if (windowWidth >= 1920) // Large screens
-
             {
-
-                contentGrid.Margin = new Thickness(32);
-
+                // Maximum width for the detail panel
+                var rightColumn = this.FindName("rightColumn") as ColumnDefinition;
+                if (rightColumn != null)
+                {
+                    rightColumn.Width = new GridLength(450);
+                }
             }
-
             else if (windowWidth >= 1366) // Medium screens
-
             {
-
-                contentGrid.Margin = new Thickness(24);
-
+                var rightColumn = this.FindName("rightColumn") as ColumnDefinition;
+                if (rightColumn != null)
+                {
+                    rightColumn.Width = new GridLength(400);
+                }
             }
-
-            else if (windowWidth >= 800) // Small screens
-
+            else if (windowWidth <= 1000) // Small screens
             {
-
-                contentGrid.Margin = new Thickness(16);
-
+                var rightColumn = this.FindName("rightColumn") as ColumnDefinition;
+                if (rightColumn != null)
+                {
+                    rightColumn.Width = new GridLength(350);
+                }
             }
-
-            else // Very small screens
-
-            {
-
-                contentGrid.Margin = new Thickness(8);
-
-            }
-
         }
-
-
-
-        private void TransactionPopup_CloseRequested(object sender, RoutedEventArgs e)
-
-        {
-
-            if (DataContext is ViewModels.CustomerDebtViewModel viewModel)
-
-            {
-
-                viewModel.IsTransactionPopupOpen = false;
-
-            }
-
-        }
-
-
-
-        private void TransactionPopup_SaveCompleted(object sender, RoutedEventArgs e)
-
-        {
-
-            if (DataContext is ViewModels.CustomerDebtViewModel viewModel)
-
-            {
-
-                viewModel.IsTransactionPopupOpen = false;
-
-            }
-
-        }
-
     }
-
 }

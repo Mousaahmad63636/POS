@@ -42,6 +42,11 @@
     <!-- SHADOWS & EFFECTS        -->
     <!-- ======================== -->
 
+    <Style x:Key="RightAlignedText" TargetType="TextBlock">
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
     <DropShadowEffect x:Key="SmallShadow" BlurRadius="5" ShadowDepth="1" Opacity="0.2"/>
     <DropShadowEffect x:Key="MediumShadow" BlurRadius="10" ShadowDepth="2" Opacity="0.15"/>
     <DropShadowEffect x:Key="LargeShadow" BlurRadius="20" ShadowDepth="3" Opacity="0.1"/>

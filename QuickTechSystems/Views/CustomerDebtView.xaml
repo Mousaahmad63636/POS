@@ -12,53 +12,152 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:CurrencyConverter x:Key="CurrencyConverter"/>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <converters:DecimalToRedGreenBrushConverter x:Key="DecimalToRedGreenBrushConverter"/>
+
+        <!-- Tooltip Style -->
+        <Style x:Key="InfoTooltipStyle" TargetType="ToolTip">
+            <Setter Property="Background" Value="#F0F9FF"/>
+            <Setter Property="BorderBrush" Value="#93C5FD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="MaxWidth" Value="300"/>
+        </Style>
+
+        <!-- Success Notification Style -->
+        <Style x:Key="SuccessNotification" TargetType="Border">
+            <Setter Property="Background" Value="#f0fdf4"/>
+            <Setter Property="BorderBrush" Value="#86efac"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header with refresh button -->
+        <Grid Grid.Row="0" Margin="20,20,20,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <StackPanel>
+                <TextBlock Text="{DynamicResource Debt_Title}" 
+                           Style="{StaticResource DisplaySmall}" 
+                           Margin="0,0,0,8"/>
+                <TextBlock Text="{DynamicResource Debt_Subtitle}" 
+                           Style="{StaticResource BodyLarge}" 
+                           Foreground="{StaticResource TextSecondaryColor}" 
+                           Margin="0,0,0,16"/>
+            </StackPanel>
+
+            <Button Grid.Column="1" 
+                    Command="{Binding RefreshCommand}"
+                    ToolTip="Refresh Data"
+                    Style="{StaticResource SecondaryIconButtonStyle}"
+                    Width="40" Height="40"
+                    Margin="0,0,0,0"
+                    VerticalAlignment="Top">
+                <TextBlock Text="🔄" FontSize="16"/>
+            </Button>
+        </Grid>
+        
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Grid Style="{StaticResource ResponsivePageLayout}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Header Section -->
-                <StackPanel Grid.Row="0" Style="{StaticResource SectionHeader}">
-                    <TextBlock Text="{DynamicResource Debt_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
-                    <TextBlock Text="{DynamicResource Debt_Subtitle}" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,16"/>
+                <!-- Summary Cards -->
+                <Grid Grid.Row="0" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                    <Grid Margin="0,0,0,16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- Total Outstanding Debt Card -->
+                    <Border Style="{StaticResource EnhancedResponsiveCardContainer}"
+                            Background="#FEF2F2"
+                            BorderBrush="#FECACA"
+                            Margin="0,0,10,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Column="0" 
-                                 Text="{DynamicResource Debt_TotalOutstanding}"
-                                 Style="{StaticResource LabelLarge}"
-                                 Foreground="{StaticResource TextSecondaryColor}"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,8,0"/>
+                            <TextBlock Text="{DynamicResource Debt_TotalOutstanding}" 
+                                       Style="{StaticResource LabelLarge}"
+                                       Foreground="{StaticResource TextSecondaryColor}"/>
 
-                        <TextBlock Grid.Column="1" 
-                                 Text="{DynamicResource Debt_CurrencyUSD}"
-                                 Style="{StaticResource LabelLarge}"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,4,0"/>
-                        <TextBlock Grid.Column="1" 
-                                 Text="{Binding TotalDebtUSD, StringFormat=N}"
-                                 Style="{StaticResource HeadlineMedium}"
-                                 Foreground="{StaticResource DangerColor}"
-                                 VerticalAlignment="Center"
-                                 Margin="36,0,0,0"/>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="$" 
+                                           Style="{StaticResource HeadlineSmall}"
+                                           Foreground="{StaticResource DangerColor}"
+                                           VerticalAlignment="Bottom"
+                                           Margin="0,0,4,2"/>
+                                <TextBlock Text="{Binding TotalDebtUSD, StringFormat=N}"
+                                           Style="{StaticResource HeadlineLarge}"
+                                           Foreground="{StaticResource DangerColor}"/>
+                            </StackPanel>
 
-                    </Grid>
+                            <TextBlock Grid.Row="2"
+                                       Text="{Binding TotalDebtLBP}"
+                                       Style="{StaticResource BodyMedium}"
+                                       Foreground="{StaticResource DangerColor}"
+                                       Opacity="0.8"
+                                       Margin="0,4,0,0"/>
+                        </Grid>
+                    </Border>
 
-                    <Border Style="{StaticResource PageDivider}"/>
-                </StackPanel>
+                    <!-- Customers Count Card -->
+                    <Border Grid.Column="1" 
+                            Style="{StaticResource EnhancedResponsiveCardContainer}"
+                            Background="#F0F9FF"
+                            BorderBrush="#BFDBFE"
+                            Margin="10,0,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="{DynamicResource Debt_CustomersWithDebt}" 
+                                       Style="{StaticResource LabelLarge}"
+                                       Foreground="{StaticResource TextSecondaryColor}"/>
+
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding CustomersWithDebt.Count}"
+                                       Style="{StaticResource HeadlineLarge}"
+                                       Foreground="#3B82F6"
+                                       Margin="0,10,0,0"/>
+
+                            <TextBlock Grid.Row="2"
+                                       Text="{DynamicResource Debt_CustomersDescription}"
+                                       Style="{StaticResource BodyMedium}"
+                                       Foreground="{StaticResource TextSecondaryColor}"
+                                       Margin="0,4,0,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
 
                 <!-- Main Content -->
                 <Grid Grid.Row="1">
@@ -85,20 +184,40 @@
                                 </TextBox>
                             </Border>
 
-                            <!-- Customers Grid -->
-                            <DataGrid ItemsSource="{Binding CustomersWithDebt, Mode=OneWay, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}"
+                            <DataGrid ItemsSource="{Binding CustomersWithDebt, NotifyOnSourceUpdated=True, UpdateSourceTrigger=PropertyChanged}"
           SelectedItem="{Binding SelectedCustomer, Mode=TwoWay}"
           Style="{StaticResource ResponsiveDataGrid}"
           ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-          CellStyle="{StaticResource ModernDataGridCell}">
+          CellStyle="{StaticResource ModernDataGridCell}"
+          RowStyle="{StaticResource HighlightedDataGridRow}"
+          AutoGenerateColumns="False"
+          Margin="10,0"
+                                IsReadOnly="True">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="{DynamicResource Debt_Column_Customer}" 
-                                                      Binding="{Binding Name}"
-                                                      Width="*"/>
+                                                        Binding="{Binding Name}"
+                                                        Width="*"/>
+                                    <DataGridTextColumn Header="{DynamicResource Debt_Column_Phone}" 
+                                                        Binding="{Binding Phone}"
+                                                        Width="120"/>
                                     <DataGridTextColumn Header="{DynamicResource Debt_Column_BalanceUSD}" 
-                                                      Binding="{Binding Balance, StringFormat=N}"
-                                                      Width="120"/>
+                                                        Binding="{Binding Balance, StringFormat=N}"
+                                                        ElementStyle="{StaticResource RightAlignedText}"
+                                                        Width="120">
+                                        <DataGridTextColumn.CellStyle>
+                                            <Style TargetType="DataGridCell" BasedOn="{StaticResource ModernDataGridCell}">
+                                                <Setter Property="Foreground" Value="{StaticResource DangerColor}"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </DataGridTextColumn.CellStyle>
+                                    </DataGridTextColumn>
                                 </DataGrid.Columns>
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="Process Payment" Command="{Binding AddTransactionCommand}"/>
+                                        <MenuItem Header="View Customer Details" Command="{Binding ViewCustomerDetailsCommand}"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                             </DataGrid>
                         </DockPanel>
                     </Border>
@@ -107,8 +226,19 @@
                     <StackPanel Grid.Column="1">
                         <!-- Customer Details Card -->
                         <Border Style="{StaticResource EnhancedResponsiveCardContainer}"
-                            Margin="0,0,0,20">
-                            <StackPanel>
+                                Margin="0,0,0,20">
+                            <!-- No customer selected message -->
+                            <Grid Visibility="{Binding SelectedCustomer, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=inverted}">
+                                <TextBlock Text="{DynamicResource Debt_NoCustomerSelected}"
+                                           Style="{StaticResource BodyLarge}"
+                                           Foreground="{StaticResource TextSecondaryColor}"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Margin="20"/>
+                            </Grid>
+
+                            <!-- Customer details content -->
+                            <StackPanel Visibility="{Binding SelectedCustomer, Converter={StaticResource NullToVisibilityConverter}}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -116,7 +246,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="{Binding SelectedCustomer.Name}"
                                                Style="{StaticResource HeadlineMedium}"
-                                               Margin="0,0,0,16"/>
+                                               Margin="0,0,0,8"/>
                                     <Button Grid.Column="1"
                                             Content="{DynamicResource Debt_SettleDebt}"
                                             Command="{Binding AddTransactionCommand}"
@@ -132,7 +262,9 @@
                                         </Button.Resources>
                                     </Button>
                                 </Grid>
-                                <Grid Margin="0,0,0,16">
+
+                                <!-- Contact details -->
+                                <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -141,75 +273,192 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Text="{DynamicResource Debt_BalanceUSD}"
-                                               Style="{StaticResource LabelLarge}"
-                                               Margin="0,0,0,10"/>
+                                    <TextBlock Text="{DynamicResource Debt_Phone}"
+                                               Style="{StaticResource BodySmall}"
+                                               Foreground="{StaticResource TextSecondaryColor}"
+                                               Margin="0,0,8,4"/>
                                     <TextBlock Grid.Column="1"
-                                               Text="{Binding SelectedCustomer.Balance, StringFormat=N}"
-                                               Style="{StaticResource HeadlineMedium}"
-                                               Foreground="{StaticResource DangerColor}"
-                                               HorizontalAlignment="Right"/>
+                                               Text="{Binding SelectedCustomer.Phone}"
+                                               Style="{StaticResource BodyMedium}"
+                                               Margin="0,0,0,4"/>
+                                    <TextBlock Grid.Row="1" 
+                                               Text="{DynamicResource Debt_Email}"
+                                               Style="{StaticResource BodySmall}"
+                                               Foreground="{StaticResource TextSecondaryColor}"
+                                               Margin="0,0,8,0"/>
+                                    <TextBlock Grid.Row="1" 
+                                               Grid.Column="1"
+                                               Text="{Binding SelectedCustomer.Email}"
+                                               Style="{StaticResource BodyMedium}"/>
                                 </Grid>
+
+                                <!-- Balance -->
+                                <Border Background="#FEF2F2" 
+                                        BorderBrush="#FECACA" 
+                                        BorderThickness="1" 
+                                        CornerRadius="4" 
+                                        Padding="12" 
+                                        Margin="0,8,0,12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="{DynamicResource Debt_BalanceUSD}"
+                                                  Style="{StaticResource LabelLarge}"
+                                                  Margin="0,0,8,4"/>
+                                        <TextBlock Grid.Column="1"
+                                                  Text="{Binding SelectedCustomer.Balance, StringFormat=$ {0:N}}"
+                                                  Style="{StaticResource HeadlineMedium}"
+                                                  Foreground="{StaticResource DangerColor}"
+                                                  HorizontalAlignment="Right"/>
+                                        <TextBlock Grid.Row="1" 
+                                                  Grid.ColumnSpan="2"
+                                                  Text="{Binding TotalAmountLBP}"
+                                                  Style="{StaticResource BodyMedium}"
+                                                  Foreground="{StaticResource DangerColor}"
+                                                  Opacity="0.8"
+                                                  HorizontalAlignment="Right"
+                                                  Margin="0,4,0,0"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Quick Payment -->
+                                <Expander Header="{DynamicResource Debt_QuickPayment}" 
+                                          IsExpanded="True"
+                                          Margin="0,0,0,12">
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBox Grid.ColumnSpan="2"
+                                                Style="{StaticResource CurrencyTextBox}"
+                                                Text="{Binding PaymentAmount, StringFormat=N}"
+                                                Margin="0,0,0,12"
+                                                ToolTip="Enter payment amount"/>
+
+                                        <Button Grid.Row="1"
+                                                Grid.Column="1"
+                                                Content="{DynamicResource Debt_ProcessPayment}"
+                                                Command="{Binding ProcessPaymentCommand}"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                HorizontalAlignment="Right"
+                                                Padding="16,8"/>
+                                    </Grid>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
                         <!-- History Tabs -->
-                        <TabControl Style="{StaticResource ModernTabControl}">
-                            <TabItem Header="{DynamicResource Debt_TransactionHistoryTab}" Style="{StaticResource ModernTabItem}">
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}">
-                                    <DataGrid ItemsSource="{Binding TransactionHistory}"
-                                              MaxHeight="400"
-                                              Style="{StaticResource ResponsiveDataGrid}"
-                                              ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                              CellStyle="{StaticResource ModernDataGridCell}">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Column_Date}"
-                                                              Binding="{Binding TransactionDate, StringFormat=g}"
-                                                              Width="140"/>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Column_AmountUSD}"
-                                                              Binding="{Binding TotalAmount, StringFormat=N}"
-                                                              Width="100"/>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Transaction_Status}"
-                                                              Binding="{Binding Status}"
-                                                              Width="*"/>
-                                            <DataGridTemplateColumn Width="Auto">
-                                                <DataGridTemplateColumn.CellTemplate>
-                                                    <DataTemplate>
-                                                        <Button Content="{DynamicResource Debt_DetailsButton}"
-                                                                Command="{Binding DataContext.ViewTransactionDetailCommand, 
-                                                                          RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                                CommandParameter="{Binding}"
-                                                                Style="{StaticResource TextButtonStyle}"
-                                                                Margin="5"/>
-                                                    </DataTemplate>
-                                                </DataGridTemplateColumn.CellTemplate>
-                                            </DataGridTemplateColumn>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
-                            </TabItem>
-                            <TabItem Header="{DynamicResource Debt_PaymentHistoryTab}" Style="{StaticResource ModernTabItem}">
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}">
-                                    <DataGrid ItemsSource="{Binding PaymentHistory}"
-                                              MaxHeight="400"
-                                              Style="{StaticResource ResponsiveDataGrid}"
-                                              ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                              CellStyle="{StaticResource ModernDataGridCell}">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Column_Date}"
-                                                              Binding="{Binding PaymentDate, StringFormat=g}"
-                                                              Width="140"/>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Column_AmountUSD}"
-                                                              Binding="{Binding Amount, StringFormat=N}"
-                                                              Width="100"/>
-                                            <DataGridTextColumn Header="{DynamicResource Debt_Column_Method}"
-                                                              Binding="{Binding PaymentMethod}"
-                                                              Width="*"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Border>
-                            </TabItem>
-                        </TabControl>
+                        <Border Style="{StaticResource EnhancedResponsiveCardContainer}"
+                                Visibility="{Binding SelectedCustomer, Converter={StaticResource NullToVisibilityConverter}}">
+                            <TabControl Style="{StaticResource ModernTabControl}">
+                                <TabItem Header="{DynamicResource Debt_TransactionHistoryTab}" Style="{StaticResource ModernTabItem}">
+                                    <Grid>
+                                        <!-- No transactions message -->
+                                        <TextBlock Text="{DynamicResource Debt_NoTransactions}"
+                                                   Style="{StaticResource BodyLarge}"
+                                                   Foreground="{StaticResource TextSecondaryColor}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Margin="20"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   Visibility="{Binding TransactionHistory.Count, Converter={StaticResource NumberToVisibilityConverter}, ConverterParameter=zero}"/>
+
+                                        <DataGrid ItemsSource="{Binding TransactionHistory}"
+                                                  MaxHeight="400"
+                                                  Style="{StaticResource ResponsiveDataGrid}"
+                                                  ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                                                  CellStyle="{StaticResource ModernDataGridCell}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Visibility="{Binding TransactionHistory.Count, Converter={StaticResource NumberToVisibilityConverter}}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_Date}"
+                                                                  Binding="{Binding TransactionDate, StringFormat=g}"
+                                                                  Width="140"/>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_AmountUSD}"
+                                                                  Binding="{Binding TotalAmount, StringFormat=N}"
+                                                                  ElementStyle="{StaticResource RightAlignedText}"
+                                                                  Width="100"/>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Transaction_Status}"
+                                                                  Binding="{Binding Status}"
+                                                                  Width="*"/>
+                                                <DataGridTemplateColumn Width="Auto">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Button Content="{DynamicResource Debt_DetailsButton}"
+                                                                    Command="{Binding DataContext.ViewTransactionDetailCommand, 
+                                                                              RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Style="{StaticResource TextButtonStyle}"
+                                                                    Margin="5"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="{DynamicResource Debt_PaymentHistoryTab}" Style="{StaticResource ModernTabItem}">
+                                    <Grid>
+                                        <!-- No payments message -->
+                                        <TextBlock Text="{DynamicResource Debt_NoPayments}"
+                                                   Style="{StaticResource BodyLarge}"
+                                                   Foreground="{StaticResource TextSecondaryColor}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   Margin="20"
+                                                   TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   Visibility="{Binding PaymentHistory.Count, Converter={StaticResource NumberToVisibilityConverter}, ConverterParameter=zero}"/>
+
+                                        <DataGrid ItemsSource="{Binding PaymentHistory}"
+                                                  MaxHeight="400"
+                                                  Style="{StaticResource ResponsiveDataGrid}"
+                                                  ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                                                  CellStyle="{StaticResource ModernDataGridCell}"
+                                                  AutoGenerateColumns="False"
+                                                  IsReadOnly="True"
+                                                  Visibility="{Binding PaymentHistory.Count, Converter={StaticResource NumberToVisibilityConverter}}">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_Date}"
+                                                                  Binding="{Binding PaymentDate, StringFormat=g}"
+                                                                  Width="140"/>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_AmountUSD}"
+                                                                  Binding="{Binding Amount, StringFormat=N}"
+                                                                  ElementStyle="{StaticResource RightAlignedText}"
+                                                                  Width="100">
+                                                    <DataGridTextColumn.CellStyle>
+                                                        <Style TargetType="DataGridCell" BasedOn="{StaticResource ModernDataGridCell}">
+                                                            <Setter Property="Foreground" Value="#22C55E"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                                        </Style>
+                                                    </DataGridTextColumn.CellStyle>
+                                                </DataGridTextColumn>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_Method}"
+                                                                  Binding="{Binding PaymentMethod}"
+                                                                  Width="*"/>
+                                                <DataGridTextColumn Header="{DynamicResource Debt_Column_Notes}"
+                                                                  Binding="{Binding Notes}"
+                                                                  Width="*"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
+                                </TabItem>
+                            </TabControl>
+                        </Border>
                     </StackPanel>
                 </Grid>
 
@@ -249,6 +498,29 @@
             </Grid>
         </ScrollViewer>
 
+        <!-- Global loading indicator -->
+        <Border Grid.Row="0" 
+                Grid.RowSpan="2" 
+                Background="#80000000" 
+                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" 
+                        VerticalAlignment="Center"
+                        Background="White"
+                        Padding="30,20"
+                        CornerRadius="8">
+                <ProgressBar Style="{StaticResource ModernProgressBar}" 
+                             IsIndeterminate="True" 
+                             Width="180" 
+                             Height="6"
+                             Margin="0,0,0,16"/>
+                <TextBlock Text="{Binding LoadingMessage}"
+                           Foreground="{StaticResource TextPrimaryColor}" 
+                           FontSize="16" 
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
         <!-- Transaction Popup -->
         <Popup IsOpen="{Binding IsTransactionPopupOpen, Mode=TwoWay}"
                StaysOpen="True"
@@ -257,10 +529,97 @@
                Placement="Center"
                PopupAnimation="Fade"
                Focusable="True">
-            <local:TransactionPopup x:Name="TransactionPopup"
-                                  DataContext="{Binding}"
-                                  CloseRequested="TransactionPopup_CloseRequested"
-                                  SaveCompleted="TransactionPopup_SaveCompleted"/>
+
+            <!-- Transaction Popup section needs fixing -->
+            <Border Background="White"
+        BorderBrush="{StaticResource BorderGray}"
+        BorderThickness="1"
+        CornerRadius="8"
+        Width="450"
+        Effect="{StaticResource CardShadow}">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <!-- Added an additional row definition -->
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0"
+                   Text="{DynamicResource Debt_ProcessTransaction}"
+                   Style="{StaticResource HeadlineMedium}"
+                   Margin="0,0,0,16"/>
+
+                    <!-- Customer Name -->
+                    <TextBlock Grid.Row="1"
+                   Text="{Binding SelectedCustomer.Name, StringFormat=Customer: {0}}"
+                   Style="{StaticResource BodyLarge}"
+                   Margin="0,0,0,16"/>
+
+                    <!-- Transaction Type -->
+                    <StackPanel Grid.Row="2" Margin="0,0,0,16">
+                        <TextBlock Text="{DynamicResource Debt_TransactionType}"
+                       Style="{StaticResource LabelMedium}"
+                       Margin="0,0,0,8"/>
+                        <ComboBox ItemsSource="{Binding TransactionTypes}"
+                      SelectedItem="{Binding SelectedTransactionType}"
+                      Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+
+                    <!-- Payment Method (Only visible for payments) -->
+                    <StackPanel Grid.Row="3" 
+                    Margin="0,0,0,16"
+                    Visibility="{Binding ShowPaymentMethod, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="{DynamicResource Debt_PaymentMethod}"
+                       Style="{StaticResource LabelMedium}"
+                       Margin="0,0,0,8"/>
+                        <ComboBox ItemsSource="{Binding PaymentMethods}"
+                      SelectedItem="{Binding SelectedPaymentMethod}"
+                      Style="{StaticResource ModernComboBox}"/>
+                    </StackPanel>
+
+                    <!-- Amount -->
+                    <StackPanel Grid.Row="4" Margin="0,0,0,16">
+                        <TextBlock Text="{DynamicResource Debt_Amount}"
+                       Style="{StaticResource LabelMedium}"
+                       Margin="0,0,0,8"/>
+                        <TextBox Style="{StaticResource CurrencyTextBox}"
+                     Text="{Binding NewTransactionAmount, StringFormat=N}"/>
+                    </StackPanel>
+
+                    <!-- Notes -->
+                    <StackPanel Grid.Row="5" Margin="0,0,0,20">
+                        <TextBlock Text="{DynamicResource Debt_Notes}"
+                       Style="{StaticResource LabelMedium}"
+                       Margin="0,0,0,8"/>
+                        <TextBox Text="{Binding TransactionNotes}"
+                     Style="{StaticResource ModernTextBox}"
+                     AcceptsReturn="True"
+                     TextWrapping="Wrap"
+                     Height="80"/>
+                    </StackPanel>
+
+                    <!-- Buttons - THIS IS WHERE THE ERROR WAS -->
+                    <StackPanel Grid.Row="6" 
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+                        <Button Content="{DynamicResource Debt_Cancel}"
+                    Command="{Binding CloseTransactionPopupCommand}"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Margin="0,0,12,0"
+                    Padding="16,8"/>
+                        <Button Content="{DynamicResource Debt_Save}"
+                    Command="{Binding SaveTransactionCommand}"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Padding="16,8"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Popup>
     </Grid>
 </UserControl>

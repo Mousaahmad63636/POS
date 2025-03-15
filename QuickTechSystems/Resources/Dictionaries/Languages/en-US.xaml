@@ -589,6 +589,23 @@
     <system:String x:Key="Employee_ProcessSalary">Process Monthly Salary</system:String>
     <system:String x:Key="Employee_Withdrawal">Withdrawal</system:String>
     <system:String x:Key="General_Processing">Processing...</system:String>
+
+    <!-- Add to Resources/Dictionaries/Languages/en-US.xaml -->
+    <system:String x:Key="Debt_CustomersWithDebt">Customers With Debt</system:String>
+    <system:String x:Key="Debt_CustomersDescription">Customers with outstanding balances</system:String>
+    <system:String x:Key="Debt_NoCustomerSelected">Please select a customer to view details</system:String>
+    <system:String x:Key="Debt_NoTransactions">No transactions found for this customer</system:String>
+    <system:String x:Key="Debt_NoPayments">No payments have been recorded for this customer</system:String>
+    <system:String x:Key="Debt_ProcessTransaction">Process Transaction</system:String>
+    <system:String x:Key="Debt_TransactionType">Transaction Type</system:String>
+    <system:String x:Key="Debt_PaymentMethod">Payment Method</system:String>
+    <system:String x:Key="Debt_Amount">Amount</system:String>
+    <system:String x:Key="Debt_Notes">Notes</system:String>
+    <system:String x:Key="Debt_Save">Save</system:String>
+    <system:String x:Key="Debt_Cancel">Cancel</system:String>
+    <system:String x:Key="Debt_Phone">Phone:</system:String>
+    <system:String x:Key="Debt_Email">Email:</system:String>
+    <system:String x:Key="Debt_QuickPayment">Quick Payment</system:String>
 </ResourceDictionary>
     
     
