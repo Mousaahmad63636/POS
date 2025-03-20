@@ -17,27 +17,22 @@ namespace QuickTechSystems.Domain.Entities
 
         // Total Transaction Properties
         public decimal TotalSales { get; set; }
-        public decimal TotalReturns { get; set; }
         public decimal TotalExpenses { get; set; }
-        public decimal TotalDebtPayments { get; set; }
         public decimal TotalSupplierPayments { get; set; }
 
         // Net Calculation Properties
-        public decimal NetSales { get; set; }
         public decimal NetCashFlow { get; set; }
 
         // Daily Transaction Properties
         public decimal DailySales { get; set; }
-        public decimal DailyReturns { get; set; }
         public decimal DailyExpenses { get; set; }
-        public decimal DailyDebtPayments { get; set; }
         public decimal DailySupplierPayments { get; set; }
 
         // Timestamp Properties
         public DateTime OpenedAt { get; set; }
         public DateTime? ClosedAt { get; set; }
         public DateTime LastUpdated { get; set; }
-
+        public decimal NetSales { get; set; }
         // Status Properties
         public string Status { get; set; } = "Open";
         public string? Notes { get; set; }
@@ -56,8 +51,7 @@ namespace QuickTechSystems.Domain.Entities
         // Helper Methods
         public void UpdateNetCalculations()
         {
-            NetSales = TotalSales - TotalReturns;
-            NetCashFlow = TotalSales + TotalDebtPayments - TotalExpenses - TotalReturns - TotalSupplierPayments;
+            NetCashFlow = TotalSales - TotalExpenses - TotalSupplierPayments;
         }
 
         public void UpdateDailyCalculations()
@@ -68,25 +62,17 @@ namespace QuickTechSystems.Domain.Entities
             DailySales = todayTransactions.Where(t => t.Type == "Cash Sale")
                 .Sum(t => Math.Abs(t.Amount));
 
-            DailyReturns = todayTransactions.Where(t => t.Type == "Return")
-                .Sum(t => Math.Abs(t.Amount));
-
             DailyExpenses = todayTransactions.Where(t => t.Type == "Expense")
                 .Sum(t => Math.Abs(t.Amount));
 
             DailySupplierPayments = todayTransactions.Where(t => t.Type == "Supplier Payment")
-                .Sum(t => Math.Abs(t.Amount));
-
-            DailyDebtPayments = todayTransactions.Where(t => t.Type == "Debt Payment")
                 .Sum(t => Math.Abs(t.Amount));
         }
 
         public void ResetDailyTotals()
         {
             DailySales = 0;
-            DailyReturns = 0;
             DailyExpenses = 0;
-            DailyDebtPayments = 0;
             DailySupplierPayments = 0;
         }
 

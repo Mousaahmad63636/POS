@@ -11,12 +11,6 @@
         public decimal Discount { get; set; }
         public decimal Total { get; set; }
 
-        // New return-related properties
-        public int ReturnedQuantity { get; set; }
-        public bool IsReturned { get; set; }
-        public DateTime? ReturnDate { get; set; }
-        public string? ReturnReason { get; set; }
-
         // Navigation properties
         public virtual Transaction? Transaction { get; set; }
         public virtual Product? Product { get; set; }

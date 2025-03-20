@@ -98,6 +98,7 @@ namespace QuickTechSystems.WPF.ViewModels
             SaveCommand = new AsyncRelayCommand(async _ => await SaveAsync());
             DeleteCommand = new AsyncRelayCommand(async _ => await DeleteAsync());
             AddPaymentCommand = new AsyncRelayCommand(async _ => await AddPaymentAsync());
+            SearchCommand = new AsyncRelayCommand(async _ => await SearchSuppliersAsync());
             ShowTransactionsHistoryCommand = new RelayCommand(_ => ShowTransactionsHistoryPopup());
 
             _ = LoadDataAsync();
@@ -173,6 +174,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand SaveCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand AddPaymentCommand { get; }
+        public ICommand SearchCommand { get; }
         public ICommand ShowTransactionsHistoryCommand { get; }
 
         protected override void SubscribeToEvents()

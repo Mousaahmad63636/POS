@@ -30,6 +30,8 @@ namespace QuickTechSystems.WPF.ViewModels
         private CancellationTokenSource _cts;
 
         private decimal _grossProfit;
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
+        private decimal _otherDeductions;
         private decimal _netProfit;
         private decimal _totalSales;
         private decimal _totalExpenses;
@@ -166,7 +168,25 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             return !IsLoading;
         }
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
 
+        public decimal OtherDeductions
+        {
+            get => _otherDeductions;
+            set
+            {
+                if (SetProperty(ref _otherDeductions, value))
+                {
+                    // Update net profit calculation when deductions change
+                    NetProfit = GrossProfit - TotalExpenses - TotalSupplierPayments - OtherDeductions;
+                    NetProfitPercentage = TotalSales > 0 ? (NetProfit / TotalSales) * 100 : 0;
+                }
+            }
+        }
         protected override async Task LoadDataAsync()
         {
             // Skip if already loading

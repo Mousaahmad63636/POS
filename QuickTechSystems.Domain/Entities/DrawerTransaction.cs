@@ -27,7 +27,6 @@
                 case "open":
                     return amount;
                 case "cash in":
-                case "debt payment":
                 case "cash sale":
                     return currentBalance + amount;
                 default:

@@ -22,14 +22,9 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(td => td.Total)
                 .HasPrecision(18, 2);
 
-            builder.Property(td => td.ReturnedQuantity)
-                .HasDefaultValue(0);
-
-            builder.Property(td => td.IsReturned)
-                .HasDefaultValue(false);
-
-            builder.Property(td => td.ReturnReason)
-                .HasMaxLength(500);
+            // Removed ReturnedQuantity property
+            // Removed IsReturned property
+            // Removed ReturnReason property
 
             builder.HasOne(td => td.Product)
                 .WithMany(p => p.TransactionDetails)

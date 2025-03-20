@@ -1,5 +1,4 @@
-﻿using QuickTechSystems.Domain.Entities;
-using QuickTechSystems.Domain.Enums;
+﻿using QuickTechSystems.Domain.Enums;
 
 namespace QuickTechSystems.Domain.Entities
 {
@@ -7,11 +6,9 @@ namespace QuickTechSystems.Domain.Entities
     {
         public int TransactionId { get; set; }
         public int? CustomerId { get; set; }
-
         public string CustomerName { get; set; } = string.Empty;
         public decimal TotalAmount { get; set; }
         public decimal PaidAmount { get; set; }
-        public decimal Balance { get; set; }
         public DateTime TransactionDate { get; set; }
         public TransactionType TransactionType { get; set; }
         public TransactionStatus Status { get; set; }

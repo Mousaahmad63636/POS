@@ -29,7 +29,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly ISupplierService _supplierService;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _isDisposed;
-
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         private ObservableCollection<ProductDTO> _products;
         private ObservableCollection<CategoryDTO> _categories;
         private ObservableCollection<SupplierDTO> _suppliers;
@@ -74,7 +74,11 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _totalSaleValue;
             set => SetProperty(ref _totalSaleValue, value);
         }
-
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
         public decimal SelectedProductTotalCost
         {
             get => _selectedProductTotalCost;

@@ -104,17 +104,7 @@ namespace QuickTechSystems.WPF.Views
                     : Visibility.Collapsed;
         }
 
-        private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is DataGrid grid && grid.SelectedItem is TransactionDTO transaction)
-            {
-                if (DataContext is TransactionHistoryViewModel viewModel)
-                {
-                    viewModel.ViewTransactionDetailsCommand.Execute(transaction);
-                }
-            }
-        }
-
+ 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (sender is TextBox textBox && DataContext is TransactionHistoryViewModel viewModel)

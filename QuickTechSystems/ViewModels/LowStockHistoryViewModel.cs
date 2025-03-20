@@ -25,6 +25,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _loadingMessage = "Loading...";
         private string _statusMessage = string.Empty;
         private LowStockHistoryDTO _selectedHistory;
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         private CancellationTokenSource _searchCts;
         private readonly SemaphoreSlim _loadingSemaphore = new SemaphoreSlim(1, 1);
         private bool _showResolved = true;
@@ -59,7 +60,11 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _isLoading;
             set => SetProperty(ref _isLoading, value);
         }
-
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
         public string LoadingMessage
         {
             get => _loadingMessage;

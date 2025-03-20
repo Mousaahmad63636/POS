@@ -23,10 +23,7 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(c => c.Address)
                 .HasMaxLength(500);
 
-            // Add this new configuration
-            builder.Property(c => c.Balance)
-                .HasColumnType("decimal(18,2)")
-                .HasDefaultValue(0m);
+            // Removed Balance property configuration
 
             builder.HasIndex(c => c.Phone);
             builder.HasIndex(c => c.Email);

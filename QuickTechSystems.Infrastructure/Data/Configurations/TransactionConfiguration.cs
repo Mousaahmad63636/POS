@@ -21,9 +21,7 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .HasPrecision(18, 2)
                 .IsRequired();
 
-            builder.Property(t => t.Balance)
-                .HasPrecision(18, 2)
-                .IsRequired();
+            // Removed Balance property
 
             builder.Property(t => t.TransactionDate)
                 .IsRequired();

@@ -29,7 +29,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isLoading;
         private bool _isExpensePopupOpen;
         private bool _isNewExpense;
-
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         // Improved concurrency control
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
@@ -53,6 +53,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _totalExpenseAmount;
             set => SetProperty(ref _totalExpenseAmount, value);
         }
+
         public ExpenseViewModel(
           IExpenseService expenseService,
           IDrawerService drawerService,
@@ -314,6 +315,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+
         public ExpenseDTO? SelectedExpense
         {
             get => _selectedExpense;
@@ -335,7 +337,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 SetProperty(ref _isLoading, value);
             }
         }
-
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
         public DateTime FilterStartDate
         {
             get => _filterStartDate;

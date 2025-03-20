@@ -26,6 +26,8 @@ namespace QuickTechSystems.WPF.ViewModels
         private ObservableCollection<CustomerProductPriceViewModel> _customerProducts;
         private bool _isSaving;
         private bool _isCustomerPopupOpen;
+        private ExpenseDTO _currentExpense = new ExpenseDTO();
+        private bool _isNewExpense;
         private bool _isNewCustomer;
         private FlowDirection _currentFlowDirection = FlowDirection.LeftToRight;
 
@@ -165,7 +167,17 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
+        public ExpenseDTO CurrentExpense
+        {
+            get => _currentExpense;
+            set => SetProperty(ref _currentExpense, value);
+        }
 
+        public bool IsNewExpense
+        {
+            get => _isNewExpense;
+            set => SetProperty(ref _isNewExpense, value);
+        }
         private async void HandleCustomerChanged(EntityChangedEvent<CustomerDTO> evt)
         {
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>

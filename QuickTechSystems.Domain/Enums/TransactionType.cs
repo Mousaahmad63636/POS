@@ -3,10 +3,8 @@
     public enum TransactionType
     {
         Sale,
-        Return,
         Purchase,
-        Adjustment,
-        Payment
+        Adjustment
     }
 
     public enum TransactionStatus

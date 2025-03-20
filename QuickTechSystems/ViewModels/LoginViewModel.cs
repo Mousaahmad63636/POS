@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using QuickTechSystems.Application.DTOs;
@@ -10,6 +9,7 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF;
+using System.Windows;
 using QuickTechSystems.WPF.Commands;
 
 namespace QuickTechSystems.ViewModels
@@ -20,7 +20,7 @@ namespace QuickTechSystems.ViewModels
         private readonly IDrawerService _drawerService;
         private readonly IActivityLogger _activityLogger;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
-
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         private string _username = string.Empty;
         private string _errorMessage = string.Empty;
         private bool _isProcessing;
@@ -42,7 +42,11 @@ namespace QuickTechSystems.ViewModels
             get => _isProcessing;
             set => SetProperty(ref _isProcessing, value);
         }
-
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
         public ICommand LoginCommand { get; }
 
         public LoginViewModel(

@@ -13,6 +13,8 @@ namespace QuickTechSystems.Application.DTOs
         public decimal Cost { get; set; }
         public int TransactionCount { get; set; }
 
+        public int NetProfit { get; set; }
+        public int ItemsCount { get; set; }
         public decimal GrossProfit => Sales - Cost;
         public decimal ProfitMargin => Sales > 0 ? GrossProfit / Sales : 0;
     }

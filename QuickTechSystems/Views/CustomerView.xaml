@@ -128,9 +128,6 @@
                                 <DataGridTextColumn Header="{DynamicResource Customer_Email}" 
                                                   Binding="{Binding Email}"
                                                   Width="180"/>
-                                <DataGridTextColumn Header="{DynamicResource Customer_Balance}"
-                                                  Binding="{Binding Balance, StringFormat=C}"
-                                                  Width="120"/>
                                 <DataGridCheckBoxColumn Header="{DynamicResource Customer_Active}" 
                                                       Binding="{Binding IsActive}"
                                                       Width="60"/>

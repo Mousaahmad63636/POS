@@ -27,7 +27,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private volatile bool _isOperationInProgress;
         private bool _isInitialized;
         private CancellationTokenSource _initializationCts = new CancellationTokenSource();
-
+        private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         public QuoteViewModel(
             IQuoteService quoteService,
             ITransactionService transactionService,
@@ -72,7 +72,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Delayed initialization failed: {ex}");
             }
         }
-
+        public FlowDirection FlowDirection
+        {
+            get => _flowDirection;
+            set => SetProperty(ref _flowDirection, value);
+        }
         private async Task SafeExecuteOperationAsync(Func<Task> operation, int retryCount = 3)
         {
             if (_isOperationInProgress)
