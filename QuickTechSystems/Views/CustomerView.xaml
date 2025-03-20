@@ -146,10 +146,7 @@
                                                         Command="{Binding DataContext.SetProductPricesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         Style="{StaticResource TextButtonStyle}"
                                                         Margin="0,0,8,0"/>
-                                                <Button Content="Delete" 
-                                                        Click="DeleteButton_Click"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Foreground="#E53935"/>
+                                               
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -160,8 +157,7 @@
                                     <MenuItem Header="Edit Customer" Click="EditMenuItem_Click"/>
                                     <MenuItem Header="Set Custom Prices" Command="{Binding SetProductPricesCommand}"/>
                                     <Separator/>
-                                    <MenuItem Header="Delete Customer" Click="DeleteMenuItem_Click"/>
-                                </ContextMenu>
+                                     </ContextMenu>
                             </DataGrid.ContextMenu>
                         </DataGrid>
                     </DockPanel>

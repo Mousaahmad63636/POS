@@ -30,10 +30,29 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isExpensePopupOpen;
         private bool _isNewExpense;
 
-        // Concurrency control
+        // Improved concurrency control
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
+        private CancellationTokenSource _loadingCts;
+        private int _loadingSequence = 0;
+        private readonly object _sequenceLock = new object();
 
+        // Debouncing for events
+        private readonly Dictionary<string, DateTime> _lastEventTime = new Dictionary<string, DateTime>();
+        private readonly TimeSpan _debounceDelay = TimeSpan.FromMilliseconds(500);
+        private int _totalExpenseCount;
+        public int TotalExpenseCount
+        {
+            get => _totalExpenseCount;
+            set => SetProperty(ref _totalExpenseCount, value);
+        }
+
+        private decimal _totalExpenseAmount;
+        public decimal TotalExpenseAmount
+        {
+            get => _totalExpenseAmount;
+            set => SetProperty(ref _totalExpenseAmount, value);
+        }
         public ExpenseViewModel(
           IExpenseService expenseService,
           IDrawerService drawerService,
@@ -50,6 +69,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _expenseChangedHandler = HandleExpenseChanged;
             _categorySummaries = new ObservableCollection<CategorySummary>();
             _categories = new ObservableCollection<string>();
+            _loadingCts = new CancellationTokenSource();
 
             // Set filter start date to beginning of month to see more expenses
             _filterStartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
@@ -67,32 +87,91 @@ namespace QuickTechSystems.WPF.ViewModels
 
             Debug.WriteLine("Starting initial data load...");
 
-            // Initialize data asynchronously with delay to prevent concurrency issues
+            // Initialize data with a consolidated, more robust approach
             Task.Run(async () => {
-                // Wait a moment to ensure other initialization is complete
-                await Task.Delay(500);
-                await LoadCategoriesAsync();
-                await Task.Delay(300);
-                await EnsureExpensesLoadedAsync();
+                await Task.Delay(500); // Initial delay to ensure view is ready
+                await InitializeDataAsync();
             });
 
             Debug.WriteLine("ExpenseViewModel initialization complete");
         }
 
-        // New method to ensure expenses are loaded with retries
-        private async Task EnsureExpensesLoadedAsync()
+        // Consolidated initialization to prevent overlapping loads
+        private async Task InitializeDataAsync()
         {
-            Debug.WriteLine("=== BEGIN EnsureExpensesLoadedAsync ===");
-            int attempts = 0;
-            const int maxAttempts = 3;
+            Debug.WriteLine("=== BEGIN InitializeDataAsync ===");
+            try
+            {
+                // Get the current loading sequence and create a new token
+                int currentSequence;
+                CancellationToken token;
 
-            while (attempts < maxAttempts)
+                lock (_sequenceLock)
+                {
+                    _loadingSequence++;
+                    currentSequence = _loadingSequence;
+                    // Cancel any previous loading operation
+                    if (_loadingCts != null)
+                    {
+                        _loadingCts.Cancel();
+                        _loadingCts.Dispose();
+                    }
+                    _loadingCts = new CancellationTokenSource();
+                    token = _loadingCts.Token;
+                }
+
+                Debug.WriteLine($"Starting initialization sequence {currentSequence}");
+
+                // First load categories
+                bool categoriesLoaded = await LoadCategoriesAsync(token);
+
+                if (token.IsCancellationRequested)
+                {
+                    Debug.WriteLine($"Initialization sequence {currentSequence} was cancelled after loading categories");
+                    return;
+                }
+
+                if (categoriesLoaded)
+                {
+                    // Then load expenses with retry mechanism
+                    await LoadExpensesWithRetryAsync(token);
+                }
+                else
+                {
+                    Debug.WriteLine("Failed to load categories, skipping expense loading");
+                }
+
+                Debug.WriteLine($"Initialization sequence {currentSequence} completed");
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("Initialization was cancelled");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in InitializeDataAsync: {ex.Message}");
+                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+            finally
+            {
+                Debug.WriteLine("=== END InitializeDataAsync ===");
+            }
+        }
+
+        // New method replacing EnsureExpensesLoadedAsync with better cancellation support
+        private async Task LoadExpensesWithRetryAsync(CancellationToken token)
+        {
+            Debug.WriteLine("=== BEGIN LoadExpensesWithRetryAsync ===");
+            int attempts = 0;
+            const int maxAttempts = 2; // Reduced from 3 to minimize repeated loads
+
+            while (attempts < maxAttempts && !token.IsCancellationRequested)
             {
                 attempts++;
                 try
                 {
                     Debug.WriteLine($"Attempt {attempts} to load expenses...");
-                    await LoadDataAsync();
+                    await LoadDataAsync(token);
 
                     // Check if we have expenses
                     if (Expenses != null && Expenses.Any())
@@ -103,55 +182,80 @@ namespace QuickTechSystems.WPF.ViewModels
                     else
                     {
                         Debug.WriteLine("No expenses loaded, will retry after delay");
-                        await Task.Delay(1000 * attempts); // Increasing delay between attempts
+                        // Use a shorter delay between attempts
+                        await Task.Delay(500 * attempts, token);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.WriteLine("Loading expenses was cancelled");
+                    throw;
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error loading expenses on attempt {attempts}: {ex.Message}");
-                    if (attempts < maxAttempts)
+                    if (attempts < maxAttempts && !token.IsCancellationRequested)
                     {
-                        await Task.Delay(1000 * attempts);
+                        await Task.Delay(500 * attempts, token);
                     }
                 }
             }
 
-            Debug.WriteLine("=== END EnsureExpensesLoadedAsync ===");
+            Debug.WriteLine("=== END LoadExpensesWithRetryAsync ===");
         }
 
-        // Helper method for safe database operations
-        private async Task<T> ExecuteDbOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Database operation")
+        // Enhanced operation safety with cancellation support
+        private async Task<T> ExecuteDbOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Database operation", CancellationToken token = default)
         {
             Debug.WriteLine($"BEGIN: {operationName}");
 
             // If an operation is already in progress, wait a bit
             int waitCount = 0;
-            while (_operationInProgress)
+            while (_operationInProgress && !token.IsCancellationRequested)
             {
                 waitCount++;
                 Debug.WriteLine($"Operation in progress, waiting... (attempt {waitCount})");
-                await Task.Delay(100);
+                try
+                {
+                    await Task.Delay(100, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.WriteLine($"Waiting for operation lock was cancelled: {operationName}");
+                    throw;
+                }
 
                 // Safety timeout
-                if (waitCount > 50) // 5 seconds max wait
+                if (waitCount > 20) // 2 seconds max wait, reduced from 5 seconds
                 {
                     Debug.WriteLine("TIMEOUT waiting for operation lock, proceeding anyway");
                     break;
                 }
             }
 
+            if (token.IsCancellationRequested)
+            {
+                Debug.WriteLine($"Operation was cancelled before acquiring lock: {operationName}");
+                throw new OperationCanceledException(token);
+            }
+
             Debug.WriteLine($"Acquiring operation lock for: {operationName}");
-            await _operationLock.WaitAsync();
+            await _operationLock.WaitAsync(token);
             _operationInProgress = true;
 
             try
             {
                 Debug.WriteLine($"Executing operation: {operationName}");
-                // Add a small delay to ensure any previous operation is fully complete
-                await Task.Delay(200);
+                // Reduced delay from 200ms to 50ms to speed up operations
+                await Task.Delay(50, token);
                 var result = await operation();
                 Debug.WriteLine($"Operation completed successfully: {operationName}");
                 return result;
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine($"Operation was cancelled during execution: {operationName}");
+                throw;
             }
             catch (Exception ex)
             {
@@ -169,14 +273,14 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Overload for void operations
-        private async Task ExecuteDbOperationSafelyAsync(Func<Task> operation, string operationName = "Database operation")
+        // Overload for void operations with cancellation support
+        private async Task ExecuteDbOperationSafelyAsync(Func<Task> operation, string operationName = "Database operation", CancellationToken token = default)
         {
             await ExecuteDbOperationSafelyAsync<bool>(async () =>
             {
                 await operation();
                 return true;
-            }, operationName);
+            }, operationName, token);
         }
 
         // Properties
@@ -293,12 +397,39 @@ namespace QuickTechSystems.WPF.ViewModels
             Debug.WriteLine("Event unsubscriptions complete");
         }
 
+        // Debounced event handler for category changes
         private async void HandleCategoryChanged(EntityChangedEvent<CategoryDTO> evt)
         {
             Debug.WriteLine($"CategoryChanged event received: {evt.Action} - {evt.Entity.Name}");
             try
             {
-                await LoadCategoriesAsync();
+                // Implement debouncing
+                string eventKey = "CategoryChanged";
+                if (!ShouldProcessEvent(eventKey))
+                {
+                    Debug.WriteLine($"Debouncing CategoryChanged event for {evt.Entity.Name}");
+                    return;
+                }
+
+                // Cancel any previous loading operation
+                CancellationToken token;
+                lock (_sequenceLock)
+                {
+                    _loadingSequence++;
+                    if (_loadingCts != null)
+                    {
+                        _loadingCts.Cancel();
+                        _loadingCts.Dispose();
+                    }
+                    _loadingCts = new CancellationTokenSource();
+                    token = _loadingCts.Token;
+                }
+
+                await LoadCategoriesAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("Category loading was cancelled");
             }
             catch (Exception ex)
             {
@@ -306,16 +437,44 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Debounced event handler for expense changes
         private async void HandleExpenseChanged(EntityChangedEvent<ExpenseDTO> evt)
         {
             Debug.WriteLine($"ExpenseChanged event received: {evt.Action} - ID:{evt.Entity.ExpenseId}, Reason:{evt.Entity.Reason}");
             try
             {
-                // Allow a delay before reloading to avoid concurrency issues
+                // Implement debouncing
+                string eventKey = $"ExpenseChanged_{evt.Action}";
+                if (!ShouldProcessEvent(eventKey))
+                {
+                    Debug.WriteLine($"Debouncing ExpenseChanged event for {evt.Entity.ExpenseId}");
+                    return;
+                }
+
+                // Cancel any previous loading operation
+                CancellationToken token;
+                lock (_sequenceLock)
+                {
+                    _loadingSequence++;
+                    if (_loadingCts != null)
+                    {
+                        _loadingCts.Cancel();
+                        _loadingCts.Dispose();
+                    }
+                    _loadingCts = new CancellationTokenSource();
+                    token = _loadingCts.Token;
+                }
+
+                // Use a shorter delay
                 Debug.WriteLine("Waiting before processing expense change...");
-                await Task.Delay(300);
+                await Task.Delay(200, token);
+
                 Debug.WriteLine("Processing expense change by reloading data...");
-                await LoadDataAsync();
+                await LoadDataAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("Expense loading was cancelled");
             }
             catch (Exception ex)
             {
@@ -323,8 +482,29 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Data loading methods
+        // Helper method for event debouncing
+        private bool ShouldProcessEvent(string eventKey)
+        {
+            DateTime now = DateTime.Now;
+            if (_lastEventTime.TryGetValue(eventKey, out DateTime lastTime))
+            {
+                if (now - lastTime < _debounceDelay)
+                {
+                    return false;
+                }
+            }
+
+            _lastEventTime[eventKey] = now;
+            return true;
+        }
+
+        // Data loading methods with cancellation support
         protected override async Task LoadDataAsync()
+        {
+            await LoadDataAsync(CancellationToken.None);
+        }
+
+        private async Task LoadDataAsync(CancellationToken token)
         {
             Debug.WriteLine("=== BEGIN LoadDataAsync ===");
             if (IsLoading)
@@ -340,18 +520,22 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var expenses = await ExecuteDbOperationSafelyAsync(
                     () => _expenseService.GetAllAsync(),
-                    "Loading expenses");
+                    "Loading expenses",
+                    token);
+
+                if (token.IsCancellationRequested)
+                {
+                    Debug.WriteLine("Expense loading operation was cancelled");
+                    return;
+                }
 
                 Debug.WriteLine($"Successfully loaded {expenses.Count()} expenses from database");
-
-                foreach (var expense in expenses)
-                {
-                    Debug.WriteLine($"Expense ID: {expense.ExpenseId}, Reason: {expense.Reason}, Amount: {expense.Amount}, Date: {expense.Date:d}, Category: {expense.Category}");
-                }
 
                 // Update UI on the dispatcher thread
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    if (token.IsCancellationRequested) return;
+
                     Debug.WriteLine("Updating UI with expenses...");
                     Expenses = new ObservableCollection<ExpenseDTO>(
                         expenses.OrderByDescending(e => e.Date));
@@ -360,6 +544,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     ApplyFilter();
                 });
             }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("LoadDataAsync was cancelled");
+                throw;
+            }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ERROR in LoadDataAsync: {ex.Message}");
@@ -367,12 +556,15 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                IsLoading = false;
+                if (!token.IsCancellationRequested)
+                {
+                    IsLoading = false;
+                }
                 Debug.WriteLine("=== END LoadDataAsync ===");
             }
         }
 
-        private async Task LoadCategoriesAsync()
+        private async Task<bool> LoadCategoriesAsync(CancellationToken token = default)
         {
             Debug.WriteLine("=== BEGIN LoadCategoriesAsync ===");
             try
@@ -382,12 +574,21 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var expenseCategories = await ExecuteDbOperationSafelyAsync(
                     () => _categoryService.GetExpenseCategoriesAsync(),
-                    "Loading expense categories");
+                    "Loading expense categories",
+                    token);
+
+                if (token.IsCancellationRequested)
+                {
+                    Debug.WriteLine("Category loading operation was cancelled");
+                    return false;
+                }
 
                 Debug.WriteLine($"Successfully loaded {expenseCategories.Count()} expense categories");
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    if (token.IsCancellationRequested) return;
+
                     Debug.WriteLine("Updating UI with categories...");
                     Categories.Clear();
 
@@ -420,19 +621,27 @@ namespace QuickTechSystems.WPF.ViewModels
                         Debug.WriteLine($"Setting current expense category to {Categories[1]}");
                         CurrentExpense.Category = Categories[1]; // Skip "All"
                     }
-
-                    Debug.WriteLine("Applying filter with updated categories");
-                    ApplyFilter();
                 });
+
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("LoadCategoriesAsync was cancelled");
+                throw;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"ERROR in LoadCategoriesAsync: {ex.Message}");
                 Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
             }
             finally
             {
-                IsLoading = false;
+                if (!token.IsCancellationRequested)
+                {
+                    IsLoading = false;
+                }
                 Debug.WriteLine("=== END LoadCategoriesAsync ===");
             }
         }
@@ -457,6 +666,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Debug.WriteLine("Expenses collection is null");
                 CategorySummaries = new ObservableCollection<CategorySummary>();
+                TotalExpenseCount = 0;
+                TotalExpenseAmount = 0;
                 Debug.WriteLine("=== END ApplyFilter (early) ===");
                 return;
             }
@@ -465,6 +676,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Debug.WriteLine("No expenses to filter");
                 CategorySummaries = new ObservableCollection<CategorySummary>();
+                TotalExpenseCount = 0;
+                TotalExpenseAmount = 0;
                 Debug.WriteLine("=== END ApplyFilter (early) ===");
                 return;
             }
@@ -472,7 +685,6 @@ namespace QuickTechSystems.WPF.ViewModels
             // If "All" is selected or null, show all
             bool showAll = string.IsNullOrEmpty(SelectedCategory) || SelectedCategory == "All";
             Debug.WriteLine($"Filter criteria: Category = {(showAll ? "All" : SelectedCategory)}, StartDate = {FilterStartDate:d}");
-            Debug.WriteLine($"Starting with {Expenses.Count} total expenses");
 
             var filtered = Expenses.Where(e =>
                 (showAll || e.Category == SelectedCategory) &&
@@ -480,11 +692,13 @@ namespace QuickTechSystems.WPF.ViewModels
 
             Debug.WriteLine($"After filtering: {filtered.Count} expenses match criteria");
 
-            foreach (var expense in filtered)
-            {
-                Debug.WriteLine($"Filtered expense: ID: {expense.ExpenseId}, Reason: {expense.Reason}, Amount: {expense.Amount}, Date: {expense.Date:d}, Category: {expense.Category}");
-            }
+            // Set the totals for display in the UI
+            TotalExpenseCount = filtered.Count;
+            TotalExpenseAmount = filtered.Sum(e => e.Amount);
 
+            Debug.WriteLine($"Set totals - Count: {TotalExpenseCount}, Amount: {TotalExpenseAmount:C2}");
+
+            // We'll keep this code for maintaining state, but we don't display it anymore
             var summaries = filtered
                 .GroupBy(e => e.Category)
                 .Select(g => new CategorySummary
@@ -496,13 +710,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 .OrderBy(s => s.CategoryName)
                 .ToList();
 
-            Debug.WriteLine($"Created {summaries.Count} category summaries");
-
-            foreach (var summary in summaries)
-            {
-                Debug.WriteLine($"Summary: {summary.CategoryName}, Count: {summary.Count}, Total: {summary.TotalAmount:C2}");
-            }
-
             // Add a total row
             summaries.Add(new CategorySummary
             {
@@ -512,10 +719,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsTotal = true
             });
 
-            Debug.WriteLine($"Final summary totals - Count: {summaries.Last().Count}, Amount: {summaries.Last().TotalAmount:C2}");
-
             CategorySummaries = new ObservableCollection<CategorySummary>(summaries);
-            Debug.WriteLine($"Updated CategorySummaries with {CategorySummaries.Count} items");
             Debug.WriteLine("=== END ApplyFilter ===");
         }
 
@@ -531,7 +735,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                Debug.WriteLine($"Validating expense - Reason: '{CurrentExpense.Reason}', Amount: {CurrentExpense.Amount}, Date: {CurrentExpense.Date:d}, Category: {CurrentExpense.Category}");
+                Debug.WriteLine($"Validating expense - Reason: '{CurrentExpense.Reason}', Amount: {CurrentExpense.Amount}");
 
                 if (string.IsNullOrWhiteSpace(CurrentExpense.Reason))
                 {
@@ -563,16 +767,37 @@ namespace QuickTechSystems.WPF.ViewModels
                     UpdatedAt = CurrentExpense.ExpenseId != 0 ? DateTime.Now : null
                 };
 
-                Debug.WriteLine($"Created expense clone for saving: ID: {expenseToSave.ExpenseId}, Reason: {expenseToSave.Reason}, Amount: {expenseToSave.Amount:C2}");
+                Debug.WriteLine($"Created expense clone for saving: ID: {expenseToSave.ExpenseId}");
 
                 // Start loading UI indicator
                 IsLoading = true;
+
+                // Create a new cancellation token for this operation
+                CancellationToken token;
+                lock (_sequenceLock)
+                {
+                    _loadingSequence++;
+                    if (_loadingCts != null)
+                    {
+                        _loadingCts.Cancel();
+                        _loadingCts.Dispose();
+                    }
+                    _loadingCts = new CancellationTokenSource();
+                    token = _loadingCts.Token;
+                }
 
                 // Pre-check drawer balance
                 Debug.WriteLine("Checking drawer balance");
                 var drawer = await ExecuteDbOperationSafelyAsync(
                     () => _drawerService.GetCurrentDrawerAsync(),
-                    "Checking drawer balance");
+                    "Checking drawer balance",
+                    token);
+
+                if (token.IsCancellationRequested)
+                {
+                    Debug.WriteLine("Save operation was cancelled");
+                    return;
+                }
 
                 if (drawer == null)
                 {
@@ -587,7 +812,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (expenseToSave.Amount > drawer.CurrentBalance)
                 {
-                    Debug.WriteLine($"Insufficient funds: Expense amount ({expenseToSave.Amount:C2}) > Drawer balance ({drawer.CurrentBalance:C2})");
+                    Debug.WriteLine($"Insufficient funds: Expense amount > Drawer balance");
                     MessageBox.Show("Insufficient funds in drawer.", "Error",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
                     IsLoading = false;
@@ -600,50 +825,68 @@ namespace QuickTechSystems.WPF.ViewModels
                     Debug.WriteLine("Creating new expense...");
                     var savedExpense = await ExecuteDbOperationSafelyAsync(
                         async () => await _expenseService.CreateAsync(expenseToSave),
-                        "Creating expense");
+                        "Creating expense",
+                        token);
+
+                    if (token.IsCancellationRequested)
+                    {
+                        Debug.WriteLine("Save operation was cancelled after create");
+                        return;
+                    }
 
                     Debug.WriteLine($"Expense created successfully with ID: {savedExpense.ExpenseId}");
 
                     // Immediately add to local collection to avoid database round-trip
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Debug.WriteLine("Updating local expenses collection...");
-                        // Add to our local collection right away
-                        if (Expenses == null)
-                        {
-                            Debug.WriteLine("Creating new Expenses collection");
-                            Expenses = new ObservableCollection<ExpenseDTO>();
-                        }
-
-                        Debug.WriteLine($"Adding new expense to collection (now has {Expenses.Count + 1} items)");
-                        Expenses.Add(savedExpense);
+                        if (token.IsCancellationRequested) return;
 
                         // Close popup after successful save
                         CloseExpensePopup();
 
                         Debug.WriteLine("Clearing expense form");
                         InitNewExpense();
-
-                        // Re-apply filter to update view
-                        Debug.WriteLine("Re-applying filter after adding expense");
-                        ApplyFilter();
                     });
 
                     await ShowSuccessMessage("Expense saved successfully.");
+
+                    // Wait before reloading to allow database to settle
+                    await Task.Delay(300, token);
+
+                    // Update collection but avoid full reload if possible
+                    if (!token.IsCancellationRequested)
+                    {
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            if (Expenses == null)
+                            {
+                                Expenses = new ObservableCollection<ExpenseDTO>();
+                            }
+                            Expenses.Insert(0, savedExpense);
+                            ApplyFilter();
+                        });
+                    }
                 }
                 else
                 {
                     Debug.WriteLine($"Updating existing expense ID: {expenseToSave.ExpenseId}");
                     await ExecuteDbOperationSafelyAsync(
                         async () => await _expenseService.UpdateAsync(expenseToSave),
-                        "Updating expense");
+                        "Updating expense",
+                        token);
+
+                    if (token.IsCancellationRequested)
+                    {
+                        Debug.WriteLine("Save operation was cancelled after update");
+                        return;
+                    }
 
                     Debug.WriteLine("Expense updated successfully");
 
                     // Update UI
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Debug.WriteLine("Updating local expenses collection for the updated item");
+                        if (token.IsCancellationRequested) return;
 
                         // Find and update the expense in the collection
                         var existingExpense = Expenses?.FirstOrDefault(e => e.ExpenseId == expenseToSave.ExpenseId);
@@ -670,11 +913,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     await ShowSuccessMessage("Expense updated successfully.");
                 }
-
-                // Reload all data to ensure consistency
-                Debug.WriteLine("Reloading all expense data after save operation");
-                await Task.Delay(500); // Give the database operation time to complete
-                await LoadDataAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("SaveAsync was cancelled");
             }
             catch (Exception ex)
             {
@@ -698,7 +940,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            Debug.WriteLine($"Attempting to delete expense ID: {expense.ExpenseId}, Reason: {expense.Reason}");
+            Debug.WriteLine($"Attempting to delete expense ID: {expense.ExpenseId}");
 
             try
             {
@@ -708,15 +950,38 @@ namespace QuickTechSystems.WPF.ViewModels
                     Debug.WriteLine("User confirmed deletion");
                     IsLoading = true;
 
+                    // Create a new cancellation token for this operation
+                    CancellationToken token;
+                    lock (_sequenceLock)
+                    {
+                        _loadingSequence++;
+                        if (_loadingCts != null)
+                        {
+                            _loadingCts.Cancel();
+                            _loadingCts.Dispose();
+                        }
+                        _loadingCts = new CancellationTokenSource();
+                        token = _loadingCts.Token;
+                    }
+
                     await ExecuteDbOperationSafelyAsync(
                         async () => await _expenseService.DeleteAsync(expense.ExpenseId),
-                        "Deleting expense");
+                        "Deleting expense",
+                        token);
+
+                    if (token.IsCancellationRequested)
+                    {
+                        Debug.WriteLine("Delete operation was cancelled");
+                        return;
+                    }
 
                     Debug.WriteLine("Expense deleted from database");
 
                     // Remove from local collection immediately
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        if (token.IsCancellationRequested) return;
+
                         var existingExpense = Expenses?.FirstOrDefault(e => e.ExpenseId == expense.ExpenseId);
                         if (existingExpense != null)
                         {
@@ -733,16 +998,15 @@ namespace QuickTechSystems.WPF.ViewModels
                     });
 
                     await ShowSuccessMessage("Expense deleted successfully.");
-
-                    // Reload data to ensure consistency
-                    Debug.WriteLine("Reloading all expense data after deletion");
-                    await Task.Delay(300);
-                    await LoadDataAsync();
                 }
                 else
                 {
                     Debug.WriteLine("User cancelled deletion");
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("DeleteAsync was cancelled");
             }
             catch (Exception ex)
             {
@@ -766,7 +1030,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            Debug.WriteLine($"Editing expense ID: {expense.ExpenseId}, Reason: {expense.Reason}, Amount: {expense.Amount}");
+            Debug.WriteLine($"Editing expense ID: {expense.ExpenseId}");
 
             CurrentExpense = new ExpenseDTO
             {
@@ -846,6 +1110,18 @@ namespace QuickTechSystems.WPF.ViewModels
             if (disposing)
             {
                 Debug.WriteLine("Disposing ExpenseViewModel resources");
+
+                // Cancel any pending operations
+                lock (_sequenceLock)
+                {
+                    if (_loadingCts != null)
+                    {
+                        _loadingCts.Cancel();
+                        _loadingCts.Dispose();
+                        _loadingCts = null;
+                    }
+                }
+
                 _operationLock?.Dispose();
 
                 // Unsubscribe from events

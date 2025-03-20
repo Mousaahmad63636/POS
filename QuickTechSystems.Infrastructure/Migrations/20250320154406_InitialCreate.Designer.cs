@@ -12,7 +12,7 @@ using QuickTechSystems.Infrastructure.Data;
 namespace QuickTechSystems.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250306190223_InitialCreate")]
+    [Migration("20250320154406_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

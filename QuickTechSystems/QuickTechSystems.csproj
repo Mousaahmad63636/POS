@@ -34,11 +34,16 @@
 		</Content>
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Content Remove="Resources\Dictionaries\ModernStyles.xaml" />
+	</ItemGroup>
+
 	<!-- Keep existing Page Remove section -->
 	<ItemGroup>
 		<Page Remove="Resources\Dictionaries\Languages\ar-SA.xaml" />
 		<Page Remove="Resources\Dictionaries\Languages\en-US.xaml" />
 		<Page Remove="Resources\Dictionaries\Languages\fr-FR.xaml" />
+		<Page Remove="Resources\Dictionaries\ModernStyles.xaml" />
 	</ItemGroup>
 
 	<!-- Keep existing PackageReference section -->
@@ -68,6 +73,9 @@
 		<Resource Include="Resources\Dictionaries\Languages\ar-SA.xaml" />
 		<Resource Include="Resources\Dictionaries\Languages\en-US.xaml" />
 		<Resource Include="Resources\Dictionaries\Languages\fr-FR.xaml" />
+		<Resource Include="Resources\Dictionaries\ModernStyles.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Resource>
 	</ItemGroup>
 
 	<!-- Ensure all required files are included -->

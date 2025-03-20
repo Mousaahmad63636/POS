@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Documents;
 using System.Windows.Input;
 using QuickTechSystems.WPF.Views;
 
@@ -175,5 +176,170 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
         }
+        // Add these methods to DrawerViewModel.Commands.cs
+        public async Task OpenDrawerWithAmount(decimal amount)
+        {
+            try
+            {
+                var currentUser = System.Windows.Application.Current.Properties["CurrentUser"] as EmployeeDTO;
+                if (currentUser == null)
+                {
+                    await ShowErrorMessageAsync("No user is currently logged in");
+                    return;
+                }
+
+                if (amount <= 0)
+                {
+                    await ShowErrorMessageAsync("Amount must be greater than zero");
+                    return;
+                }
+
+                CurrentDrawer = await _drawerService.OpenDrawerAsync(
+                    amount,
+                    currentUser.EmployeeId.ToString(),
+                    $"{currentUser.FirstName} {currentUser.LastName}"
+                );
+                await LoadDrawerHistoryAsync();
+                UpdateStatus();
+                MessageBox.Show("Drawer opened successfully.", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error opening drawer: {ex.Message}");
+            }
+        }
+
+        // Add the remaining direct action methods as outlined in previous responses
+
+        public async Task AddCashWithDetails(decimal amount, string description)
+        {
+            try
+            {
+                IsProcessing = true;
+
+                if (amount <= 0)
+                {
+                    await ShowErrorMessageAsync("Amount must be greater than zero");
+                    return;
+                }
+
+                CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, true);
+                await LoadDrawerHistoryAsync();
+                UpdateStatus();
+                MessageBox.Show($"Successfully added {amount:C2}", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error adding cash: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
+        public async Task RemoveCashWithDetails(decimal amount, string description)
+        {
+            try
+            {
+                IsProcessing = true;
+
+                if (amount <= 0)
+                {
+                    await ShowErrorMessageAsync("Amount must be greater than zero");
+                    return;
+                }
+
+                if (amount > CurrentDrawer?.CurrentBalance)
+                {
+                    MessageBox.Show("Amount exceeds current balance.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, false);
+                await LoadDrawerHistoryAsync();
+                UpdateStatus();
+                MessageBox.Show($"Successfully removed {amount:C2}", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error removing cash: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
+        public async Task CloseDrawerWithAmount(decimal finalAmount)
+        {
+            try
+            {
+                IsProcessing = true;
+
+                if (finalAmount < 0)
+                {
+                    await ShowErrorMessageAsync("Final amount cannot be negative");
+                    return;
+                }
+
+                // Store the current balance before closing
+                decimal currentBalance = CurrentDrawer?.CurrentBalance ?? 0;
+
+                // Close the drawer
+                CurrentDrawer = await _drawerService.CloseDrawerAsync(finalAmount, string.Empty);
+                await LoadDrawerHistoryAsync();
+                UpdateStatus();
+
+                // Calculate difference manually in case CurrentDrawer.Difference is null
+                decimal difference = finalAmount - currentBalance;
+
+                var message = difference == 0
+                    ? "Drawer closed successfully with no discrepancy."
+                    : $"Drawer closed with a {(difference > 0 ? "surplus" : "shortage")} of {Math.Abs(difference):C2}";
+
+                MessageBox.Show(message, "Drawer Closed",
+                    MessageBoxButton.OK,
+                    difference == 0 ? MessageBoxImage.Information : MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in CloseDrawerAsync: {ex}");
+                await ShowErrorMessageAsync($"Error closing drawer: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
+        public async Task PrintReportWithOptions(bool includeTransactions, bool includeFinancialSummary, bool printCashierCopy)
+        {
+            try
+            {
+                IsProcessing = true;
+                if (CurrentDrawer == null) return;
+
+                var printDialog = new PrintDialog();
+                if (printDialog.ShowDialog() == true)
+                {
+                    var document = CreateDrawerReport(includeTransactions, includeFinancialSummary, printCashierCopy);
+                    printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, "Drawer Report");
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error printing report: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
     }
 }

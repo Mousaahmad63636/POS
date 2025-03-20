@@ -33,7 +33,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _dailySales;
         private decimal _dailyReturns;
         private decimal _netSales;
-        private decimal _debtPayments;
         private decimal _supplierPayments;
         private decimal _dailyExpenses;
         private decimal _netCashflow;
@@ -50,7 +49,27 @@ namespace QuickTechSystems.WPF.ViewModels
         private CategoryDTO _selectedCategory;
         private string _lookupTransactionId = string.Empty;
         private bool _isEditingTransaction;
+        private bool _isSearching;
+        private string _searchMessage = string.Empty;
+        private bool _isSearchMessageVisible;
 
+        public bool IsSearching
+        {
+            get => _isSearching;
+            set => SetProperty(ref _isSearching, value);
+        }
+
+        public string SearchMessage
+        {
+            get => _searchMessage;
+            set => SetProperty(ref _searchMessage, value);
+        }
+
+        public bool IsSearchMessageVisible
+        {
+            get => _isSearchMessageVisible;
+            set => SetProperty(ref _isSearchMessageVisible, value);
+        }
         public bool IsEditingTransaction
         {
             get => _isEditingTransaction;
@@ -61,6 +80,28 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _lookupTransactionId;
             set
             {
+                // Declare parsedValue outside if statements to fix scope issue
+                int parsedValue = 0;
+
+                // Better validation with specific error messages
+                if (!string.IsNullOrWhiteSpace(value) && !int.TryParse(value, out parsedValue))
+                {
+                    // Invalid non-numeric input - show alert and reset to latest ID
+                    ShowInvalidLookupAlert();
+                    return; // Don't set the invalid value
+                }
+
+                if (!string.IsNullOrWhiteSpace(value) && parsedValue < 0)
+                {
+                    WindowManager.InvokeAsync(() =>
+                        MessageBox.Show(
+                            "Transaction number cannot be negative.",
+                            "Invalid Input",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning));
+                    return;
+                }
+
                 // Only trigger lookup if the value actually changed
                 bool valueChanged = _lookupTransactionId != value;
                 SetProperty(ref _lookupTransactionId, value);
@@ -71,8 +112,15 @@ namespace QuickTechSystems.WPF.ViewModels
                     int.TryParse(value, out _) &&
                     !IsEditingTransaction)
                 {
-                    // Use a small delay to avoid triggering lookup while user is still typing
-                    _lookupDebounceTimer?.Stop();
+                    // Clean up any existing timer before creating a new one
+                    if (_lookupDebounceTimer != null)
+                    {
+                        _lookupDebounceTimer.Stop();
+                        _lookupDebounceTimer.Dispose();
+                        _lookupDebounceTimer = null;
+                    }
+
+                    // Create a new timer with proper disposal
                     _lookupDebounceTimer = new System.Timers.Timer(500); // 500ms delay
                     _lookupDebounceTimer.Elapsed += async (s, e) =>
                     {
@@ -89,6 +137,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
 
         // Add a timer field to debounce lookup requests
         private System.Timers.Timer _lookupDebounceTimer;
@@ -157,12 +206,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _totalAmountLBP;
             set => SetProperty(ref _totalAmountLBP, value);
-        }
-
-        public decimal DebtPayments
-        {
-            get => _debtPayments;
-            set => SetProperty(ref _debtPayments, value);
         }
 
         public decimal SupplierPayments
@@ -344,6 +387,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Only trigger search if not navigating between transactions
                     if (!_isNavigating)
                     {
+                        // Clear existing results first
+                        FilteredCustomers.Clear();
+                        OnPropertyChanged(nameof(FilteredCustomers));
+
+                        // Then trigger search
                         SearchCustomers();
                     }
                 }

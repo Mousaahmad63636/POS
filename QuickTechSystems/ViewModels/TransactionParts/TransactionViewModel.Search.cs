@@ -22,22 +22,34 @@ namespace QuickTechSystems.WPF.ViewModels
                     try
                     {
                         // Show the dialog on the UI thread
-                        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.Input))
+                        if (dialog.ShowDialog() == true)
                         {
+                            if (string.IsNullOrWhiteSpace(dialog.Input))
+                            {
+                                MessageBox.Show("Please enter a valid barcode or product code.",
+                                    "Empty Input",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Warning);
+                                return;
+                            }
+
                             var product = await _productService.GetByBarcodeAsync(dialog.Input);
                             if (product != null)
                             {
+                                string activeStatus = product.IsActive ? "Active" : "Inactive";
                                 var message = $"Product: {product.Name}\n" +
                                             $"Price: {product.SalePrice:C}\n" +
                                             $"Current Stock: {product.CurrentStock}\n" +
-                                            $"Category: {product.CategoryName}";
+                                            $"Category: {product.CategoryName}\n" +
+                                            $"Status: {activeStatus}";
 
                                 MessageBox.Show(message, "Price Check",
                                     MessageBoxButton.OK, MessageBoxImage.Information);
                             }
                             else
                             {
-                                MessageBox.Show("Product not found", "Error",
+                                MessageBox.Show("This barcode is not registered. Please check.",
+                                    "Unknown Barcode",
                                     MessageBoxButton.OK, MessageBoxImage.Warning);
                             }
                         }
@@ -45,7 +57,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error in price check: {ex.Message}");
-                        MessageBox.Show($"Error checking price: {ex.Message}", "Error",
+                        MessageBox.Show("An unexpected error occurred. Please try again.", "Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 });
@@ -70,6 +82,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
+            // Clear any error indicators
+            IsSearchMessageVisible = false;
+
             try
             {
                 // Cancel any previous search
@@ -83,6 +98,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         FilteredCustomers.Clear();
                         IsCustomerSearchVisible = false;
+                        OnPropertyChanged(nameof(FilteredCustomers));
+                        OnPropertyChanged(nameof(IsCustomerSearchVisible));
                     });
                     return;
                 }
@@ -96,6 +113,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     Debug.WriteLine("Search canceled after delay (suppressed or token canceled)");
                     return;
                 }
+
+                // Show loading indicator
+                IsSearching = true;
+                OnPropertyChanged(nameof(IsSearching));
 
                 // Continue with search only if we're not suppressing and not canceled
                 await ExecuteOperationSafelyAsync(async () =>
@@ -111,71 +132,190 @@ namespace QuickTechSystems.WPF.ViewModels
                         SelectedCustomer.Name.Equals(searchText, StringComparison.OrdinalIgnoreCase))
                     {
                         Debug.WriteLine("Search matches selected customer - not showing dropdown");
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            FilteredCustomers.Clear();
+                            IsCustomerSearchVisible = false;
+                            OnPropertyChanged(nameof(FilteredCustomers));
+                            OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                        });
                         return;
                     }
 
-                    var customers = await Task.Run(async () =>
-                        await _customerService.GetByNameAsync(searchText), token);
-
-                    if (token.IsCancellationRequested) return;
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    // Use a try-catch block to handle exceptions during the search
+                    try
                     {
-                        FilteredCustomers = new ObservableCollection<CustomerDTO>(customers);
+                        var customers = await Task.Run(async () =>
+                            await _customerService.GetByNameAsync(searchText), token);
 
-                        // Only show if we have results AND not suppressing AND text doesn't match selection
-                        bool shouldShowDropdown = FilteredCustomers.Any() &&
-                                                  !_suppressCustomerDropdown &&
-                                                  !(SelectedCustomer != null &&
-                                                    SelectedCustomer.Name.Equals(searchText,
-                                                                                StringComparison.OrdinalIgnoreCase));
+                        if (token.IsCancellationRequested) return;
 
-                        IsCustomerSearchVisible = shouldShowDropdown;
+                        // Keep track of processed customer IDs to avoid duplicates
+                        HashSet<int> processedIds = new HashSet<int>();
 
-                        OnPropertyChanged(nameof(FilteredCustomers));
-                        OnPropertyChanged(nameof(IsCustomerSearchVisible));
-                    });
+                        // Create a new collection with only unique customers
+                        var uniqueCustomers = new List<CustomerDTO>();
+
+                        if (customers != null)
+                        {
+                            foreach (var customer in customers)
+                            {
+                                // Only add if we haven't seen this ID before
+                                if (!processedIds.Contains(customer.CustomerId))
+                                {
+                                    // Create a new customer object without balance information
+                                    var sanitizedCustomer = new CustomerDTO
+                                    {
+                                        CustomerId = customer.CustomerId,
+                                        Name = customer.Name,
+                                        Phone = customer.Phone,
+                                        Email = customer.Email,
+                                        Address = customer.Address,
+                                        IsActive = customer.IsActive,
+                                        CreatedAt = customer.CreatedAt,
+                                        // Balance is deliberately omitted
+                                    };
+
+                                    uniqueCustomers.Add(sanitizedCustomer);
+                                    processedIds.Add(customer.CustomerId);
+                                }
+                            }
+                        }
+
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            // First clear existing results
+                            FilteredCustomers.Clear();
+
+                            // Then add each unique customer individually to ensure proper collection change notifications
+                            foreach (var customer in uniqueCustomers)
+                            {
+                                FilteredCustomers.Add(customer);
+                            }
+
+                            // Check if we found any results
+                            if (!FilteredCustomers.Any() && !string.IsNullOrWhiteSpace(searchText))
+                            {
+                                // Show a notification message
+                                SearchMessage = $"No customers found matching '{searchText}'";
+                                IsSearchMessageVisible = true;
+                                IsCustomerSearchVisible = false;
+                            }
+                            else
+                            {
+                                // Only show if we have results AND not suppressing AND text doesn't match selection
+                                bool shouldShowDropdown = FilteredCustomers.Any() &&
+                                                        !_suppressCustomerDropdown &&
+                                                        !(SelectedCustomer != null &&
+                                                            SelectedCustomer.Name.Equals(searchText,
+                                                                                        StringComparison.OrdinalIgnoreCase));
+
+                                IsCustomerSearchVisible = shouldShowDropdown;
+                                IsSearchMessageVisible = false;
+                            }
+
+                            OnPropertyChanged(nameof(FilteredCustomers));
+                            OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                            OnPropertyChanged(nameof(IsSearchMessageVisible));
+                            OnPropertyChanged(nameof(SearchMessage));
+                        });
+                    }
+                    catch (Exception searchEx)
+                    {
+                        if (searchEx is TaskCanceledException) return;
+
+                        Debug.WriteLine($"Error during customer search: {searchEx.Message}");
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            SearchMessage = "Error searching for customers. Please try again.";
+                            IsSearchMessageVisible = true;
+                            IsCustomerSearchVisible = false;
+
+                            OnPropertyChanged(nameof(SearchMessage));
+                            OnPropertyChanged(nameof(IsSearchMessageVisible));
+                            OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                        });
+                    }
+                    finally
+                    {
+                        // Always hide loading indicator
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            IsSearching = false;
+                            OnPropertyChanged(nameof(IsSearching));
+                        });
+                    }
                 }, "Searching customers", "CustomerSearch");
             }
             catch (OperationCanceledException)
             {
                 Debug.WriteLine("Customer search operation was canceled");
+                IsSearching = false;
+                OnPropertyChanged(nameof(IsSearching));
             }
             catch (Exception ex)
             {
-                if (ex is TaskCanceledException) return;
-                Debug.WriteLine($"Error in SearchCustomers: {ex.Message}");
-                await ShowErrorMessageAsync($"Error searching customers: {ex.Message}");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsSearching = false;
+                    OnPropertyChanged(nameof(IsSearching));
+
+                    if (ex is TaskCanceledException) return;
+
+                    Debug.WriteLine($"Error in SearchCustomers: {ex.Message}");
+
+                    // Show user-friendly error popup
+                    SearchMessage = "An error occurred during search. Please try again.";
+                    IsSearchMessageVisible = true;
+                    IsCustomerSearchVisible = false;
+
+                    OnPropertyChanged(nameof(SearchMessage));
+                    OnPropertyChanged(nameof(IsSearchMessageVisible));
+                    OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                });
+            }
+        }
+        private async void SearchProducts()
+        {
+            try
+            {
+                await ExecuteOperationSafelyAsync(async () =>
+                {
+                    if (string.IsNullOrWhiteSpace(ProductSearchText))
+                    {
+                        FilteredProducts.Clear();
+                        IsProductSearchVisible = false;
+                        return;
+                    }
+
+                    var products = await _productService.GetAllAsync();
+                    var filtered = products
+                        .Where(p => p.IsActive) // Filter for active products only
+                        .Where(p =>
+                            p.Name.Contains(ProductSearchText, StringComparison.OrdinalIgnoreCase) ||
+                            p.CategoryName.Contains(ProductSearchText, StringComparison.OrdinalIgnoreCase))
+                        .Take(10)  // Limit results for better performance
+                        .ToList();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        FilteredProducts = new ObservableCollection<ProductDTO>(filtered);
+                        IsProductSearchVisible = FilteredProducts.Any();
+                    });
+                }, "Searching products", "ProductSearch");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching products: {ex.Message}");
+                await WindowManager.InvokeAsync(() =>
+                    MessageBox.Show(
+                        "An error occurred while searching products. Please try again.",
+                        "Search Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning));
             }
         }
 
-        private async void SearchProducts()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                if (string.IsNullOrWhiteSpace(ProductSearchText))
-                {
-                    FilteredProducts.Clear();
-                    IsProductSearchVisible = false;
-                    return;
-                }
-
-                var products = await _productService.GetAllAsync();
-                var filtered = products
-                    .Where(p => p.IsActive) // Filter for active products only
-                    .Where(p =>
-                        p.Name.Contains(ProductSearchText, StringComparison.OrdinalIgnoreCase) ||
-                        p.CategoryName.Contains(ProductSearchText, StringComparison.OrdinalIgnoreCase))
-                    .Take(10)  // Limit results for better performance
-                    .ToList();
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    FilteredProducts = new ObservableCollection<ProductDTO>(filtered);
-                    IsProductSearchVisible = FilteredProducts.Any();
-                });
-            }, "Searching products", "ProductSearch");
-        }
 
         public void OnProductSelected(ProductDTO product)
         {
@@ -188,6 +328,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     IsProductSearchVisible = false;
                     OnPropertyChanged(nameof(CurrentTransaction));
                 });
+            }
+            else
+            {
+                WindowManager.ShowWarning("Please select a product first");
             }
         }
 
@@ -212,6 +356,23 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (nameResult == true)
                 {
+                    // Validate customer name
+                    if (string.IsNullOrWhiteSpace(nameDialog.Input))
+                    {
+                        throw new InvalidOperationException("Customer name cannot be empty.");
+                    }
+
+                    if (nameDialog.Input.Length > 50)
+                    {
+                        await WindowManager.InvokeAsync(() => MessageBox.Show(
+                            "Please enter a valid customer name. The name has been limited to 50 characters.",
+                            "Name Too Long",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning));
+
+                        nameDialog.Input = nameDialog.Input.Substring(0, 50);
+                    }
+
                     newCustomer.Name = nameDialog.Input;
 
                     var phoneDialog = new InputDialog("New Customer", "Enter customer phone");
@@ -272,6 +433,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         if (dialog.ShowDialog() == true)
                         {
+                            // Validate new quantity
+                            if (dialog.NewQuantity <= 0)
+                            {
+                                MessageBox.Show(
+                                    "Quantity must be a positive number. It has been corrected to 1.",
+                                    "Invalid Quantity",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Warning);
+                                dialog.NewQuantity = 1;
+                            }
+
                             // Update the quantity and total
                             itemToModify.Quantity = dialog.NewQuantity;
                             itemToModify.Total = itemToModify.Quantity * itemToModify.UnitPrice;
@@ -293,7 +465,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error updating quantity: {ex.Message}");
-                        MessageBox.Show("Error updating quantity", "Error",
+                        MessageBox.Show("An unexpected error occurred. Please try again.", "Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 });

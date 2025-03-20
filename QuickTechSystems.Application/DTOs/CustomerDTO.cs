@@ -7,8 +7,6 @@
         public string? Phone { get; set; }
         public string? Email { get; set; }
         public string? Address { get; set; }
-        public decimal Balance { get; set; }
-        public decimal CreditLimit { get; set; }
         public int TransactionCount { get; set; }
     }
 }

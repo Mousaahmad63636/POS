@@ -21,8 +21,8 @@
                             BorderThickness="1"
                             CornerRadius="8"
                             Margin="8"
-                            Width="200"
-                            Height="240"
+                            Width="150"
+                            Height="180"
                             MouseLeftButtonDown="Product_MouseLeftButtonDown"
                             Cursor="Hand">
                         <Grid>
@@ -31,11 +31,11 @@
                                     CornerRadius="8">
                                 <Image Source="{Binding Image, Converter={StaticResource ByteArrayToImageConverter}}"
                                        Stretch="UniformToFill"
-                                       Height="240"/>
+                                       Height="180"/>
                             </Border>
 
                             <!-- Semi-transparent Gradient Overlay -->
-                            <Border Height="100"
+                            <Border Height="80"
                                     VerticalAlignment="Bottom"
                                     CornerRadius="0,0,8,8">
                                 <Border.Background>
@@ -52,14 +52,14 @@
                                 <TextBlock Text="{Binding Name}"
                                          Foreground="White"
                                          FontWeight="SemiBold"
-                                         FontSize="14"
+                                         FontSize="13"
                                          TextWrapping="Wrap"
-                                         MaxHeight="40"
+                                         MaxHeight="36"
                                          TextTrimming="CharacterEllipsis"/>
 
                                 <TextBlock Text="{Binding SalePrice, StringFormat='{}{0:C}'}"
                                          Foreground="White"
-                                         FontSize="16"
+                                         FontSize="14"
                                          FontWeight="Bold"
                                          Margin="0,4,0,0"/>
                             </StackPanel>

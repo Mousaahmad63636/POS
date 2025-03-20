@@ -1,13 +1,16 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
-using System.IO;
-using Microsoft.Win32;
 using System.Threading;
-using System.Diagnostics;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -40,7 +43,6 @@ namespace QuickTechSystems.WPF.ViewModels
             // Initialize commands
             SaveAsPdfCommand = new AsyncRelayCommand(async _ => await SafeExecuteOperationAsync(SaveAsPdfAsync), _ => CanExecuteQuoteAction());
             ConvertToCashCommand = new AsyncRelayCommand(async _ => await SafeExecuteOperationAsync(ConvertToCashAsync), _ => CanExecuteQuoteAction());
-            ConvertToDebtCommand = new AsyncRelayCommand(async _ => await SafeExecuteOperationAsync(ConvertToDebtAsync), _ => CanExecuteQuoteAction());
             RefreshCommand = new AsyncRelayCommand(async _ => await SafeExecuteOperationAsync(LoadDataAsync));
             SearchCommand = new AsyncRelayCommand(async _ => await SafeExecuteOperationAsync(SearchQuotesAsync));
 
@@ -169,7 +171,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public ICommand SaveAsPdfCommand { get; }
         public ICommand ConvertToCashCommand { get; }
-        public ICommand ConvertToDebtCommand { get; }
         public ICommand RefreshCommand { get; }
         public ICommand SearchCommand { get; }
 
@@ -452,79 +453,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private async Task ConvertToDebtAsync()
-        {
-            if (SelectedQuote == null) return;
-
-            try
-            {
-                // Cache needed properties to avoid null reference issues
-                int quoteId = SelectedQuote.QuoteId;
-                int? customerId = SelectedQuote.CustomerId;
-
-                if (customerId == null)
-                {
-                    await ShowErrorMessageAsync("Cannot convert to debt: No customer assigned to this quote");
-                    return;
-                }
-
-                // Validate customer credit limit - do this on a background thread
-                bool paymentValid = false;
-
-                await Task.Run(async () =>
-                {
-                    paymentValid = await _quoteService.ValidateQuotePayment(quoteId, "Debt");
-                });
-
-                if (!paymentValid)
-                {
-                    await ShowErrorMessageAsync("This would exceed the customer's credit limit");
-                    return;
-                }
-
-                if (MessageBox.Show("Convert this quote to a debt transaction?", "Confirm Conversion",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-                {
-                    return;
-                }
-
-                // Process conversion on background thread
-                QuoteDTO convertedQuote = null;
-
-                await Task.Run(async () =>
-                {
-                    convertedQuote = await _quoteService.ConvertToTransaction(quoteId, "Debt");
-                });
-
-                if (convertedQuote == null)
-                {
-                    await ShowErrorMessageAsync("Failed to convert quote to debt transaction.");
-                    return;
-                }
-
-                // Publish events for customer debt update
-                _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                    "Update",
-                    new CustomerDTO
-                    {
-                        CustomerId = customerId.Value,
-                        Balance = convertedQuote.TotalAmount
-                    }
-                ));
-
-                await ShowSuccessMessage("Quote converted to debt transaction successfully");
-
-                // Reload data after conversion
-                await Task.Delay(1000); // Give the DB a chance to settle
-                await LoadDataAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"ConvertToDebtAsync failed: {ex}");
-                await ShowErrorMessageAsync($"Error converting quote: {ex.Message}");
-            }
-        }
-
         private bool CanExecuteQuoteAction()
         {
             return SelectedQuote != null && !IsLoading && !_isOperationInProgress;
@@ -560,6 +488,30 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _operationLock?.Dispose();
             base.Dispose();
+        }
+
+        private async Task ShowErrorMessageAsync(string message)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                MessageBox.Show(
+                    message,
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+        }
+
+        private async Task ShowSuccessMessage(string message)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                MessageBox.Show(
+                    message,
+                    "Success",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            });
         }
     }
 }

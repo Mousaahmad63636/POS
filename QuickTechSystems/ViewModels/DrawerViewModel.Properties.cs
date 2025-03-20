@@ -10,7 +10,65 @@ namespace QuickTechSystems.WPF.ViewModels
         private ObservableCollection<DrawerTransactionDTO> _drawerHistory;
         private string _statusMessage = string.Empty;
         private bool _isProcessing;
+        // Add these properties to DrawerViewModel.Properties.cs
+        private decimal _initialCashAmount;
+        private decimal _cashAmount;
+        private string _cashDescription = string.Empty;
+        private decimal _finalCashAmount;
+        // Add to DrawerViewModel.Properties.cs
+        private bool _includeTransactionDetails = true;
+        private bool _includeFinancialSummary = true;
+        private bool _printCashierCopy = false;
 
+        public bool IncludeTransactionDetails
+        {
+            get => _includeTransactionDetails;
+            set => SetProperty(ref _includeTransactionDetails, value);
+        }
+
+        public bool IncludeFinancialSummary
+        {
+            get => _includeFinancialSummary;
+            set => SetProperty(ref _includeFinancialSummary, value);
+        }
+
+        public bool PrintCashierCopy
+        {
+            get => _printCashierCopy;
+            set => SetProperty(ref _printCashierCopy, value);
+        }
+        public decimal InitialCashAmount
+        {
+            get => _initialCashAmount;
+            set => SetProperty(ref _initialCashAmount, value);
+        }
+
+        public decimal CashAmount
+        {
+            get => _cashAmount;
+            set => SetProperty(ref _cashAmount, value);
+        }
+
+        public string CashDescription
+        {
+            get => _cashDescription;
+            set => SetProperty(ref _cashDescription, value);
+        }
+
+        public decimal FinalCashAmount
+        {
+            get => _finalCashAmount;
+            set
+            {
+                if (SetProperty(ref _finalCashAmount, value))
+                {
+                    OnPropertyChanged(nameof(DrawerClosingDifference));
+                }
+            }
+        }
+
+        public decimal DrawerClosingDifference =>
+            CurrentDrawer != null ? FinalCashAmount - CurrentDrawer.CurrentBalance : 0;
         public decimal CurrentBalance => CurrentDrawer?.CurrentBalance ?? 0;
 
         public decimal ExpectedBalance => CurrentDrawer?.ExpectedBalance ?? 0;
@@ -68,12 +126,6 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _totalExpenses, value);
         }
 
-        public decimal TotalDebtPayments
-        {
-            get => _totalDebtPayments;
-            set => SetProperty(ref _totalDebtPayments, value);
-        }
-
         public decimal TotalSupplierPayments
         {
             get => _totalSupplierPayments;
@@ -126,12 +178,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _supplierPayments;
             set => SetProperty(ref _supplierPayments, value);
-        }
-
-        public decimal DebtPayments
-        {
-            get => _debtPayments;
-            set => SetProperty(ref _debtPayments, value);
         }
 
         public DrawerDTO? CurrentDrawer

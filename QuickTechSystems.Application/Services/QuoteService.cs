@@ -118,14 +118,17 @@ namespace QuickTechSystems.Application.Services
                     if (quote == null)
                         throw new InvalidOperationException("Quote not found");
 
+                    // Only support Cash payment method
+                    if (paymentMethod != "Cash")
+                        throw new InvalidOperationException("Only Cash payment method is supported");
+
                     // Create transaction
                     var transactionDto = new TransactionDTO
                     {
                         CustomerId = quote.CustomerId,
                         CustomerName = quote.CustomerName,
                         TotalAmount = quote.TotalAmount,
-                        PaidAmount = paymentMethod == "Cash" ? quote.TotalAmount : 0,
-                        Balance = paymentMethod == "Cash" ? 0 : quote.TotalAmount,
+                        PaidAmount = quote.TotalAmount, // Full payment with cash
                         TransactionDate = DateTime.Now,
                         TransactionType = TransactionType.Sale,
                         Status = TransactionStatus.Completed,
@@ -146,21 +149,10 @@ namespace QuickTechSystems.Application.Services
                     var processedTransaction = await _transactionService.ProcessSaleAsync(transactionDto);
 
                     // Process drawer update for cash payments
-                    if (paymentMethod == "Cash")
-                    {
-                        await _drawerService.ProcessCashSaleAsync(
-                            quote.TotalAmount,
-                            $"Quote conversion #{quote.QuoteNumber}"
-                        );
-                    }
-                    else if (paymentMethod == "Debt" && quote.CustomerId.HasValue)
-                    {
-                        // Update customer balance for debt payments
-                        await _customerService.AddToBalanceAsync(
-                            quote.CustomerId.Value,
-                            quote.TotalAmount
-                        );
-                    }
+                    await _drawerService.ProcessCashSaleAsync(
+                        quote.TotalAmount,
+                        $"Quote conversion #{quote.QuoteNumber}"
+                    );
 
                     // Update quote status
                     quote.Status = "Converted";
@@ -171,23 +163,10 @@ namespace QuickTechSystems.Application.Services
 
                     // Publish drawer update event after successful conversion
                     _eventAggregator.Publish(new DrawerUpdateEvent(
-                        paymentMethod == "Cash" ? "Cash Sale" : "Debt",
-                        paymentMethod == "Cash" ? quote.TotalAmount : 0,
+                        "Cash Sale",
+                        quote.TotalAmount,
                         $"Quote conversion #{quote.QuoteNumber}"
                     ));
-
-                    // Publish customer update event if it's a debt transaction
-                    if (paymentMethod == "Debt" && quote.CustomerId.HasValue)
-                    {
-                        _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                            "Update",
-                            new CustomerDTO
-                            {
-                                CustomerId = quote.CustomerId.Value,
-                                Balance = quote.TotalAmount
-                            }
-                        ));
-                    }
 
                     return _mapper.Map<QuoteDTO>(quote);
                 }
@@ -322,17 +301,7 @@ namespace QuickTechSystems.Application.Services
                     return await _drawerService.ValidateTransactionAsync(quote.TotalAmount, false);
                 }
 
-                if (paymentMethod == "Debt" && quote.CustomerId.HasValue)
-                {
-                    var customer = await _customerService.GetByIdAsync(quote.CustomerId.Value);
-                    if (customer == null) return false;
-
-                    // Check if this would exceed customer's credit limit
-                    return customer.CreditLimit == 0 ||
-                           (customer.Balance + quote.TotalAmount <= customer.CreditLimit);
-                }
-
-                return false;
+                return false; // Only cash payment method is supported
             });
         }
     }

@@ -34,8 +34,7 @@
                     Command="{Binding SaveAsPdfCommand}"/>
             <Button Content="{DynamicResource Quote_ConvertToCash}"
                     Command="{Binding ConvertToCashCommand}"/>
-            <Button Content="{DynamicResource Quote_ConvertToCredit}"
-                    Command="{Binding ConvertToDebtCommand}"/>
+
         </StackPanel>
     </Grid>
 </UserControl>

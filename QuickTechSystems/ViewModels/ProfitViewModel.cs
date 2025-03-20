@@ -33,7 +33,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _netProfit;
         private decimal _totalSales;
         private decimal _totalExpenses;
-        private decimal _totalReturns;
         private decimal _totalSupplierPayments;
         private decimal _costOfGoodsSold;
         private int _totalTransactions;
@@ -123,12 +122,6 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _totalExpenses, value);
         }
 
-        public decimal TotalReturns
-        {
-            get => _totalReturns;
-            set => SetProperty(ref _totalReturns, value);
-        }
-
         public decimal TotalSupplierPayments
         {
             get => _totalSupplierPayments;
@@ -206,23 +199,42 @@ namespace QuickTechSystems.WPF.ViewModels
                     var transactionsList = transactions.ToList();
                     TotalTransactions = transactionsList.Count;
 
-                    // Get financial summary
-                    var financialSummary = await _drawerService.GetFinancialSummaryAsync(StartDate, EndDate);
-                    if (linkedCts.Token.IsCancellationRequested) return;
+                    // Calculate summary metrics directly from transactions
+                    decimal totalSalesFromTransactions = transactionsList.Sum(t => t.TotalAmount);
 
-                    TotalSales = financialSummary.Sales;
-                    TotalReturns = financialSummary.Returns;
-                    TotalExpenses = financialSummary.Expenses;
-                    TotalSupplierPayments = financialSummary.SupplierPayments;
-
-                    // Calculate COGS
+                    // Calculate COGS (cost of goods sold)
                     CostOfGoodsSold = transactionsList
                         .SelectMany(t => t.Details)
                         .Sum(d => d.PurchasePrice * d.Quantity);
 
-                    // Calculate profits
-                    GrossProfit = TotalSales - CostOfGoodsSold;
-                    NetProfit = GrossProfit - TotalExpenses - TotalReturns - TotalSupplierPayments;
+                    // Get financial summary for expenses and supplier payments only
+                    var financialSummary = await _drawerService.GetFinancialSummaryAsync(StartDate, EndDate);
+                    if (linkedCts.Token.IsCancellationRequested) return;
+
+                    // Use transaction-based calculations for sales
+                    TotalSales = totalSalesFromTransactions;
+
+                    // Keep expenses and supplier payments from drawer service
+                    TotalExpenses = financialSummary.Expenses;
+                    TotalSupplierPayments = financialSummary.SupplierPayments;
+
+                    // Calculate profits with simplified logic
+                    GrossProfit = transactionsList.Sum(t =>
+                    {
+                        // Skip if transaction has no details
+                        if (t.Details == null || !t.Details.Any())
+                            return 0;
+
+                        // Skip profit calculation if total amount is zero
+                        if (t.TotalAmount == 0)
+                            return 0;
+
+                        // Calculate base profit
+                        return t.Details.Sum(d => (d.UnitPrice - d.PurchasePrice) * d.Quantity);
+                    });
+
+                    // Net profit calculation
+                    NetProfit = GrossProfit - TotalExpenses - TotalSupplierPayments;
 
                     // Calculate percentages
                     GrossProfitPercentage = TotalSales > 0 ? (GrossProfit / TotalSales) * 100 : 0;
@@ -231,16 +243,38 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Create detailed profit breakdown
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    var details = transactionsList
-                        .SelectMany(t => t.Details.Select(d => new ProfitDetailDTO
+                    var details = new List<ProfitDetailDTO>();
+                    foreach (var transaction in transactionsList)
+                    {
+                        foreach (var detail in transaction.Details)
                         {
-                            Date = t.TransactionDate,
-                            Sales = d.UnitPrice * d.Quantity,
-                            Cost = d.PurchasePrice * d.Quantity,
-                            TransactionCount = 1
-                        }))
-                        .OrderByDescending(d => d.Date)
-                        .ToList();
+                            decimal sales = detail.UnitPrice * detail.Quantity;
+                            decimal cost = detail.PurchasePrice * detail.Quantity;
+
+                            details.Add(new ProfitDetailDTO
+                            {
+                                Date = transaction.TransactionDate,
+                                Sales = sales,
+                                Cost = cost,
+                                TransactionCount = 1
+                            });
+                        }
+                    }
+
+                    details = details.OrderByDescending(d => d.Date).ToList();
+
+                    // Reconciliation check for debugging purposes
+                    decimal detailSalesSum = details.Sum(d => d.Sales);
+                    decimal detailCostSum = details.Sum(d => d.Cost);
+                    decimal detailGrossProfitSum = details.Sum(d => d.GrossProfit);
+
+                    if (Math.Abs(detailSalesSum - TotalSales) > 0.01m ||
+                        Math.Abs(detailGrossProfitSum - GrossProfit) > 0.01m)
+                    {
+                        Debug.WriteLine($"Calculation discrepancy detected:");
+                        Debug.WriteLine($"Summary - Sales: {TotalSales:C2}, Gross Profit: {GrossProfit:C2}");
+                        Debug.WriteLine($"Details - Sales: {detailSalesSum:C2}, Gross Profit: {detailGrossProfitSum:C2}");
+                    }
 
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -264,6 +298,13 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = false;
                 _operationLock.Release();
             }
+        }
+
+        private decimal AggregateTransactionValues(List<TransactionDTO> transactions, Func<TransactionDTO, bool> filter, Func<TransactionDTO, decimal> selector)
+        {
+            return transactions
+                .Where(filter)
+                .Sum(selector);
         }
 
         private async Task ExportReportAsync()
@@ -297,7 +338,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     csv.AppendLine($"Gross Profit,{GrossProfit:F2}");
                     csv.AppendLine($"Gross Profit Percentage,{GrossProfitPercentage:F2}%");
                     csv.AppendLine($"Total Expenses,{TotalExpenses:F2}");
-                    csv.AppendLine($"Total Returns,{TotalReturns:F2}");
                     csv.AppendLine($"Supplier Payments,{TotalSupplierPayments:F2}");
                     csv.AppendLine($"Net Profit,{NetProfit:F2}");
                     csv.AppendLine($"Net Profit Percentage,{NetProfitPercentage:F2}%");

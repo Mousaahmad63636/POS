@@ -9,7 +9,6 @@ namespace QuickTechSystems.WPF.ViewModels
     {
         private decimal _totalSales;
         private decimal _totalExpenses;
-        private decimal _totalDebtPayments;
         private decimal _totalSupplierPayments;
         private decimal _netEarnings;
         private decimal _totalReturns;
@@ -19,7 +18,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _dailyReturns;
         private decimal _dailyExpenses;
         private decimal _supplierPayments;
-        private decimal _debtPayments;
 
         private async Task LoadFinancialOverviewAsync()
         {
@@ -77,21 +75,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 TotalSupplierPayments = supplierPayments;
                 Debug.WriteLine($"TotalSupplierPayments set: {TotalSupplierPayments}");
 
-                TotalDebtPayments = todayTransactions
-                    .Where(t => t.Type.Equals("Debt Payment", StringComparison.OrdinalIgnoreCase))
-                    .Sum(t => Math.Abs(t.Amount));
-                Debug.WriteLine($"TotalDebtPayments calculated: {TotalDebtPayments}");
-
                 // Update daily totals
                 DailySales = TotalSales;
                 DailyReturns = TotalReturns;
                 DailyExpenses = TotalExpenses;
                 SupplierPayments = TotalSupplierPayments;
-                DebtPayments = TotalDebtPayments;
 
                 // Calculate net values
                 NetSales = TotalSales - TotalReturns;
-                NetCashflow = TotalSales + TotalDebtPayments - (TotalExpenses + TotalReturns);
+                NetCashflow = TotalSales - (TotalExpenses + TotalReturns);
                 NetEarnings = NetSales - TotalExpenses;
 
                 Debug.WriteLine($"Net calculations completed:");
@@ -130,6 +122,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync("Error updating financial summary");
             }
         }
+
         public async Task ApplyDateFilterAsync()
         {
             try
@@ -178,13 +171,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     TotalExpenses = regularExpenses + supplierPayments;
                     TotalSupplierPayments = supplierPayments;
 
-                    TotalDebtPayments = transactions
-                        .Where(t => t.Type.Equals("Debt Payment", StringComparison.OrdinalIgnoreCase))
-                        .Sum(t => Math.Abs(t.Amount));
-
                     // Update calculated totals
                     NetSales = TotalSales - TotalReturns;
-                    NetCashflow = TotalSales + TotalDebtPayments - (TotalExpenses + TotalReturns);
+                    NetCashflow = TotalSales - (TotalExpenses + TotalReturns);
                     NetEarnings = NetSales - TotalExpenses;
 
                     // Update the UI
@@ -202,6 +191,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
+
         private decimal CalculateCurrentBalance()
         {
             if (DrawerHistory == null || !DrawerHistory.Any())
@@ -219,7 +209,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 switch (transaction.Type.ToLower())
                 {
                     case "cash sale":
-                    case "debt payment":
                     case "cash in":
                         balance += Math.Abs(transaction.Amount);
                         break;
@@ -265,20 +254,15 @@ namespace QuickTechSystems.WPF.ViewModels
             TotalExpenses = regularExpenses + supplierPayments;
             TotalSupplierPayments = supplierPayments;
 
-            TotalDebtPayments = todayTransactions
-                .Where(t => t.Type.Equals("Debt Payment", StringComparison.OrdinalIgnoreCase))
-                .Sum(t => Math.Abs(t.Amount));
-
             // Update daily totals
             DailySales = TotalSales;
             DailyReturns = TotalReturns;
             DailyExpenses = TotalExpenses;
             SupplierPayments = TotalSupplierPayments;
-            DebtPayments = TotalDebtPayments;
 
             // Calculate net values
             NetSales = TotalSales - TotalReturns;
-            NetCashflow = TotalSales + TotalDebtPayments - (TotalExpenses + TotalReturns);
+            NetCashflow = TotalSales - (TotalExpenses + TotalReturns);
             NetEarnings = NetSales - TotalExpenses;
 
             NotifyTotalChanges();
@@ -289,12 +273,10 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(TotalSales));
             OnPropertyChanged(nameof(TotalReturns));
             OnPropertyChanged(nameof(TotalExpenses));
-            OnPropertyChanged(nameof(TotalDebtPayments));
             OnPropertyChanged(nameof(TotalSupplierPayments));
             OnPropertyChanged(nameof(DailySales));
             OnPropertyChanged(nameof(DailyReturns));
             OnPropertyChanged(nameof(DailyExpenses));
-            OnPropertyChanged(nameof(DebtPayments));
             OnPropertyChanged(nameof(SupplierPayments));
             OnPropertyChanged(nameof(NetSales));
             OnPropertyChanged(nameof(NetCashflow));
@@ -309,7 +291,6 @@ namespace QuickTechSystems.WPF.ViewModels
             TotalSales = 0;
             TotalReturns = 0;
             TotalExpenses = 0;
-            TotalDebtPayments = 0;
             TotalSupplierPayments = 0;
             DailySales = 0;
             DailyReturns = 0;
@@ -347,16 +328,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 TotalExpenses = regularExpenses + supplierPayments;
                 TotalSupplierPayments = supplierPayments;
 
-                TotalDebtPayments = todayTransactions
-                    .Where(t => t.Type.Equals("Debt Payment", StringComparison.OrdinalIgnoreCase))
-                    .Sum(t => Math.Abs(t.Amount));
-
                 // Update UI properties
                 OnPropertyChanged(nameof(TotalSales));
                 OnPropertyChanged(nameof(TotalReturns));
                 OnPropertyChanged(nameof(TotalExpenses));
                 OnPropertyChanged(nameof(TotalSupplierPayments));
-                OnPropertyChanged(nameof(TotalDebtPayments));
                 OnPropertyChanged(nameof(NetSales));
                 OnPropertyChanged(nameof(NetCashflow));
                 OnPropertyChanged(nameof(NetEarnings));

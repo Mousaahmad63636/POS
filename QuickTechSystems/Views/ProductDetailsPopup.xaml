@@ -1,4 +1,5 @@
-﻿<UserControl x:Class="QuickTechSystems.WPF.Views.ProductDetailsPopup"
+﻿<!-- ProductDetailsPopup.xaml (path: QuickTechSystems.WPF.Views/ProductDetailsPopup.xaml) -->
+<UserControl x:Class="QuickTechSystems.WPF.Views.ProductDetailsPopup"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -20,9 +21,9 @@
                 BorderBrush="#E0E0E0"
                 BorderThickness="1"
                 CornerRadius="8"
-                MaxWidth="800"
-                Width="800"
-                MaxHeight="700"
+                MaxWidth="1200"
+                Width="Auto"
+                MaxHeight="650"
                 Margin="24"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center">
@@ -41,7 +42,7 @@
 
                 <!-- Header -->
                 <Border Grid.Row="0" Background="#FAFAFA">
-                    <Grid Margin="24,16">
+                    <Grid Margin="24,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -84,526 +85,429 @@
                     </Grid>
                 </Border>
 
-                <!-- Form Content -->
-                <ScrollViewer Grid.Row="1" 
-                             VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="24,20">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                <!-- Form Content - Redesigned to use three columns instead of two -->
+                <Grid Grid.Row="1" Margin="24,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="0.32*"/>
+                        <ColumnDefinition Width="0.36*"/>
+                        <ColumnDefinition Width="0.32*"/>
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Left Column -->
-                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                            <!-- Basic Information Section -->
-                            <Border Background="#F8FAFC" 
-                                    BorderBrush="{StaticResource BorderColor}" 
-                                    BorderThickness="1" 
-                                    CornerRadius="6" 
-                                    Padding="16" 
-                                    Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Product_BasicInfo}" 
-                                             Style="{StaticResource HeadlineSmall}" 
-                                             Margin="0,0,0,16" 
-                                             Foreground="{StaticResource PrimaryColor}"/>
+                    <!-- Left Column -->
+                    <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                        <!-- Basic Information Section -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_BasicInfo}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
 
-                                    <!-- Name Field -->
-                                    <TextBlock Text="{DynamicResource Product_Name}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
+                                <!-- Name Field -->
+                                <TextBlock Text="{DynamicResource Product_Name}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <TextBox Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}" 
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                    <TextBox.Resources>
+                                        <Style TargetType="Border">
+                                            <Setter Property="CornerRadius" Value="4"/>
+                                        </Style>
+                                    </TextBox.Resources>
+                                </TextBox>
 
-                                    <!-- Category -->
-                                    <TextBlock Text="{DynamicResource Product_Category}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <ComboBox ItemsSource="{Binding Categories}"
-                                            DisplayMemberPath="Name"
-                                            SelectedValuePath="CategoryId"
-                                            SelectedValue="{Binding SelectedProduct.CategoryId}"
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <ComboBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </ComboBox.Resources>
-                                    </ComboBox>
+                                <!-- Category -->
+                                <TextBlock Text="{DynamicResource Product_Category}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <ComboBox ItemsSource="{Binding Categories}"
+                                        DisplayMemberPath="Name"
+                                        SelectedValuePath="CategoryId"
+                                        SelectedValue="{Binding SelectedProduct.CategoryId}"
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                </ComboBox>
 
-                                    <!-- Supplier -->
-                                    <TextBlock Text="{DynamicResource Product_Supplier}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <ComboBox ItemsSource="{Binding Suppliers}"
-                                            DisplayMemberPath="Name"
-                                            SelectedValuePath="SupplierId"
-                                            SelectedValue="{Binding SelectedProduct.SupplierId}"
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <ComboBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </ComboBox.Resources>
-                                    </ComboBox>
+                                <!-- Supplier -->
+                                <TextBlock Text="{DynamicResource Product_Supplier}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <ComboBox ItemsSource="{Binding Suppliers}"
+                                        DisplayMemberPath="Name"
+                                        SelectedValuePath="SupplierId"
+                                        SelectedValue="{Binding SelectedProduct.SupplierId}"
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                </ComboBox>
 
-                                    <!-- Description Field -->
-                                    <TextBlock Text="{DynamicResource Product_Description}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="80"
-                                            Padding="12,8"
-                                            TextWrapping="Wrap"
-                                            AcceptsReturn="True"
-                                            VerticalScrollBarVisibility="Auto"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
+                                <!-- Active Status -->
+                                <CheckBox Content="{DynamicResource Product_IsActive}" 
+                                        IsChecked="{Binding SelectedProduct.IsActive}" 
+                                        Margin="0,8,0,0"
+                                        FontSize="13">
+                                    <CheckBox.Style>
+                                        <Style TargetType="CheckBox">
+                                            <Setter Property="Foreground" Value="#555555"/>
+                                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                        </Style>
+                                    </CheckBox.Style>
+                                </CheckBox>
+                            </StackPanel>
+                        </Border>
 
-                                    <!-- Active Status -->
-                                    <CheckBox Content="{DynamicResource Product_IsActive}" 
-                                            IsChecked="{Binding SelectedProduct.IsActive}" 
-                                            Margin="0,0,0,8"
-                                            FontSize="13">
-                                        <CheckBox.Style>
-                                            <Style TargetType="CheckBox">
-                                                <Setter Property="Foreground" Value="#555555"/>
-                                                <Setter Property="VerticalContentAlignment" Value="Center"/>
-                                            </Style>
-                                        </CheckBox.Style>
-                                    </CheckBox>
-                                </StackPanel>
-                            </Border>
+                        <!-- Stock Information -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,8,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_StockInfo}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
 
-                            <!-- Pricing Information -->
-                            <Border Background="#F8FAFC" 
-                                    BorderBrush="{StaticResource BorderColor}" 
-                                    BorderThickness="1" 
-                                    CornerRadius="6" 
-                                    Padding="16" 
-                                    Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Product_PricingInfo}" 
-                                             Style="{StaticResource HeadlineSmall}" 
-                                             Margin="0,0,0,16" 
-                                             Foreground="{StaticResource PrimaryColor}"/>
+                                <!-- Current Stock Field -->
+                                <TextBlock Text="{DynamicResource Product_CurrentStock}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                </TextBox>
+
+                                <!-- Minimum Stock Field -->
+                                <TextBlock Text="{DynamicResource Product_MinimumStock}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <TextBox Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                </TextBox>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Middle Column -->
+                    <StackPanel Grid.Column="1" Margin="8,0">
+                        <!-- Description Section -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_Description}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
+
+                                <TextBox Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                        Height="110"
+                                        Padding="8,6"
+                                        TextWrapping="Wrap"
+                                        AcceptsReturn="True"
+                                        VerticalScrollBarVisibility="Auto"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,0">
+                                </TextBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Pricing Information -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,8,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_PricingInfo}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
 
                                     <!-- Purchase Price Field -->
-                                    <TextBlock Text="{DynamicResource Product_PurchasePrice}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.PurchasePrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
+                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                        <TextBlock Text="{DynamicResource Product_PurchasePrice}" 
+                                                 FontSize="13" 
+                                                 FontWeight="SemiBold" 
+                                                 Margin="0,0,0,4" 
+                                                 Foreground="#555555"/>
+                                        <TextBox Text="{Binding SelectedProduct.PurchasePrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}" 
+                                                Height="32"
+                                                Padding="8,0"
+                                                VerticalContentAlignment="Center"
+                                                BorderBrush="#DDDDDD"
+                                                BorderThickness="1"
+                                                Margin="0,0,0,8">
+                                        </TextBox>
+                                    </StackPanel>
 
                                     <!-- Sale Price Field -->
-                                    <TextBlock Text="{DynamicResource Product_SalePrice}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.SalePrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-
-                                    <!-- Speed Field (Optional) -->
-                                    <TextBlock Text="{DynamicResource Product_Speed}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.Speed, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,8"
-                                            ToolTip="{DynamicResource Product_SpeedTooltip}">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-
-                                    <!-- Price Calculations Section -->
-                                    <Border BorderBrush="#E0E0E0" 
-                                            BorderThickness="1" 
-                                            CornerRadius="4" 
-                                            Padding="12" 
-                                            Margin="0,16,0,0"
-                                            Background="#F0F8FF">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
-
-                                            <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                                    Text="{DynamicResource Product_PriceCalculations}" 
-                                                    FontWeight="SemiBold"
-                                                    Margin="0,0,0,8"
-                                                    Foreground="{StaticResource PrimaryColor}"/>
-
-                                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
-                                                <TextBlock Text="{DynamicResource Product_TotalCost}" FontSize="12"/>
-                                                <TextBlock Text="{Binding SelectedProductTotalCost, StringFormat=C}"
-                                                          FontWeight="SemiBold"
-                                                          Foreground="{StaticResource PrimaryColor}"/>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Row="1" Grid.Column="1">
-                                                <TextBlock Text="{DynamicResource Product_TotalValue}" FontSize="12"/>
-                                                <TextBlock Text="{Binding SelectedProductTotalValue, StringFormat=C}"
-                                                          FontWeight="SemiBold"
-                                                          Foreground="{StaticResource SuccessColor}"/>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,8,8,0">
-                                                <TextBlock Text="{DynamicResource Product_ProfitMargin}" FontSize="12"/>
-                                                <TextBlock Text="{Binding SelectedProductProfitMargin, StringFormat=C}"
-                                                          FontWeight="SemiBold">
-                                                    <TextBlock.Foreground>
-                                                        <Binding Path="SelectedProductProfitMargin">
-                                                            <Binding.Converter>
-                                                                <converters:ProfitColorConverter/>
-                                                            </Binding.Converter>
-                                                        </Binding>
-                                                    </TextBlock.Foreground>
-                                                </TextBlock>
-                                            </StackPanel>
-
-                                            <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0">
-                                                <TextBlock Text="{DynamicResource Product_ProfitPercentage}" FontSize="12"/>
-                                                <TextBlock Text="{Binding SelectedProductProfitPercentage, StringFormat='{}{0:N2}%'}"
-                                                          FontWeight="SemiBold">
-                                                    <TextBlock.Foreground>
-                                                        <Binding Path="SelectedProductProfitPercentage">
-                                                            <Binding.Converter>
-                                                                <converters:ProfitColorConverter/>
-                                                            </Binding.Converter>
-                                                        </Binding>
-                                                    </TextBlock.Foreground>
-                                                </TextBlock>
-                                            </StackPanel>
-
-                                            <Border Grid.Row="3" Grid.ColumnSpan="2" 
-                                                    BorderBrush="#E0E0E0" 
-                                                    BorderThickness="1" 
-                                                    Background="#F9FFF9" 
-                                                    CornerRadius="4" 
-                                                    Margin="0,12,0,0"
-                                                    Padding="8">
-                                                <TextBlock Text="{DynamicResource Product_CalculationsNote}"
-                                                          FontStyle="Italic"
-                                                          FontSize="11"
-                                                          TextWrapping="Wrap"/>
-                                            </Border>
-                                        </Grid>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <!-- Right Column -->
-                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
-                            <!-- Barcode Section -->
-                            <Border Background="#F8FAFC" 
-                                    BorderBrush="{StaticResource BorderColor}" 
-                                    BorderThickness="1" 
-                                    CornerRadius="6" 
-                                    Padding="16" 
-                                    Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Product_BarcodeInfo}" 
-                                             Style="{StaticResource HeadlineSmall}" 
-                                             Margin="0,0,0,16" 
-                                             Foreground="{StaticResource PrimaryColor}"/>
-
-                                    <!-- Barcode Field -->
-                                    <TextBlock Text="{DynamicResource Product_Barcode}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-
-                                    <!-- Barcode Generation Buttons -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                        <Button Content="{DynamicResource Product_GenerateBarcode}"
-                                                Command="{Binding GenerateBarcodeCommand}"
-                                                Style="{StaticResource PrimaryButtonStyle}"
-                                                Margin="0,0,8,0"/>
-
-                                        <Button Content="{DynamicResource Product_AutoGenerateBarcode}"
-                                                Command="{Binding GenerateAutomaticBarcodeCommand}"
-                                                Style="{StaticResource SecondaryButtonStyle}"/>
+                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                        <TextBlock Text="{DynamicResource Product_SalePrice}" 
+                                                 FontSize="13" 
+                                                 FontWeight="SemiBold" 
+                                                 Margin="0,0,0,4" 
+                                                 Foreground="#555555"/>
+                                        <TextBox Text="{Binding SelectedProduct.SalePrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}" 
+                                                Height="32"
+                                                Padding="8,0"
+                                                VerticalContentAlignment="Center"
+                                                BorderBrush="#DDDDDD"
+                                                BorderThickness="1"
+                                                Margin="0,0,0,8">
+                                        </TextBox>
                                     </StackPanel>
+                                </Grid>
 
-                                    <!-- Barcode Image -->
-                                    <Image Source="{Binding BarcodeImage}"
-                                           Height="80"
-                                           HorizontalAlignment="Left"
-                                           VerticalAlignment="Top"
+                                <!-- Speed Field -->
+                                <TextBlock Text="{DynamicResource Product_Speed}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <TextBox Text="{Binding SelectedProduct.Speed, UpdateSourceTrigger=PropertyChanged}" 
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8"
+                                        ToolTip="{DynamicResource Product_SpeedTooltip}">
+                                </TextBox>
+
+                                <!-- Price Calculations Section -->
+                                <Border BorderBrush="#E0E0E0" 
+                                        BorderThickness="1" 
+                                        CornerRadius="4" 
+                                        Padding="8" 
+                                        Margin="0,4,0,0"
+                                        Background="#F0F8FF">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                                                Text="{DynamicResource Product_PriceCalculations}" 
+                                                FontWeight="SemiBold"
+                                                Margin="0,0,0,6"
+                                                Foreground="{StaticResource PrimaryColor}"/>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="{DynamicResource Product_TotalCost}" FontSize="12"/>
+                                            <TextBlock Text="{Binding SelectedProductTotalCost, StringFormat=C}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{StaticResource PrimaryColor}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,0">
+                                            <TextBlock Text="{DynamicResource Product_TotalValue}" FontSize="12"/>
+                                            <TextBlock Text="{Binding SelectedProductTotalValue, StringFormat=C}"
+                                                      FontWeight="SemiBold"
+                                                      Foreground="{StaticResource SuccessColor}"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,6,4,0">
+                                            <TextBlock Text="{DynamicResource Product_ProfitMargin}" FontSize="12"/>
+                                            <TextBlock Text="{Binding SelectedProductProfitMargin, StringFormat=C}"
+                                                      FontWeight="SemiBold">
+                                                <TextBlock.Foreground>
+                                                    <Binding Path="SelectedProductProfitMargin">
+                                                        <Binding.Converter>
+                                                            <converters:ProfitColorConverter/>
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="4,6,0,0">
+                                            <TextBlock Text="{DynamicResource Product_ProfitPercentage}" FontSize="12"/>
+                                            <TextBlock Text="{Binding SelectedProductProfitPercentage, StringFormat='{}{0:N2}%'}"
+                                                      FontWeight="SemiBold">
+                                                <TextBlock.Foreground>
+                                                    <Binding Path="SelectedProductProfitPercentage">
+                                                        <Binding.Converter>
+                                                            <converters:ProfitColorConverter/>
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </TextBlock.Foreground>
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Right Column -->
+                    <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                        <!-- Barcode Section -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_BarcodeInfo}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
+
+                                <!-- Barcode Field -->
+                                <TextBlock Text="{DynamicResource Product_Barcode}" 
+                                         FontSize="13" 
+                                         FontWeight="SemiBold" 
+                                         Margin="0,0,0,4" 
+                                         Foreground="#555555"/>
+                                <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                        Height="32"
+                                        Padding="8,0"
+                                        VerticalContentAlignment="Center"
+                                        BorderBrush="#DDDDDD"
+                                        BorderThickness="1"
+                                        Margin="0,0,0,8">
+                                </TextBox>
+
+                                <!-- Barcode Generation Buttons -->
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Content="{DynamicResource Product_GenerateBarcode}"
+                                            Command="{Binding GenerateBarcodeCommand}"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Margin="0,0,4,0"
+                                            Height="28"/>
+
+                                    <Button Grid.Column="1"
+                                            Content="{DynamicResource Product_AutoGenerateBarcode}"
+                                            Command="{Binding GenerateAutomaticBarcodeCommand}"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Margin="4,0,0,0"
+                                            Height="28"/>
+                                </Grid>
+
+                                <!-- Barcode Image -->
+                                <Image Source="{Binding BarcodeImage}"
+                                       Height="60"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Top"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       Margin="0,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Product Image Section -->
+                        <Border Background="#F8FAFC" 
+                                BorderBrush="{StaticResource BorderColor}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Padding="12" 
+                                Margin="0,8,0,0">
+                            <StackPanel>
+                                <TextBlock Text="{DynamicResource Product_Image}" 
+                                         Style="{StaticResource HeadlineSmall}" 
+                                         Margin="0,0,0,12" 
+                                         Foreground="{StaticResource PrimaryColor}"/>
+
+                                <Grid Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button Grid.Column="0"
+                                            Content="{DynamicResource Product_UploadImage}"
+                                            Command="{Binding UploadImageCommand}"
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Margin="0,0,4,0"
+                                            Height="28"/>
+
+                                    <Button Grid.Column="1"
+                                            Content="{DynamicResource Product_ClearImage}"
+                                            Command="{Binding ClearImageCommand}"
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Margin="4,0,0,0"
+                                            Height="28"/>
+                                </Grid>
+
+                                <Border BorderBrush="{StaticResource BorderColor}"
+                                        BorderThickness="1"
+                                        Width="160"
+                                        Height="160"
+                                        Background="{StaticResource SurfaceColor}">
+                                    <Image Source="{Binding ProductImage}"
                                            Stretch="Uniform"
-                                           RenderOptions.BitmapScalingMode="HighQuality"
-                                           Margin="0,0,0,8"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Stock Information -->
-                            <Border Background="#F8FAFC" 
-                                    BorderBrush="{StaticResource BorderColor}" 
-                                    BorderThickness="1" 
-                                    CornerRadius="6" 
-                                    Padding="16" 
-                                    Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Product_StockInfo}" 
-                                             Style="{StaticResource HeadlineSmall}" 
-                                             Margin="0,0,0,16" 
-                                             Foreground="{StaticResource PrimaryColor}"/>
-
-                                    <!-- Current Stock Field -->
-                                    <TextBlock Text="{DynamicResource Product_CurrentStock}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-
-                                    <!-- Minimum Stock Field -->
-                                    <TextBlock Text="{DynamicResource Product_MinimumStock}" 
-                                             FontSize="13" 
-                                             FontWeight="SemiBold" 
-                                             Margin="0,0,0,8" 
-                                             Foreground="#555555"/>
-                                    <TextBox Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                            Height="40"
-                                            Padding="12,0"
-                                            VerticalContentAlignment="Center"
-                                            BorderBrush="#DDDDDD"
-                                            BorderThickness="1"
-                                            Margin="0,0,0,16">
-                                        <TextBox.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </TextBox.Resources>
-                                        <TextBox.Style>
-                                            <Style TargetType="TextBox">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsFocused" Value="True">
-                                                        <Setter Property="BorderBrush" Value="#4CAF50"/>
-                                                        <Setter Property="BorderThickness" Value="2"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBox.Style>
-                                    </TextBox>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Product Image Section -->
-                            <Border Background="#F8FAFC" 
-                                    BorderBrush="{StaticResource BorderColor}" 
-                                    BorderThickness="1" 
-                                    CornerRadius="6" 
-                                    Padding="16" 
-                                    Margin="0,0,0,16">
-                                <StackPanel>
-                                    <TextBlock Text="{DynamicResource Product_Image}" 
-                                             Style="{StaticResource HeadlineSmall}" 
-                                             Margin="0,0,0,16" 
-                                             Foreground="{StaticResource PrimaryColor}"/>
-
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                                        <Button Content="{DynamicResource Product_UploadImage}"
-                                                Command="{Binding UploadImageCommand}"
-                                                Style="{StaticResource PrimaryButtonStyle}"
-                                                Margin="0,0,8,0"/>
-                                        <Button Content="{DynamicResource Product_ClearImage}"
-                                                Command="{Binding ClearImageCommand}"
-                                                Style="{StaticResource SecondaryButtonStyle}"/>
-                                    </StackPanel>
-
-                                    <Border BorderBrush="{StaticResource BorderColor}"
-                                            BorderThickness="1"
-                                            Width="200"
-                                            Height="200"
-                                            Background="{StaticResource SurfaceColor}">
-                                        <Image Source="{Binding ProductImage}"
-                                               Stretch="Uniform"
-                                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </Grid>
-                </ScrollViewer>
+                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
 
                 <!-- Footer with Action Buttons -->
                 <Border Grid.Row="2" Background="#FAFAFA">
-                    <Grid Margin="24,16">
+                    <Grid Margin="24,12">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -615,7 +519,7 @@
                                 Command="{Binding DeleteCommand}"
                                 Click="DeleteButton_Click"
                                 Width="110"
-                                Height="40"
+                                Height="36"
                                 Margin="0,0,12,0"
                                 Background="#E53935"
                                 Foreground="White"
@@ -648,11 +552,6 @@
                                             </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Opacity" Value="0.7"/>
-                                        </Trigger>
-                                    </Style.Triggers>
                                 </Style>
                             </Button.Style>
                         </Button>
@@ -662,7 +561,7 @@
                                 Command="{Binding SaveCommand}"
                                 Click="SaveButton_Click"
                                 Width="110" 
-                                Height="40"
+                                Height="36"
                                 Background="#4CAF50"
                                 Foreground="White"
                                 Cursor="Hand">
@@ -693,11 +592,6 @@
                                             </ControlTemplate>
                                         </Setter.Value>
                                     </Setter>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsEnabled" Value="False">
-                                            <Setter Property="Opacity" Value="0.7"/>
-                                        </Trigger>
-                                    </Style.Triggers>
                                 </Style>
                             </Button.Style>
                         </Button>

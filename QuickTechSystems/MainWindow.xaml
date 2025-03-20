@@ -132,7 +132,7 @@
         </Style>
     </Window.Resources>
 
-    <Grid x:Name="MainGrid">
+    <Grid x:Name="MainGrid" MouseDown="MainGrid_MouseDown">
         <Grid.ColumnDefinitions>
             <ColumnDefinition x:Name="NavColumn" Width="280"/>
             <ColumnDefinition Width="*"/>
@@ -221,13 +221,6 @@
                         <!-- Finance Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Finance}"
                                  Style="{StaticResource CategoryHeader}"/>
-
-                        <Button Content="{DynamicResource MainWindow_CustomerDebt}"
-                                Tag="💳"
-                                Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="CustomerDebt"/>
                         <Button Content="{DynamicResource MainWindow_Customers}"
                                 Tag="👥"
                                 Style="{StaticResource NavButton}"
@@ -330,12 +323,12 @@
                                 Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                         <Button Content="{DynamicResource MainWindow_Employees}"
-        Tag="👥"
-        Style="{StaticResource NavButton}"
-        Command="{Binding NavigateCommand}" 
-        IsEnabled="{Binding IsNavigationEnabled}"
-        CommandParameter="Employees"
-        Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                Tag="👥"
+                                Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}" 
+                                IsEnabled="{Binding IsNavigationEnabled}"
+                                CommandParameter="Employees"
+                                Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                         <!-- Logout Button -->
                         <Button Content="{DynamicResource MainWindow_Logout}"
@@ -349,6 +342,56 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+
+        <!-- Hide sidebar button -->
+        <Button x:Name="HideSidebarButton"
+                Content="‹"
+                Width="44"
+                Height="44"
+                FontSize="24"
+                FontWeight="Bold"
+                Background="{StaticResource SidebarBackground}"
+                Foreground="White"
+                BorderThickness="0"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,12,12,0"
+                Panel.ZIndex="999"
+                Click="HideSidebarButton_Click"
+                Grid.Column="0">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="border" 
+                               Background="{TemplateBinding Background}"
+                               CornerRadius="8"
+                               BorderThickness="0"
+                               Effect="{StaticResource CardShadow}">
+                            <ContentPresenter x:Name="contentPresenter" 
+                                            HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" 
+                                   Value="{StaticResource ButtonHoverBackground}"/>
+                            <Setter TargetName="border" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="20" 
+                                                    ShadowDepth="3" 
+                                                    Opacity="0.3"
+                                                    Color="#0F172A"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+        </Button>
 
         <!-- Content Area -->
         <Border Grid.Column="1"
@@ -420,22 +463,36 @@
             </Grid>
         </Border>
 
-        <!-- Toggle Button -->
-        <ToggleButton x:Name="ToggleNavButton"
-                     Content="≡"
-                     Click="ToggleNavButton_Click"
-                     Width="44"
-                     Height="44"
-                     FontSize="24"
-                     Background="{StaticResource SidebarBackground}"
-                     Foreground="White"
-                     BorderThickness="0"
-                     HorizontalAlignment="Left"
-                     VerticalAlignment="Top"
-                     Margin="12"
-                     Panel.ZIndex="999">
-            <ToggleButton.Template>
-                <ControlTemplate TargetType="ToggleButton">
+        <!-- Hover-activated sidebar reveal area -->
+        <Border x:Name="SidebarHoverArea"
+                Grid.Column="1" 
+                Width="15" 
+                HorizontalAlignment="Left"
+                VerticalAlignment="Stretch"
+                Background="Transparent"
+                Panel.ZIndex="999"
+                Visibility="Collapsed"
+                MouseEnter="SidebarHoverArea_MouseEnter"/>
+
+        <!-- Show sidebar button -->
+        <Button x:Name="ShowSidebarButton"
+                Content="›"
+                Width="44"
+                Height="44"
+                FontSize="24"
+                FontWeight="Bold"
+                Background="{StaticResource SidebarBackground}"
+                Foreground="White"
+                BorderThickness="0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="0,12,0,0"
+                Panel.ZIndex="999"
+                Click="ShowSidebarButton_Click"
+                Grid.Column="1"
+                Visibility="Collapsed">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
                     <Grid>
                         <Border x:Name="border" 
                                Background="{TemplateBinding Background}"
@@ -444,13 +501,9 @@
                                Effect="{StaticResource CardShadow}">
                             <ContentPresenter x:Name="contentPresenter" 
                                             HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center">
-                            </ContentPresenter>
+                                            VerticalAlignment="Center"/>
                         </Border>
                     </Grid>
-                    <ControlTemplate.Resources>
-                        <RotateTransform x:Key="rotateTransform" x:Name="rotation" CenterX="22" CenterY="22"/>
-                    </ControlTemplate.Resources>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="border" Property="Background" 
@@ -464,20 +517,12 @@
                                 </Setter.Value>
                             </Setter>
                         </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="contentPresenter" 
-                                   Property="RenderTransform" 
-                                   Value="{StaticResource rotateTransform}"/>
-                            <Setter TargetName="contentPresenter" 
-                                   Property="RenderTransformOrigin" 
-                                   Value="0.5,0.5"/>
-                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
-            </ToggleButton.Template>
-        </ToggleButton>
+            </Button.Template>
+        </Button>
     </Grid>
 </Window>

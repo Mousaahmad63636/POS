@@ -4,533 +4,1027 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
-             mc:Ignorable="d">
+             mc:Ignorable="d"
+             x:Name="DrawerViewRoot"
+             RenderOptions.BitmapScalingMode="HighQuality"
+             UseLayoutRounding="True">
 
     <UserControl.Resources>
         <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-        <converters:LessThanZeroConverter x:Key="LessThanZeroConverter"/>
-        <converters:NegativeValueConverter x:Key="NegativeValueConverter"/>
 
         <!-- Colors -->
         <SolidColorBrush x:Key="PrimaryBackground" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="SecondaryBackground" Color="#F8F9FA"/>
         <SolidColorBrush x:Key="PrimaryText" Color="#343A40"/>
         <SolidColorBrush x:Key="SecondaryText" Color="#6C757D"/>
-        <SolidColorBrush x:Key="AccentColor" Color="#007BFF"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#28A745"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#4285F4"/>
+        <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50"/>
         <SolidColorBrush x:Key="InfoColor" Color="#17A2B8"/>
         <SolidColorBrush x:Key="WarningColor" Color="#DC3545"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
 
-        <!-- Base Styles -->
-        <Style x:Key="ModernDatePicker" TargetType="DatePicker">
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="Background" Value="White"/>
+        <!-- Modern TextBox Style -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <Style x:Key="CardBorder" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Margin" Value="5"/>
-        </Style>
-
-        <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Height" Value="35"/>
-            <Setter Property="Background" Value="{StaticResource AccentColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="15,0"/>
-            <Style.Resources>
-                <Style TargetType="Border">
-                    <Setter Property="CornerRadius" Value="5"/>
-                </Style>
-            </Style.Resources>
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.6"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- DataGrid Styles -->
-        <Style x:Key="ModernDataGrid" TargetType="DataGrid">
-            <Setter Property="Background" Value="{StaticResource PrimaryBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
-            <Setter Property="RowHeight" Value="40"/>
-            <Setter Property="AlternatingRowBackground" Value="#F8F9FA"/>
-            <Setter Property="MinHeight" Value="300"/>
-            <Setter Property="MaxHeight" Value="600"/>
-            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Auto"/>
-        </Style>
-
-        <Style x:Key="DataGridColumnHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{StaticResource SecondaryBackground}"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryText}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="10,12"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-        </Style>
-
-        <!-- Tab Control Styles -->
-        <Style x:Key="ModernTabControl" TargetType="TabControl">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-        </Style>
-
-        <Style x:Key="ModernTabItem" TargetType="TabItem">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="15,8"/>
-            <Setter Property="Margin" Value="0,0,2,0"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="Border" 
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4,4,0,0">
-                            <ContentPresenter x:Name="ContentSite"
-                                            VerticalAlignment="Center"
-                                            HorizontalAlignment="Center"
-                                            ContentSource="Header"
-                                            Margin="{TemplateBinding Padding}"/>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="border" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                Background="{TemplateBinding Background}" 
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                         Focusable="False" 
+                                         HorizontalScrollBarVisibility="Hidden" 
+                                         VerticalScrollBarVisibility="Hidden"
+                                         Padding="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource AccentColor}"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="White"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="False">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource SecondaryBackground}"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{StaticResource PrimaryText}"/>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" TargetName="border" Value="#4285F4"/>
+                                <Setter Property="BorderThickness" TargetName="border" Value="2"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Modern DatePicker Style -->
+        <Style x:Key="ModernDatePicker" TargetType="DatePicker">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Button Styles -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#4285F4"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                               BorderThickness="0"
+                               CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3367D6"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#2A56C6"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#F2F2F2"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                               BorderBrush="{TemplateBinding BorderBrush}"
+                               BorderThickness="{TemplateBinding BorderThickness}"
+                               CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#E0E0E0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SuccessButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#4CAF50"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                               BorderThickness="0"
+                               CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#388E3C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#2E7D32"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Background" Value="#DC3545"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                               BorderThickness="0"
+                               CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"
+                                            Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#C82333"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="#BD2130"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Action Menu Item Style -->
+        <Style x:Key="ActionMenuItem" TargetType="Button">
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#212529"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F8F9FA"/>
+                    <Setter Property="Foreground" Value="#4285F4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- DataGrid Styles -->
+        <Style x:Key="ResponsiveDataGrid" TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns" Value="False"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#EEEEEE"/>
+            <Setter Property="RowHeight" Value="50"/>
+            <Setter Property="RowHeaderWidth" Value="0"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="CanUserDeleteRows" Value="False"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="SelectionUnit" Value="FullRow"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9F9F9"/>
+            <Setter Property="RowBackground" Value="White"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="EnableColumnVirtualization" Value="True"/>
+        </Style>
+
+        <Style x:Key="ModernDataGridColumnHeader" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#F5F7FA"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridColumnHeader">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid>
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                 VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                 Margin="{TemplateBinding Padding}"/>
+                                <Path x:Name="SortArrow" 
+                                     Visibility="Collapsed" 
+                                     Data="M0,0 L5,5 L10,0" 
+                                     Fill="{TemplateBinding Foreground}" 
+                                     HorizontalAlignment="Right" 
+                                     VerticalAlignment="Center" 
+                                     Margin="0,0,8,0"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="SortDirection" Value="Ascending">
+                                <Setter Property="Visibility" TargetName="SortArrow" Value="Visible"/>
+                                <Setter Property="RenderTransform" TargetName="SortArrow">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="180" CenterX="5" CenterY="2.5"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="SortDirection" Value="Descending">
+                                <Setter Property="Visibility" TargetName="SortArrow" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ModernDataGridCell" TargetType="DataGridCell">
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E8F0FE"/>
+                    <Setter Property="Foreground" Value="#202124"/>
+                    <Setter Property="BorderBrush" Value="#D2E3FC"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Text Styles -->
+        <Style x:Key="BodyMedium" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#333333"/>
+        </Style>
+
+        <!-- Form Label Style -->
+        <Style x:Key="FormLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Form Title Style -->
+        <Style x:Key="FormTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#212529"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+
+        <!-- Inline Tab Style -->
+        <Style x:Key="InlineTabButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#4285F4"/>
+                </Trigger>
+                <Trigger Property="Tag" Value="Selected">
+                    <Setter Property="Foreground" Value="#4285F4"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                    <Setter Property="BorderThickness" Value="0,0,0,2"/>
+                    <Setter Property="BorderBrush" Value="#4285F4"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Container Styles -->
+        <Style x:Key="DataTableContainer" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+        </Style>
+
+        <!-- Loading Overlay -->
+        <Style x:Key="LoadingOverlay" TargetType="Border">
+            <Setter Property="Background" Value="#80000000"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+        </Style>
+
+        <!-- Popup Styles -->
+        <Style x:Key="PopupStyle" TargetType="Popup">
+            <Setter Property="AllowsTransparency" Value="True"/>
+            <Setter Property="PopupAnimation" Value="Fade"/>
+            <Setter Property="StaysOpen" Value="False"/>
+        </Style>
+
+        <Style x:Key="PopupContentStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" BlurRadius="10" Opacity="0.3"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="MenuPopupStyle" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.2"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
-    <Grid Margin="20">
+
+    <!-- Main Grid -->
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Header -->
-            <RowDefinition Height="Auto"/>
-            <!-- Date Range Filter -->
+            <!-- Single Header Row -->
             <RowDefinition Height="*"/>
-            <!-- Tabs and Content -->
+            <!-- Content Area -->
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Margin="0,0,0,20">
-            <TextBlock Text="{DynamicResource Drawer_Title}"
-                      FontSize="24"
-                      FontWeight="Bold"
-                      Foreground="{StaticResource AccentColor}"/>
-            <TextBlock Text="{DynamicResource Drawer_Subtitle}"
-                      Foreground="{StaticResource SecondaryText}"/>
-        </StackPanel>
+        <!-- Single Header Row with All Controls -->
+        <Grid Grid.Row="0" Margin="16,16,16,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <!-- Summary Button -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Tabs -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Date Range -->
+                <ColumnDefinition Width="*"/>
+                <!-- Flexible Space -->
+                <ColumnDefinition Width="Auto"/>
+                <!-- Action Button -->
+            </Grid.ColumnDefinitions>
 
-        <!-- Date Range Filter -->
-        <Border Grid.Row="1" 
-                Style="{StaticResource CardBorder}"
-                Margin="0,0,0,20">
-            <Grid Margin="15">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+            <!-- Summary Button -->
+            <Button Grid.Column="0" 
+                    Content="Summary"
+                    Name="SummaryButton"
+                    Click="SummaryButton_Click"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Margin="0,0,16,0"
+                    Width="100"/>
 
-                <TextBlock Text="{DynamicResource Drawer_DateRange}"
-                          FontSize="16"
-                          FontWeight="SemiBold"
-                          Grid.ColumnSpan="4"
-                          Margin="0,0,0,10"/>
+            <!-- Inline Tabs -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button x:Name="TabCurrentDrawer" 
+                        Content="Current Drawer" 
+                        Style="{StaticResource InlineTabButton}" 
+                        Tag="Selected" 
+                        Click="TabButton_Click"/>
 
-                <DatePicker Grid.Row="1"
-                           Grid.Column="0"
-                           Style="{StaticResource ModernDatePicker}"
+                <Button x:Name="TabTransactionHistory" 
+                        Content="Transaction History" 
+                        Style="{StaticResource InlineTabButton}" 
+                        Click="TabButton_Click"/>
+
+                <Button x:Name="TabProfitAnalysis" 
+                        Content="Profit Analysis" 
+                        Style="{StaticResource InlineTabButton}" 
+                        Click="TabButton_Click"/>
+            </StackPanel>
+
+            <!-- Date Range Controls -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0">
+                <TextBlock Text="Date Range" 
+                          VerticalAlignment="Center" 
+                          Margin="0,0,8,0"/>
+                <DatePicker Style="{StaticResource ModernDatePicker}"
                            SelectedDate="{Binding StartDate}"
-                           DisplayDateStart="{Binding MinimumDate}"
-                           DisplayDateEnd="{Binding MaximumDate}"
-                           Margin="0,0,10,0"/>
-
-                <TextBlock Text="{DynamicResource Drawer_DateRangeTo}"
-                          Grid.Row="1"
-                          Grid.Column="1"
-                          VerticalAlignment="Center"
-                          Margin="0,0,10,0"/>
-
-                <DatePicker Grid.Row="1"
-                           Grid.Column="2"
-                           Style="{StaticResource ModernDatePicker}"
+                           Width="120"
+                           Margin="0,0,4,0"/>
+                <TextBlock Text="to" 
+                          VerticalAlignment="Center" 
+                          Margin="0,0,4,0"/>
+                <DatePicker Style="{StaticResource ModernDatePicker}"
                            SelectedDate="{Binding EndDate}"
-                           DisplayDateStart="{Binding StartDate}"
-                           DisplayDateEnd="{Binding MaximumDate}"
-                           Margin="0,0,10,0"/>
-
-                <Button Grid.Row="1"
-                        Grid.Column="3"
-                        Content="{DynamicResource Drawer_ApplyFilter}"
+                           Width="120"
+                           Margin="0,0,8,0"/>
+                <Button Content="Apply Filter"
                         Command="{Binding ApplyDateFilterCommand}"
-                        Style="{StaticResource ActionButton}"
-                        HorizontalAlignment="Left"
+                        Style="{StaticResource PrimaryButtonStyle}"
                         Width="120"/>
+            </StackPanel>
+
+            <!-- Action Button -->
+            <Button Grid.Column="4" 
+                    Content="Actions"
+                    Name="ActionsButton"
+                    Click="ActionsButton_Click"
+                    Style="{StaticResource SecondaryButtonStyle}"
+                    Width="100"/>
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Border Grid.Row="1" Margin="16,0,16,16" Style="{StaticResource DataTableContainer}">
+            <!-- Content Views (only one visible at a time based on selected tab) -->
+            <Grid>
+                <!-- Current Drawer View -->
+                <ScrollViewer x:Name="CurrentDrawerView" 
+                             VerticalScrollBarVisibility="Auto" 
+                             HorizontalScrollBarVisibility="Auto"
+                             Visibility="Visible">
+                    <DataGrid Style="{StaticResource ResponsiveDataGrid}"
+                             ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
+                             CellStyle="{StaticResource ModernDataGridCell}"
+                             ItemsSource="{Binding DrawerHistory}"
+                             AutoGenerateColumns="False"
+                             IsReadOnly="True"
+                             LoadingRow="DataGrid_LoadingRow"
+                             MinHeight="400"
+                             Margin="16">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date &amp; Time" 
+                                              Binding="{Binding Timestamp, StringFormat=g}"
+                                              Width="150"/>
+                            <DataGridTextColumn Header="Transaction Type" 
+                                              Binding="{Binding ActionType}"
+                                              Width="150"/>
+                            <DataGridTextColumn Header="Transaction Details" 
+                                              Binding="{Binding Description}"
+                                              Width="150"/>
+                            <DataGridTextColumn Header="Transaction Amount" 
+                                              Binding="{Binding Amount, StringFormat=C2}"
+                                              Width="130"/>
+                            <DataGridTextColumn Header="Resulting Balance" 
+                                              Binding="{Binding ResultingBalance, StringFormat=C2}"
+                                              Width="130"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </ScrollViewer>
+
+                <!-- Transaction History View -->
+                <ContentControl x:Name="TransactionHistoryView" 
+                               Content="{Binding TransactionHistoryViewModel}"
+                               Visibility="Collapsed"/>
+
+                <!-- Profit Analysis View -->
+                <ContentControl x:Name="ProfitAnalysisView" 
+                               Content="{Binding ProfitViewModel}"
+                               Visibility="Collapsed"/>
             </Grid>
         </Border>
 
-        <!-- Tab Control -->
-        <TabControl Grid.Row="2" 
-                    Style="{StaticResource ModernTabControl}"
-                    Margin="0,20,0,0">
-            <!-- Current Drawer Tab -->
-            <TabItem Header="{DynamicResource Drawer_CurrentDrawerTab}" 
-                     Style="{StaticResource ModernTabItem}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
+        <!-- ===== POPUPS ===== -->
 
-                        <!-- Financial Overview -->
-                        <Border Grid.Row="0"
-                                Style="{StaticResource CardBorder}"
-                                Margin="0,10,0,20">
-                            <Grid Margin="15">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+        <!-- Actions Popup (Menu Style) -->
+        <Popup x:Name="ActionsPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="200" 
+               StaysOpen="False">
+            <Border Style="{StaticResource MenuPopupStyle}">
+                <StackPanel>
+                    <Button Content="Open Drawer"
+                            Style="{StaticResource ActionMenuItem}"
+                            IsEnabled="{Binding CanOpenDrawer}"
+                            Click="OpenDrawerCommand_Execute"/>
 
-                                <TextBlock Text="{DynamicResource Drawer_FinancialOverview}"
-                                          FontSize="18"
-                                          FontWeight="Bold"
-                                          Margin="0,0,0,15"/>
+                    <Separator/>
 
-                                <UniformGrid Grid.Row="1" Columns="4" Rows="2">
-                                    <!-- Sales Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_Sales}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding TotalSales, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     Foreground="{StaticResource SuccessColor}"/>
-                                        </StackPanel>
-                                    </Border>
+                    <Button Content="Add Cash"
+                            Style="{StaticResource ActionMenuItem}"
+                            IsEnabled="{Binding IsDrawerOpen}"
+                            Click="AddCashCommand_Execute"/>
 
-                                    <!-- Returns Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_Returns}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding TotalReturns, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     Foreground="{StaticResource WarningColor}"/>
-                                        </StackPanel>
-                                    </Border>
+                    <Button Content="Remove Cash"
+                            Style="{StaticResource ActionMenuItem}"
+                            IsEnabled="{Binding IsDrawerOpen}"
+                            Click="RemoveCashCommand_Execute"/>
 
-                                    <!-- Net Sales Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_NetSales}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding NetSales, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     Foreground="{StaticResource AccentColor}"/>
-                                        </StackPanel>
-                                    </Border>
+                    <Separator/>
 
-                                    <!-- Debt Payments Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_DebtPayments}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding TotalDebtPayments, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     Foreground="{StaticResource InfoColor}"/>
-                                        </StackPanel>
-                                    </Border>
+                    <Button Content="Close Drawer"
+                            Style="{StaticResource ActionMenuItem}"
+                            IsEnabled="{Binding IsDrawerOpen}"
+                            Click="CloseDrawerCommand_Execute"/>
 
-                                    <!-- Expenses Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_Expenses}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding TotalExpenses, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     Foreground="{StaticResource WarningColor}"/>
-                                        </StackPanel>
-                                    </Border>
+                    <Separator/>
 
-                                    <!-- Net Cash Flow Card -->
-                                    <Border Style="{StaticResource CardBorder}">
-                                        <StackPanel Margin="10">
-                                            <TextBlock Text="{DynamicResource Drawer_NetCashFlow}"
-                                                     FontSize="14"
-                                                     Foreground="{StaticResource PrimaryText}"/>
-                                            <TextBlock Text="{Binding NetCashflow, StringFormat=C2}"
-                                                     FontSize="18"
-                                                     FontWeight="Bold">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding NetCashflow}" Value="0">
-                                                                <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding NetCashflow, Converter={StaticResource LessThanZeroConverter}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{StaticResource WarningColor}"/>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding NetCashflow, Converter={StaticResource LessThanZeroConverter}}" Value="False">
-                                                                <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </StackPanel>
-                                    </Border>
-                                </UniformGrid>
-                            </Grid>
+                    <Button Content="Print Report"
+                            Style="{StaticResource ActionMenuItem}"
+                            IsEnabled="{Binding IsDrawerOpen}"
+                            Click="PrintReportCommand_Execute"/>
+
+                    <Button Content="Refresh Data"
+                            Style="{StaticResource ActionMenuItem}"
+                            Click="RefreshDataCommand_Execute"/>
+                </StackPanel>
+            </Border>
+        </Popup>
+
+        <!-- Summary Popup -->
+        <Popup x:Name="SummaryPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=SummaryButton}"
+               Placement="Bottom"
+               Width="700" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Balance Information -->
+                    <Grid Grid.Row="0" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Current Balance -->
+                        <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,16,0">
+                            <StackPanel>
+                                <TextBlock Text="Current Balance" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding CurrentDrawer.CurrentBalance, StringFormat=C2}" 
+                                          Foreground="{StaticResource SuccessColor}" 
+                                          FontSize="20" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0"/>
+                            </StackPanel>
                         </Border>
 
-                        <!-- Main Drawer Content -->
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="300"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Drawer Details -->
-                            <Border Style="{StaticResource CardBorder}"
-                                    Margin="0,0,20,0">
-                                <Grid Margin="20">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Balance Display -->
-                                    <UniformGrid Grid.Row="0" Columns="3" Margin="0,0,0,20">
-                                        <Border Style="{StaticResource CardBorder}">
-                                            <StackPanel Margin="10">
-                                                <TextBlock Text="{DynamicResource Drawer_CurrentBalance}"
-                                                         FontSize="14"
-                                                         Foreground="{StaticResource PrimaryText}"/>
-                                                <TextBlock Text="{Binding CurrentDrawer.CurrentBalance, StringFormat=C2}"
-                                                         FontSize="20"
-                                                         FontWeight="Bold"
-                                                         Foreground="{StaticResource SuccessColor}"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Style="{StaticResource CardBorder}">
-                                            <StackPanel Margin="10">
-                                                <TextBlock Text="{DynamicResource Drawer_ExpectedBalance}"
-                                                         FontSize="14"
-                                                         Foreground="{StaticResource PrimaryText}"/>
-                                                <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}"
-                                                         FontSize="20"
-                                                         FontWeight="Bold"
-                                                         Foreground="{StaticResource AccentColor}"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <Border Style="{StaticResource CardBorder}">
-                                            <StackPanel Margin="10">
-                                                <TextBlock Text="{DynamicResource Drawer_Difference}"
-                                                         FontSize="14"
-                                                         Foreground="{StaticResource PrimaryText}"/>
-                                                <TextBlock Text="{Binding CurrentDrawer.Difference, StringFormat=C2}"
-                                                         FontSize="20"
-                                                         FontWeight="Bold">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding CurrentDrawer.Difference}" Value="0">
-                                                                    <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
-                                                                </DataTrigger>
-                                                                <DataTrigger Binding="{Binding CurrentDrawer.Difference, Converter={StaticResource LessThanZeroConverter}}" Value="True">
-                                                                    <Setter Property="Foreground" Value="{StaticResource WarningColor}"/>
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </StackPanel>
-                                        </Border>
-                                    </UniformGrid>
-
-                                    <!-- Status Info -->
-                                    <Grid Grid.Row="1" Margin="0,0,0,20">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Text="{Binding StatusMessage}"
-                                                 Foreground="{StaticResource PrimaryText}"
-                                                 VerticalAlignment="Center"/>
-
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="{DynamicResource Drawer_OpenedAt_Label}" 
-              Foreground="{StaticResource SecondaryText}"/>
-                                            <TextBlock Text=": " 
-              Foreground="{StaticResource SecondaryText}"/>
-                                            <TextBlock Text="{Binding CurrentDrawer.OpenedAt, StringFormat=g}"
-              Foreground="{StaticResource SecondaryText}"/>
-                                        </StackPanel>
-                                    </Grid>
-
-                                    <!-- Transaction History DataGrid -->
-                                    <DataGrid Grid.Row="2"
-                                             Style="{StaticResource ModernDataGrid}"
-                                             ColumnHeaderStyle="{StaticResource DataGridColumnHeaderStyle}"
-                                             ItemsSource="{Binding DrawerHistory}"
-                                             AutoGenerateColumns="False"
-                                             IsReadOnly="True"
-                                             LoadingRow="DataGrid_LoadingRow">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="{DynamicResource Drawer_Column_Time}" 
-                                                              Binding="{Binding Timestamp, StringFormat=t}"
-                                                              Width="100"/>
-                                            <DataGridTextColumn Header="{DynamicResource Drawer_Column_Action}" 
-                                                              Binding="{Binding ActionType}"
-                                                              Width="100"/>
-                                            <DataGridTextColumn Header="{DynamicResource Drawer_Column_Description}" 
-                                                              Binding="{Binding Description}"
-                                                              Width="*"/>
-                                            <DataGridTextColumn Header="{DynamicResource Drawer_Column_Amount}" 
-                                                              Binding="{Binding Amount, StringFormat=C2}"
-                                                              Width="120"/>
-                                            <DataGridTextColumn Header="{DynamicResource Drawer_Column_Balance}" 
-                                                              Binding="{Binding ResultingBalance, StringFormat=C2}"
-                                                              Width="120"/>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                </Grid>
-                            </Border>
-
-                            <!-- Action Buttons -->
-                            <StackPanel Grid.Column="1">
-                                <Button Content="{DynamicResource Drawer_OpenDrawer}"
-                                        Command="{Binding OpenDrawerCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource SuccessColor}"
-                                        IsEnabled="{Binding CanOpenDrawer}"
-                                        Margin="0,0,0,10"/>
-
-                                <Button Content="{DynamicResource Drawer_AddCash}"
-                                        Command="{Binding AddCashCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource InfoColor}"
-                                        IsEnabled="{Binding IsDrawerOpen}"
-                                        Margin="0,0,0,10"/>
-
-                                <Button Content="{DynamicResource Drawer_RemoveCash}"
-                                        Command="{Binding RemoveCashCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource WarningColor}"
-                                        IsEnabled="{Binding IsDrawerOpen}"
-                                        Margin="0,0,0,10"/>
-
-                                <Button Content="{DynamicResource Drawer_CloseDrawer}"
-                                        Command="{Binding CloseDrawerCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource PrimaryText}"
-                                        IsEnabled="{Binding IsDrawerOpen}"
-                                        Margin="0,0,0,10"/>
-
-                                <Button Content="{DynamicResource Drawer_PrintReport}"
-                                        Command="{Binding PrintReportCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource SecondaryText}"
-                                        IsEnabled="{Binding IsDrawerOpen}"
-                                        Margin="0,0,0,10"/>
-
-                                <Button Content="{DynamicResource Drawer_RefreshData}"
-                                        Command="{Binding LoadFinancialDataCommand}"
-                                        Style="{StaticResource ActionButton}"
-                                        Background="{StaticResource AccentColor}"
-                                        IsEnabled="{Binding IsDrawerOpen}"/>
+                        <!-- Expected Balance -->
+                        <Border Grid.Column="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,16,0">
+                            <StackPanel>
+                                <TextBlock Text="Expected Balance" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}" 
+                                          Foreground="{StaticResource AccentColor}" 
+                                          FontSize="20" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0"/>
                             </StackPanel>
-                        </Grid>
+                        </Border>
+
+                        <!-- Difference -->
+                        <Border Grid.Column="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16">
+                            <StackPanel>
+                                <TextBlock Text="Difference" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="DifferenceTextBlock" 
+                                          Text="{Binding CurrentDrawer.Difference, StringFormat=C2}" 
+                                          FontSize="20" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding CurrentDrawer.Difference}" Value="0">
+                                                    <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
                     </Grid>
-                </ScrollViewer>
-            </TabItem>
 
-            <!-- Transaction History Tab -->
-            <TabItem Header="{DynamicResource Drawer_TransactionHistoryTab}" 
-                     Style="{StaticResource ModernTabItem}">
-                <ContentControl Content="{Binding TransactionHistoryViewModel}"/>
-            </TabItem>
+                    <!-- Financial Metrics -->
+                    <UniformGrid Grid.Row="1" Columns="3" Rows="2" Margin="0,0,0,16">
+                        <!-- Sales Card -->
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,8,8">
+                            <StackPanel>
+                                <TextBlock Text="Sales" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding TotalSales, StringFormat=C2}" 
+                                          Foreground="{StaticResource SuccessColor}" 
+                                          FontSize="18" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
 
-            <!-- Profit Analysis Tab -->
-            <TabItem Header="{DynamicResource Drawer_ProfitAnalysisTab}" 
-                     Style="{StaticResource ModernTabItem}">
-                <ContentControl Content="{Binding ProfitViewModel}"/>
-            </TabItem>
-        </TabControl>
+
+                        <!-- Net Sales Card -->
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Net Sales" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding NetSales, StringFormat=C2}" 
+                                          Foreground="{StaticResource AccentColor}" 
+                                          FontSize="18" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                    
+
+                        <!-- Expenses Card -->
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,8,0">
+                            <StackPanel>
+                                <TextBlock Text="Expenses" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding TotalExpenses, StringFormat=C2}" 
+                                          Foreground="{StaticResource WarningColor}" 
+                                          FontSize="18" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Net Cash Flow Card -->
+                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0">
+                            <StackPanel>
+                                <TextBlock Text="Net Cash Flow" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="NetCashFlowTextBlock"
+                                          Text="{Binding NetCashflow, StringFormat=C2}" 
+                                          FontSize="18" 
+                                          FontWeight="Bold" 
+                                          Margin="0,8,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding NetCashflow}" Value="0">
+                                                    <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Close Button -->
+                    <Button Grid.Row="2" 
+                            Content="Close" 
+                            HorizontalAlignment="Right"
+                            Click="ClosePopup_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Width="100"/>
+                </Grid>
+            </Border>
+        </Popup>
+
+        <!-- Add Cash Form -->
+        <Popup x:Name="AddCashPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="400" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="Add Cash" 
+                               Style="{StaticResource FormTitle}"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Amount:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,0,0,20">
+                        <TextBlock Text="Description:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" 
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        <Button Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ClosePopup_Click"/>
+                        <Button Content="Add Cash" 
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Width="100"
+                                Command="{Binding AddCashCommand}"
+                                Click="AddCashConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+
+        <!-- Remove Cash Form -->
+        <Popup x:Name="RemoveCashPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="400" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="Remove Cash" 
+                               Style="{StaticResource FormTitle}"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                        <TextBlock Text="Amount:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Margin="0,0,0,20">
+                        <TextBlock Text="Reason:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="3" 
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        <Button Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ClosePopup_Click"/>
+                        <Button Content="Remove Cash" 
+                                Style="{StaticResource DangerButtonStyle}"
+                                Margin="8,0,0,0"
+                                Width="120"
+                                Command="{Binding RemoveCashCommand}"
+                                Click="RemoveCashConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+
+        <!-- Open Drawer Form -->
+        <Popup x:Name="OpenDrawerPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="400" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="Open Drawer" 
+                               Style="{StaticResource FormTitle}"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,20">
+                        <TextBlock Text="Initial Cash Amount:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding InitialCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" 
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        <Button Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ClosePopup_Click"/>
+                        <Button Content="Open Drawer" 
+                                Style="{StaticResource SuccessButtonStyle}"
+                                Margin="8,0,0,0"
+                                Width="120"
+                                Command="{Binding OpenDrawerCommand}"
+                                Click="OpenDrawerConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+
+        <!-- Close Drawer Form -->
+        <Popup x:Name="CloseDrawerPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="400" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="Close Drawer" 
+                               Style="{StaticResource FormTitle}"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,20">
+                        <TextBlock Text="Actual Cash Count:" Style="{StaticResource FormLabel}"/>
+                        <TextBox Style="{StaticResource ModernTextBox}" 
+                                 Width="Auto" 
+                                 Text="{Binding FinalCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Text="Expected Amount:" Margin="0,16,0,4"/>
+                        <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}" 
+                                  FontWeight="SemiBold"/>
+
+                        <TextBlock Text="Difference:" Margin="0,16,0,4"/>
+                        <TextBlock Text="{Binding DrawerClosingDifference, StringFormat=C2}" 
+                                  FontWeight="SemiBold">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding DrawerClosingDifference}" Value="0">
+                                            <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" 
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        <Button Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ClosePopup_Click"/>
+                        <Button Content="Close Drawer" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Width="120"
+                                Command="{Binding CloseDrawerCommand}"
+                                Click="CloseDrawerConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
+
+        <!-- Print Report Form -->
+        <Popup x:Name="PrintReportPopup" 
+               Style="{StaticResource PopupStyle}"
+               PlacementTarget="{Binding ElementName=ActionsButton}"
+               Placement="Bottom"
+               Width="400" 
+               StaysOpen="False">
+            <Border Style="{StaticResource PopupContentStyle}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="Print Report" 
+                               Style="{StaticResource FormTitle}"/>
+
+                    <StackPanel Grid.Row="1" Margin="0,0,0,20">
+                        <CheckBox Content="Include Transaction Details" 
+                                  IsChecked="{Binding IncludeTransactionDetails}"
+                                  Margin="0,0,0,8"/>
+                        <CheckBox Content="Include Financial Summary" 
+                                  IsChecked="{Binding IncludeFinancialSummary}"
+                                  Margin="0,0,0,8"/>
+                        <CheckBox Content="Print Cashier Copy" 
+                                  IsChecked="{Binding PrintCashierCopy}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" 
+                                Orientation="Horizontal" 
+                                HorizontalAlignment="Right">
+                        <Button Content="Cancel" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ClosePopup_Click"/>
+                        <Button Content="Print" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Width="100"
+                                Command="{Binding PrintReportCommand}"
+                                Click="PrintReportConfirm_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Popup>
 
         <!-- Loading Overlay -->
-        <Border Grid.Row="0" 
-                Grid.RowSpan="3"
-                Background="#80000000"
+        <Border Style="{StaticResource LoadingOverlay}" 
+                Grid.RowSpan="2"
                 Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel HorizontalAlignment="Center" 
-                       VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" 
-                           Width="100" 
-                           Height="2" 
-                           Margin="0,0,0,10"/>
-                <TextBlock Text="{DynamicResource Drawer_Processing}" 
-                         Foreground="White" 
-                         FontSize="14"/>
-            </StackPanel>
+            <Border Background="White"
+                    CornerRadius="4"
+                    Padding="20"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel>
+                    <ProgressBar IsIndeterminate="True"
+                                Width="200"
+                                Height="2"
+                                Margin="0,0,0,10"/>
+                    <TextBlock Text="Processing"
+                              Style="{StaticResource BodyMedium}"
+                              HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </Border>
 
         <!-- Error Message -->
-        <TextBlock Grid.Row="0"
-                  Text="{Binding ErrorMessage}"
+        <TextBlock Text="{Binding ErrorMessage}"
                   Foreground="{StaticResource WarningColor}"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Top"
                   Margin="0,10"
-                  Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"/>
+                  Grid.RowSpan="2">
+            <TextBlock.Visibility>
+                <Binding Path="ErrorMessage">
+                    <Binding.Converter>
+                        <BooleanToVisibilityConverter/>
+                    </Binding.Converter>
+                </Binding>
+            </TextBlock.Visibility>
+        </TextBlock>
     </Grid>
 </UserControl>

@@ -97,8 +97,7 @@ namespace QuickTechSystems.Infrastructure.Services
         {
             return transactionType.ToLower() switch
             {
-                "expense" or "internet expenses" or "supplier payment" or
-                "return" or "cash out" => true,
+                "expense" or "internet expenses" or "supplier payment" or "cash out" => true,
                 _ => false
             };
         }
@@ -161,66 +160,6 @@ namespace QuickTechSystems.Infrastructure.Services
         public async Task<DrawerDTO> ProcessSupplierPaymentAsync(decimal amount, string supplierName, string reference)
         {
             return await ProcessTransactionAsync(amount, "Supplier Payment", $"Payment to supplier: {supplierName}", reference);
-        }
-
-        public async Task<DrawerDTO> ProcessDebtPaymentAsync(decimal amount, string customerName, string reference)
-        {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
-            {
-                var drawerEntity = await _repository.Query()
-                    .FirstOrDefaultAsync(d => d.Status == "Open");
-
-                if (drawerEntity == null)
-                    throw new InvalidOperationException("No open drawer found");
-
-                // Update drawer totals
-                drawerEntity.TotalDebtPayments += amount;
-                drawerEntity.CashIn += amount;
-                drawerEntity.CurrentBalance += amount;
-                drawerEntity.LastUpdated = DateTime.Now;
-
-                // Create drawer transaction with proper type and action type
-                var drawerTransaction = new DrawerTransaction
-                {
-                    DrawerId = drawerEntity.DrawerId,
-                    Timestamp = DateTime.Now,
-                    Type = "Debt Payment",
-                    Amount = amount,
-                    Balance = drawerEntity.CurrentBalance,
-                    Description = $"Debt payment from {customerName}",
-                    ActionType = "Debt Payment",
-                    TransactionReference = reference,
-                    PaymentMethod = "Cash",
-                    Drawer = drawerEntity
-                };
-
-                // Save changes
-                await _unitOfWork.Context.Set<DrawerTransaction>().AddAsync(drawerTransaction);
-                await _repository.UpdateAsync(drawerEntity);
-                await _unitOfWork.SaveChangesAsync();
-
-                // Important: Publish both events
-                _eventAggregator.Publish(new DrawerUpdateEvent(
-                    "Debt Payment",
-                    amount,
-                    $"Debt payment from {customerName}"
-                ));
-
-                _eventAggregator.Publish(new EntityChangedEvent<DrawerDTO>(
-                    "Update",
-                    _mapper.Map<DrawerDTO>(drawerEntity)
-                ));
-
-                await transaction.CommitAsync();
-
-                return _mapper.Map<DrawerDTO>(drawerEntity);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                throw new InvalidOperationException($"Error processing debt payment: {ex.Message}", ex);
-            }
         }
 
         public async Task<DrawerDTO> ProcessCashSaleAsync(decimal amount, string reference)
@@ -286,9 +225,8 @@ namespace QuickTechSystems.Infrastructure.Services
             return transactionType.ToLower().Trim() switch
             {
                 "open" => absAmount,
-                "cash sale" or "debt payment" or "cash in" => currentBalance + absAmount,
-                "expense" or "internet expenses" or "supplier payment" or
-                "return" or "cash out" => currentBalance - absAmount,
+                "cash sale" or "cash in" => currentBalance + absAmount,
+                "expense" or "internet expenses" or "supplier payment" or "cash out" => currentBalance - absAmount,
                 _ => currentBalance
             };
         }
@@ -313,18 +251,6 @@ namespace QuickTechSystems.Infrastructure.Services
                     drawer.CurrentBalance += absAmount;
                     break;
 
-                case "debt payment":
-                    drawer.TotalDebtPayments += absAmount;
-                    drawer.CashIn += absAmount;
-                    drawer.CurrentBalance += absAmount;
-                    break;
-
-                case "return":
-                    drawer.TotalReturns += absAmount;
-                    drawer.CashOut += absAmount;
-                    drawer.CurrentBalance -= absAmount;
-                    break;
-
                 case "cash out":
                     drawer.CashOut += absAmount;
                     drawer.CurrentBalance -= absAmount;
@@ -343,11 +269,10 @@ namespace QuickTechSystems.Infrastructure.Services
         private async Task RecalculateNetAmountsAsync(Drawer drawer)
         {
             // Calculate Net Sales
-            drawer.NetSales = drawer.TotalSales - drawer.TotalReturns;
+            drawer.NetSales = drawer.TotalSales;
 
-            // Calculate Net Cash Flow including supplier payments
-            drawer.NetCashFlow = drawer.TotalSales + drawer.TotalDebtPayments -
-                                (drawer.TotalExpenses + drawer.TotalReturns);
+            // Calculate Net Cash Flow
+            drawer.NetCashFlow = drawer.TotalSales - drawer.TotalExpenses;
 
             await _repository.UpdateAsync(drawer);
         }
@@ -364,9 +289,7 @@ namespace QuickTechSystems.Infrastructure.Services
 
             // Reset all totals
             drawer.TotalSales = 0;
-            drawer.TotalReturns = 0;
             drawer.TotalExpenses = 0;
-            drawer.TotalDebtPayments = 0;
             drawer.TotalSupplierPayments = 0;
             drawer.CashIn = 0;
             drawer.CashOut = 0;
@@ -419,9 +342,7 @@ namespace QuickTechSystems.Infrastructure.Services
 
             // Reset all totals
             drawer.TotalSales = 0;
-            drawer.TotalReturns = 0;
             drawer.TotalExpenses = 0;
-            drawer.TotalDebtPayments = 0;
             drawer.TotalSupplierPayments = 0;
             drawer.CashIn = 0;
             drawer.CashOut = 0;
@@ -435,10 +356,6 @@ namespace QuickTechSystems.Infrastructure.Services
                         drawer.TotalSales += absAmount;
                         drawer.CashIn += absAmount;
                         break;
-                    case "return":
-                        drawer.TotalReturns += absAmount;
-                        drawer.CashOut += absAmount;
-                        break;
                     case "expense":
                     case "internet expenses":
                         drawer.TotalExpenses += absAmount;
@@ -447,10 +364,6 @@ namespace QuickTechSystems.Infrastructure.Services
                     case "supplier payment":
                         drawer.TotalSupplierPayments += absAmount;
                         drawer.CashOut += absAmount;
-                        break;
-                    case "debt payment":
-                        drawer.TotalDebtPayments += absAmount;
-                        drawer.CashIn += absAmount;
                         break;
                     case "cash out":
                         drawer.CashOut += absAmount;
@@ -461,7 +374,7 @@ namespace QuickTechSystems.Infrastructure.Services
                 }
             }
 
-            drawer.NetSales = drawer.TotalSales - drawer.TotalReturns;
+            drawer.NetSales = drawer.TotalSales;
             drawer.NetCashFlow = await CalculateNetCashflowAsync(drawer);
 
             await UpdateRunningBalancesAsync(drawer);
@@ -472,12 +385,10 @@ namespace QuickTechSystems.Infrastructure.Services
         private async Task<decimal> CalculateNetCashflowAsync(Drawer drawer)
         {
             var sales = Math.Abs(drawer.TotalSales);
-            var debtPayments = Math.Abs(drawer.TotalDebtPayments);
             var expenses = Math.Abs(drawer.TotalExpenses);
             var supplierPayments = Math.Abs(drawer.TotalSupplierPayments);
-            var returns = Math.Abs(drawer.TotalReturns);
 
-            return sales + debtPayments - (expenses + supplierPayments + returns);
+            return sales - (expenses + supplierPayments);
         }
 
         private decimal CalculateRunningBalance(DrawerTransaction transaction)
@@ -487,12 +398,10 @@ namespace QuickTechSystems.Infrastructure.Services
                 case "open":
                     return transaction.Amount;
                 case "cash sale":
-                case "debt payment":
                 case "cash in":
                     return transaction.Amount;
                 case "expense":
                 case "supplier payment":
-                case "return":
                 case "cash out":
                     return -Math.Abs(transaction.Amount);
                 default:
@@ -520,18 +429,6 @@ namespace QuickTechSystems.Infrastructure.Services
                     drawer.CurrentBalance += absAmount;
                     break;
 
-                case "debt payment":
-                    drawer.TotalDebtPayments += absAmount;
-                    drawer.CashIn += absAmount;
-                    drawer.CurrentBalance += absAmount;
-                    break;
-
-                case "return":
-                    drawer.TotalReturns += absAmount;
-                    drawer.CashOut += absAmount;
-                    drawer.CurrentBalance -= absAmount;
-                    break;
-
                 case "cash out":
                     drawer.CashOut += absAmount;
                     drawer.CurrentBalance -= absAmount;
@@ -544,9 +441,8 @@ namespace QuickTechSystems.Infrastructure.Services
 
         private void RecalculateNetAmounts(Drawer drawer)
         {
-            drawer.NetSales = drawer.TotalSales - drawer.TotalReturns;
-            drawer.NetCashFlow = drawer.TotalSales + drawer.TotalDebtPayments -
-                               (drawer.TotalExpenses + drawer.TotalReturns + drawer.TotalSupplierPayments);
+            drawer.NetSales = drawer.TotalSales;
+            drawer.NetCashFlow = drawer.TotalSales - (drawer.TotalExpenses + drawer.TotalSupplierPayments);
         }
 
         public async Task RecalculateDrawerTotalsAsync(int drawerId)
@@ -559,9 +455,7 @@ namespace QuickTechSystems.Infrastructure.Services
 
             // Reset all totals
             drawer.TotalSales = 0;
-            drawer.TotalReturns = 0;
             drawer.TotalExpenses = 0;
-            drawer.TotalDebtPayments = 0;
             drawer.TotalSupplierPayments = 0;
             drawer.CashIn = 0;
             drawer.CashOut = 0;
@@ -584,16 +478,6 @@ namespace QuickTechSystems.Infrastructure.Services
                     case "cash sale":
                         drawer.TotalSales += absAmount;
                         drawer.CashIn += absAmount;
-                        break;
-
-                    case "debt payment":
-                        drawer.TotalDebtPayments += absAmount;
-                        drawer.CashIn += absAmount;
-                        break;
-
-                    case "return":
-                        drawer.TotalReturns += absAmount;
-                        drawer.CashOut += absAmount;
                         break;
 
                     case "cash out":
@@ -626,12 +510,6 @@ namespace QuickTechSystems.Infrastructure.Services
                     break;
                 case "cash sale":
                     drawer.TotalSales += Math.Abs(amount);
-                    break;
-                case "debt payment":
-                    drawer.TotalDebtPayments += Math.Abs(amount);
-                    break;
-                case "return":
-                    drawer.TotalReturns += Math.Abs(amount);
                     break;
             }
         }
@@ -847,16 +725,14 @@ namespace QuickTechSystems.Infrastructure.Services
             if (drawer == null) throw new InvalidOperationException("Drawer not found");
 
             drawer.DailySales = 0;
-            drawer.DailyReturns = 0;
             drawer.DailyExpenses = 0;
-            drawer.DailyDebtPayments = 0;
             drawer.DailySupplierPayments = 0;
 
             await _repository.UpdateAsync(drawer);
             await _unitOfWork.SaveChangesAsync();
         }
 
-        public async Task<(decimal Sales, decimal Returns, decimal Expenses)> GetDailyTotalsAsync(int drawerId)
+        public async Task<(decimal Sales, decimal Expenses)> GetDailyTotalsAsync(int drawerId)
         {
             var drawer = await _repository.GetByIdAsync(drawerId);
             if (drawer == null) throw new InvalidOperationException("Drawer not found");
@@ -867,11 +743,10 @@ namespace QuickTechSystems.Infrastructure.Services
                 .ToListAsync();
 
             var sales = transactions.Where(t => t.Type == "Cash Sale").Sum(t => Math.Abs(t.Amount));
-            var returns = transactions.Where(t => t.Type == "Return").Sum(t => Math.Abs(t.Amount));
             var expenses = transactions.Where(t => t.Type == "Expense" || t.Type == "Supplier Payment")
                 .Sum(t => Math.Abs(t.Amount));
 
-            return (sales, returns, expenses);
+            return (sales, expenses);
         }
 
         public async Task UpdateDailyCalculationsAsync(int drawerId)
@@ -879,10 +754,9 @@ namespace QuickTechSystems.Infrastructure.Services
             var drawer = await _repository.GetByIdAsync(drawerId);
             if (drawer == null) throw new InvalidOperationException("Drawer not found");
 
-            var (sales, returns, expenses) = await GetDailyTotalsAsync(drawerId);
+            var (sales, expenses) = await GetDailyTotalsAsync(drawerId);
 
             drawer.DailySales = sales;
-            drawer.DailyReturns = returns;
             drawer.DailyExpenses = expenses;
 
             await _repository.UpdateAsync(drawer);
@@ -1001,8 +875,7 @@ namespace QuickTechSystems.Infrastructure.Services
         {
             return transactionType.ToLower() switch
             {
-                "expense" or "internet expenses" or "supplier payment" or
-                "return" or "cash out" => -Math.Abs(amount),
+                "expense" or "internet expenses" or "supplier payment" or "cash out" => -Math.Abs(amount),
                 _ => Math.Abs(amount)
             };
         }
@@ -1117,7 +990,7 @@ namespace QuickTechSystems.Infrastructure.Services
             }
         }
 
-        public async Task<(decimal Sales, decimal Returns, decimal DebtPayments, decimal SupplierPayments, decimal Expenses)>
+        public async Task<(decimal Sales, decimal SupplierPayments, decimal Expenses)>
        GetFinancialSummaryAsync(DateTime startDate, DateTime endDate)
         {
             try
@@ -1132,14 +1005,6 @@ namespace QuickTechSystems.Infrastructure.Services
                 var result = (
                     Sales: transactions
                         .Where(t => t.Type.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase))
-                        .Sum(t => Math.Abs(t.Amount)),
-
-                    Returns: transactions
-                        .Where(t => t.Type.Equals("Return", StringComparison.OrdinalIgnoreCase))
-                        .Sum(t => Math.Abs(t.Amount)),
-
-                    DebtPayments: transactions
-                        .Where(t => t.Type.Equals("Debt Payment", StringComparison.OrdinalIgnoreCase))
                         .Sum(t => Math.Abs(t.Amount)),
 
                     SupplierPayments: transactions

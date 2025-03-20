@@ -101,20 +101,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     });
                 }
             });
-
-            // Handle customer payment events
-            _eventAggregator.Subscribe<EntityChangedEvent<CustomerPaymentDTO>>(async evt =>
-            {
-                if (evt.Entity != null)
-                {
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-                    {
-                        await RefreshDrawerDataAsync();
-                        await LoadFinancialOverviewAsync();
-                        UpdateTotals();
-                    });
-                }
-            });
         }
 
         private async Task HandleDrawerUpdateAsync(DrawerUpdateEvent evt)

@@ -10,6 +10,7 @@
                 <ResourceDictionary Source="/Resources/Dictionaries/Styles.xaml"/>
                 <ResourceDictionary Source="/Resources/Dictionaries/Languages/en-US.xaml"/>
                 <ResourceDictionary Source="/Views/Transaction/Styles/TransactionStyles.xaml"/>
+                <ResourceDictionary Source="/Resources/Dictionaries/ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
             <!-- Converters -->
@@ -135,9 +136,7 @@
             <DataTemplate DataType="{x:Type vm:DrawerViewModel}">
                 <views:DrawerView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:CustomerDebtViewModel}">
-                <views:CustomerDebtView/>
-            </DataTemplate>
+           
             <DataTemplate DataType="{x:Type vm:EmployeeViewModel}">
                 <views:EmployeeView/>
             </DataTemplate>

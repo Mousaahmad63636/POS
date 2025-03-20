@@ -22,8 +22,7 @@ namespace QuickTechSystems.Application.Mappings
 
             // Customer Mappings
             CreateMap<Customer, CustomerDTO>()
-                .ForMember(dest => dest.TransactionCount, opt => opt.MapFrom(src => src.Transactions.Count))
-                .ForMember(dest => dest.Balance, opt => opt.MapFrom(src => src.Balance));
+                .ForMember(dest => dest.TransactionCount, opt => opt.MapFrom(src => src.Transactions.Count));
             CreateMap<CustomerDTO, Customer>();
 
             // Transaction Mappings
@@ -92,9 +91,8 @@ namespace QuickTechSystems.Application.Mappings
                 .ForMember(dest => dest.CashIn, opt => opt.MapFrom(src => src.CashIn))
                 .ForMember(dest => dest.CashOut, opt => opt.MapFrom(src => src.CashOut))
                 .ForMember(dest => dest.TotalSales, opt => opt.MapFrom(src => src.TotalSales))
-                .ForMember(dest => dest.TotalReturns, opt => opt.MapFrom(src => src.TotalReturns))
                 .ForMember(dest => dest.TotalExpenses, opt => opt.MapFrom(src => src.TotalExpenses))
-                .ForMember(dest => dest.TotalDebtPayments, opt => opt.MapFrom(src => src.TotalDebtPayments))
+                .ForMember(dest => dest.TotalSupplierPayments, opt => opt.MapFrom(src => src.TotalSupplierPayments))
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status))
                 .ForMember(dest => dest.OpenedAt, opt => opt.MapFrom(src => src.OpenedAt))
                 .ForMember(dest => dest.ClosedAt, opt => opt.MapFrom(src => src.ClosedAt))
@@ -112,11 +110,6 @@ namespace QuickTechSystems.Application.Mappings
             // Employee Mappings
             CreateMap<Employee, EmployeeDTO>();
             CreateMap<EmployeeDTO, Employee>();
-
-            // Payment Related Mappings
-            CreateMap<CustomerPayment, CustomerPaymentDTO>()
-                .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer.Name));
-            CreateMap<CustomerPaymentDTO, CustomerPayment>();
 
             // Quote Related Mappings
             CreateMap<Quote, QuoteDTO>()

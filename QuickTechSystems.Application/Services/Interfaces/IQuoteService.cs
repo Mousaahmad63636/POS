@@ -15,7 +15,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<IEnumerable<QuoteDTO>> GetQuotesByCustomer(int customerId);
         Task<IEnumerable<QuoteDTO>> GetPendingQuotes();
         Task<IEnumerable<QuoteDTO>> SearchQuotes(string searchText);
-        // Add these new methods
         Task<bool> ValidateQuotePayment(int quoteId, string paymentMethod);
         Task<bool> IsQuoteValidForConversion(int quoteId);
     }

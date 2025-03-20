@@ -22,6 +22,7 @@ using QuickTechSystems.Application.Helpers;
 using QuickTechSystems.Helpers;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using QuickTechSystems.Application.Interfaces;
+using System.Threading.Tasks;
 
 namespace QuickTechSystems.WPF
 {
@@ -84,7 +85,6 @@ namespace QuickTechSystems.WPF
             services.AddScoped<IBusinessSettingsService, BusinessSettingsService>();
             services.AddScoped<ICategoryService, CategoryService>();
             services.AddScoped<ICustomerService, CustomerService>();
-            services.AddScoped<ICustomerDebtService, CustomerDebtService>();
             services.AddScoped<IDrawerService, DrawerService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IExpenseService, ExpenseService>();
@@ -95,13 +95,16 @@ namespace QuickTechSystems.WPF
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
 
+            // Splash Screen
+            services.AddScoped<SplashScreenViewModel>();
+            services.AddTransient<SplashScreenView>();
+
             // View Models
             services.AddScoped<MainViewModel>();
             services.AddScoped<LoginViewModel>();
             services.AddScoped<DashboardViewModel>();
             services.AddScoped<CategoryViewModel>();
             services.AddScoped<CustomerViewModel>();
-            services.AddScoped<CustomerDebtViewModel>();
             services.AddScoped<DrawerViewModel>();
             services.AddScoped<EmployeeViewModel>();
             services.AddScoped<ExpenseViewModel>();
@@ -122,7 +125,6 @@ namespace QuickTechSystems.WPF
             services.AddTransient<LoginView>();
             services.AddTransient<CategoryView>();
             services.AddTransient<CustomerView>();
-            services.AddTransient<CustomerDebtView>();
             services.AddTransient<DrawerView>();
             services.AddTransient<EmployeeView>();
             services.AddTransient<ExpenseView>();
@@ -136,7 +138,6 @@ namespace QuickTechSystems.WPF
             services.AddTransient<TransactionView>();
             services.AddTransient<QuantityDialog>();
             services.AddScoped<DamagedGoodsViewModel>();
-
         }
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -145,62 +146,98 @@ namespace QuickTechSystems.WPF
 
             try
             {
+                // Show splash screen
+                var splashViewModel = _serviceProvider.GetRequiredService<SplashScreenViewModel>();
+                var splashView = _serviceProvider.GetRequiredService<SplashScreenView>();
+                splashView.Show();
+
+                // Create log directory
                 var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
                 Directory.CreateDirectory(logPath);
                 File.WriteAllText(Path.Combine(logPath, "startup.log"), $"Application starting at {DateTime.Now}...");
 
-                using (var scope = _serviceProvider.CreateScope())
+                // Update splash screen status
+                splashViewModel.UpdateStatus("Initializing database...");
+
+                // Continue with initialization in a separate thread to keep UI responsive
+                await Task.Run(async () =>
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                    var businessSettingsService = scope.ServiceProvider.GetRequiredService<IBusinessSettingsService>();
-                    var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
-                    var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
-
-                    try
+                    using (var scope = _serviceProvider.CreateScope())
                     {
-                        await context.Database.EnsureCreatedAsync();
-                        DatabaseInitializer.Initialize(context);
-                        DatabaseInitializer.SeedDefaultAdmin(context);
+                        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                        var businessSettingsService = scope.ServiceProvider.GetRequiredService<IBusinessSettingsService>();
+                        var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
+                        var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
 
-                        // Ensure default preferences are initialized
-                        const string userId = "default";
-                        var hasPreferences = await systemPreferencesService.GetPreferenceValueAsync(userId, "Initialized", "false");
-                        if (hasPreferences != "true")
+                        try
                         {
-                            await systemPreferencesService.InitializeUserPreferencesAsync(userId);
-                            await systemPreferencesService.SavePreferenceAsync(userId, "Initialized", "true");
+                            splashViewModel.UpdateStatus("Ensuring database exists...");
+                            await context.Database.EnsureCreatedAsync();
+
+                            splashViewModel.UpdateStatus("Initializing database...");
+                            DatabaseInitializer.Initialize(context);
+
+                            splashViewModel.UpdateStatus("Creating default admin account...");
+                            DatabaseInitializer.SeedDefaultAdmin(context);
+
+                            // Ensure default preferences are initialized
+                            splashViewModel.UpdateStatus("Setting up system preferences...");
+                            const string userId = "default";
+                            var hasPreferences = await systemPreferencesService.GetPreferenceValueAsync(userId, "Initialized", "false");
+                            if (hasPreferences != "true")
+                            {
+                                await systemPreferencesService.InitializeUserPreferencesAsync(userId);
+                                await systemPreferencesService.SavePreferenceAsync(userId, "Initialized", "true");
+                            }
+                        }
+                        catch (Exception dbEx)
+                        {
+                            // Use Dispatcher to show message box from background thread
+                            Dispatcher.Invoke(() =>
+                            {
+                                MessageBox.Show(
+                                    $"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server is installed and accessible with the provided credentials.",
+                                    "Database Error",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Error);
+                                Shutdown();
+                            });
+                            return;
+                        }
+
+                        try
+                        {
+                            splashViewModel.UpdateStatus("Loading business settings...");
+                            var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
+                            if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
+                            {
+                                CurrencyHelper.UpdateExchangeRate(rate);
+                            }
+
+                            splashViewModel.UpdateStatus("Setting language preferences...");
+                            var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
+                            await languageManager.SetLanguage(defaultLanguage);
+                        }
+                        catch (Exception settingsEx)
+                        {
+                            File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nSettings error: {settingsEx.Message}");
                         }
                     }
-                    catch (Exception dbEx)
-                    {
-                        MessageBox.Show(
-                            $"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server is installed and accessible with the provided credentials.",
-                            "Database Error",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Error);
-                        Shutdown();
-                        return;
-                    }
 
-                    try
-                    {
-                        var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
-                        if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
-                        {
-                            CurrencyHelper.UpdateExchangeRate(rate);
-                        }
+                    // Final preparation before showing login
+                    splashViewModel.UpdateStatus("Launching application...");
 
-                        var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
-                        await languageManager.SetLanguage(defaultLanguage);
-                    }
-                    catch (Exception settingsEx)
-                    {
-                        File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nSettings error: {settingsEx.Message}");
-                    }
-                }
+                    // Delay for a moment to ensure splash screen is visible
+                    await Task.Delay(800);
+                });
 
-                var loginView = _serviceProvider.GetRequiredService<LoginView>();
-                loginView.Show();
+                // Show the login screen and close splash screen
+                Dispatcher.Invoke(() =>
+                {
+                    var loginView = _serviceProvider.GetRequiredService<LoginView>();
+                    loginView.Show();
+                    splashView.Close();
+                });
             }
             catch (Exception ex)
             {

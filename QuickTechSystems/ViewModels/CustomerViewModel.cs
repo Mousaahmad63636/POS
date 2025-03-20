@@ -435,7 +435,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     Email = SelectedCustomer.Email,
                     Address = SelectedCustomer.Address,
                     IsActive = SelectedCustomer.IsActive,
-                    Balance = SelectedCustomer.Balance,
                     CreatedAt = customerId == 0 ? DateTime.Now : SelectedCustomer.CreatedAt,
                     UpdatedAt = customerId != 0 ? DateTime.Now : null
                 };

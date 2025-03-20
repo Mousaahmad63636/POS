@@ -12,6 +12,7 @@ namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class TransactionViewModel
     {
+
         public ICommand ProcessBarcodeCommand { get; private set; }
         public ICommand? SearchProductsCommand { get; private set; }
         public ICommand? HoldTransactionCommand { get; private set; }
@@ -30,10 +31,8 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? PrintReceiptCommand { get; private set; }
 
         public ICommand CloseDrawerCommand { get; private set; }
-       
-        public ICommand ProcessReturnCommand { get; private set; }
-        public ICommand SaveAsQuoteCommand { get; private set; }
-        public ICommand AddToCustomerDebtCommand { get; private set; }  // Change to private set
+
+         public ICommand SaveAsQuoteCommand { get; private set; }
         public ICommand SelectCategoryCommand { get; private set; }
         public ICommand ClearCustomerCommand { get; private set; }
         public ICommand LookupTransactionCommand { get; private set; }
@@ -70,8 +69,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
             LookupTransactionCommand = new AsyncRelayCommand(
-      async _ => await LookupTransactionAsync(),
-      _ => !string.IsNullOrWhiteSpace(LookupTransactionId));
+                async _ => await LookupTransactionAsync(),
+                _ => !string.IsNullOrWhiteSpace(LookupTransactionId));
+
             // Item management commands with conditions
             RemoveItemCommand = new RelayCommand(
                 RemoveItem,
@@ -102,19 +102,26 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Payment commands
             CashPaymentCommand = new AsyncRelayCommand(
-        async _ =>
-        {
-            // Check if this is an existing transaction that's being edited
-            if (IsEditingTransaction && CurrentTransaction.TransactionId > 0)
-            {
-                await UpdateExistingTransactionAsync();
-            }
-            else
-            {
-                await ProcessCashPayment();
-            }
-        },
-        _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+                async _ =>
+                {
+                    // Validate if there are products in the transaction
+                    if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+                    {
+                        await ShowErrorMessageAsync("You must select a product before completing the sale.");
+                        return;
+                    }
+
+                    // Check if this is an existing transaction that's being edited
+                    if (IsEditingTransaction && CurrentTransaction.TransactionId > 0)
+                    {
+                        await UpdateExistingTransactionAsync();
+                    }
+                    else
+                    {
+                        await ProcessCashPayment();
+                    }
+                },
+                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
             ToggleViewCommand = new RelayCommand(_ => ToggleView());
 
@@ -122,10 +129,10 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (product != null)
                     AddProductToTransaction(product);
+                else
+                    WindowManager.ShowWarning("Please select a product first.");
             });
 
-            // Return and reprint commands
-            ProcessReturnCommand = new AsyncRelayCommand(async _ => await ProcessReturn());
             ReprintLastCommand = new AsyncRelayCommand(async _ => await ReprintLast());
 
             PrintReceiptCommand = new AsyncRelayCommand(
@@ -143,10 +150,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 SelectedCategory = category;
             });
 
-            AddToCustomerDebtCommand = new AsyncRelayCommand(
-                async _ => await AddToCustomerDebtAsync(),
-                _ => CanAddToCustomerDebt());
-
             CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
@@ -155,10 +158,14 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SelectedCustomer = null;
             CustomerSearchText = string.Empty;
+            IsCustomerSearchVisible = false;
+            IsSearchMessageVisible = false;
+
             OnPropertyChanged(nameof(SelectedCustomer));
             OnPropertyChanged(nameof(CustomerSearchText));
+            OnPropertyChanged(nameof(IsCustomerSearchVisible));
+            OnPropertyChanged(nameof(IsSearchMessageVisible));
         }
-
 
         private string GetCurrentUserId()
         {
@@ -220,14 +227,22 @@ namespace QuickTechSystems.WPF.ViewModels
             // Skip the warning check if there are no items - simply return silently
             if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
             {
-
                 return; // Return silently instead of showing warning
             }
 
             try
             {
-                // Skip confirmation and clear directly
-                StartNewTransaction();
+                var result = MessageBox.Show(
+                    "Do you want to exit without saving the sale?",
+                    "Confirm Clear",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Clear directly
+                    StartNewTransaction();
+                }
             }
             catch (Exception ex)
             {
@@ -278,7 +293,31 @@ namespace QuickTechSystems.WPF.ViewModels
                     dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                     if (dialog.ShowDialog() == true)
                     {
-                        DiscountAmount = dialog.DiscountAmount;
+                        // Get the discount amount from the dialog
+                        decimal discountAmount = dialog.DiscountAmount;
+
+                        // Validate discount (assuming it's already a fixed amount)
+                        if (discountAmount < 0)
+                        {
+                            MessageBox.Show(
+                                "Discount cannot be negative. It has been corrected to 0.",
+                                "Invalid Discount",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            discountAmount = 0;
+                        }
+                        else if (discountAmount > TotalAmount)
+                        {
+                            MessageBox.Show(
+                                $"Discount cannot exceed total amount ({TotalAmount:C2}). It has been adjusted.",
+                                "Invalid Discount",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            discountAmount = TotalAmount;
+                        }
+
+                        // Apply the validated discount
+                        DiscountAmount = discountAmount;
                         UpdateTotals();
 
                         // Notify UI of changes
@@ -289,7 +328,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error applying discount: {ex.Message}");
-                    MessageBox.Show($"Error applying discount: {ex.Message}", "Error",
+                    MessageBox.Show($"An unexpected error occurred when applying discount. Please try again.", "Error",
                         MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });

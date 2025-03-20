@@ -56,15 +56,30 @@ namespace QuickTechSystems.WPF.ViewModels
                         int nextTransactionId = latestId + 1;
 
                         // Set the lookup field to this next number
-                        LookupTransactionId = nextTransactionId.ToString();
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            LookupTransactionId = nextTransactionId.ToString();
+                        });
 
                         Debug.WriteLine($"Latest transaction ID: {latestId}, Next transaction ID: {nextTransactionId}");
+                    }
+                    else
+                    {
+                        // If no transactions found, set to 1
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            LookupTransactionId = "1";
+                        });
                     }
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error loading next transaction ID: {ex.Message}");
-                    // Don't show error to user since this is just a convenience feature
+                    // Set a default value if we couldn't load the latest ID
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        LookupTransactionId = "1";
+                    });
                 }
             }, "Loading next transaction ID");
         }
@@ -167,10 +182,35 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Directly query customer service for matching customers
                 var customers = await _customerService.GetByNameAsync(searchText);
 
+                // Deduplicate by CustomerID
+                var uniqueCustomers = customers
+                    .GroupBy(c => c.CustomerId)
+                    .Select(g => g.First())
+                    .ToList();
+
+                // Create new customer objects without balance information
+                var sanitizedCustomers = uniqueCustomers.Select(c => new CustomerDTO
+                {
+                    CustomerId = c.CustomerId,
+                    Name = c.Name,
+                    Phone = c.Phone,
+                    Email = c.Email,
+                    Address = c.Address,
+                    IsActive = c.IsActive,
+                    CreatedAt = c.CreatedAt,
+                    // Balance is not needed
+                }).ToList();
+
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    // Clear existing results first
+                    FilteredCustomers.Clear();
+
                     // Update filtered customers collection
-                    FilteredCustomers = new ObservableCollection<CustomerDTO>(customers);
+                    foreach (var customer in sanitizedCustomers)
+                    {
+                        FilteredCustomers.Add(customer);
+                    }
 
                     // Make customer search results visible
                     IsCustomerSearchVisible = FilteredCustomers.Any();
@@ -185,9 +225,26 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Error triggering customer search: {ex.Message}");
             }
         }
+        private async void ShowInvalidLookupAlert()
+        {
+            await WindowManager.InvokeAsync(() =>
+            {
+                MessageBox.Show(
+                    "Invalid transaction number. Please enter a numeric value.",
+                    "Invalid Input",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            });
 
+            // Update status message
+            StatusMessage = "Loading latest transaction number...";
 
+            // Reset to the latest transaction ID
+            await LoadLatestTransactionIdAsync();
 
+            // Update status message again
+            StatusMessage = "Ready for new transaction";
+        }
         private async Task UpdateLookupTransactionIdAsync()
         {
             try
@@ -208,6 +265,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Don't throw exception as this is a convenience feature
             }
         }
+
+
         private async Task UpdateExistingTransactionAsync()
         {
             await ExecuteOperationSafelyAsync(async () =>
@@ -265,11 +324,12 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Updating transaction", "Transaction updated successfully");
         }
 
-
-
         private void FilterProductsByCategory(CategoryDTO category)
         {
             if (_allProducts == null) return;
+
+            // Log what we're doing
+            Debug.WriteLine($"Filtering products by category: {category?.Name ?? "null"}");
 
             if (category == null || category.Name == "All")
             {
@@ -348,7 +408,19 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public void AddProductToTransactionWithQuantity(ProductDTO product, int quantity)
         {
-            if (product == null || quantity <= 0) return;
+            // Validate product and quantity
+            if (product == null)
+            {
+                WindowManager.ShowWarning("No product selected. Please select a product first.");
+                return;
+            }
+
+            // Validate quantity is positive
+            if (quantity <= 0)
+            {
+                WindowManager.ShowWarning("Quantity must be a positive number. It has been corrected to 1.");
+                quantity = 1;
+            }
 
             // Check if adding this product would result in low stock
             CheckAndAlertLowStock(product, quantity);
@@ -419,38 +491,103 @@ namespace QuickTechSystems.WPF.ViewModels
                         MessageBoxImage.Warning)
                 );
 
-                // Log the low stock alert in a separate thread to prevent blocking
-                Task.Run(async () => {
-                    try
-                    {
-                        var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
-                        string cashierId = currentUser?.EmployeeId.ToString() ?? "0";
-                        string cashierName = currentUser?.FullName ?? "Unknown";
+                // Use proper async task handling
+                try
+                {
+                    var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+                    string cashierId = currentUser?.EmployeeId.ToString() ?? "0";
+                    string cashierName = currentUser?.FullName ?? "Unknown";
 
-                        var lowStockHistoryService = ((App)App.Current).ServiceProvider.GetRequiredService<ILowStockHistoryService>();
-                        await lowStockHistoryService.LogLowStockAlertAsync(
-                            product.ProductId,
-                            product.Name,
-                            product.CurrentStock,
-                            product.MinimumStock,
-                            cashierId,
-                            cashierName
-                        );
-                    }
-                    catch (Exception ex)
+                    // Check if App and ServiceProvider exist
+                    if (App.Current is App app && app.ServiceProvider != null)
                     {
-                        Debug.WriteLine($"Error logging low stock alert: {ex.Message}");
-                        // Continue with transaction processing despite logging error
+                        var lowStockHistoryService = app.ServiceProvider.GetService<ILowStockHistoryService>();
+                        if (lowStockHistoryService != null)
+                        {
+                            await lowStockHistoryService.LogLowStockAlertAsync(
+                                product.ProductId,
+                                product.Name,
+                                product.CurrentStock,
+                                product.MinimumStock,
+                                cashierId,
+                                cashierName
+                            );
+                        }
+                        else
+                        {
+                            Debug.WriteLine("LowStockHistoryService is not available");
+                        }
                     }
-                });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error logging low stock alert: {ex.Message}");
+                    // Continue with transaction processing despite logging error
+                }
             }
         }
 
+        private async Task CacheProductImagesAsync(IEnumerable<ProductDTO> products)
+        {
+            if (products == null) return;
+
+            // Process images in batches to avoid UI freezing
+            const int batchSize = 10;
+            var productList = products.Where(p => p?.Image != null && !_imageCache.ContainsKey(p.ProductId)).ToList();
+
+            for (int i = 0; i < productList.Count; i += batchSize)
+            {
+                var batch = productList.Skip(i).Take(batchSize);
+                await Task.Run(() => {
+                    foreach (var product in batch)
+                    {
+                        try
+                        {
+                            var image = new BitmapImage();
+                            using (var ms = new MemoryStream(product.Image))
+                            {
+                                image.BeginInit();
+                                image.CacheOption = BitmapCacheOption.OnLoad;
+                                image.DecodePixelWidth = 150; // Optimize for display size
+                                image.StreamSource = ms;
+                                image.EndInit();
+                                image.Freeze(); // Important for cross-thread access
+                            }
+
+                            // Update image cache on UI thread
+                            System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                                _imageCache[product.ProductId] = image;
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error caching image for product {product.ProductId}: {ex.Message}");
+                        }
+                    }
+                });
+
+                // Allow UI to breathe between batches
+                await Task.Delay(10);
+            }
+        }
 
         private async void ToggleView()
         {
             await ExecuteOperationSafelyAsync(async () =>
             {
+                // If there's an ongoing transaction, warn the user
+                if (CurrentTransaction?.Details?.Any() == true)
+                {
+                    var result = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                        "Switching views will not affect your current transaction, but any unsaved changes might be lost. Continue?",
+                        "Confirm View Change",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question));
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
                 IsProductCardsVisible = !IsProductCardsVisible;
                 IsRestaurantMode = IsProductCardsVisible;
 
@@ -473,6 +610,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }, "Toggling view mode");
         }
+
+
 
         private static SemaphoreSlim _categoryLoadSemaphore = new SemaphoreSlim(1, 1);
 
@@ -529,10 +668,49 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync($"Error loading product categories: {ex.Message}");
             }
         }
+        private class DialogManager
+        {
+            private static readonly object _lockObj = new object();
+            private static bool _isDialogOpen = false;
 
+            public static async Task<bool> ShowDialogAsync(Func<Task<bool>> dialogAction)
+            {
+                lock (_lockObj)
+                {
+                    if (_isDialogOpen)
+                        return false;
+
+                    _isDialogOpen = true;
+                }
+
+                try
+                {
+                    return await dialogAction();
+                }
+                finally
+                {
+                    lock (_lockObj)
+                    {
+                        _isDialogOpen = false;
+                    }
+                }
+            }
+        }
         public void AddProductToTransaction(ProductDTO product, int quantity = 1)
         {
-            if (product == null || quantity <= 0) return;
+            // Validate product
+            if (product == null)
+            {
+                WindowManager.ShowWarning("No product selected. Please select a product first.");
+                return;
+            }
+
+            // Validate quantity is positive
+            if (quantity <= 0)
+            {
+                WindowManager.ShowWarning("Quantity must be a positive number. It has been corrected to 1.");
+                quantity = 1;
+            }
 
             // Check if adding this product would result in low stock
             CheckAndAlertLowStock(product, quantity);
@@ -583,22 +761,117 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(CurrentTransaction.Details));
         }
 
-
-        private bool CanAddToCustomerDebt()
+        private async Task CloseDrawerAsync()
         {
-            return SelectedCustomer != null &&
-                   CurrentTransaction?.Details != null &&
-                   CurrentTransaction.Details.Any() &&
-                   TotalAmount > 0;
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                // Check if there's an ongoing transaction
+                if (CurrentTransaction?.Details?.Any() == true)
+                {
+                    var confirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                        "You have an ongoing transaction. Closing the drawer will cancel this transaction. Continue?",
+                        "Unsaved Transaction",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning));
+
+                    if (confirmResult != MessageBoxResult.Yes)
+                        return;
+                }
+
+                // Add a second confirmation for drawer closing
+                var secondConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    "Are you sure you want to close the drawer? This will end your current session.",
+                    "Confirm Drawer Close",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question));
+
+                if (secondConfirmResult != MessageBoxResult.Yes)
+                    return;
+
+                var ownerWindow = GetOwnerWindow();
+
+                var dialog = new InputDialog("Close Drawer", "Enter final cash amount:")
+                {
+                    Owner = ownerWindow,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+
+                bool? inputResult = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => dialog.ShowDialog());
+
+                if (inputResult == true)
+                {
+                    if (!decimal.TryParse(dialog.Input, out decimal finalAmount))
+                    {
+                        throw new InvalidOperationException("Please enter a valid amount. Amount has been set to 0.");
+                    }
+
+                    await _drawerService.CloseDrawerAsync(finalAmount, "Closed by user at end of shift");
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(
+                            ownerWindow,
+                            "Drawer closed successfully. The application will now exit.",
+                            "Success",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    });
+
+                    // Close the application after showing the success message
+                    System.Windows.Application.Current.Shutdown();
+                }
+            }, "Closing drawer");
+        }
+        private void StartNewTransaction()
+        {
+            var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+
+            CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
+            CurrentTransaction = new TransactionDTO
+            {
+                TransactionDate = DateTime.Now,
+                Status = TransactionStatus.Pending,
+                Details = new ObservableCollection<TransactionDetailDTO>(),
+                CashierId = currentUser?.EmployeeId.ToString() ?? "0",
+                CashierName = currentUser?.FullName ?? "Unknown"
+            };
+
+            // Update the UI with cashier info
+            CashierName = currentUser?.FullName ?? "Unknown";
+
+            // Reset editing state
+            IsEditingTransaction = false;
+
+            ClearTotals();
         }
 
-        private async Task AddToCustomerDebtAsync()
+        private async Task HoldTransaction()
         {
-            await ShowLoadingAsync("Processing debt transaction...", async () =>
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                if (CurrentTransaction?.Details.Any() == true)
+                {
+                    CurrentTransaction.Status = TransactionStatus.Pending;
+                    await Task.Run(() => HeldTransactions.Add(CurrentTransaction));
+                    await WindowManager.InvokeAsync(() =>
+                        MessageBox.Show("Transaction has been held successfully", "Success",
+                            MessageBoxButton.OK, MessageBoxImage.Information));
+                    StartNewTransaction();
+                }
+                else
+                {
+                    throw new InvalidOperationException("No items in transaction to hold");
+                }
+            }, "Holding transaction");
+        }
+
+        private async Task SaveAsQuoteAsync()
+        {
+            await ShowLoadingAsync("Saving quote...", async () =>
             {
                 if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
                 {
-                    throw new InvalidOperationException("No items to add to customer debt");
+                    throw new InvalidOperationException("No items to save as quote");
                 }
 
                 if (SelectedCustomer == null)
@@ -606,65 +879,323 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("Please select a customer");
                 }
 
-                // Validate customer's credit limit
-                if (SelectedCustomer.CreditLimit > 0 &&
-                    (SelectedCustomer.Balance + TotalAmount) > SelectedCustomer.CreditLimit)
+                // Get the current main window to use as owner for any dialogs
+                Window ownerWindow = GetOwnerWindow();
+
+                var quoteToCreate = new QuoteDTO
                 {
-                    throw new InvalidOperationException(
-                        $"Adding this debt would exceed the customer's credit limit of {SelectedCustomer.CreditLimit:C2}");
-                }
-
-                // Begin a single transaction for all operations
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    // Prepare transaction data
-                    CurrentTransaction.TransactionDate = DateTime.Now;
-                    CurrentTransaction.CustomerId = SelectedCustomer.CustomerId;
-                    CurrentTransaction.CustomerName = SelectedCustomer.Name;
-                    CurrentTransaction.TotalAmount = TotalAmount;
-                    CurrentTransaction.PaidAmount = 0;
-                    CurrentTransaction.Balance = TotalAmount;
-                    CurrentTransaction.Status = TransactionStatus.Completed;
-                    CurrentTransaction.TransactionType = TransactionType.Sale;
-                    CurrentTransaction.PaymentMethod = "Debt";
-                    CurrentTransaction.CashierId = GetCurrentUserId();
-                    CurrentTransaction.CashierName = GetCurrentUserName();
-
-                    // Process the sale transaction - this will handle the customer balance update
-                    var processedTransaction = await _transactionService.ProcessSaleAsync(CurrentTransaction);
-
-                    // Publish events for both the transaction and customer update
-                    _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Create", processedTransaction));
-                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(
-                        "Update",
-                        new CustomerDTO
+                    CustomerId = SelectedCustomer.CustomerId,
+                    CustomerName = SelectedCustomer.Name,
+                    TotalAmount = TotalAmount,
+                    CreatedDate = DateTime.Now,
+                    ExpiryDate = DateTime.Now.AddDays(30), // Or whatever expiry period you want
+                    Status = "Pending",
+                    QuoteNumber = $"Q-{DateTime.Now:yyyyMMddHHmmss}",
+                    Details = new ObservableCollection<QuoteDetailDTO>(
+                        CurrentTransaction.Details.Select(d => new QuoteDetailDTO
                         {
-                            CustomerId = SelectedCustomer.CustomerId,
-                            Name = SelectedCustomer.Name,
-                            Balance = SelectedCustomer.Balance + TotalAmount
-                        }));
+                            ProductId = d.ProductId,
+                            ProductName = d.ProductName,
+                            Quantity = d.Quantity,
+                            UnitPrice = d.UnitPrice,
+                            Total = d.Total
+                        }))
+                };
 
-                    // Commit transaction
-                    await transaction.CommitAsync();
-
-                    // Print receipt
-                    await PrintReceipt();
-                    StartNewTransaction();
-
-                    // Notify UI of changes
-                    OnPropertyChanged(nameof(CurrentTransaction));
-                    OnPropertyChanged(nameof(TotalAmount));
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    throw new InvalidOperationException($"Failed to process debt transaction: {ex.Message}", ex);
-                }
-            }, "Transaction has been added to customer's debt");
-            await UpdateLookupTransactionIdAsync();
+                var result = await _quoteService.CreateAsync(quoteToCreate);
+                StartNewTransaction();
+            }, "Quote saved successfully");
         }
 
+
+        private async Task RecallTransaction()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                // Check if there's an ongoing transaction
+                if (CurrentTransaction?.Details?.Any() == true)
+                {
+                    var result = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                        "You have items in the current transaction. Recalling a held transaction will replace these items. Continue?",
+                        "Unsaved Transaction",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Warning));
+
+                    if (result != MessageBoxResult.Yes)
+                        return;
+                }
+
+                var heldTransaction = HeldTransactions.LastOrDefault();
+                if (heldTransaction != null)
+                {
+                    await Task.Run(() =>
+                    {
+                        CurrentTransaction = heldTransaction;
+                        HeldTransactions.Remove(heldTransaction);
+                    });
+                    UpdateTotals();
+                }
+                else
+                {
+                    throw new InvalidOperationException("No held transactions to recall");
+                }
+            }, "Recalling transaction");
+        }
+
+        private async Task UpdateUI(Action action)
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
+        }
+
+        private async Task VoidTransaction()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                if (CurrentTransaction == null || !CurrentTransaction.Details.Any())
+                {
+                    throw new InvalidOperationException("No transaction to void");
+                }
+
+                if (MessageBox.Show("Are you sure you want to void this transaction?", "Confirm Void",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                {
+                    await _transactionService.UpdateStatusAsync(CurrentTransaction.TransactionId, TransactionStatus.Cancelled);
+                    StartNewTransaction();
+                }
+            }, "Voiding transaction");
+        }
+
+        private async Task ShowErrorMessage(string message)
+        {
+            await WindowManager.InvokeAsync(() =>
+            {
+                var ownerWindow = GetOwnerWindow();
+                // Add null check before using
+                MessageBox.Show(
+                    ownerWindow ?? System.Windows.Application.Current.MainWindow,
+                    message,
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+        }
+
+        private async Task ShowSuccessMessage(string message)
+        {
+            await WindowManager.InvokeAsync(() =>
+            {
+                var ownerWindow = GetOwnerWindow();
+                MessageBox.Show(
+                    ownerWindow,
+                    message,
+                    "Success",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            });
+        }
+
+        public async Task ProcessBarcodeInput()
+        {
+            if (string.IsNullOrEmpty(BarcodeText)) return;
+
+            // Store barcode text in case we need to restore it after clearing
+            string barcodeInput = BarcodeText.Trim();
+
+            // Clear barcode input field immediately for better UX
+            BarcodeText = string.Empty;
+            OnPropertyChanged(nameof(BarcodeText));
+
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                // Set status message while processing
+                StatusMessage = $"Processing barcode: {barcodeInput}";
+                OnPropertyChanged(nameof(StatusMessage));
+
+                // Try to get product by barcode
+                var product = await _productService.GetByBarcodeAsync(barcodeInput);
+
+                if (product == null)
+                {
+                    // Try alternate format (some scanners add characters)
+                    string alternateFormat = barcodeInput.TrimStart('0');
+                    if (!string.IsNullOrEmpty(alternateFormat) && alternateFormat != barcodeInput)
+                    {
+                        product = await _productService.GetByBarcodeAsync(alternateFormat);
+                    }
+
+                    // If still not found
+                    if (product == null)
+                    {
+                        await WindowManager.InvokeAsync(() =>
+                            MessageBox.Show($"Barcode '{barcodeInput}' is not registered. Please check.",
+                                           "Unknown Barcode",
+                                           MessageBoxButton.OK,
+                                           MessageBoxImage.Warning));
+
+                        StatusMessage = "Ready";
+                        OnPropertyChanged(nameof(StatusMessage));
+                        return;
+                    }
+                }
+
+                // Only process the product if it exists and is active
+                if (product.IsActive)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        AddProductToTransaction(product);
+                        StatusMessage = $"Added: {product.Name}";
+                        OnPropertyChanged(nameof(StatusMessage));
+                    });
+                }
+                else
+                {
+                    await WindowManager.InvokeAsync(() =>
+                        MessageBox.Show($"Product '{product.Name}' is not available for sale at the moment.",
+                                       "Inactive Product",
+                                       MessageBoxButton.OK,
+                                       MessageBoxImage.Warning));
+
+                    StatusMessage = "Ready";
+                    OnPropertyChanged(nameof(StatusMessage));
+                }
+            }, "Processing barcode input");
+        }
+
+        private async Task LoadCustomerSpecificPrices()
+        {
+            try
+            {
+                await ExecuteOperationSafelyAsync(async () =>
+                {
+                    // Default to empty dictionary
+                    var newPrices = new Dictionary<int, decimal>();
+
+                    if (SelectedCustomer != null)
+                    {
+                        try
+                        {
+                            var customerPrices = await _customerService.GetCustomProductPricesAsync(SelectedCustomer.CustomerId);
+                            if (customerPrices != null)
+                            {
+                                newPrices = customerPrices.ToDictionary(
+                                    cpp => cpp.ProductId,
+                                    cpp => cpp.Price
+                                );
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error getting customer prices: {ex.Message}");
+                            // Continue with empty pricing dictionary rather than failing
+                        }
+                    }
+
+                    // Update the prices dictionary
+                    CustomerSpecificPrices = newPrices;
+
+                    // Update prices for existing items in cart
+                    if (CurrentTransaction?.Details != null)
+                    {
+                        bool pricesChanged = false;
+                        foreach (var detail in CurrentTransaction.Details)
+                        {
+                            pricesChanged |= UpdateProductPrice(detail);
+                        }
+
+                        if (pricesChanged)
+                        {
+                            UpdateTotals();
+
+                            // Notify UI of updated items
+                            OnPropertyChanged(nameof(CurrentTransaction.Details));
+                        }
+                    }
+                }, "Loading customer specific prices");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading customer prices: {ex.Message}");
+                StatusMessage = "Error loading customer prices";
+                CustomerSpecificPrices = new Dictionary<int, decimal>();
+            }
+        }
+
+
+        private bool UpdateProductPrice(TransactionDetailDTO detail)
+        {
+            if (_customerSpecificPrices.TryGetValue(detail.ProductId, out decimal customPrice))
+            {
+                if (detail.UnitPrice != customPrice)
+                {
+                    decimal oldTotal = detail.Total;
+                    detail.UnitPrice = customPrice;
+                    detail.Total = detail.Quantity * customPrice;
+
+                    // Return true if price was actually changed
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private async Task<bool?> ShowDialog<T>(T dialog) where T : Window
+        {
+            return await WindowManager.InvokeAsync(() => {
+                dialog.Owner = GetOwnerWindow();
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                return dialog.ShowDialog();
+            });
+        }
+
+        private async Task<string> ShowInputDialog(string prompt, string title)
+        {
+            return await WindowManager.InvokeAsync(() =>
+            {
+                var dialog = new InputDialog(title, prompt)
+                {
+                    Owner = System.Windows.Application.Current.MainWindow
+                };
+                return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
+            });
+        }
+
+        private async Task ShowErrorMessageAsync(string message)
+        {
+            await WindowManager.InvokeAsync(() =>
+            {
+                var ownerWindow = GetOwnerWindow();
+                MessageBox.Show(
+                    ownerWindow,
+                    message,
+                    "Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            });
+        }
+
+        private async Task UpdateFinancialSummaryAsync()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                var startDate = DateTime.Today;
+                var endDate = DateTime.Now;
+                var summary = await _drawerService.GetFinancialSummaryAsync(startDate, endDate);
+
+                DailySales = summary.Sales;
+                SupplierPayments = summary.SupplierPayments;
+                DailyExpenses = summary.Expenses;
+
+                NetSales = DailySales;
+                NetCashflow = DailySales - SupplierPayments - DailyExpenses;
+
+                OnPropertyChanged(nameof(DailySales));
+                OnPropertyChanged(nameof(SupplierPayments));
+                OnPropertyChanged(nameof(DailyExpenses));
+                OnPropertyChanged(nameof(NetSales));
+                OnPropertyChanged(nameof(NetCashflow));
+            }, "Updating financial summary");
+        }
 
         private void IncrementTransactionId()
         {
@@ -691,6 +1222,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 LookupTransactionAsync().ConfigureAwait(false);
             }
         }
+
         private async Task InitializeProductsAsync()
         {
             try
@@ -760,319 +1292,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Error caching image for product {product.ProductId}: {ex.Message}");
                 // Don't throw - just log the error and continue
             }
-        }
-
-        private async Task CloseDrawerAsync()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                var ownerWindow = GetOwnerWindow();
-
-                var dialog = new InputDialog("Close Drawer", "Enter final cash amount:")
-                {
-                    Owner = ownerWindow,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                };
-
-                bool? result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => dialog.ShowDialog());
-
-                if (result == true && decimal.TryParse(dialog.Input, out decimal finalAmount))
-                {
-                    await _drawerService.CloseDrawerAsync(finalAmount, "Closed by user at end of shift");
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        MessageBox.Show(
-                            ownerWindow,
-                            "Drawer closed successfully. The application will now exit.",
-                            "Success",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    });
-
-                    // Close the application after showing the success message
-                    System.Windows.Application.Current.Shutdown();
-                }
-            }, "Closing drawer");
-        }
-
-        private void StartNewTransaction()
-        {
-            var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
-
-            CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
-            CurrentTransaction = new TransactionDTO
-            {
-                TransactionDate = DateTime.Now,
-                Status = TransactionStatus.Pending,
-                Details = new ObservableCollection<TransactionDetailDTO>(),
-                CashierId = currentUser?.EmployeeId.ToString() ?? "0",
-                CashierName = currentUser?.FullName ?? "Unknown"
-            };
-
-            // Update the UI with cashier info
-            CashierName = currentUser?.FullName ?? "Unknown";
-
-            // Reset editing state
-            IsEditingTransaction = false;
-
-            ClearTotals();
-        }
-
-        private async Task HoldTransaction()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                if (CurrentTransaction?.Details.Any() == true)
-                {
-                    CurrentTransaction.Status = TransactionStatus.Pending;
-                    await Task.Run(() => HeldTransactions.Add(CurrentTransaction));
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show("Transaction has been held successfully", "Success",
-                            MessageBoxButton.OK, MessageBoxImage.Information));
-                    StartNewTransaction();
-                }
-            }, "Holding transaction");
-        }
-
-        private async Task SaveAsQuoteAsync()
-        {
-            await ShowLoadingAsync("Saving quote...", async () =>
-            {
-                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
-                {
-                    throw new InvalidOperationException("No items to save as quote");
-                }
-
-                if (SelectedCustomer == null)
-                {
-                    throw new InvalidOperationException("Please select a customer");
-                }
-
-                // Get the current main window to use as owner for any dialogs
-                Window ownerWindow = GetOwnerWindow();
-
-                var quoteToCreate = new QuoteDTO
-                {
-                    CustomerId = SelectedCustomer.CustomerId,
-                    CustomerName = SelectedCustomer.Name,
-                    TotalAmount = TotalAmount,
-                    CreatedDate = DateTime.Now,
-                    ExpiryDate = DateTime.Now.AddDays(30), // Or whatever expiry period you want
-                    Status = "Pending",
-                    QuoteNumber = $"Q-{DateTime.Now:yyyyMMddHHmmss}",
-                    Details = new ObservableCollection<QuoteDetailDTO>(
-                        CurrentTransaction.Details.Select(d => new QuoteDetailDTO
-                        {
-                            ProductId = d.ProductId,
-                            ProductName = d.ProductName,
-                            Quantity = d.Quantity,
-                            UnitPrice = d.UnitPrice,
-                            Total = d.Total
-                        }))
-                };
-
-                var result = await _quoteService.CreateAsync(quoteToCreate);
-                StartNewTransaction();
-            }, "Quote saved successfully");
-        }
-
-        private async Task RecallTransaction()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                var heldTransaction = HeldTransactions.LastOrDefault();
-                if (heldTransaction != null)
-                {
-                    await Task.Run(() =>
-                    {
-                        CurrentTransaction = heldTransaction;
-                        HeldTransactions.Remove(heldTransaction);
-                    });
-                    UpdateTotals();
-                }
-            }, "Recalling transaction");
-        }
-
-        private async Task UpdateUI(Action action)
-        {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
-        }
-
-        private async Task VoidTransaction()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                if (CurrentTransaction == null) return;
-
-                if (MessageBox.Show("Are you sure you want to void this transaction?", "Confirm Void",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
-                {
-                    await _transactionService.UpdateStatusAsync(CurrentTransaction.TransactionId, TransactionStatus.Cancelled);
-                    StartNewTransaction();
-                }
-            }, "Voiding transaction");
-        }
-
-        private async Task ShowErrorMessage(string message)
-        {
-            await WindowManager.InvokeAsync(() =>
-                MessageBox.Show(GetOwnerWindow(),
-                    message,
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error)
-            );
-        }
-
-        private async Task ShowSuccessMessage(string message)
-        {
-            await WindowManager.InvokeAsync(() =>
-            {
-                var ownerWindow = GetOwnerWindow();
-                MessageBox.Show(
-                    ownerWindow,
-                    message,
-                    "Success",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-            });
-        }
-
-        public async Task ProcessBarcodeInput()
-        {
-            if (string.IsNullOrEmpty(BarcodeText)) return;
-
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                var product = await _productService.GetByBarcodeAsync(BarcodeText);
-
-                // Only process the product if it exists and is active
-                if (product != null && product.IsActive)
-                {
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        AddProductToTransaction(product);
-                    });
-                }
-                else if (product != null && !product.IsActive)
-                {
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show("Product is inactive and cannot be added to the transaction",
-                                        "Inactive Product",
-                                        MessageBoxButton.OK,
-                                        MessageBoxImage.Warning));
-                }
-                else
-                {
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show("Product not found",
-                                        "Error",
-                                        MessageBoxButton.OK,
-                                        MessageBoxImage.Warning));
-                }
-
-                BarcodeText = string.Empty;
-            }, "Processing barcode input");
-        }
-
-        private async Task LoadCustomerSpecificPrices()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                if (SelectedCustomer == null)
-                {
-                    CustomerSpecificPrices = new Dictionary<int, decimal>();
-                    return;
-                }
-
-                var customerPrices = await _customerService.GetCustomProductPricesAsync(SelectedCustomer.CustomerId);
-                CustomerSpecificPrices = customerPrices.ToDictionary(
-                    cpp => cpp.ProductId,
-                    cpp => cpp.Price
-                );
-
-                // Update prices for existing items in cart
-                if (CurrentTransaction?.Details != null)
-                {
-                    foreach (var detail in CurrentTransaction.Details)
-                    {
-                        UpdateProductPrice(detail);
-                    }
-                    UpdateTotals();
-                }
-            }, "Loading customer specific prices");
-        }
-
-        private void UpdateProductPrice(TransactionDetailDTO detail)
-        {
-            if (_customerSpecificPrices.TryGetValue(detail.ProductId, out decimal customPrice))
-            {
-                detail.UnitPrice = customPrice;
-                detail.Total = detail.Quantity * customPrice;
-            }
-        }
-
-        private async Task<bool?> ShowDialog<T>(T dialog) where T : Window
-        {
-            return await WindowManager.InvokeAsync(() => {
-                dialog.Owner = GetOwnerWindow();
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-                return dialog.ShowDialog();
-            });
-        }
-
-        private async Task<string> ShowInputDialog(string prompt, string title)
-        {
-            return await WindowManager.InvokeAsync(() =>
-            {
-                var dialog = new InputDialog(title, prompt)
-                {
-                    Owner = System.Windows.Application.Current.MainWindow
-                };
-                return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
-            });
-        }
-
-        private async Task ShowErrorMessageAsync(string message)
-        {
-            await WindowManager.InvokeAsync(() =>
-            {
-                var ownerWindow = GetOwnerWindow();
-                MessageBox.Show(
-                    ownerWindow,
-                    message,
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            });
-        }
-
-        private async Task UpdateFinancialSummaryAsync()
-        {
-            await ExecuteOperationSafelyAsync(async () =>
-            {
-                var startDate = DateTime.Today;
-                var endDate = DateTime.Now;
-                var summary = await _drawerService.GetFinancialSummaryAsync(startDate, endDate);
-
-                DailySales = summary.Sales;
-                DailyReturns = Math.Abs(summary.Returns);
-                DebtPayments = summary.DebtPayments;
-                SupplierPayments = summary.SupplierPayments;
-                DailyExpenses = summary.Expenses;
-
-                NetSales = DailySales - DailyReturns;
-                NetCashflow = DailySales + DebtPayments - DailyReturns - SupplierPayments - DailyExpenses;
-
-                OnPropertyChanged(nameof(DailySales));
-                OnPropertyChanged(nameof(DailyReturns));
-                OnPropertyChanged(nameof(DebtPayments));
-                OnPropertyChanged(nameof(SupplierPayments));
-                OnPropertyChanged(nameof(DailyExpenses));
-                OnPropertyChanged(nameof(NetSales));
-                OnPropertyChanged(nameof(NetCashflow));
-            }, "Updating financial summary");
         }
     }
 }

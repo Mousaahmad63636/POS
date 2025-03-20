@@ -71,11 +71,12 @@
             BorderThickness="1"
             CornerRadius="8"
             Effect="{StaticResource DropShadowEffect}">
-                            <ListView ItemsSource="{Binding FilteredCustomers}"
-                                     SelectedItem="{Binding SelectedCustomerFromSearch}"
-                                     MaxHeight="300"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     BorderThickness="0">
+                            <ListView x:Name="CustomerSearchList" 
+                 ItemsSource="{Binding FilteredCustomers}"
+                 SelectedItem="{Binding SelectedCustomerFromSearch}"
+                 MaxHeight="300"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 BorderThickness="0">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <Grid Margin="8,4">
@@ -85,15 +86,15 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel>
                                                 <TextBlock Text="{Binding Name}"
-                                                         FontWeight="SemiBold"/>
+                                     FontWeight="SemiBold"/>
                                                 <TextBlock Text="{Binding Phone}"
-                                                         Foreground="#6B7280"
-                                                         FontSize="12"/>
+                                     Foreground="#6B7280"
+                                     FontSize="12"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="1"
-                                                     Text="{Binding Balance, StringFormat=Balance: {0:C}}"
-                                                     VerticalAlignment="Center"
-                                                     Margin="12,0,0,0"/>
+                                 Text="{Binding Balance, StringFormat=Balance: {0:C}}"
+                                 VerticalAlignment="Center"
+                                 Margin="12,0,0,0"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ListView.ItemTemplate>

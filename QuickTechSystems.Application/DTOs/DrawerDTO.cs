@@ -10,9 +10,7 @@ namespace QuickTechSystems.Application.DTOs
         public decimal CashIn { get; set; }
         public decimal CashOut { get; set; }
         public decimal TotalSales { get; set; }
-        public decimal TotalReturns { get; set; }
         public decimal TotalExpenses { get; set; }
-        public decimal TotalDebtPayments { get; set; }
         public decimal TotalSupplierPayments { get; set; }
         public DateTime OpenedAt { get; set; }
         public DateTime? ClosedAt { get; set; }
@@ -24,23 +22,19 @@ namespace QuickTechSystems.Application.DTOs
 
         // Financial Calculations
         public decimal DailySales { get; set; }
-        public decimal DailyReturns { get; set; }
         public decimal DailyExpenses { get; set; }
-        public decimal DailyDebtPayments { get; set; }
-        public decimal DailySupplierPayments { get; set; }  // Added missing property
+        public decimal DailySupplierPayments { get; set; }
 
         // Computed properties with explicit calculations
-        public decimal NetSales => Math.Abs(TotalSales) - Math.Abs(TotalReturns);
+        public decimal NetSales => Math.Abs(TotalSales);
 
         public decimal ExpectedBalance => OpeningBalance + CashIn - CashOut;
 
         public decimal Difference => CurrentBalance - ExpectedBalance;
 
         public decimal NetCashflow =>
-            Math.Abs(TotalSales) +
-            Math.Abs(TotalDebtPayments) -
-            (Math.Abs(TotalExpenses) + Math.Abs(TotalSupplierPayments) + Math.Abs(TotalReturns));
-    
+            Math.Abs(TotalSales) -
+            (Math.Abs(TotalExpenses) + Math.Abs(TotalSupplierPayments));
 
         // Duration properties
         public TimeSpan Duration
@@ -76,13 +70,9 @@ namespace QuickTechSystems.Application.DTOs
             {
                 "sales" => NetSales,
                 "expenses" => TotalExpenses + TotalSupplierPayments,
-                "debt payments" => TotalDebtPayments,
-                "returns" => TotalReturns,
                 "supplier payments" => TotalSupplierPayments,
                 "daily sales" => DailySales,
-                "daily returns" => DailyReturns,
                 "daily expenses" => DailyExpenses + DailySupplierPayments,
-                "daily debt payments" => DailyDebtPayments,
                 _ => 0
             };
         }
@@ -98,9 +88,7 @@ namespace QuickTechSystems.Application.DTOs
         public void ResetDailyTotals()
         {
             DailySales = 0;
-            DailyReturns = 0;
             DailyExpenses = 0;
-            DailyDebtPayments = 0;
             DailySupplierPayments = 0;
         }
     }

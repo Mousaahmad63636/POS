@@ -40,7 +40,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 case "open":
                     return amount;
                 case "cash sale":
-                case "debt payment":
                 case "cash in":
                     return currentBalance + amount;
                 case "expense":

@@ -19,7 +19,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<DrawerDTO> ProcessTransactionAsync(decimal amount, string transactionType, string description, string reference = "");
         Task<DrawerDTO> ProcessExpenseAsync(decimal amount, string expenseType, string description);
         Task<DrawerDTO> ProcessSupplierPaymentAsync(decimal amount, string supplierName, string reference);
-        Task<DrawerDTO> ProcessDebtPaymentAsync(decimal amount, string customerName, string reference);
         Task<DrawerDTO> ProcessCashSaleAsync(decimal amount, string reference);
         Task<DrawerDTO> ProcessQuotePaymentAsync(decimal amount, string customerName, string quoteNumber);
 
@@ -30,7 +29,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
 
         // Financial Management
         Task<DrawerDTO> AdjustBalanceAsync(int drawerId, decimal newBalance, string reason);
-        Task<(decimal Sales, decimal Returns, decimal DebtPayments, decimal SupplierPayments, decimal Expenses)>
+        Task<(decimal Sales, decimal SupplierPayments, decimal Expenses)>
             GetFinancialSummaryAsync(DateTime startDate, DateTime endDate);
 
         // Validation and Calculations
@@ -39,7 +38,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
 
         // Daily Operations
         Task ResetDailyTotalsAsync(int drawerId);
-        Task<(decimal Sales, decimal Returns, decimal Expenses)> GetDailyTotalsAsync(int drawerId);
+        Task<(decimal Sales, decimal Expenses)> GetDailyTotalsAsync(int drawerId);
         Task UpdateDailyCalculationsAsync(int drawerId);
 
         // Balance Verification

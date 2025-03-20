@@ -12,10 +12,18 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
         public ProductCard()
         {
             InitializeComponent();
-
-            // Make the entire card clickable
             this.MouseLeftButtonDown += OnCardClicked;
             this.Cursor = Cursors.Hand;
+
+            // Add unloaded event handler
+            this.Unloaded += ProductCard_Unloaded;
+        }
+
+        private void ProductCard_Unloaded(object sender, RoutedEventArgs e)
+        {
+            // Clean up event handlers
+            this.MouseLeftButtonDown -= OnCardClicked;
+            this.Unloaded -= ProductCard_Unloaded;
         }
 
         private void OnCardClicked(object sender, MouseButtonEventArgs e)
@@ -216,7 +224,15 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             }
             return null;
         }
+        public void Dispose()
+        {
+            // Clean up all event handlers
+            this.MouseLeftButtonDown -= OnCardClicked;
+            this.Unloaded -= ProductCard_Unloaded;
 
+            // Clear data context to allow GC to collect it
+            this.DataContext = null;
+        }
         private void Cleanup()
         {
             this.MouseLeftButtonDown -= OnCardClicked;

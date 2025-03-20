@@ -52,7 +52,6 @@ namespace QuickTechSystems.Application.Services
                     existingTransaction.CustomerName = transactionDto.CustomerName;
                     existingTransaction.TotalAmount = transactionDto.TotalAmount;
                     existingTransaction.PaidAmount = transactionDto.PaidAmount;
-                    existingTransaction.Balance = transactionDto.Balance;
                     existingTransaction.Status = transactionDto.Status;
                     existingTransaction.PaymentMethod = transactionDto.PaymentMethod;
 
@@ -133,6 +132,7 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
         public async Task<bool> DeleteAsync(int transactionId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -183,17 +183,6 @@ namespace QuickTechSystems.Application.Services
                         }
                     }
 
-                    // If it was a debt transaction, update customer balance
-                    if (existingTransaction.PaymentMethod == "Debt" && existingTransaction.CustomerId.HasValue)
-                    {
-                        var customer = await _unitOfWork.Customers.GetByIdAsync(existingTransaction.CustomerId.Value);
-                        if (customer != null)
-                        {
-                            customer.Balance -= existingTransaction.TotalAmount;
-                            await _unitOfWork.Customers.UpdateAsync(customer);
-                        }
-                    }
-
                     // Delete transaction details first (cascade doesn't always work reliably)
                     foreach (var detail in existingTransaction.TransactionDetails.ToList())
                     {
@@ -236,6 +225,7 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
         public async Task<TransactionDTO> ProcessSaleAsync(TransactionDTO transactionDto, int cashierId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -284,18 +274,6 @@ namespace QuickTechSystems.Application.Services
                     // Create the transaction record
                     var entity = _mapper.Map<Transaction>(transactionDto);
                     await _repository.AddAsync(entity);
-
-                    // If it's a debt transaction, update customer balance
-                    if (transactionDto.PaymentMethod == "Debt" && transactionDto.CustomerId.HasValue)
-                    {
-                        var customer = await _unitOfWork.Customers.GetByIdAsync(transactionDto.CustomerId.Value);
-                        if (customer != null)
-                        {
-                            customer.Balance += transactionDto.TotalAmount;
-                            await _unitOfWork.Customers.UpdateAsync(customer);
-                        }
-                    }
-
                     await _unitOfWork.SaveChangesAsync();
                     await transaction.CommitAsync();
 
@@ -366,14 +344,6 @@ namespace QuickTechSystems.Application.Services
                             $"Transaction #{entity.TransactionId}"
                         );
                     }
-                    else if (transaction.PaymentMethod == "Debt" && transaction.CustomerId.HasValue)
-                    {
-                        // Update customer balance
-                        await _customerService.AddToBalanceAsync(
-                            transaction.CustomerId.Value,
-                            transaction.TotalAmount - transaction.PaidAmount
-                        );
-                    }
 
                     await dbTransaction.CommitAsync();
                     return _mapper.Map<TransactionDTO>(entity);
@@ -396,42 +366,6 @@ namespace QuickTechSystems.Application.Services
                     .FirstOrDefaultAsync();
 
                 return latestTransaction?.TransactionId ?? 0;
-            });
-        }
-
-        public async Task<TransactionDTO> ProcessRefundAsync(TransactionDTO transaction)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                using var dbTransaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    transaction.TransactionType = TransactionType.Return;
-                    transaction.TransactionDate = DateTime.Now;
-                    transaction.Status = TransactionStatus.Completed;
-
-                    var entity = _mapper.Map<Transaction>(transaction);
-                    await _repository.AddAsync(entity);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Process cash drawer refund
-                    await _drawerService.AddCashTransactionAsync(transaction.TotalAmount, false);
-
-                    // Update stock levels
-                    foreach (var detail in transaction.Details)
-                    {
-                        await _productService.UpdateStockAsync(detail.ProductId, detail.Quantity);
-                    }
-
-                    await dbTransaction.CommitAsync();
-                    return _mapper.Map<TransactionDTO>(entity);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error processing refund: {ex.Message}");
-                    await dbTransaction.RollbackAsync();
-                    throw;
-                }
             });
         }
 
@@ -539,28 +473,20 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        public async Task<(decimal TotalSales, decimal TotalReturns, decimal NetSales)>
-            GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate)
+        public async Task<decimal> GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 try
                 {
-                    var transactions = await _repository.Query()
+                    var totalSales = await _repository.Query()
                         .Where(t => t.TransactionDate.Date >= startDate.Date &&
                                    t.TransactionDate.Date <= endDate.Date &&
-                                   t.Status == TransactionStatus.Completed)
-                        .ToListAsync();
+                                   t.Status == TransactionStatus.Completed &&
+                                   t.TransactionType == TransactionType.Sale)
+                        .SumAsync(t => t.TotalAmount);
 
-                    var totalSales = transactions
-                        .Where(t => t.TransactionType == TransactionType.Sale)
-                        .Sum(t => t.TotalAmount);
-
-                    var totalReturns = transactions
-                        .Where(t => t.TransactionType == TransactionType.Return)
-                        .Sum(t => t.TotalAmount);
-
-                    return (totalSales, totalReturns, totalSales - totalReturns);
+                    return totalSales;
                 }
                 catch (Exception ex)
                 {
@@ -670,17 +596,6 @@ namespace QuickTechSystems.Application.Services
                     var entity = _mapper.Map<Transaction>(transactionDto);
                     await _repository.AddAsync(entity);
 
-                    // If it's a debt transaction, update customer balance
-                    if (transactionDto.PaymentMethod == "Debt" && transactionDto.CustomerId.HasValue)
-                    {
-                        var customer = await _unitOfWork.Customers.GetByIdAsync(transactionDto.CustomerId.Value);
-                        if (customer != null)
-                        {
-                            customer.Balance += transactionDto.TotalAmount;
-                            await _unitOfWork.Customers.UpdateAsync(customer);
-                        }
-                    }
-
                     // Now perform stock updates
                     foreach (var detail in transactionDto.Details)
                     {
@@ -735,116 +650,6 @@ namespace QuickTechSystems.Application.Services
                 {
                     Debug.WriteLine($"Error processing sale: {ex.Message}");
                     await transaction.RollbackAsync();
-                    throw;
-                }
-            });
-        }
-
-        public async Task<TransactionDTO?> GetTransactionForReturnAsync(int transactionId)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                var transaction = await _repository.Query()
-                    .Include(t => t.Customer)
-                    .Include(t => t.TransactionDetails)
-                        .ThenInclude(td => td.Product)
-                    .FirstOrDefaultAsync(t => t.TransactionId == transactionId);
-
-                if (transaction == null)
-                    return null;
-
-                if (transaction.Status != TransactionStatus.Completed ||
-                    transaction.TransactionDetails.All(td => td.IsReturned))
-                    return null;
-
-                return _mapper.Map<TransactionDTO>(transaction);
-            });
-        }
-
-        public async Task<TransactionDTO> ProcessReturnAsync(int originalTransactionId, List<ReturnItemDTO> returnItems)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                using var dbTransaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    var originalTransaction = await _repository.Query()
-                        .Include(t => t.Customer)
-                        .Include(t => t.TransactionDetails)
-                            .ThenInclude(td => td.Product)
-                        .FirstOrDefaultAsync(t => t.TransactionId == originalTransactionId);
-
-                    if (originalTransaction == null)
-                        throw new InvalidOperationException("Original transaction not found");
-
-                    decimal totalRefundAmount = 0;
-
-                    foreach (var returnItem in returnItems)
-                    {
-                        var detail = originalTransaction.TransactionDetails
-                            .FirstOrDefault(d => d.ProductId == returnItem.ProductId);
-
-                        if (detail == null)
-                            throw new InvalidOperationException($"Product {returnItem.ProductId} not found in original transaction");
-
-                        int availableToReturn = detail.Quantity - detail.ReturnedQuantity;
-                        if (returnItem.QuantityToReturn > availableToReturn)
-                            throw new InvalidOperationException($"Cannot return more items than available. Available: {availableToReturn}");
-
-                        detail.ReturnedQuantity += returnItem.QuantityToReturn;
-                        detail.IsReturned = detail.ReturnedQuantity == detail.Quantity;
-                        detail.ReturnDate = DateTime.Now;
-                        detail.ReturnReason = returnItem.ReturnReason;
-
-                        totalRefundAmount += returnItem.RefundAmount;
-
-                        await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
-                        {
-                            ProductId = returnItem.ProductId,
-                            QuantityChanged = returnItem.QuantityToReturn,
-                            OperationType = TransactionType.Return,
-                            Date = DateTime.Now,
-                            Reference = $"Return-{originalTransactionId}",
-                            Notes = returnItem.ReturnReason
-                        });
-                    }
-
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Process stock updates AFTER saving changes to the return
-                    foreach (var returnItem in returnItems)
-                    {
-                        await _productService.UpdateStockAsync(
-                            returnItem.ProductId,
-                            returnItem.QuantityToReturn);
-                    }
-
-                    // Process refund in cash drawer
-                    await _drawerService.AddCashTransactionAsync(totalRefundAmount, false);
-
-                    originalTransaction.TotalAmount -= totalRefundAmount;
-                    await _unitOfWork.SaveChangesAsync();
-                    await dbTransaction.CommitAsync();
-
-                    // Get updated product data after transaction is committed
-                    var resultDto = _mapper.Map<TransactionDTO>(originalTransaction);
-
-                    // Publish product update events after transaction is committed
-                    foreach (var returnItem in returnItems)
-                    {
-                        var updatedProduct = await _productService.GetByIdAsync(returnItem.ProductId);
-                        if (updatedProduct != null)
-                        {
-                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", updatedProduct));
-                        }
-                    }
-
-                    return resultDto;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error processing return: {ex.Message}");
-                    await dbTransaction.RollbackAsync();
                     throw;
                 }
             });

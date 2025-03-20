@@ -162,7 +162,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 "Dashboard" => IsManager,
                 "Transactions" => true,
-                "CustomerDebt" => true,
                 "Products" => IsManager,
                 "Categories" => IsManager,
                 "Suppliers" => IsManager,
@@ -242,7 +241,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         "Profit" => _serviceProvider.GetRequiredService<ProfitViewModel>(),
                         "Expenses" => _serviceProvider.GetRequiredService<ExpenseViewModel>(),
                         "Drawer" => _serviceProvider.GetRequiredService<DrawerViewModel>(),
-                        "CustomerDebt" => _serviceProvider.GetRequiredService<CustomerDebtViewModel>(),
                         "Employees" => _serviceProvider.GetRequiredService<EmployeeViewModel>(),
                         "Quotes" => _serviceProvider.GetRequiredService<QuoteViewModel>(),
                         "LowStockHistory" => _serviceProvider.GetRequiredService<LowStockHistoryViewModel>(),

@@ -18,6 +18,7 @@ using ZXing.QrCode.Internal;
 using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Application.Helpers;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -57,16 +58,16 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         public TransactionViewModel(
-    IUnitOfWork unitOfWork,
-    ITransactionService transactionService,
-    ICustomerService customerService,
-    IProductService productService,
-    IDrawerService drawerService,
-    IQuoteService quoteService,
-    ICategoryService categoryService,
-    IBusinessSettingsService businessSettingsService,
-    ISystemPreferencesService systemPreferencesService,
-    IEventAggregator eventAggregator) : base(eventAggregator)
+            IUnitOfWork unitOfWork,
+            ITransactionService transactionService,
+            ICustomerService customerService,
+            IProductService productService,
+            IDrawerService drawerService,
+            IQuoteService quoteService,
+            ICategoryService categoryService,
+            IBusinessSettingsService businessSettingsService,
+            ISystemPreferencesService systemPreferencesService,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _quoteService = quoteService;
             _unitOfWork = unitOfWork;
@@ -123,6 +124,14 @@ namespace QuickTechSystems.WPF.ViewModels
                 _customerSearchCts?.Cancel();
                 _customerSearchCts?.Dispose();
 
+                // Dispose of timer resources
+                if (_lookupDebounceTimer != null)
+                {
+                    _lookupDebounceTimer.Stop();
+                    _lookupDebounceTimer.Dispose();
+                    _lookupDebounceTimer = null;
+                }
+
                 // Dispose of semaphores
                 _transactionOperationLock?.Dispose();
                 _categoryLoadSemaphore?.Dispose();
@@ -165,13 +174,38 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public void Dispose()
         {
-            Dispose(true);
+            // Clean up image cache
+            CleanupImageCache();
+
+            // Dispose of timers
+            if (_lookupDebounceTimer != null)
+            {
+                _lookupDebounceTimer.Stop();
+                _lookupDebounceTimer.Dispose();
+                _lookupDebounceTimer = null;
+            }
+
+            // Cancel any ongoing customer searches
+            if (_customerSearchCts != null)
+            {
+                _customerSearchCts.Cancel();
+                _customerSearchCts.Dispose();
+                _customerSearchCts = null;
+            }
+
+            // Unsubscribe from events
+            _eventAggregator.Unsubscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
+
             GC.SuppressFinalize(this);
         }
 
-        ~TransactionViewModel()
+        private void CleanupImageCache()
         {
-            Dispose(false);
+            foreach (var key in _imageCache.Keys.ToList())
+            {
+                _imageCache[key] = null;
+            }
+            _imageCache.Clear();
         }
 
         /// <summary>
@@ -222,12 +256,32 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Operation completed successfully: {operationName}");
                 return result;
             }
+            catch (InvalidOperationException ex)
+            {
+                // Handle specific exception types with user-friendly messages
+                Debug.WriteLine($"Operation error in {operationName}: {ex.Message}");
+                await ShowErrorMessageAsync(ex.Message);
+                throw;
+            }
             catch (Exception ex)
             {
+                // For all other exceptions, provide a more generic user-friendly message
+                // but log the detailed exception for troubleshooting
                 Debug.WriteLine($"ERROR in {operationName}: {ex.Message}");
                 Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                await ShowErrorMessageAsync($"Error during {operationName}: {ex.Message}");
-                throw;
+
+                string userMessage = "An unexpected error occurred. Please review your input and try again.";
+                if (ex.Message.Contains("database") || ex.Message.Contains("SQL"))
+                {
+                    userMessage = "A database error occurred. The operation could not be completed.";
+                }
+                else if (ex.Message.Contains("network") || ex.Message.Contains("connection"))
+                {
+                    userMessage = "A network error occurred. Please check your connection and try again.";
+                }
+
+                await ShowErrorMessageAsync(userMessage);
+                throw new InvalidOperationException(userMessage, ex);
             }
             finally
             {
@@ -240,15 +294,56 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         // Overload for void operations
-        private async Task ExecuteOperationSafelyAsync(Func<Task> operation, string operationName = "Transaction operation", string resourceKey = null)
+        private static ConcurrentDictionary<string, SemaphoreSlim> _operationLocks =
+    new ConcurrentDictionary<string, SemaphoreSlim>();
+        private async Task ExecuteOperationSafelyAsync(Func<Task> operation, string operationName, string operationType = null)
         {
-            await ExecuteOperationSafelyAsync<bool>(async () =>
-            {
-                await operation();
-                return true;
-            }, operationName, resourceKey);
-        }
+            // Create a unique key for this operation type
+            string lockKey = operationType ?? operationName;
 
+            // Get or create a semaphore for this operation type
+            var semaphore = _operationLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+
+            // Wait for any previous operations of the same type to complete
+            await semaphore.WaitAsync();
+
+            try
+            {
+                StatusMessage = operationName;
+                OnPropertyChanged(nameof(StatusMessage));
+
+                await operation();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in {operationName}: {ex.Message}");
+
+                // Don't show UI errors for cancelled tasks
+                if (ex is TaskCanceledException || ex is OperationCanceledException)
+                {
+                    Debug.WriteLine($"{operationName} was canceled");
+                    return;
+                }
+
+                await WindowManager.InvokeAsync(() =>
+                {
+                    MessageBox.Show(
+                        $"Error in {operationName}: {ex.Message}",
+                        "Operation Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                // Always release the semaphore
+                semaphore.Release();
+
+                // Reset status
+                StatusMessage = "Ready";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+        }
         /// <summary>
         /// Shows loading indicator while executing an operation with proper error handling
         /// </summary>
@@ -256,30 +351,47 @@ namespace QuickTechSystems.WPF.ViewModels
         /// <param name="action">The async operation to execute</param>
         /// <param name="successMessage">Optional success message to show on completion</param>
         /// <returns>Task representing the operation</returns>
-        private async Task ShowLoadingAsync(string message, Func<Task> action, string successMessage = null)
+        private async Task ShowLoadingAsync(string loadingMessage, Func<Task> action, string successMessage = null)
         {
             try
             {
-                LoadingMessage = message;
+                // Set loading state
+                LoadingMessage = loadingMessage;
                 IsLoading = true;
+                OnPropertyChanged(nameof(IsLoading));
+                OnPropertyChanged(nameof(LoadingMessage));
 
+                // Execute the operation
                 await action();
 
+                // Show success message if provided
                 if (!string.IsNullOrEmpty(successMessage))
                 {
-                    await ShowSuccessMessage(successMessage);
+                    await WindowManager.InvokeAsync(() =>
+                        MessageBox.Show(
+                            successMessage,
+                            "Success",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information));
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error in operation: {ex.Message}");
-                Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                await ShowErrorMessageAsync($"Operation failed: {ex.Message}");
+                Debug.WriteLine($"Operation error: {ex.Message}");
+                await WindowManager.InvokeAsync(() =>
+                    MessageBox.Show(
+                        $"An error occurred: {ex.Message}",
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error));
             }
             finally
             {
+                // Always reset loading state, even on error
                 IsLoading = false;
-                LoadingMessage = string.Empty;
+                LoadingMessage = "Processing...";
+                OnPropertyChanged(nameof(IsLoading));
+                OnPropertyChanged(nameof(LoadingMessage));
             }
         }
 
@@ -307,11 +419,26 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 return result;
             }
+            catch (InvalidOperationException ex)
+            {
+                // Handle specific validation errors with the original message
+                Debug.WriteLine($"Validation error in operation: {ex.Message}");
+                await ShowErrorMessageAsync(ex.Message);
+                return default;
+            }
             catch (Exception ex)
             {
+                // For all other exceptions, provide a more generic user-friendly message
                 Debug.WriteLine($"Error in operation: {ex.Message}");
                 Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                await ShowErrorMessageAsync($"Operation failed: {ex.Message}");
+
+                string userMessage = "An unexpected error occurred. Please review your input and try again.";
+                if (ex.Message.Contains("database") || ex.Message.Contains("SQL"))
+                {
+                    userMessage = "A database error occurred. The operation could not be completed.";
+                }
+
+                await ShowErrorMessageAsync(userMessage);
                 return default;
             }
             finally
@@ -401,22 +528,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 var activeProducts = products.Where(p => p.IsActive).ToList();
                 Debug.WriteLine($"Filtered down to {activeProducts.Count} active products");
 
-                foreach (var product in activeProducts)
-                {
-                    try
-                    {
-                        if (product.Image != null)
-                        {
-                            Debug.WriteLine($"Caching image for product {product.ProductId}");
-                            CacheProductImage(product);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error caching image for product {product.ProductId}: {ex.Message}");
-                        // Continue despite image caching errors
-                    }
-                }
+                // Cache images asynchronously - won't block UI
+                _ = CacheProductImagesAsync(activeProducts);
 
                 _allProducts = new ObservableCollection<ProductDTO>(activeProducts);
                 FilterProductsForDropdown(string.Empty);
@@ -428,7 +541,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 });
             });
         }
-
         private async Task LoadExchangeRate(IBusinessSettingsService businessSettingsService)
         {
             await ExecuteOperationSafelyAsync(async () =>

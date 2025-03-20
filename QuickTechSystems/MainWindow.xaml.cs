@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using QuickTechSystems.WPF.ViewModels;
 using System.Windows.Controls;
 using System.Linq;
+using System.Windows.Input;
 
 namespace QuickTechSystems.WPF
 {
@@ -18,9 +19,11 @@ namespace QuickTechSystems.WPF
         private bool isSidebarVisible = true;
         private DateTime lastButtonClickTime = DateTime.MinValue;
         private const int BUTTON_COOLDOWN_MS = 300;
-        private Window? floatingButton;
         private Grid? mainGrid;
-        private ToggleButton? toggleButton;
+        private Button? showSidebarButton;
+        private Button? hideSidebarButton;
+        private Border? sidebarHoverArea;
+        private Border? navigationPanel;
 
         public MainWindow()
         {
@@ -33,9 +36,13 @@ namespace QuickTechSystems.WPF
         private void InitializeControls()
         {
             mainGrid = this.FindName("MainGrid") as Grid;
-            toggleButton = this.FindName("ToggleNavButton") as ToggleButton;
+            showSidebarButton = this.FindName("ShowSidebarButton") as Button;
+            hideSidebarButton = this.FindName("HideSidebarButton") as Button;
+            sidebarHoverArea = this.FindName("SidebarHoverArea") as Border;
+            navigationPanel = this.FindName("NavigationPanel") as Border;
 
-            if (mainGrid == null || toggleButton == null)
+            if (mainGrid == null || showSidebarButton == null || hideSidebarButton == null ||
+                sidebarHoverArea == null || navigationPanel == null)
             {
                 throw new Exception("Critical UI elements not found");
             }
@@ -100,37 +107,81 @@ namespace QuickTechSystems.WPF
             }
         }
 
-        private void ToggleNavButton_Click(object sender, RoutedEventArgs e)
+        private void HideSidebarButton_Click(object sender, RoutedEventArgs e)
         {
             if ((DateTime.Now - lastButtonClickTime).TotalMilliseconds < BUTTON_COOLDOWN_MS)
                 return;
 
             lastButtonClickTime = DateTime.Now;
+            HideSidebar();
+        }
 
-            try
+        private void ShowSidebarButton_Click(object sender, RoutedEventArgs e)
+        {
+            if ((DateTime.Now - lastButtonClickTime).TotalMilliseconds < BUTTON_COOLDOWN_MS)
+                return;
+
+            lastButtonClickTime = DateTime.Now;
+            ShowSidebar();
+        }
+
+        private void SidebarHoverArea_MouseEnter(object sender, MouseEventArgs e)
+        {
+            // Only show the button when hovering over the area
+            if (!isSidebarVisible)
             {
-                var button = (ToggleButton)sender;
-                ToggleSidebar(button);
-                AnimateButtonRotation(button);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error toggling navigation: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                showSidebarButton.Visibility = Visibility.Visible;
             }
         }
 
-        private void ToggleSidebar(ToggleButton button)
+        private void MainGrid_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (mainGrid?.ColumnDefinitions.Count == 0) return;
-
-            var navColumn = mainGrid.ColumnDefinitions[0];
-            var navPanel = mainGrid.Children.OfType<Border>().FirstOrDefault(b => b.Name == "NavigationPanel");
-
-            if (navPanel == null) return;
-
-            if (isSidebarVisible)
+            // Hide show button when clicking elsewhere (if it's visible)
+            if (showSidebarButton.Visibility == Visibility.Visible &&
+                !IsMouseOverElement(showSidebarButton, e.GetPosition(this)))
             {
+                showSidebarButton.Visibility = Visibility.Collapsed;
+            }
+
+            // Only process if sidebar is visible and we're not clicking inside the sidebar
+            if (isSidebarVisible && navigationPanel != null)
+            {
+                Point clickPoint = e.GetPosition(this);
+
+                // Get sidebar bounds
+                Rect sidebarBounds = new Rect(
+                    navigationPanel.TranslatePoint(new Point(0, 0), this),
+                    new Size(navigationPanel.ActualWidth, navigationPanel.ActualHeight));
+
+                // If clicking outside the sidebar, hide it
+                if (!sidebarBounds.Contains(clickPoint))
+                {
+                    HideSidebar();
+                }
+            }
+        }
+
+        private bool IsMouseOverElement(UIElement element, Point mousePosition)
+        {
+            if (element == null) return false;
+
+            // Get element bounds
+            Point elementPosition = element.TranslatePoint(new Point(0, 0), this);
+            Rect elementBounds = new Rect(
+                elementPosition,
+                new Size(element.RenderSize.Width, element.RenderSize.Height));
+
+            return elementBounds.Contains(mousePosition);
+        }
+
+        private void HideSidebar()
+        {
+            try
+            {
+                if (mainGrid?.ColumnDefinitions.Count == 0) return;
+
+                var navColumn = mainGrid.ColumnDefinitions[0];
+
                 // Hiding sidebar
                 var hideAnimation = new GridLengthAnimation
                 {
@@ -141,18 +192,33 @@ namespace QuickTechSystems.WPF
 
                 hideAnimation.Completed += (s, e) =>
                 {
-                    navPanel.Visibility = Visibility.Collapsed;
-                    button.Visibility = Visibility.Hidden;
-                    CreateFloatingButton(button);
+                    navigationPanel.Visibility = Visibility.Collapsed;
+                    // Make the hover area visible in the content area
+                    sidebarHoverArea.Visibility = Visibility.Visible;
+                    // Hide the show button initially - will appear on hover
+                    showSidebarButton.Visibility = Visibility.Collapsed;
                 };
 
                 navColumn.BeginAnimation(ColumnDefinition.WidthProperty, hideAnimation);
+                isSidebarVisible = false;
             }
-            else
+            catch (Exception ex)
             {
+                MessageBox.Show($"Error hiding sidebar: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ShowSidebar()
+        {
+            try
+            {
+                if (mainGrid?.ColumnDefinitions.Count == 0) return;
+
+                var navColumn = mainGrid.ColumnDefinitions[0];
+
                 // Showing sidebar
-                navPanel.Visibility = Visibility.Visible;
-                button.Visibility = Visibility.Visible;
+                navigationPanel.Visibility = Visibility.Visible;
 
                 var showAnimation = new GridLengthAnimation
                 {
@@ -161,81 +227,24 @@ namespace QuickTechSystems.WPF
                     Duration = TimeSpan.FromSeconds(ANIMATION_DURATION)
                 };
 
-                navColumn.BeginAnimation(ColumnDefinition.WidthProperty, showAnimation);
-
-                if (floatingButton != null)
+                showAnimation.Completed += (s, e) =>
                 {
-                    floatingButton.Close();
-                    floatingButton = null;
-                }
+                    sidebarHoverArea.Visibility = Visibility.Collapsed;
+                    showSidebarButton.Visibility = Visibility.Collapsed;
+                };
+
+                navColumn.BeginAnimation(ColumnDefinition.WidthProperty, showAnimation);
+                isSidebarVisible = true;
             }
-
-            isSidebarVisible = !isSidebarVisible;
-        }
-
-        private void CreateFloatingButton(ToggleButton originalButton)
-        {
-            var buttonPos = originalButton.PointToScreen(new Point(0, 0));
-
-            floatingButton = new Window
+            catch (Exception ex)
             {
-                Width = 44,
-                Height = 44,
-                WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = Brushes.Transparent,
-                Topmost = true,
-                ShowInTaskbar = false,
-                Left = buttonPos.X,
-                Top = buttonPos.Y,
-                ResizeMode = ResizeMode.NoResize
-            };
-
-            var newButton = new ToggleButton
-            {
-                Content = "≡",
-                Width = 44,
-                Height = 44,
-                FontSize = 24,
-                Background = (SolidColorBrush)Resources["SidebarBackground"],
-                Foreground = Brushes.White,
-                BorderThickness = new Thickness(0),
-                Template = originalButton.Template
-            };
-
-            newButton.Click += (s, e) =>
-            {
-                if ((DateTime.Now - lastButtonClickTime).TotalMilliseconds < BUTTON_COOLDOWN_MS)
-                    return;
-
-                lastButtonClickTime = DateTime.Now;
-
-                // Simply call ToggleSidebar directly
-                ToggleSidebar(originalButton);
-            };
-
-            floatingButton.Content = newButton;
-            floatingButton.Show();
-        }
-
-        private void AnimateButtonRotation(ToggleButton button)
-        {
-            var rotateAnimation = new DoubleAnimation
-            {
-                From = button.IsChecked == true ? 0 : 180,
-                To = button.IsChecked == true ? 180 : 0,
-                Duration = TimeSpan.FromSeconds(ANIMATION_DURATION)
-            };
-
-            if (button.Template.FindName("rotation", button) is RotateTransform transform)
-            {
-                transform.BeginAnimation(RotateTransform.AngleProperty, rotateAnimation);
+                MessageBox.Show($"Error showing sidebar: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         protected override void OnClosed(EventArgs e)
         {
-            floatingButton?.Close();
             base.OnClosed(e);
         }
     }

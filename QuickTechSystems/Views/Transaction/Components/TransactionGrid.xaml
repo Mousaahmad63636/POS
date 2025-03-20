@@ -10,13 +10,13 @@
              IsReadOnly="False">
         <DataGrid.Columns>
             <DataGridTextColumn Header="{DynamicResource Transaction_Column_Code}" 
-                              Binding="{Binding ProductBarcode}"
+                              Binding="{Binding ProductBarcode, FallbackValue=''}"
                               Width="120"/>
             <DataGridTextColumn Header="{DynamicResource Transaction_Column_Description}" 
-                              Binding="{Binding ProductName}"
+                              Binding="{Binding ProductName, FallbackValue='Unknown Product'}"
                               Width="*"/>
             <DataGridTextColumn Header="{DynamicResource Transaction_Column_Quantity}" 
-                              Binding="{Binding Quantity}"
+                              Binding="{Binding Quantity, FallbackValue=0}"
                               Width="80">
                 <DataGridTextColumn.ElementStyle>
                     <Style TargetType="TextBlock">
@@ -26,7 +26,7 @@
                 </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
             <DataGridTextColumn Header="{DynamicResource Transaction_Column_UnitPrice}" 
-                              Binding="{Binding UnitPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
+                              Binding="{Binding UnitPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged, FallbackValue=$0.00}"
                               Width="120"
                               IsReadOnly="False">
                 <DataGridTextColumn.ElementStyle>

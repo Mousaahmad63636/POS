@@ -37,23 +37,6 @@
             </Setter>
         </Style>
 
-        <!-- Enhanced Financial Card Style -->
-        <Style x:Key="FinancialCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderGray}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Margin" Value="10"/>
-            <Setter Property="Padding" Value="24"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="15" 
-                                    ShadowDepth="2" 
-                                    Opacity="0.08"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- Enhanced Dashboard Button Style -->
         <Style x:Key="DashboardButton" TargetType="Button">
             <Setter Property="Height" Value="130"/>
@@ -158,97 +141,7 @@
             </Border>
 
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="20,10,20,20">
-                    <!-- Enhanced Financial Summary Cards -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Today's Sales Card -->
-                        <Border Style="{StaticResource FinancialCard}" Grid.Column="0">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                    <TextBlock Text="📈 " FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{DynamicResource Dashboard_TodaySales}"
-                                             FontWeight="SemiBold"
-                                             FontSize="16"
-                                             Foreground="{StaticResource PrimaryBlue}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding TodaySales, StringFormat=C2}"
-                                         FontSize="28"
-                                         FontWeight="Bold"
-                                         Margin="0,8,0,8"
-                                         Foreground="{StaticResource PositiveGreen}"/>
-                                <TextBlock Text="{DynamicResource Dashboard_TodaySalesDesc}"
-                                         Foreground="{StaticResource SecondaryGray}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Outstanding Debt Card -->
-                        <Border Style="{StaticResource FinancialCard}" Grid.Column="1">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                    <TextBlock Text="💳 " FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{DynamicResource Dashboard_OutstandingDebt}"
-                                             FontWeight="SemiBold"
-                                             FontSize="16"
-                                             Foreground="{StaticResource PrimaryBlue}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding OutstandingDebt, StringFormat=C2}"
-                                         FontSize="28"
-                                         FontWeight="Bold"
-                                         Margin="0,8,0,8"
-                                         Foreground="{StaticResource NegativeRed}"/>
-                                <TextBlock Text="{DynamicResource Dashboard_OutstandingDebtDesc}"
-                                         Foreground="{StaticResource SecondaryGray}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Cash in Drawer Card -->
-                        <Border Style="{StaticResource FinancialCard}" Grid.Column="2">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                    <TextBlock Text="🏦 " FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{DynamicResource Dashboard_CashInDrawer}"
-                                             FontWeight="SemiBold"
-                                             FontSize="16"
-                                             Foreground="{StaticResource PrimaryBlue}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding CashInDrawer, StringFormat=C2}"
-                                         FontSize="28"
-                                         FontWeight="Bold"
-                                         Margin="0,8,0,8"
-                                         Foreground="{StaticResource PrimaryBlue}"/>
-                                <TextBlock Text="{DynamicResource Dashboard_CashInDrawerDesc}"
-                                         Foreground="{StaticResource SecondaryGray}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Monthly Revenue Card -->
-                        <Border Style="{StaticResource FinancialCard}" Grid.Column="3">
-                            <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                    <TextBlock Text="📊 " FontSize="20" Margin="0,0,8,0"/>
-                                    <TextBlock Text="{DynamicResource Dashboard_MonthlyRevenue}"
-                                             FontWeight="SemiBold"
-                                             FontSize="16"
-                                             Foreground="{StaticResource PrimaryBlue}"/>
-                                </StackPanel>
-                                <TextBlock Text="{Binding MonthlyRevenue, StringFormat=C2}"
-                                         FontSize="28"
-                                         FontWeight="Bold"
-                                         Margin="0,8,0,8"
-                                         Foreground="{StaticResource PositiveGreen}"/>
-                                <TextBlock Text="{DynamicResource Dashboard_MonthlyRevenueDesc}"
-                                         Foreground="{StaticResource SecondaryGray}"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
+                <StackPanel Margin="20,30,20,20">
                     <!-- Sales & Revenue Section -->
                     <TextBlock Text="{DynamicResource Dashboard_SalesRevenue}" Style="{StaticResource SectionTitle}"/>
                     <WrapPanel>

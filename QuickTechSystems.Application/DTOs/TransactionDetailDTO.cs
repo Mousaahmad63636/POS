@@ -16,13 +16,7 @@ namespace QuickTechSystems.Application.DTOs
         private decimal _purchasePrice;
         private decimal _discount;
         private decimal _total;
-        private int _returnedQuantity;
-        private bool _isReturned;
-        private DateTime? _returnDate;
-        private string? _returnReason;
         private bool _isSelected;
-        private int _quantityToReturn;
-        private bool _isSelectedForReturn;
         private int _categoryId;
 
         public int TransactionDetailId
@@ -114,8 +108,6 @@ namespace QuickTechSystems.Application.DTOs
                 }
             }
         }
-    
-        
 
         public decimal UnitPrice
         {
@@ -171,58 +163,6 @@ namespace QuickTechSystems.Application.DTOs
             }
         }
 
-        public int ReturnedQuantity
-        {
-            get => _returnedQuantity;
-            set
-            {
-                if (_returnedQuantity != value)
-                {
-                    _returnedQuantity = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public bool IsReturned
-        {
-            get => _isReturned;
-            set
-            {
-                if (_isReturned != value)
-                {
-                    _isReturned = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public DateTime? ReturnDate
-        {
-            get => _returnDate;
-            set
-            {
-                if (_returnDate != value)
-                {
-                    _returnDate = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public string? ReturnReason
-        {
-            get => _returnReason;
-            set
-            {
-                if (_returnReason != value)
-                {
-                    _returnReason = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
         public bool IsSelected
         {
             get => _isSelected;
@@ -231,35 +171,6 @@ namespace QuickTechSystems.Application.DTOs
                 if (_isSelected != value)
                 {
                     _isSelected = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        public int QuantityToReturn
-        {
-            get => _quantityToReturn;
-            set
-            {
-                if (_quantityToReturn != value)
-                {
-                    _quantityToReturn = value;
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(RefundAmount));  // Update RefundAmount when QuantityToReturn changes
-                }
-            }
-        }
-
-        public decimal RefundAmount => QuantityToReturn * UnitPrice;
-
-        public bool IsSelectedForReturn
-        {
-            get => _isSelectedForReturn;
-            set
-            {
-                if (_isSelectedForReturn != value)
-                {
-                    _isSelectedForReturn = value;
                     OnPropertyChanged();
                 }
             }
@@ -286,8 +197,6 @@ namespace QuickTechSystems.Application.DTOs
             ProductBarcode = string.Empty;
             Quantity = 1;
             IsSelected = false;
-            IsSelectedForReturn = false;
-            QuantityToReturn = 0;
         }
     }
 }

@@ -46,10 +46,10 @@ namespace QuickTechSystems.WPF.ViewModels
         private DateTime _startDate = DateTime.Today.AddDays(-30);
         private DateTime _endDate = DateTime.Today;
         private bool _isDateRangeValid = true;
-        private decimal _totalReturns;
         private int _totalTransactions;
         private Dictionary<string, decimal> _categorySales = new();
 
+        private static TransactionHistoryViewModel _instance;
         private Action<EntityChangedEvent<TransactionDTO>> _transactionChangedHandler;
 
         public ObservableCollection<TransactionDTO> Transactions
@@ -92,12 +92,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _totalProfit;
             private set => SetProperty(ref _totalProfit, value);
-        }
-
-        public decimal TotalReturns
-        {
-            get => _totalReturns;
-            private set => SetProperty(ref _totalReturns, value);
         }
 
         public int TotalTransactions
@@ -173,7 +167,16 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _errorMessage;
             private set => SetProperty(ref _errorMessage, value);
         }
-
+        public static void ForceRefresh()
+        {
+            if (_instance != null)
+            {
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _instance.RefreshCommand.Execute(null);
+                });
+            }
+        }
         public ICommand ExportCommand { get; }
         public ICommand PrintReportCommand { get; }
         public ICommand RefreshCommand { get; }
@@ -187,6 +190,7 @@ namespace QuickTechSystems.WPF.ViewModels
      IDbContextFactory<ApplicationDbContext> dbContextFactory,
      IEventAggregator eventAggregator) : base(eventAggregator)
         {
+            _instance = this;
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
@@ -200,7 +204,6 @@ namespace QuickTechSystems.WPF.ViewModels
             ExportCommand = new AsyncRelayCommand(async _ => await ExportTransactionsAsync(), CanExecuteCommand);
             PrintReportCommand = new AsyncRelayCommand(async _ => await PrintTransactionReportAsync(), CanExecuteCommand);
             RefreshCommand = new AsyncRelayCommand(async _ => await RefreshDataAsync(), CanExecuteCommand);
-            ViewTransactionDetailsCommand = new RelayCommand(ShowTransactionDetails, CanShowTransactionDetails);
             ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
             DeleteTransactionCommand = new AsyncRelayCommand<TransactionDTO>(
                 async transaction => await DeleteTransactionAsync(transaction),
@@ -232,7 +235,33 @@ namespace QuickTechSystems.WPF.ViewModels
             return transaction != null && !IsLoading && !IsRefreshing;
         }
 
+        // Add this method to handle refresh requests with proper DbContext scope
+        public static async Task SafeRefreshAsync()
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                try
+                {
+                    var instance = _instance;
+                    if (instance == null) return;
 
+                    // Wait a short delay to allow any ongoing operations to complete
+                    await Task.Delay(1000);
+
+                    // Execute refresh on UI thread
+                    // Use RefreshCommand instead of directly calling methods to respect
+                    // internal locking mechanisms already in the ViewModel
+                    if (instance.RefreshCommand.CanExecute(null))
+                    {
+                        instance.RefreshCommand.Execute(null);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error refreshing transaction history: {ex.Message}");
+                }
+            });
+        }
         private async Task DeleteTransactionAsync(TransactionDTO? transaction)
         {
             if (transaction == null) return;
@@ -405,8 +434,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             Transactions = new ObservableCollection<TransactionDTO>(
                                 transactions.OrderByDescending(t => t.TransactionDate)
                             );
-                            TotalSales = summary.TotalSales;
-                            TotalReturns = summary.TotalReturns;
+                            TotalSales = summary;
                             TotalTransactions = transactionCount;
                             CategorySales = new Dictionary<string, decimal>(categorySales);
 
@@ -469,15 +497,28 @@ namespace QuickTechSystems.WPF.ViewModels
             try
             {
                 TotalSales = FilteredTransactions.Sum(t => t.TotalAmount);
+
+                // Calculate profit with improved logic
                 TotalProfit = FilteredTransactions.Sum(t =>
-                    t.Details?.Sum(d => (d.UnitPrice - d.PurchasePrice) * d.Quantity) ?? 0);
+                {
+                    // Skip if transaction has no details
+                    if (t.Details == null || !t.Details.Any())
+                        return 0;
+
+                    // Skip profit calculation if total amount is zero
+                    if (t.TotalAmount == 0)
+                        return 0;
+
+                    // Calculate base profit
+                    var itemProfit = t.Details.Sum(d => (d.UnitPrice - d.PurchasePrice) * d.Quantity);
+                    return itemProfit;
+                });
             }
             catch (Exception ex)
             {
                 HandleError("Error calculating totals", ex);
             }
         }
-
         private async Task RefreshDataAsync()
         {
             try
@@ -503,25 +544,7 @@ namespace QuickTechSystems.WPF.ViewModels
             return parameter is TransactionDTO;
         }
 
-        private void ShowTransactionDetails(object? parameter)
-        {
-            if (parameter is not TransactionDTO transaction) return;
 
-            try
-            {
-                var ownerWindow = GetOwnerWindow();
-                var detailWindow = new TransactionDetailWindow(transaction)
-                {
-                    Owner = ownerWindow,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                };
-                detailWindow.ShowDialog();
-            }
-            catch (Exception ex)
-            {
-                HandleError("Error showing transaction details", ex);
-            }
-        }
 
         private Window GetOwnerWindow()
         {
@@ -544,6 +567,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private DateTime _lastTransactionChangedTime = DateTime.MinValue;
         private object _eventLock = new object();
 
+        // From TransactionHistoryViewModel.cs
         private async void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
         {
             // Skip if loading or refreshing
@@ -818,7 +842,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     summary.Inlines.Add(new Run($"Total Transactions: {FilteredTransactions.Count}\n"));
                     summary.Inlines.Add(new Run($"Total Sales: {TotalSales:C}\n"));
                     summary.Inlines.Add(new Run($"Total Profit: {TotalProfit:C}\n"));
-                    summary.Inlines.Add(new Run($"Total Returns: {TotalReturns:C}\n"));
                     document.Blocks.Add(summary);
 
                     // Category Summary

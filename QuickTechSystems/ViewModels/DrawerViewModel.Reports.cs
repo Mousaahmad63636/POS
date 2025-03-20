@@ -32,8 +32,9 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private FlowDocument CreateDrawerReport()
+        private FlowDocument CreateDrawerReport(bool includeTransactions = true, bool includeFinancial = true, bool cashierCopy = false)
         {
+            // Your existing report creation code - modify to use the parameters
             var document = new FlowDocument();
 
             // Add report content (header, summary, transactions, etc.)
@@ -41,7 +42,12 @@ namespace QuickTechSystems.WPF.ViewModels
             paragraph.Inlines.Add(new Bold(new Run("Drawer Report\n")) { FontSize = 18 });
             paragraph.Inlines.Add(new Run($"Generated: {DateTime.Now:g}\n\n"));
 
-            if (CurrentDrawer != null)
+            if (cashierCopy)
+            {
+                paragraph.Inlines.Add(new Bold(new Run("CASHIER COPY\n")) { FontSize = 14 });
+            }
+
+            if (CurrentDrawer != null && includeFinancial)
             {
                 paragraph.Inlines.Add(new Bold(new Run("Summary:\n")));
                 paragraph.Inlines.Add(new Run($"Opening Balance: {CurrentDrawer.OpeningBalance:C2}\n"));
@@ -53,8 +59,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
             document.Blocks.Add(paragraph);
 
-            // Add transaction history
-            if (DrawerHistory.Any())
+            // Add transaction history if requested
+            if (includeTransactions && DrawerHistory.Any())
             {
                 var table = new Table();
 
