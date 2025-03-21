@@ -21,7 +21,8 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<DrawerDTO> ProcessSupplierPaymentAsync(decimal amount, string supplierName, string reference);
         Task<DrawerDTO> ProcessCashSaleAsync(decimal amount, string reference);
         Task<DrawerDTO> ProcessQuotePaymentAsync(decimal amount, string customerName, string quoteNumber);
-
+        // Add this method to the interface
+        Task<bool> UpdateDrawerTransactionForModifiedSaleAsync(int transactionId, decimal oldAmount, decimal newAmount, string description);
         // History and Reporting
         Task<IEnumerable<DrawerTransactionDTO>> GetDrawerHistoryAsync(int drawerId);
         Task<IEnumerable<DrawerTransactionDTO>> GetTransactionsByTypeAsync(string transactionType, DateTime startDate, DateTime endDate);

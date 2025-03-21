@@ -47,6 +47,9 @@ namespace QuickTechSystems.Application.Services
                         throw new InvalidOperationException($"Transaction #{transactionDto.TransactionId} not found");
                     }
 
+                    // Store the original total amount for drawer sync
+                    decimal originalAmount = existingTransaction.TotalAmount;
+
                     // Update the existing transaction properties
                     existingTransaction.CustomerId = transactionDto.CustomerId;
                     existingTransaction.CustomerName = transactionDto.CustomerName;
@@ -113,7 +116,37 @@ namespace QuickTechSystems.Application.Services
                     // Update the transaction
                     await _repository.UpdateAsync(existingTransaction);
                     await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
+
+                    // Check if total amount has changed and update drawer transactions
+                    if (Math.Abs(originalAmount - transactionDto.TotalAmount) > 0.01m)
+                    {
+                        // Update drawer transactions - note we don't want this to be part of the same transaction
+                        // as it's OK if this fails - we can handle drawer reconciliation later
+                        await transaction.CommitAsync();
+
+                        if (existingTransaction.PaymentMethod?.ToLower() == "cash")
+                        {
+                            string description = $"Modified Transaction #{transactionDto.TransactionId}";
+                            try
+                            {
+                                await _drawerService.UpdateDrawerTransactionForModifiedSaleAsync(
+                                    transactionDto.TransactionId,
+                                    originalAmount,
+                                    transactionDto.TotalAmount,
+                                    description);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Warning: Could not update drawer transaction: {ex.Message}");
+                                // We continue anyway since the transaction update succeeded
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Commit transaction if we haven't already
+                        await transaction.CommitAsync();
+                    }
 
                     // Get the updated transaction with all its details
                     var updatedTransaction = await _repository.Query()
@@ -122,7 +155,19 @@ namespace QuickTechSystems.Application.Services
                             .ThenInclude(td => td.Product)
                         .FirstOrDefaultAsync(t => t.TransactionId == transactionDto.TransactionId);
 
-                    return _mapper.Map<TransactionDTO>(updatedTransaction);
+                    var result = _mapper.Map<TransactionDTO>(updatedTransaction);
+
+                    // Publish event to notify other components of the update
+                    _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Update", result));
+
+                    // Also publish drawer update event to refresh drawer views
+                    _eventAggregator.Publish(new DrawerUpdateEvent(
+                        "Transaction Update",
+                        transactionDto.TotalAmount - originalAmount,
+                        $"Transaction #{transactionDto.TransactionId} updated"
+                    ));
+
+                    return result;
                 }
                 catch (Exception ex)
                 {

@@ -92,7 +92,96 @@ namespace QuickTechSystems.Infrastructure.Services
                 throw new InvalidOperationException($"Error processing transaction: {ex.Message}", ex);
             }
         }
+        public async Task<bool> UpdateDrawerTransactionForModifiedSaleAsync(int transactionId, decimal oldAmount, decimal newAmount, string description)
+        {
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                // Find related drawer transactions
+                var drawerTransactions = await _unitOfWork.Context.Set<DrawerTransaction>()
+                    .Where(dt => dt.TransactionReference == transactionId.ToString() ||
+                           dt.TransactionReference == $"Transaction #{transactionId}")
+                    .ToListAsync();
 
+                if (!drawerTransactions.Any())
+                {
+                    Debug.WriteLine($"No drawer transactions found for transaction ID {transactionId}");
+                    return false;
+                }
+
+                var drawer = await _repository.Query()
+                    .FirstOrDefaultAsync(d => d.Status == "Open");
+
+                if (drawer == null)
+                {
+                    Debug.WriteLine("No open drawer found");
+                    return false;
+                }
+
+                // Calculate difference between old and new amount
+                decimal amountDifference = newAmount - oldAmount;
+
+                // Skip if no change in amount
+                if (Math.Abs(amountDifference) < 0.01m)
+                {
+                    await transaction.CommitAsync();
+                    return true;
+                }
+
+                // Update drawer balance
+                drawer.CurrentBalance += amountDifference;
+
+                // Update appropriate totals based on transaction type
+                if (drawerTransactions.First().Type.ToLower() == "cash sale")
+                {
+                    drawer.TotalSales += amountDifference;
+                    drawer.CashIn += amountDifference;
+                }
+                else if (drawerTransactions.First().Type.ToLower() == "expense" ||
+                        drawerTransactions.First().Type.ToLower() == "supplier payment")
+                {
+                    drawer.TotalExpenses += amountDifference;
+                    drawer.CashOut += amountDifference;
+                }
+
+                drawer.LastUpdated = DateTime.Now;
+
+                // Add a modification entry to drawer transactions
+                var modificationEntry = new DrawerTransaction
+                {
+                    DrawerId = drawer.DrawerId,
+                    Timestamp = DateTime.Now,
+                    Type = drawerTransactions.First().Type,
+                    Amount = amountDifference,
+                    Balance = drawer.CurrentBalance,
+                    Description = description,
+                    ActionType = "Transaction Modification",
+                    TransactionReference = $"Transaction #{transactionId} (Modified)",
+                    PaymentMethod = "Cash",
+                    Drawer = drawer
+                };
+
+                await _unitOfWork.Context.Set<DrawerTransaction>().AddAsync(modificationEntry);
+                await _repository.UpdateAsync(drawer);
+                await _unitOfWork.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Publish event for UI refresh
+                _eventAggregator.Publish(new DrawerUpdateEvent(
+                    "Transaction Modification",
+                    amountDifference,
+                    description
+                ));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating drawer transaction: {ex.Message}");
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
         private bool IsOutgoingTransaction(string transactionType)
         {
             return transactionType.ToLower() switch

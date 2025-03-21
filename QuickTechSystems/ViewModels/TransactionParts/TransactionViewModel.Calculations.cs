@@ -277,33 +277,18 @@ namespace QuickTechSystems.WPF.ViewModels
                         // Don't fail for lookup ID update
                     }
 
-                    // Schedule a safe transaction history refresh on a background thread
-                    // with proper delay to avoid DbContext conflicts
+                    // Ensure drawer views are refreshed after a transaction
                     try
                     {
-                        Debug.WriteLine("Scheduling TransactionHistory refresh after cash payment");
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                // Wait for current operations to complete
-                                await Task.Delay(1500);
-
-                                // Use the safe refresh method
-                                await TransactionHistoryViewModel.SafeRefreshAsync();
-
-                                Debug.WriteLine("TransactionHistory refresh completed successfully");
-                            }
-                            catch (Exception refreshEx)
-                            {
-                                Debug.WriteLine($"Error in delayed history refresh: {refreshEx.Message}");
-                            }
-                        });
+                        _eventAggregator.Publish(new DrawerUpdateEvent(
+                            "Transaction Refresh",
+                            0,
+                            "Forced refresh after transaction"
+                        ));
                     }
                     catch (Exception refreshEx)
                     {
-                        Debug.WriteLine($"Error scheduling refresh: {refreshEx.Message}");
-                        // Don't fail for refresh errors
+                        Debug.WriteLine($"Error publishing refresh event: {refreshEx.Message}");
                     }
                 }
             }, "Payment processed successfully");

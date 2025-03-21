@@ -15,7 +15,25 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 try
                 {
-                    await RefreshDrawerDataAsync();
+                    // Force a complete refresh for transaction modifications
+                    if (evt.Type == "Transaction Modification" ||
+                        evt.Type == "Transaction Update")
+                    {
+                        // Use a short delay to ensure DB operations complete
+                        await Task.Delay(200);
+                        await RefreshDrawerDataAsync();
+                        await LoadFinancialOverviewAsync();
+                        UpdateStatus();
+                        UpdateTotals();
+
+                        // Force UI refresh
+                        OnPropertyChanged(nameof(DrawerHistory));
+                    }
+                    // For other updates, use the standard refresh
+                    else
+                    {
+                        await RefreshDrawerDataAsync();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -70,23 +88,7 @@ namespace QuickTechSystems.WPF.ViewModels
             base.SubscribeToEvents();
 
             // Single handler for all drawer-related events
-            _eventAggregator.Subscribe<DrawerUpdateEvent>(async evt =>
-            {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
-                {
-                    try
-                    {
-                        await RefreshDrawerDataAsync();
-                        await LoadFinancialOverviewAsync();
-                        UpdateTotals();
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error handling drawer update: {ex.Message}");
-                        await ShowErrorMessageAsync("Error updating drawer display");
-                    }
-                });
-            });
+            _eventAggregator.Subscribe<DrawerUpdateEvent>(HandleDrawerUpdate);
 
             // Handle transaction events
             _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(async evt =>
