@@ -482,10 +482,10 @@ namespace QuickTechSystems.WPF.ViewModels
             // Check if the potential new stock is at or below the minimum stock level
             if (potentialNewStock <= product.MinimumStock)
             {
-                // Display alert to the user
+                // Display simplified alert to the user
                 await WindowManager.InvokeAsync(() =>
                     MessageBox.Show(
-                        $"Warning: Product '{product.Name}' will reach low stock level.\n\nCurrent Stock: {product.CurrentStock}\nMinimum Stock: {product.MinimumStock}\nAfter Sale: {potentialNewStock}",
+                        $"Alert: Product '{product.Name}' is reaching low stock level.",
                         "Low Stock Alert",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning)

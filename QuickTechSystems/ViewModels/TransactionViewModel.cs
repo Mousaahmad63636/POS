@@ -121,8 +121,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
 
                 // Dispose of cancellation tokens
-                _customerSearchCts?.Cancel();
-                _customerSearchCts?.Dispose();
+               // _customerSearchCts?.Cancel();
+               // _customerSearchCts?.Dispose();
 
                 // Dispose of timer resources
                 if (_lookupDebounceTimer != null)

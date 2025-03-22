@@ -158,14 +158,8 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
                 var viewModel = this.DataContext as TransactionViewModel;
                 if (viewModel != null)
                 {
-                    // Add to the cart with the specified quantity
-                    if (viewModel.AddToCartCommand.CanExecute(product))
-                    {
-                        for (int i = 0; i < quantity; i++)
-                        {
-                            viewModel.AddToCartCommand.Execute(product);
-                        }
-                    }
+                    // FIXED: Use AddProductToTransaction with the total quantity instead of looping
+                    viewModel.AddProductToTransaction(product, quantity);
                 }
             }
         }

@@ -363,8 +363,15 @@ namespace QuickTechSystems.Infrastructure.Services
 
         #region Calculation and Update Methods
 
-        private decimal CalculateBalance(string transactionType, decimal currentBalance, decimal amount)
+        private decimal CalculateBalance(string transactionType, decimal currentBalance, decimal amount, string actionType = null)
         {
+            // Special handling for transaction modifications - use signed amount directly
+            if (actionType == "Transaction Modification")
+            {
+                return currentBalance + amount; // Keep the sign intact for modifications
+            }
+
+            // For regular transactions, use absolute values with appropriate signs
             var absAmount = Math.Abs(amount);
 
             return transactionType.ToLower().Trim() switch
@@ -1114,7 +1121,8 @@ namespace QuickTechSystems.Infrastructure.Services
                 {
                     try
                     {
-                        runningBalance = CalculateBalance(trans.Type, runningBalance, trans.Amount);
+                        // Pass the ActionType to CalculateBalance to handle modifications correctly
+                        runningBalance = CalculateBalance(trans.Type, runningBalance, trans.Amount, trans.ActionType);
                         var dto = _mapper.Map<DrawerTransactionDTO>(trans);
                         dto.ResultingBalance = runningBalance;
                         dto.Balance = runningBalance;
