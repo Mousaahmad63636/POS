@@ -23,6 +23,8 @@
             <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
+            <!-- QuickTechSystems.WPF/App.xaml -->
+            <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <!-- Common Styles -->
             <Style x:Key="CardBorderStyle" TargetType="Border">

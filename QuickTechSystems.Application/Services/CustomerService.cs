@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿// QuickTechSystems.Application.Services/CustomerService.cs
+using System.Diagnostics;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
@@ -12,13 +13,17 @@ namespace QuickTechSystems.Application.Services
 {
     public class CustomerService : BaseService<Customer, CustomerDTO>, ICustomerService
     {
+        private readonly IDrawerService _drawerService;
+
         public CustomerService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IEventAggregator eventAggregator,
-            IDbContextScopeService dbContextScopeService)
+            IDbContextScopeService dbContextScopeService,
+            IDrawerService drawerService = null) // Optional to allow for DI resolution
             : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
+            _drawerService = drawerService;
         }
 
         public async Task<IEnumerable<CustomerDTO>> GetByNameAsync(string name)
@@ -103,6 +108,97 @@ namespace QuickTechSystems.Application.Services
                     var customerDto = _mapper.Map<CustomerDTO>(customer);
                     _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
                 }
+            });
+        }
+
+        // New methods for debt management
+        public async Task<bool> UpdateBalanceAsync(int customerId, decimal amount)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    var customer = await _repository.GetByIdAsync(customerId);
+                    if (customer == null)
+                        return false;
+
+                    // Update customer balance
+                    customer.Balance += amount;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    await _repository.UpdateAsync(customer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Publish customer updated event
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error updating customer balance: {ex.Message}");
+                    return false;
+                }
+            });
+        }
+
+        public async Task<bool> ProcessPaymentAsync(int customerId, decimal amount, string reference)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    var customer = await _repository.GetByIdAsync(customerId);
+                    if (customer == null)
+                        return false;
+
+                    if (amount <= 0)
+                        throw new InvalidOperationException("Payment amount must be greater than zero");
+
+                    if (amount > customer.Balance)
+                        throw new InvalidOperationException("Payment amount cannot exceed customer balance");
+
+                    // Update customer balance (reduce debt)
+                    customer.Balance -= amount;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    await _repository.UpdateAsync(customer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Update drawer (increase cash) if the drawer service is available
+                    if (_drawerService != null)
+                    {
+                        await _drawerService.ProcessCashReceiptAsync(
+                            amount,
+                            $"Debt payment from: {customer.Name}, Ref: {reference}"
+                        );
+                    }
+
+                    await transaction.CommitAsync();
+
+                    // Publish customer updated event
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error processing customer payment: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
+        }
+
+        public async Task<decimal> GetBalanceAsync(int customerId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var customer = await _repository.GetByIdAsync(customerId);
+                return customer?.Balance ?? 0;
             });
         }
     }

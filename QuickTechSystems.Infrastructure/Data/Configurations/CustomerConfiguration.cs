@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// QuickTechSystems.Infrastructure.Data.Configurations/CustomerConfiguration.cs
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using QuickTechSystems.Domain.Entities;
 
@@ -23,7 +24,10 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(c => c.Address)
                 .HasMaxLength(500);
 
-            // Removed Balance property configuration
+            // Add Balance property configuration
+            builder.Property(c => c.Balance)
+                .HasPrecision(18, 2)
+                .HasDefaultValue(0);
 
             builder.HasIndex(c => c.Phone);
             builder.HasIndex(c => c.Email);

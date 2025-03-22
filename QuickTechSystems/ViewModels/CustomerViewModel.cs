@@ -30,12 +30,13 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isNewExpense;
         private bool _isNewCustomer;
         private FlowDirection _currentFlowDirection = FlowDirection.LeftToRight;
-
+        private decimal _paymentAmount;
         // Concurrency control
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
         private string _errorMessage = string.Empty;
         private bool _hasErrors;
+        private bool _isPaymentDialogOpen;
 
         #region Properties
         public bool IsSaving
@@ -142,7 +143,17 @@ namespace QuickTechSystems.WPF.ViewModels
             _customers = new ObservableCollection<CustomerDTO>();
             _customerProducts = new ObservableCollection<CustomerProductPriceViewModel>();
             _customerChangedHandler = HandleCustomerChanged;
+            ShowPaymentDialogCommand = new AsyncRelayCommand(
+      async _ => await ShowPaymentDialog(),
+      _ => !IsSaving && SelectedCustomer != null && SelectedCustomer.Balance > 0);
 
+            ClosePaymentDialogCommand = new RelayCommand(
+                _ => ClosePaymentDialog(),
+                _ => !IsSaving);
+
+            ProcessPaymentCommand = new AsyncRelayCommand(
+                async _ => await ProcessPayment(),
+                _ => !IsSaving && PaymentAmount > 0 && SelectedCustomer != null);
             LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
             AddCommand = new RelayCommand(_ => AddNew(), _ => !IsSaving);
             SaveCommand = new AsyncRelayCommand(async _ => await SaveAsync(), _ => !IsSaving);
@@ -162,7 +173,11 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
-
+        public bool IsPaymentDialogOpen
+        {
+            get => _isPaymentDialogOpen;
+            set => SetProperty(ref _isPaymentDialogOpen, value);
+        }
         protected override void UnsubscribeFromEvents()
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
@@ -172,7 +187,99 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _currentExpense;
             set => SetProperty(ref _currentExpense, value);
         }
+        private async Task ShowPaymentDialog()
+        {
+            if (SelectedCustomer == null || SelectedCustomer.Balance <= 0)
+            {
+                await ShowErrorMessageAsync("Customer has no balance to pay.");
+                return;
+            }
 
+            // Reset payment amount
+            PaymentAmount = SelectedCustomer.Balance;
+            IsPaymentDialogOpen = true;
+        }
+
+        private void ClosePaymentDialog()
+        {
+            IsPaymentDialogOpen = false;
+            PaymentAmount = 0;
+        }
+
+        private async Task ProcessPayment()
+        {
+            try
+            {
+                if (SelectedCustomer == null)
+                    return;
+
+                if (PaymentAmount <= 0)
+                {
+                    await ShowErrorMessageAsync("Payment amount must be greater than zero.");
+                    return;
+                }
+
+                if (PaymentAmount > SelectedCustomer.Balance)
+                {
+                    await ShowErrorMessageAsync("Payment amount cannot exceed customer's balance.");
+                    return;
+                }
+
+                IsSaving = true;
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                string reference = $"DEBT-{DateTime.Now:yyyyMMddHHmmss}";
+
+                // Process the payment
+                bool success = await ExecuteDbOperationSafelyAsync(async () =>
+                {
+                    return await _customerService.ProcessPaymentAsync(
+                        SelectedCustomer.CustomerId,
+                        PaymentAmount,
+                        reference);
+                }, "Processing customer payment");
+
+                if (success)
+                {
+                    // Close payment dialog
+                    ClosePaymentDialog();
+
+                    // Reload customer data
+                    await LoadDataAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(
+                            "Success",
+                            "Payment Processed",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error processing payment: {ex.Message}");
+                await ShowErrorMessageAsync($"Error processing payment: {ex.Message}");
+            }
+            finally
+            {
+                IsSaving = false;
+            }
+        }
+
+
+        public decimal PaymentAmount
+        {
+            get => _paymentAmount;
+            set => SetProperty(ref _paymentAmount, value);
+        }
+
+  
+        public ICommand ProcessPaymentCommand { get; }
+        public ICommand ShowPaymentDialogCommand { get; }
+        public ICommand ClosePaymentDialogCommand { get; }
         public bool IsNewExpense
         {
             get => _isNewExpense;

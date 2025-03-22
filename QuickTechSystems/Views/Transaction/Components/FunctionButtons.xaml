@@ -30,6 +30,11 @@
         <Button Content="{DynamicResource Transaction_CashPayment}"
                 Command="{Binding CashPaymentCommand}"
                 Margin="4"/>
+        <Button Content="Add to Customer Balance"
+        Command="{Binding AddToCustomerBalanceCommand}"
+        Background="#FFA726"
+        Foreground="#333333"
+        Margin="4"/>
         <Button Content="{DynamicResource Transaction_ClearAll}"
                 Command="{Binding ClearTransactionCommand}"
                 Margin="4"/>

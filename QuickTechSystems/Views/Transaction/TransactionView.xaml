@@ -135,7 +135,12 @@
                     Command="{Binding CashPaymentCommand}"
                     Style="{StaticResource BasicButtonStyle}"
                     Margin="4"/>
-          
+            <Button Content="Add to Customer Balance"
+        Command="{Binding AddToCustomerBalanceCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Background="#FFA726"
+        Foreground="#333333"
+        Margin="4"/>
             <Button Content="Clear All (F10)"
                     Command="{Binding ClearTransactionCommand}"
                     Style="{StaticResource BasicButtonStyle}"

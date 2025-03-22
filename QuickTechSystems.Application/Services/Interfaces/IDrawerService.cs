@@ -27,7 +27,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<IEnumerable<DrawerTransactionDTO>> GetDrawerHistoryAsync(int drawerId);
         Task<IEnumerable<DrawerTransactionDTO>> GetTransactionsByTypeAsync(string transactionType, DateTime startDate, DateTime endDate);
         Task<decimal> GetTotalByTransactionTypeAsync(string transactionType, DateTime startDate, DateTime endDate);
-
+        Task<bool> ProcessCashReceiptAsync(decimal amount, string description);
         // Financial Management
         Task<DrawerDTO> AdjustBalanceAsync(int drawerId, decimal newBalance, string reason);
         Task<(decimal Sales, decimal SupplierPayments, decimal Expenses)>

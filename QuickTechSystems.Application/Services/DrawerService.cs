@@ -109,6 +109,52 @@ namespace QuickTechSystems.Infrastructure.Services
                 throw new InvalidOperationException($"Error processing transaction: {ex.Message}", ex);
             }
         }
+
+        public async Task<bool> ProcessCashReceiptAsync(decimal amount, string description)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var currentDrawer = await GetCurrentDrawerAsync();
+                if (currentDrawer == null)
+                    throw new InvalidOperationException("No open drawer found. Please open a drawer first.");
+
+                // Create a drawer transaction
+                var drawerTransaction = new DrawerTransaction
+                {
+                    DrawerId = currentDrawer.DrawerId,
+                    Type = "Cash Receipt",
+                    Amount = amount,
+                    Timestamp = DateTime.Now,
+                    Description = description,
+                    ActionType = "Increase",
+                    PaymentMethod = "Cash"
+                };
+
+                // Update drawer balance
+                var drawer = await _unitOfWork.Drawers.GetByIdAsync(currentDrawer.DrawerId);
+                if (drawer != null)
+                {
+                    drawer.CurrentBalance += amount;
+                    drawer.CashIn += amount;
+                    drawer.LastUpdated = DateTime.Now;
+
+                    // Add drawer transaction
+                    drawerTransaction.Balance = drawer.CurrentBalance;
+                    await _unitOfWork.Context.Set<DrawerTransaction>().AddAsync(drawerTransaction);
+
+                    // Update drawer
+                    await _unitOfWork.Drawers.UpdateAsync(drawer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Publish drawer update event
+                    _eventAggregator.Publish(new DrawerUpdateEvent("Cash Receipt", amount, description));
+
+                    return true;
+                }
+
+                return false;
+            });
+        }
         public async Task<bool> UpdateDrawerTransactionForModifiedSaleAsync(int transactionId, decimal oldAmount, decimal newAmount, string description)
         {
             using var transaction = await _unitOfWork.BeginTransactionAsync();

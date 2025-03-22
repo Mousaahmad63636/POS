@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
@@ -29,10 +30,9 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? CancelTransactionCommand { get; private set; }
         public ICommand? CashPaymentCommand { get; private set; }
         public ICommand? PrintReceiptCommand { get; private set; }
-
+        public ICommand AddToCustomerBalanceCommand { get; private set; }
         public ICommand CloseDrawerCommand { get; private set; }
-
-         public ICommand SaveAsQuoteCommand { get; private set; }
+        public ICommand SaveAsQuoteCommand { get; private set; }
         public ICommand SelectCategoryCommand { get; private set; }
         public ICommand ClearCustomerCommand { get; private set; }
         public ICommand LookupTransactionCommand { get; private set; }
@@ -71,6 +71,12 @@ namespace QuickTechSystems.WPF.ViewModels
             LookupTransactionCommand = new AsyncRelayCommand(
                 async _ => await LookupTransactionAsync(),
                 _ => !string.IsNullOrWhiteSpace(LookupTransactionId));
+
+            AddToCustomerBalanceCommand = new AsyncRelayCommand(
+                async _ => await ProcessAsCustomerDebt(),
+                _ => CurrentTransaction?.Details != null &&
+                     CurrentTransaction.Details.Any() &&
+                     SelectedCustomer != null);
 
             // Item management commands with conditions
             RemoveItemCommand = new RelayCommand(
@@ -153,7 +159,117 @@ namespace QuickTechSystems.WPF.ViewModels
             CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
+        private async Task ProcessAsCustomerDebt()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                // Validate customer is selected
+                if (SelectedCustomer == null)
+                {
+                    throw new InvalidOperationException("Please select a customer before adding to their balance.");
+                }
 
+                // Validate active transaction
+                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+                {
+                    throw new InvalidOperationException("No items in transaction to add to customer balance.");
+                }
+
+                // Confirm with user
+                var dialogResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    $"Add {TotalAmount:C2} to {SelectedCustomer.Name}'s balance?\n\nThis will not affect the cash drawer.",
+                    "Confirm Debt Transaction",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question));
+
+                if (dialogResult != MessageBoxResult.Yes)
+                    return;
+
+                IDbContextTransaction dbTransaction = null;
+                TransactionDTO transactionResult = null;
+
+                try
+                {
+                    dbTransaction = await _unitOfWork.BeginTransactionAsync();
+
+                    var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+                    var transactionToProcess = new TransactionDTO
+                    {
+                        TransactionDate = DateTime.Now,
+                        CustomerId = SelectedCustomer.CustomerId,
+                        CustomerName = SelectedCustomer.Name,
+                        TotalAmount = TotalAmount,
+                        PaidAmount = 0, // No payment received yet
+                        TransactionType = TransactionType.Sale,
+                        Status = TransactionStatus.Completed,
+                        PaymentMethod = "CustomerDebt", // Special payment method for debt
+                        CashierId = currentUser?.EmployeeId.ToString() ?? "0",
+                        CashierName = currentUser?.FullName ?? "Unknown",
+                        Details = new ObservableCollection<TransactionDetailDTO>(CurrentTransaction.Details.Select(d =>
+                            new TransactionDetailDTO
+                            {
+                                ProductId = d.ProductId,
+                                ProductName = d.ProductName,
+                                ProductBarcode = d.ProductBarcode,
+                                Quantity = d.Quantity,
+                                UnitPrice = d.UnitPrice,
+                                PurchasePrice = d.PurchasePrice,
+                                Discount = d.Discount,
+                                Total = d.Total
+                            }))
+                    };
+
+                    // Process the transaction
+                    transactionResult = await _transactionService.ProcessSaleAsync(transactionToProcess);
+
+                    // Update customer balance
+                    await _customerService.UpdateBalanceAsync(
+                        SelectedCustomer.CustomerId,
+                        TotalAmount
+                    );
+
+                    // No drawer update needed for debt transactions
+
+                    // Publish transaction event
+                    _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>(
+                        "Create",
+                        transactionResult
+                    ));
+
+                    await dbTransaction.CommitAsync();
+
+                    // Show success message
+                    await WindowManager.InvokeAsync(() =>
+                        MessageBox.Show(
+                            $"Transaction #{transactionResult.TransactionId} has been added to {SelectedCustomer.Name}'s balance.",
+                            "Debt Transaction Complete",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information)
+                    );
+
+                    // Start new transaction
+                    StartNewTransaction();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Debt transaction error: {ex.Message}");
+
+                    // Roll back if transaction hasn't been committed
+                    if (dbTransaction != null)
+                    {
+                        try
+                        {
+                            await dbTransaction.RollbackAsync();
+                        }
+                        catch (Exception rollbackEx)
+                        {
+                            Debug.WriteLine($"Error during rollback: {rollbackEx.Message}");
+                        }
+                    }
+                    throw;
+                }
+            }, "Processing customer debt transaction");
+        }
         private void ClearCustomerSelection()
         {
             SelectedCustomer = null;

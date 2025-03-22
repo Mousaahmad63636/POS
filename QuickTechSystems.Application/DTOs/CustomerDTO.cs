@@ -1,4 +1,5 @@
-﻿namespace QuickTechSystems.Application.DTOs
+﻿// QuickTechSystems.Application.DTOs/CustomerDTO.cs
+namespace QuickTechSystems.Application.DTOs
 {
     public class CustomerDTO : BaseDTO
     {
@@ -8,5 +9,6 @@
         public string? Email { get; set; }
         public string? Address { get; set; }
         public int TransactionCount { get; set; }
+        public decimal Balance { get; set; } = 0;
     }
 }

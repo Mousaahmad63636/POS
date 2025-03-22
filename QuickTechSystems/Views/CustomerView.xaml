@@ -4,12 +4,14 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              FlowDirection="{Binding CurrentFlowDirection}"
              mc:Ignorable="d"
              x:Name="CustomerViewRoot">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
 
         <!-- Style for the selected customer row with shadow effect -->
         <Style x:Key="SelectedCustomerRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource ModernDataGridRow}">
@@ -128,10 +130,30 @@
                                 <DataGridTextColumn Header="{DynamicResource Customer_Email}" 
                                                   Binding="{Binding Email}"
                                                   Width="180"/>
+                                <DataGridTextColumn Header="Balance" 
+                                                  Binding="{Binding Balance, StringFormat=C2}"
+                                                  Width="120">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Balance}" Value="0">
+                                                    <Setter Property="Foreground" Value="#28a745"/>
+                                                </DataTrigger>
+                                                <Trigger Property="Text" Value="$0.00">
+                                                    <Setter Property="Foreground" Value="#28a745"/>
+                                                </Trigger>
+                                                <DataTrigger Binding="{Binding Balance, Converter={StaticResource LessThanZeroConverter}}" Value="True">
+                                                    <Setter Property="Foreground" Value="#dc3545"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
                                 <DataGridCheckBoxColumn Header="{DynamicResource Customer_Active}" 
                                                       Binding="{Binding IsActive}"
                                                       Width="60"/>
-                                <DataGridTemplateColumn Width="180">
+                                <DataGridTemplateColumn Width="240">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
@@ -143,7 +165,17 @@
                                                         Command="{Binding DataContext.SetProductPricesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         Style="{StaticResource TextButtonStyle}"
                                                         Margin="0,0,8,0"/>
-                                               
+                                                <Button Content="Payment" 
+                                                        Command="{Binding DataContext.ShowPaymentDialogCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource TextButtonStyle}"
+                                                        Foreground="#28a745"
+                                                        Visibility="{Binding Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"
+                                                        Margin="0,0,8,0"/>
+                                                <Button Content="Delete" 
+                                                        Click="DeleteButton_Click"
+                                                        Style="{StaticResource TextButtonStyle}"
+                                                        Foreground="#dc3545"/>
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -153,8 +185,12 @@
                                 <ContextMenu>
                                     <MenuItem Header="Edit Customer" Click="EditMenuItem_Click"/>
                                     <MenuItem Header="Set Custom Prices" Command="{Binding SetProductPricesCommand}"/>
+                                    <MenuItem Header="Process Payment" 
+                                              Command="{Binding ShowPaymentDialogCommand}"
+                                              Visibility="{Binding SelectedCustomer.Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"/>
                                     <Separator/>
-                                     </ContextMenu>
+                                    <MenuItem Header="Delete Customer" Click="DeleteMenuItem_Click" Foreground="#dc3545"/>
+                                </ContextMenu>
                             </DataGrid.ContextMenu>
                         </DataGrid>
                     </DockPanel>
@@ -405,6 +441,135 @@
                                                 <Style.Triggers>
                                                     <Trigger Property="IsMouseOver" Value="True">
                                                         <Setter Property="Background" Value="#0056b3"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Popup>
+
+        <!-- Payment Dialog -->
+        <Popup IsOpen="{Binding IsPaymentDialogOpen, Mode=TwoWay}"
+               StaysOpen="True"
+               AllowsTransparency="True"
+               PlacementTarget="{Binding ElementName=CustomerViewRoot}"
+               Placement="Center"
+               PopupAnimation="Fade"
+               Focusable="True">
+
+            <!-- Dark Overlay -->
+            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CustomerViewRoot}" 
+                  Height="{Binding ActualHeight, ElementName=CustomerViewRoot}">
+
+                <!-- Dialog Content -->
+                <Border Background="White"
+                        BorderBrush="#DDDDDD"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Width="400"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Effect="{StaticResource MediumShadow}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Dialog Header -->
+                        <Border Grid.Row="0" Background="#007BFF" CornerRadius="8,8,0,0">
+                            <Grid Margin="24,16">
+                                <TextBlock Text="Process Customer Payment" 
+                                          FontSize="18"
+                                          FontWeight="SemiBold"
+                                          Foreground="White"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"/>
+
+                                <Button Content="✕"
+                                        Command="{Binding ClosePaymentDialogCommand}"
+                                        Style="{StaticResource LightIconButtonStyle}"
+                                        HorizontalAlignment="Right" 
+                                        VerticalAlignment="Top"
+                                        ToolTip="Close"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Customer Info -->
+                        <Border Grid.Row="1" 
+                                Background="#F8F9FA" 
+                                Padding="24,16">
+                            <StackPanel>
+                                <TextBlock FontSize="16" FontWeight="SemiBold">
+                                    <Run Text="{Binding SelectedCustomer.Name}"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,8,0,0">
+                                    <Run Text="Current Balance: "/>
+                                    <Run Text="{Binding SelectedCustomer.Balance, StringFormat=C2}" 
+                                         FontWeight="Bold" 
+                                         Foreground="#dc3545"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Payment Input -->
+                        <Border Grid.Row="2" Padding="24,16">
+                            <StackPanel>
+                                <TextBlock Text="Payment Amount:" 
+                                          Margin="0,0,0,8"
+                                          FontWeight="SemiBold"/>
+                                <TextBox Text="{Binding PaymentAmount, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
+                                         Padding="10"
+                                         FontSize="16"
+                                         BorderBrush="#007BFF"
+                                         BorderThickness="1"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Dialog Footer -->
+                        <Border Grid.Row="3" Background="#F8F9FA" CornerRadius="0,0,8,8">
+                            <Grid Margin="24,16">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Content="Cancel"
+                                           Command="{Binding ClosePaymentDialogCommand}"
+                                           Foreground="#6C757D"
+                                           Background="Transparent"
+                                           BorderThickness="1"
+                                           BorderBrush="#6C757D"
+                                           Padding="16,8"
+                                           Margin="0,0,10,0"
+                                           Width="100">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#6C757D"/>
+                                                        <Setter Property="Foreground" Value="White"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
+                                    <Button Content="Process Payment"
+                                           Command="{Binding ProcessPaymentCommand}"
+                                           Background="#28a745"
+                                           Foreground="White"
+                                           BorderThickness="0"
+                                           Padding="16,8"
+                                           Width="160">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="Background" Value="#218838"/>
                                                     </Trigger>
                                                 </Style.Triggers>
                                             </Style>
