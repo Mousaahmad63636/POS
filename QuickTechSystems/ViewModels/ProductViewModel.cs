@@ -1221,14 +1221,12 @@ namespace QuickTechSystems.WPF.ViewModels
             if (product.PurchasePrice <= 0)
                 errors.Add("Purchase price must be greater than zero");
 
-            if (product.CurrentStock < 0)
-                errors.Add("Current stock cannot be negative");
+            // Removed validation that prevented negative stock values
 
             if (product.MinimumStock < 0)
                 errors.Add("Minimum stock cannot be negative");
 
-            if (product.MinimumStock > product.CurrentStock)
-                errors.Add("Minimum stock cannot exceed current stock");
+            // Removed validation that prevented minimum stock from exceeding current stock
 
             if (!string.IsNullOrWhiteSpace(product.Speed))
             {

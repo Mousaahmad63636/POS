@@ -212,16 +212,8 @@ namespace QuickTechSystems.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<decimal>("Balance")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal>("CreditLimit")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(100)
@@ -249,38 +241,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     b.HasIndex("Phone");
 
                     b.ToTable("Customers");
-                });
-
-            modelBuilder.Entity("QuickTechSystems.Domain.Entities.CustomerPayment", b =>
-                {
-                    b.Property<int>("CustomerPaymentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CustomerPaymentId"));
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("PaymentDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PaymentMethod")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("CustomerPaymentId");
-
-                    b.HasIndex("CustomerId");
-
-                    b.ToTable("CustomerPayment");
                 });
 
             modelBuilder.Entity("QuickTechSystems.Domain.Entities.CustomerProductPrice", b =>
@@ -396,13 +356,7 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     b.Property<decimal>("CurrentBalance")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("DailyDebtPayments")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("DailyExpenses")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DailyReturns")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("DailySales")
@@ -433,13 +387,7 @@ namespace QuickTechSystems.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("TotalDebtPayments")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("TotalExpenses")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalReturns")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("TotalSales")
@@ -1078,10 +1026,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransactionId"));
 
-                    b.Property<decimal>("Balance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("CashierId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1149,11 +1093,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("IsReturned")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<int>("ProductId")
                         .HasColumnType("int");
 
@@ -1163,18 +1102,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("ReturnDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReturnReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int>("ReturnedQuantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
 
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
@@ -1194,17 +1121,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     b.HasIndex("TransactionId");
 
                     b.ToTable("TransactionDetails");
-                });
-
-            modelBuilder.Entity("QuickTechSystems.Domain.Entities.CustomerPayment", b =>
-                {
-                    b.HasOne("QuickTechSystems.Domain.Entities.Customer", "Customer")
-                        .WithMany("Payments")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("QuickTechSystems.Domain.Entities.CustomerProductPrice", b =>
@@ -1374,8 +1290,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
 
             modelBuilder.Entity("QuickTechSystems.Domain.Entities.Customer", b =>
                 {
-                    b.Navigation("Payments");
-
                     b.Navigation("Transactions");
                 });
 

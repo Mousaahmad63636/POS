@@ -301,7 +301,15 @@ namespace QuickTechSystems.Application.Services
                                 detail.ProductId,
                                 -detail.Quantity);
 
-                            Debug.WriteLine($"Updated stock for product {detail.ProductId}: {(stockUpdated ? "Success" : "Failed")}");
+                            if (!stockUpdated)
+                            {
+                                Debug.WriteLine($"Warning: Could not update stock for product {detail.ProductId} - product may not exist");
+                                // Continue with the transaction - don't throw an exception
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"Successfully updated stock for product {detail.ProductId}");
+                            }
 
                             // Add inventory history entry
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
@@ -651,7 +659,15 @@ namespace QuickTechSystems.Application.Services
                                 detail.ProductId,
                                 -detail.Quantity);
 
-                            Debug.WriteLine($"Updated stock for product {detail.ProductId}: {(stockUpdated ? "Success" : "Failed")}");
+                            if (!stockUpdated)
+                            {
+                                Debug.WriteLine($"Warning: Could not update stock for product {detail.ProductId} - product may not exist");
+                                // Continue with the transaction - don't throw an exception
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"Successfully updated stock for product {detail.ProductId}");
+                            }
 
                             // Add inventory history entry
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory

@@ -69,23 +69,15 @@ namespace QuickTechSystems.Application.Services
                         return false;
                     }
 
-                    // Validate new stock won't be negative
-                    int newStock = product.CurrentStock + quantity;
-                    if (newStock < 0)
-                    {
-                        Debug.WriteLine($"Cannot update stock for product {productId}: would result in negative stock ({newStock})");
-                        return false;
-                    }
-
-                    // Update stock and timestamp
+                    // Update stock and timestamp - no validation checking for negative values
                     int oldStock = product.CurrentStock;
-                    product.CurrentStock = newStock;
+                    product.CurrentStock = product.CurrentStock + quantity;
                     product.UpdatedAt = DateTime.Now;
 
                     await _repository.UpdateAsync(product);
                     await _unitOfWork.SaveChangesAsync();
 
-                    Debug.WriteLine($"Stock updated for product {productId}: {oldStock} → {newStock}");
+                    Debug.WriteLine($"Stock updated for product {productId}: {oldStock} → {product.CurrentStock}");
 
                     // Explicitly publish event about stock change
                     var productDto = _mapper.Map<ProductDTO>(product);

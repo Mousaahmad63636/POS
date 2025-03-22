@@ -85,8 +85,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", nullable: false, defaultValue: 0m),
-                    CreditLimit = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
@@ -123,20 +121,16 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     CashIn = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     CashOut = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TotalSales = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalReturns = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TotalExpenses = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    TotalDebtPayments = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     TotalSupplierPayments = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    NetSales = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     NetCashFlow = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DailySales = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    DailyReturns = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DailyExpenses = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    DailyDebtPayments = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     DailySupplierPayments = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     OpenedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     ClosedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    NetSales = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Notes = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CashierId = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -228,29 +222,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "CustomerPayment",
-                columns: table => new
-                {
-                    CustomerPaymentId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    CustomerId = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    PaymentDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    PaymentMethod = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_CustomerPayment", x => x.CustomerPaymentId);
-                    table.ForeignKey(
-                        name: "FK_CustomerPayment_Customers_CustomerId",
-                        column: x => x.CustomerId,
-                        principalTable: "Customers",
-                        principalColumn: "CustomerId",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "Quotes",
                 columns: table => new
                 {
@@ -284,7 +255,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     CustomerName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     PaidAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Balance = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     TransactionType = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(450)", nullable: false),
@@ -569,11 +539,7 @@ namespace QuickTechSystems.Infrastructure.Migrations
                     UnitPrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     PurchasePrice = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
                     Discount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    Total = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    ReturnedQuantity = table.Column<int>(type: "int", nullable: false, defaultValue: 0),
-                    IsReturned = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
-                    ReturnDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    ReturnReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    Total = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -643,11 +609,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
                 table: "Categories",
                 columns: new[] { "Name", "Type" },
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_CustomerPayment_CustomerId",
-                table: "CustomerPayment",
-                column: "CustomerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CustomerProductPrices_CustomerId_ProductId",
@@ -842,9 +803,6 @@ namespace QuickTechSystems.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "BusinessSettings");
-
-            migrationBuilder.DropTable(
-                name: "CustomerPayment");
 
             migrationBuilder.DropTable(
                 name: "CustomerProductPrices");
