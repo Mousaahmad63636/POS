@@ -37,6 +37,7 @@ namespace QuickTechSystems.Infrastructure.Services
 
         #region Transaction Processing Methods
 
+        // Path: QuickTechSystems.Infrastructure/Services/DrawerService.cs
         public async Task<DrawerDTO> ProcessTransactionAsync(decimal amount, string transactionType, string description, string reference = "")
         {
             using var transaction = await _unitOfWork.BeginTransactionAsync();
@@ -55,13 +56,29 @@ namespace QuickTechSystems.Infrastructure.Services
                 var actualAmount = GetAdjustedAmount(transactionType, amount);
                 var newBalance = CalculateBalance(transactionType, drawer.CurrentBalance, actualAmount);
 
+                // Include transaction number in description if reference is provided
+                string updatedDescription = description;
+                if (!string.IsNullOrEmpty(reference) && !updatedDescription.Contains(reference))
+                {
+                    // Extract transaction number if reference is in format "Transaction #X"
+                    if (reference.Contains("#"))
+                    {
+                        string txNumber = reference.Substring(reference.IndexOf("#"));
+                        updatedDescription = $"{description} {txNumber}";
+                    }
+                    else
+                    {
+                        updatedDescription = $"{description} ({reference})";
+                    }
+                }
+
                 var drawerTransaction = new DrawerTransaction
                 {
                     DrawerId = drawer.DrawerId,
                     Timestamp = DateTime.Now,
                     Type = transactionType,
                     Amount = actualAmount,
-                    Description = description,
+                    Description = updatedDescription,
                     Balance = newBalance,
                     ActionType = transactionType,
                     TransactionReference = reference,
@@ -81,7 +98,7 @@ namespace QuickTechSystems.Infrastructure.Services
                 _eventAggregator.Publish(new DrawerUpdateEvent(
                     transactionType,
                     actualAmount,
-                    description
+                    updatedDescription
                 ));
 
                 return _mapper.Map<DrawerDTO>(drawer);
@@ -146,6 +163,21 @@ namespace QuickTechSystems.Infrastructure.Services
 
                 drawer.LastUpdated = DateTime.Now;
 
+                // Updated description to include transaction number
+                string modificationDescription = $"Modified Transaction #{transactionId}";
+                if (!string.IsNullOrEmpty(description))
+                {
+                    // Keep custom description if provided, but ensure transaction number is included
+                    if (!description.Contains($"#{transactionId}"))
+                    {
+                        modificationDescription = $"{description} (Transaction #{transactionId})";
+                    }
+                    else
+                    {
+                        modificationDescription = description;
+                    }
+                }
+
                 // Add a modification entry to drawer transactions
                 var modificationEntry = new DrawerTransaction
                 {
@@ -154,7 +186,7 @@ namespace QuickTechSystems.Infrastructure.Services
                     Type = drawerTransactions.First().Type,
                     Amount = amountDifference,
                     Balance = drawer.CurrentBalance,
-                    Description = description,
+                    Description = modificationDescription,
                     ActionType = "Transaction Modification",
                     TransactionReference = $"Transaction #{transactionId} (Modified)",
                     PaymentMethod = "Cash",
@@ -170,7 +202,7 @@ namespace QuickTechSystems.Infrastructure.Services
                 _eventAggregator.Publish(new DrawerUpdateEvent(
                     "Transaction Modification",
                     amountDifference,
-                    description
+                    modificationDescription
                 ));
 
                 return true;
@@ -251,6 +283,7 @@ namespace QuickTechSystems.Infrastructure.Services
             return await ProcessTransactionAsync(amount, "Supplier Payment", $"Payment to supplier: {supplierName}", reference);
         }
 
+        // Path: QuickTechSystems.Infrastructure/Services/DrawerService.cs
         public async Task<DrawerDTO> ProcessCashSaleAsync(decimal amount, string reference)
         {
             using var transaction = await _unitOfWork.BeginTransactionAsync();
@@ -268,6 +301,30 @@ namespace QuickTechSystems.Infrastructure.Services
                 drawerEntity.CurrentBalance += amount;
                 drawerEntity.LastUpdated = DateTime.Now;
 
+                // Extract transaction number from reference
+                string transactionDetails = "Cash sale transaction";
+                if (!string.IsNullOrEmpty(reference))
+                {
+                    // If reference contains 'Transaction #' format, use it directly
+                    if (reference.Contains("#"))
+                    {
+                        transactionDetails = $"Cash sale {reference}";
+                    }
+                    // Otherwise try to extract just the number
+                    else
+                    {
+                        string transactionNumber = string.Empty;
+                        if (int.TryParse(reference, out int txNumber))
+                        {
+                            transactionDetails = $"Cash sale transaction #{txNumber}";
+                        }
+                        else
+                        {
+                            transactionDetails = $"Cash sale transaction ({reference})";
+                        }
+                    }
+                }
+
                 // Create drawer transaction
                 var drawerTransaction = new DrawerTransaction
                 {
@@ -276,7 +333,7 @@ namespace QuickTechSystems.Infrastructure.Services
                     Type = "Cash Sale",
                     Amount = amount,
                     Balance = drawerEntity.CurrentBalance,
-                    Description = "Cash sale transaction",
+                    Description = transactionDetails,
                     ActionType = "Cash Sale",
                     TransactionReference = reference,
                     PaymentMethod = "Cash",
@@ -297,7 +354,6 @@ namespace QuickTechSystems.Infrastructure.Services
                 throw new InvalidOperationException($"Error processing cash sale: {ex.Message}", ex);
             }
         }
-
         public async Task<DrawerDTO> ProcessQuotePaymentAsync(decimal amount, string customerName, string quoteNumber)
         {
             return await ProcessTransactionAsync(amount, "Quote Payment", $"Quote payment from {customerName}", quoteNumber);
