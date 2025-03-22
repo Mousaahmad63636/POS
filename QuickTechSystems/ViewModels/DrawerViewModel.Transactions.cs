@@ -56,24 +56,42 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             if (CurrentDrawer == null) return;
 
-            try
+            int retryCount = 0;
+            int maxRetries = 3;
+            bool success = false;
+
+            while (!success && retryCount < maxRetries)
             {
-                var history = await _drawerService.GetDrawerHistoryAsync(CurrentDrawer.DrawerId);
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                try
                 {
-                    DrawerHistory = new ObservableCollection<DrawerTransactionDTO>(
-                        history.OrderByDescending(t => t.Timestamp)
-                    );
-                    UpdateTotals();
-                    UpdateStatus();
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error loading drawer history: {ex.Message}");
-                await ShowErrorMessageAsync("Unable to load drawer history. Please try refreshing.");
-                DrawerHistory = new ObservableCollection<DrawerTransactionDTO>();
-                ResetFinancialTotals();
+                    var history = await _drawerService.GetDrawerHistoryAsync(CurrentDrawer.DrawerId);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        DrawerHistory = new ObservableCollection<DrawerTransactionDTO>(
+                            history.OrderByDescending(t => t.Timestamp)
+                        );
+                        UpdateTotals();
+                        UpdateStatus();
+                    });
+                    success = true;
+                }
+                catch (Exception ex)
+                {
+                    retryCount++;
+                    Debug.WriteLine($"Error loading drawer history (attempt {retryCount}): {ex.Message}");
+
+                    if (retryCount >= maxRetries)
+                    {
+                        await ShowErrorMessageAsync("Unable to load drawer history. Please try refreshing.");
+                        DrawerHistory = new ObservableCollection<DrawerTransactionDTO>();
+                        ResetFinancialTotals();
+                    }
+                    else
+                    {
+                        // Wait briefly before retrying (with increasing delay)
+                        await Task.Delay(200 * retryCount);
+                    }
+                }
             }
         }
         private void UpdateStatus()

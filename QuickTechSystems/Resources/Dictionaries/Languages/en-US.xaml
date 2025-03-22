@@ -37,6 +37,7 @@
     <system:String x:Key="Supplier_AddNew">Add New Supplier</system:String>
     <system:String x:Key="Supplier_Save">Save</system:String>
     <system:String x:Key="Debt_CurrencyUSD">USD:</system:String>
+    <system:String x:Key="TransactionHistory_Column_PaymentMethod">Payment Method</system:String>
     <system:String x:Key="Debt_CurrencyLBP">LBP:</system:String>
     <system:String x:Key="Supplier_Delete">Delete</system:String>
     <system:String x:Key="Supplier_Transactions">Transactions</system:String>

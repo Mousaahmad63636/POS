@@ -12,6 +12,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsProcessing = true;
 
+                // Get current drawer directly from database
                 CurrentDrawer = await _drawerService.GetCurrentDrawerAsync();
                 if (CurrentDrawer == null)
                 {
@@ -20,8 +21,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
+                // Load drawer history transactions
                 await LoadDrawerHistoryAsync();
+
+                // Update financial calculations 
                 await LoadFinancialOverviewAsync();
+
+                // Make sure to use the database values for balance
+                if (CurrentDrawer != null)
+                {
+                    // Force UI property updates
+                    OnPropertyChanged(nameof(CurrentBalance));
+                    OnPropertyChanged(nameof(ExpectedBalance));
+                    OnPropertyChanged(nameof(Difference));
+                }
+
                 UpdateStatus();
                 UpdateTotals();
             }

@@ -146,6 +146,10 @@
                                            Width="100" 
                                            SortMemberPath="TransactionType"/>
 
+                        <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Items}" 
+                                           Binding="{Binding Details.Count}" 
+                                           Width="80" 
+                                           SortMemberPath="Details.Count"/>
 
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_Total}" 
                                            Binding="{Binding TotalAmount, StringFormat=C2}" 
@@ -165,6 +169,25 @@
                                            Binding="{Binding Status}" 
                                            Width="90" 
                                            SortMemberPath="Status"/>
+
+                        <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_PaymentMethod}" 
+                                           Binding="{Binding PaymentMethod}" 
+                                           Width="120" 
+                                           SortMemberPath="PaymentMethod">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <Trigger Property="Text" Value="CustomerDebt">
+                                            <Setter Property="Foreground" Value="#e74c3c"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Trigger>
+                                        <Trigger Property="Text" Value="Cash">
+                                            <Setter Property="Foreground" Value="#2ecc71"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
 
                         <DataGridTextColumn Header="{DynamicResource TransactionHistory_Column_ProcessedBy}" 
                                            Binding="{Binding CashierName}" 

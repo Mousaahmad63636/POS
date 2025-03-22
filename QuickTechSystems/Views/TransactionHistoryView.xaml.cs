@@ -13,8 +13,9 @@ namespace QuickTechSystems.WPF.Views
         private const int TYPE_COLUMN_INDEX = 3;
         private const int ITEMS_COLUMN_INDEX = 4;
         private const int STATUS_COLUMN_INDEX = 6;
-        private const int CASHIER_COLUMN_INDEX = 7;
-        private const int ROLE_COLUMN_INDEX = 8;
+        private const int PAYMENT_METHOD_COLUMN_INDEX = 7; // Add this new constant
+        private const int CASHIER_COLUMN_INDEX = 8; // Update from 7 to 8
+        private const int ROLE_COLUMN_INDEX = 9; // Update from 8 to 9
 
         public TransactionHistoryView()
         {
@@ -62,11 +63,12 @@ namespace QuickTechSystems.WPF.Views
             // Determine which columns to show based on available width
             bool showTypeColumn = width >= 800;
             bool showStatusColumn = width >= 1000;
+            bool showPaymentMethodColumn = width >= 1100; // Add this line
             bool showCashierColumn = width >= 1200;
             bool showRoleColumn = width >= 1400;
 
             // Apply column visibility
-            SetColumnVisibility(showTypeColumn, showStatusColumn, showCashierColumn, showRoleColumn);
+            SetColumnVisibility(showTypeColumn, showStatusColumn, showPaymentMethodColumn, showCashierColumn, showRoleColumn);
         }
 
         private double CalculateAdaptiveMargin(double screenWidth)
@@ -79,7 +81,7 @@ namespace QuickTechSystems.WPF.Views
             return Math.Max(8, Math.Min(32, calculatedMargin));
         }
 
-        private void SetColumnVisibility(bool showTypeColumn, bool showStatusColumn, bool showCashierColumn, bool showRoleColumn)
+        private void SetColumnVisibility(bool showTypeColumn, bool showStatusColumn, bool showPaymentMethodColumn, bool showCashierColumn, bool showRoleColumn)
         {
             if (TransactionsDataGrid == null || TransactionsDataGrid.Columns.Count == 0)
                 return;
@@ -90,6 +92,9 @@ namespace QuickTechSystems.WPF.Views
 
             if (TransactionsDataGrid.Columns.Count > STATUS_COLUMN_INDEX)
                 TransactionsDataGrid.Columns[STATUS_COLUMN_INDEX].Visibility = showStatusColumn ? Visibility.Visible : Visibility.Collapsed;
+
+            if (TransactionsDataGrid.Columns.Count > PAYMENT_METHOD_COLUMN_INDEX)
+                TransactionsDataGrid.Columns[PAYMENT_METHOD_COLUMN_INDEX].Visibility = showPaymentMethodColumn ? Visibility.Visible : Visibility.Collapsed;
 
             if (TransactionsDataGrid.Columns.Count > CASHIER_COLUMN_INDEX)
                 TransactionsDataGrid.Columns[CASHIER_COLUMN_INDEX].Visibility = showCashierColumn ? Visibility.Visible : Visibility.Collapsed;
@@ -104,7 +109,7 @@ namespace QuickTechSystems.WPF.Views
                     : Visibility.Collapsed;
         }
 
- 
+
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (sender is TextBox textBox && DataContext is TransactionHistoryViewModel viewModel)

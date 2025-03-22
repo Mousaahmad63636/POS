@@ -134,8 +134,11 @@ namespace QuickTechSystems.Infrastructure.Services
                 var drawer = await _unitOfWork.Drawers.GetByIdAsync(currentDrawer.DrawerId);
                 if (drawer != null)
                 {
+                    // Update financial fields
                     drawer.CurrentBalance += amount;
                     drawer.CashIn += amount;
+                    drawer.TotalSales += amount; // THIS LINE WAS MISSING - Update TotalSales
+                    drawer.DailySales += amount; // Also update DailySales
                     drawer.LastUpdated = DateTime.Now;
 
                     // Add drawer transaction
@@ -1141,52 +1144,45 @@ namespace QuickTechSystems.Infrastructure.Services
 
         public async Task<IEnumerable<DrawerTransactionDTO>> GetDrawerHistoryAsync(int drawerId)
         {
-            try
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                // Get the current drawer to determine opening balance
-                var currentDrawer = await _repository.Query()
-                    .Include(d => d.Transactions)
-                    .FirstOrDefaultAsync(d => d.DrawerId == drawerId);
-
-                if (currentDrawer == null)
-                {
-                    return new List<DrawerTransactionDTO>();
-                }
-
-                // Get all transactions including historical ones
                 var transactions = await _unitOfWork.Context.Set<DrawerTransaction>()
-                    .Include(t => t.Drawer)
-                    .OrderBy(t => t.Timestamp)
-                    .AsNoTracking()
+                    .Where(dt => dt.DrawerId == drawerId)
+                    .OrderBy(dt => dt.Timestamp)
                     .ToListAsync();
 
-                decimal runningBalance = currentDrawer.OpeningBalance;
-                var updatedTransactions = new List<DrawerTransactionDTO>();
+                var result = _mapper.Map<IEnumerable<DrawerTransactionDTO>>(transactions);
 
-                foreach (var trans in transactions)
+                // Ensure resulting balance is correctly set for all transactions
+                decimal runningBalance = 0;
+                foreach (var tx in result.OrderBy(t => t.Timestamp))
                 {
-                    try
+                    // For "Open" transaction, set the balance directly
+                    if (tx.Type.Equals("Open", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Pass the ActionType to CalculateBalance to handle modifications correctly
-                        runningBalance = CalculateBalance(trans.Type, runningBalance, trans.Amount, trans.ActionType);
-                        var dto = _mapper.Map<DrawerTransactionDTO>(trans);
-                        dto.ResultingBalance = runningBalance;
-                        dto.Balance = runningBalance;
-                        updatedTransactions.Add(dto);
+                        runningBalance = tx.Amount;
+                        tx.ResultingBalance = runningBalance;
+                        continue;
                     }
-                    catch (Exception ex)
+
+                    // Handle all other transaction types
+                    if (tx.Type.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase) ||
+                        tx.Type.Equals("Cash In", StringComparison.OrdinalIgnoreCase) ||
+                        tx.Type.Equals("Cash Receipt", StringComparison.OrdinalIgnoreCase) ||
+                        (tx.ActionType?.Equals("Increase", StringComparison.OrdinalIgnoreCase) == true))
                     {
-                        Debug.WriteLine($"Error processing transaction {trans.TransactionId}: {ex.Message}");
+                        runningBalance += Math.Abs(tx.Amount);
                     }
+                    else
+                    {
+                        runningBalance -= Math.Abs(tx.Amount);
+                    }
+
+                    tx.ResultingBalance = runningBalance;
                 }
 
-                return updatedTransactions.OrderByDescending(t => t.Timestamp);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in GetDrawerHistoryAsync: {ex.Message}");
-                return new List<DrawerTransactionDTO>();
-            }
+                return result;
+            });
         }
 
         public async Task<(decimal Sales, decimal SupplierPayments, decimal Expenses)>
