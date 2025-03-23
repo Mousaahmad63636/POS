@@ -142,7 +142,7 @@ namespace QuickTechSystems.WPF.ViewModels
               await ProcessCashPayment();
           }
       },
-      _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+      _ => CurrentTransaction != null && CurrentTransaction.Details != null && CurrentTransaction.Details.Any());
 
             ToggleViewCommand = new RelayCommand(_ => ToggleView());
 
@@ -363,7 +363,43 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-               
+                // Confirm with the user
+                var result = MessageBox.Show(
+                    "Are you sure you want to clear all items from this transaction?",
+                    "Confirm Clear",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Reset the current transaction
+                    if (CurrentTransaction.Details != null)
+                    {
+                        CurrentTransaction.Details.Clear();
+                    }
+
+                    // Reset discount and update totals
+                    DiscountAmount = 0;
+                    UpdateTotals();
+
+                    // Reset customer if necessary
+                    if (IsEditingTransaction == false)
+                    {
+                        SelectedCustomer = null;
+                        CustomerSearchText = string.Empty;
+                    }
+
+                    // Reset transaction status message
+                    StatusMessage = "Transaction cleared - Ready for new items";
+
+                    // Notify UI of changes
+                    OnPropertyChanged(nameof(CurrentTransaction));
+                    OnPropertyChanged(nameof(CurrentTransaction.Details));
+                    OnPropertyChanged(nameof(DiscountAmount));
+                    OnPropertyChanged(nameof(StatusMessage));
+                    OnPropertyChanged(nameof(SelectedCustomer));
+                    OnPropertyChanged(nameof(CustomerSearchText));
+                }
             }
             catch (Exception ex)
             {

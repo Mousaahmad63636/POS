@@ -44,6 +44,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 TaxAmount = 0;
                 DiscountAmount = Math.Max(0, DiscountAmount); // Ensure non-negative
                 TotalAmount = 0;
+                TotalAmountLBP = "0 LBP";
                 return;
             }
 
@@ -104,11 +105,16 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("No items in transaction");
                 }
 
-                // Get the selected item or the last item added
-                var selectedDetail = CurrentTransaction.Details.LastOrDefault();
+                // Get the selected item or the last item added if none is selected
+                var selectedDetail = CurrentTransaction.Details.FirstOrDefault(d => d.IsSelected);
                 if (selectedDetail == null)
                 {
-                    throw new InvalidOperationException("No item selected");
+                    // If no item is selected, use the last item
+                    selectedDetail = CurrentTransaction.Details.LastOrDefault();
+                    if (selectedDetail == null)
+                    {
+                        throw new InvalidOperationException("No item selected");
+                    }
                 }
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -234,11 +240,12 @@ namespace QuickTechSystems.WPF.ViewModels
                         try
                         {
                             await dbTransaction.RollbackAsync();
+                            Debug.WriteLine("Transaction successfully rolled back");
                         }
                         catch (Exception rollbackEx)
                         {
                             Debug.WriteLine($"Error during rollback: {rollbackEx.Message}");
-                            // Transaction might already be completed or rolled back
+                            throw new InvalidOperationException("Critical error: Transaction failed and rollback also failed. Please contact support.", rollbackEx);
                         }
                     }
                     throw;
@@ -409,9 +416,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     footer.Inlines.Add("*** DUPLICATE RECEIPT ***");
                     flowDocument.Blocks.Add(footer);
 
-                    printDialog.PrintDocument(
-                        ((IDocumentPaginatorSource)flowDocument).DocumentPaginator,
-                        "Duplicate Receipt");
+                    try
+                    {
+                        printDialog.PrintDocument(
+                            ((IDocumentPaginatorSource)flowDocument).DocumentPaginator,
+                            "Duplicate Receipt");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Print error: {ex.Message}");
+                        MessageBox.Show(
+                            "Error printing receipt. Please check your printer connection and try again.",
+                            "Print Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                    }
                 });
             }, "Reprinting last receipt", "PrintOperation");
         }

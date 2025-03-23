@@ -38,7 +38,8 @@ namespace QuickTechSystems.WPF.ViewModels
         public string CashPaymentButtonText => IsEditingTransaction ? "Update Transaction" : "Cash Payment";
         public string CustomerBalanceButtonText => IsEditingTransaction ? "Update Customer Balance" : "Add to Customer Balance";
         public Visibility EditModeIndicatorVisibility =>
-    IsEditingTransaction ? Visibility.Visible : Visibility.Collapsed;
+            IsEditingTransaction ? Visibility.Visible : Visibility.Collapsed;
+
         // Thread synchronization
         private readonly SemaphoreSlim _transactionOperationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
@@ -49,6 +50,13 @@ namespace QuickTechSystems.WPF.ViewModels
             { "PrintOperation", new SemaphoreSlim(1, 1) },
             { "PaymentProcess", new SemaphoreSlim(1, 1) }
         };
+
+        // Create a static resource cleanup registry to ensure all semaphores get properly disposed
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> _operationLocks =
+            new ConcurrentDictionary<string, SemaphoreSlim>();
+
+        // Cancellation token source for handling cancellations
+        private CancellationTokenSource _globalCancellationTokenSource = new CancellationTokenSource();
 
         public Dictionary<int, decimal> CustomerSpecificPrices
         {
@@ -72,98 +80,173 @@ namespace QuickTechSystems.WPF.ViewModels
             ISystemPreferencesService systemPreferencesService,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
-            _quoteService = quoteService;
-            _unitOfWork = unitOfWork;
+            _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
+            _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _customerService = customerService ?? throw new ArgumentNullException(nameof(customerService));
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
-            _drawerService = drawerService;
-            _categoryService = categoryService;
-            _systemPreferencesService = systemPreferencesService;
+            _drawerService = drawerService ?? throw new ArgumentNullException(nameof(drawerService));
+            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
+            _systemPreferencesService = systemPreferencesService ?? throw new ArgumentNullException(nameof(systemPreferencesService));
             _transactionChangedHandler = HandleTransactionChanged;
             _productChangedHandler = HandleProductChanged;
 
-            // Subscribe to event aggregator events
-            _eventAggregator.Subscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
-
-            InitializeCommands();
-            InitializeCollections();
-            StartNewTransaction();
-
-            // Initialize data
-            LoadDataAsync().ConfigureAwait(false);
-            LoadExchangeRate(businessSettingsService).ConfigureAwait(false);
-            LoadRestaurantModePreference().ContinueWith(t =>
+            try
             {
-                if (t.IsFaulted)
-                {
-                    Debug.WriteLine($"Error initializing restaurant mode: {t.Exception}");
-                }
-            }, TaskScheduler.Current);
+                // Subscribe to event aggregator events
+                _eventAggregator.Subscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
 
-            CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
-            ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
+                InitializeCommands();
+                InitializeCollections();
+                StartNewTransaction();
 
-            // Start timer to update current date/time
+                // Initialize data with proper async pattern
+                _ = InitializeAsync(businessSettingsService);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in TransactionViewModel constructor: {ex.Message}");
+                StatusMessage = "Error initializing view model";
+            }
+        }
+
+        // Proper async initialization to replace direct calls in constructor
+        private async Task InitializeAsync(IBusinessSettingsService businessSettingsService)
+        {
+            try
+            {
+                // Initialize tasks in parallel
+                var dataLoadTask = LoadDataAsync();
+                var exchangeRateTask = LoadExchangeRate(businessSettingsService);
+                var restaurantModeTask = LoadRestaurantModePreference();
+
+                // Wait for all tasks to complete
+                await Task.WhenAll(dataLoadTask, exchangeRateTask, restaurantModeTask);
+
+                // Setup UI refresh timer for date/time
+                SetupDateTimeRefreshTimer();
+
+                // Register commands that require async initialization
+                CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
+                ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
+
+                // Update status after successful initialization
+                StatusMessage = "Ready";
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in InitializeAsync: {ex.Message}");
+                StatusMessage = "Error during initialization";
+            }
+        }
+
+        // Setup timer with proper disposal management
+        private void SetupDateTimeRefreshTimer()
+        {
             var timer = new System.Windows.Threading.DispatcherTimer();
             timer.Interval = TimeSpan.FromSeconds(1);
             timer.Tick += (s, e) => CurrentDate = DateTime.Now;
             timer.Start();
+
+            // Store timer in application properties for proper cleanup
+            if (App.Current.Properties.Contains("TransactionViewModelTimer"))
+            {
+                var oldTimer = App.Current.Properties["TransactionViewModelTimer"] as System.Windows.Threading.DispatcherTimer;
+                oldTimer?.Stop();
+            }
+            App.Current.Properties["TransactionViewModelTimer"] = timer;
         }
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                // Unsubscribe from all events to prevent memory leaks
-                if (_eventAggregator != null)
+                // Create a new cancellation for any ongoing operations
+                try
                 {
-                    _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
-                    _eventAggregator.Unsubscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
-                    _eventAggregator.Unsubscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
+                    _globalCancellationTokenSource.Cancel();
+                    _globalCancellationTokenSource.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error cancelling operations: {ex.Message}");
                 }
 
-                // Dispose of cancellation tokens
-               // _customerSearchCts?.Cancel();
-               // _customerSearchCts?.Dispose();
-
-                // Dispose of timer resources
-                if (_lookupDebounceTimer != null)
+                // Unsubscribe from all events to prevent memory leaks
+                try
                 {
-                    _lookupDebounceTimer.Stop();
-                    _lookupDebounceTimer.Dispose();
-                    _lookupDebounceTimer = null;
+                    if (_eventAggregator != null)
+                    {
+                        _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
+                        _eventAggregator.Unsubscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
+                        _eventAggregator.Unsubscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error unsubscribing from events: {ex.Message}");
+                }
+
+                // Clean up timer resources
+                CleanupLookupDebounceTimer();
+
+                // Clean up UI refresh timer
+                if (App.Current.Properties.Contains("TransactionViewModelTimer"))
+                {
+                    try
+                    {
+                        var timer = App.Current.Properties["TransactionViewModelTimer"] as System.Windows.Threading.DispatcherTimer;
+                        timer?.Stop();
+                        App.Current.Properties.Remove("TransactionViewModelTimer");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error disposing timer: {ex.Message}");
+                    }
                 }
 
                 // Dispose of semaphores
-                _transactionOperationLock?.Dispose();
-                _categoryLoadSemaphore?.Dispose();
-                _customerSearchSemaphore?.Dispose();
-
-                // Dispose resource locks
-                foreach (var lockItem in _resourceLocks.Values)
+                try
                 {
-                    lockItem?.Dispose();
+                    _transactionOperationLock?.Dispose();
+                    _categoryLoadSemaphore?.Dispose();
+                    _customerSearchSemaphore?.Dispose();
+
+                    // Dispose resource locks
+                    foreach (var lockItem in _resourceLocks.Values)
+                    {
+                        lockItem?.Dispose();
+                    }
+                    _resourceLocks.Clear();
                 }
-                _resourceLocks.Clear();
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error disposing locks: {ex.Message}");
+                }
 
-                // Clear dictionaries
-                _imageCache?.Clear();
-                _customerSpecificPrices?.Clear();
-                _validationErrors?.Clear();
+                // Clean up collections to help with garbage collection
+                try
+                {
+                    CleanupImageCache();
+                    _customerSpecificPrices?.Clear();
+                    _validationErrors?.Clear();
 
-                // Clear collections to help with garbage collection
-                AllProducts?.Clear();
-                FilteredProducts?.Clear();
-                FilteredCustomers?.Clear();
-                HeldTransactions?.Clear();
-                ProductCategories?.Clear();
+                    AllProducts?.Clear();
+                    FilteredProducts?.Clear();
+                    FilteredCustomers?.Clear();
+                    HeldTransactions?.Clear();
+                    ProductCategories?.Clear();
 
-                // Nullify large objects
-                _currentTransaction = null;
-                _selectedCustomer = null;
-                _selectedCustomerFromSearch = null;
-                _selectedSearchProduct = null;
+                    // Nullify large objects
+                    _currentTransaction = null;
+                    _selectedCustomer = null;
+                    _selectedCustomerFromSearch = null;
+                    _selectedSearchProduct = null;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error clearing collections: {ex.Message}");
+                }
 
                 // Cancel any pending operations
                 IsLoading = false;
@@ -175,40 +258,21 @@ namespace QuickTechSystems.WPF.ViewModels
             base.Dispose(disposing);
         }
 
-        public void Dispose()
-        {
-            // Clean up image cache
-            CleanupImageCache();
-
-            // Dispose of timers
-            if (_lookupDebounceTimer != null)
-            {
-                _lookupDebounceTimer.Stop();
-                _lookupDebounceTimer.Dispose();
-                _lookupDebounceTimer = null;
-            }
-
-            // Cancel any ongoing customer searches
-            if (_customerSearchCts != null)
-            {
-                _customerSearchCts.Cancel();
-                _customerSearchCts.Dispose();
-                _customerSearchCts = null;
-            }
-
-            // Unsubscribe from events
-            _eventAggregator.Unsubscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
-
-            GC.SuppressFinalize(this);
-        }
-
+        // Clean up image cache properly
         private void CleanupImageCache()
         {
-            foreach (var key in _imageCache.Keys.ToList())
+            try
             {
-                _imageCache[key] = null;
+                foreach (var key in _imageCache.Keys.ToList())
+                {
+                    _imageCache[key] = null;
+                }
+                _imageCache.Clear();
             }
-            _imageCache.Clear();
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error cleaning up image cache: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -222,6 +286,13 @@ namespace QuickTechSystems.WPF.ViewModels
         private async Task<T> ExecuteOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Transaction operation", string resourceKey = null)
         {
             Debug.WriteLine($"BEGIN: {operationName}");
+
+            // Check if operation was cancelled globally
+            if (_globalCancellationTokenSource.IsCancellationRequested)
+            {
+                Debug.WriteLine($"Operation {operationName} cancelled by global token");
+                throw new OperationCanceledException();
+            }
 
             // If an operation is already in progress, wait a bit
             int waitCount = 0;
@@ -245,13 +316,21 @@ namespace QuickTechSystems.WPF.ViewModels
                 : _transactionOperationLock;
 
             Debug.WriteLine($"Acquiring operation lock for: {operationName}");
-            await lockToUse.WaitAsync();
-
-            if (resourceKey == null)
-                _operationInProgress = true;
+            bool lockAcquired = false;
 
             try
             {
+                // Try to get the lock with a timeout
+                lockAcquired = await lockToUse.WaitAsync(TimeSpan.FromSeconds(10));
+                if (!lockAcquired)
+                {
+                    Debug.WriteLine($"Timed out waiting for lock: {operationName}");
+                    throw new TimeoutException($"Operation timed out while waiting for resource lock: {operationName}");
+                }
+
+                if (resourceKey == null)
+                    _operationInProgress = true;
+
                 Debug.WriteLine($"Executing operation: {operationName}");
                 // Add a small delay to ensure any previous operation is fully complete
                 await Task.Delay(50);
@@ -290,28 +369,52 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (resourceKey == null)
                     _operationInProgress = false;
-                lockToUse.Release();
+
+                if (lockAcquired)
+                {
+                    try
+                    {
+                        lockToUse.Release();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error releasing lock: {ex.Message}");
+                    }
+                }
+
                 Debug.WriteLine($"Released operation lock for: {operationName}");
                 Debug.WriteLine($"END: {operationName}");
             }
         }
 
         // Overload for void operations
-        private static ConcurrentDictionary<string, SemaphoreSlim> _operationLocks =
-    new ConcurrentDictionary<string, SemaphoreSlim>();
         private async Task ExecuteOperationSafelyAsync(Func<Task> operation, string operationName, string operationType = null)
         {
+            // Check for cancellation
+            if (_globalCancellationTokenSource.IsCancellationRequested)
+            {
+                Debug.WriteLine($"Operation {operationName} cancelled");
+                return;
+            }
+
             // Create a unique key for this operation type
             string lockKey = operationType ?? operationName;
 
             // Get or create a semaphore for this operation type
             var semaphore = _operationLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
 
-            // Wait for any previous operations of the same type to complete
-            await semaphore.WaitAsync();
+            bool lockAcquired = false;
 
             try
             {
+                // Try to acquire lock with timeout
+                lockAcquired = await semaphore.WaitAsync(TimeSpan.FromSeconds(5));
+                if (!lockAcquired)
+                {
+                    Debug.WriteLine($"Timed out waiting for lock: {operationName}");
+                    throw new TimeoutException($"Operation timed out: {operationName}");
+                }
+
                 StatusMessage = operationName;
                 OnPropertyChanged(nameof(StatusMessage));
 
@@ -339,14 +442,25 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                // Always release the semaphore
-                semaphore.Release();
+                // Always release the semaphore if we acquired it
+                if (lockAcquired)
+                {
+                    try
+                    {
+                        semaphore.Release();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error releasing semaphore: {ex.Message}");
+                    }
+                }
 
                 // Reset status
                 StatusMessage = "Ready";
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
+
         /// <summary>
         /// Shows loading indicator while executing an operation with proper error handling
         /// </summary>
@@ -412,6 +526,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 LoadingMessage = message;
                 IsLoading = true;
+                OnPropertyChanged(nameof(IsLoading));
+                OnPropertyChanged(nameof(LoadingMessage));
 
                 var result = await action();
 
@@ -448,33 +564,56 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsLoading = false;
                 LoadingMessage = string.Empty;
+                OnPropertyChanged(nameof(IsLoading));
+                OnPropertyChanged(nameof(LoadingMessage));
             }
         }
 
         protected override void SubscribeToEvents()
         {
-            _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
-            _eventAggregator.Subscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
-
-            base.SubscribeToEvents();
-
-            _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(async evt =>
+            try
             {
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
+                _eventAggregator.Subscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
+
+                base.SubscribeToEvents();
+
+                _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(async evt =>
                 {
-                    if (evt.Action == "Update" && SelectedCustomer?.CustomerId == evt.Entity.CustomerId)
+                    try
                     {
-                        var updatedCustomer = await _customerService.GetByIdAsync(evt.Entity.CustomerId);
-                        SelectedCustomer = updatedCustomer;
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                        {
+                            if (evt.Action == "Update" && SelectedCustomer?.CustomerId == evt.Entity.CustomerId)
+                            {
+                                var updatedCustomer = await _customerService.GetByIdAsync(evt.Entity.CustomerId);
+                                SelectedCustomer = updatedCustomer;
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error handling customer update event: {ex.Message}");
                     }
                 });
-            });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error subscribing to events: {ex.Message}");
+            }
         }
 
         protected override void UnsubscribeFromEvents()
         {
-            _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
-            _eventAggregator.Unsubscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
+            try
+            {
+                _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(_transactionChangedHandler);
+                _eventAggregator.Unsubscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error unsubscribing from events: {ex.Message}");
+            }
         }
 
         private async void HandleProductChanged(EntityChangedEvent<ProductDTO> evt)
@@ -483,16 +622,27 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    var products = await _productService.GetAllAsync();
+                    try
+                    {
+                        var products = await _productService.GetAllAsync();
 
-                    // Filter to only include active products
-                    var activeProducts = products.Where(p => p.IsActive).ToList();
-                    AllProducts = new ObservableCollection<ProductDTO>(activeProducts);
+                        // Filter to only include active products
+                        var activeProducts = products.Where(p => p.IsActive).ToList();
+                        AllProducts = new ObservableCollection<ProductDTO>(activeProducts);
 
-                    var internetProducts = activeProducts
-                        .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
-                        .ToList();
-                    FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
+                        var internetProducts = activeProducts
+                            .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
+                            .ToList();
+                        FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
+
+                        // Update UI properties
+                        OnPropertyChanged(nameof(AllProducts));
+                        OnPropertyChanged(nameof(FilteredProducts));
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error refreshing products: {ex.Message}");
+                    }
                 });
             }
             catch (Exception ex)
@@ -503,19 +653,49 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
         {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            try
             {
-                switch (evt.Action)
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    case "Create":
-                        StartNewTransaction();
-                        break;
-                    case "Update":
-                        break;
-                    case "Delete":
-                        break;
-                }
-            });
+                    try
+                    {
+                        switch (evt.Action)
+                        {
+                            case "Create":
+                                StartNewTransaction();
+                                break;
+                            case "Update":
+                                // If we're editing the current transaction, refresh it
+                                if (IsEditingTransaction && CurrentTransaction?.TransactionId == evt.Entity.TransactionId)
+                                {
+                                    IsEditingTransaction = false;
+                                    StatusMessage = "Transaction updated externally - Refreshing...";
+                                    OnPropertyChanged(nameof(StatusMessage));
+                                    // Load the transaction again
+                                    LookupTransactionId = evt.Entity.TransactionId.ToString();
+                                }
+                                break;
+                            case "Delete":
+                                // If we're editing a transaction that was deleted, reset the view
+                                if (IsEditingTransaction && CurrentTransaction?.TransactionId == evt.Entity.TransactionId)
+                                {
+                                    StartNewTransaction();
+                                    StatusMessage = "The transaction was deleted by another user";
+                                    OnPropertyChanged(nameof(StatusMessage));
+                                }
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error in transaction change handler: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error handling transaction change: {ex.Message}");
+            }
         }
 
         private async Task LoadDataAsync()
@@ -541,17 +721,32 @@ namespace QuickTechSystems.WPF.ViewModels
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     OnPropertyChanged(nameof(FilteredProducts));
+                    OnPropertyChanged(nameof(AllProducts));
                 });
             });
         }
+
         private async Task LoadExchangeRate(IBusinessSettingsService businessSettingsService)
         {
             await ExecuteOperationSafelyAsync(async () =>
             {
-                var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
-                if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
+                try
                 {
-                    CurrencyHelper.UpdateExchangeRate(rate);
+                    var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
+                    if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
+                    {
+                        CurrencyHelper.UpdateExchangeRate(rate);
+                        Debug.WriteLine($"Exchange rate loaded: {rate}");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Exchange rate not found or invalid - using default");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error loading exchange rate: {ex.Message}");
+                    // Don't rethrow - use default exchange rate
                 }
             }, "Loading exchange rate");
         }

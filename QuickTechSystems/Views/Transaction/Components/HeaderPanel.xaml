@@ -390,29 +390,33 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    
+                                    <Button Content="{Binding Name}"
+                            Command="{Binding DataContext.SelectCategoryCommand, 
+                                     RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Margin="3,0" Padding="15,5"
+                            Background="#3B4559"
+                            Foreground="White"
+                            BorderThickness="0">
+                                        <Button.Resources>
+                                            <Style TargetType="Border">
+                                                <Setter Property="CornerRadius" Value="4"/>
+                                            </Style>
+                                        </Button.Resources>
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True">
+                                                        <Setter Property="Background" Value="#2196F3"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                </Border>
-                <Border Background="#FFC107" 
-        Padding="10,5"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Top"
-        Margin="0,5,20,0"
-        CornerRadius="4"
-        Visibility="{Binding EditModeIndicatorVisibility}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="EDIT MODE" 
-                  FontWeight="Bold" 
-                  Foreground="#333333"/>
-                        <TextBlock Text=" - Transaction #" 
-                  Foreground="#333333"/>
-                        <TextBlock Text="{Binding CurrentTransaction.TransactionId}" 
-                  Foreground="#333333" 
-                  FontWeight="Bold"/>
-                    </StackPanel>
                 </Border>
                 <!-- Basic Totals Summary on the Right -->
                 <StackPanel Grid.Column="1" 

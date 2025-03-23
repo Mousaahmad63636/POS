@@ -26,19 +26,27 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private Window GetOwnerWindow()
         {
-            // Try to get the active window first
-            var activeWindow = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive);
-            if (activeWindow != null)
-                return activeWindow;
+            try
+            {
+                // Try to get the active window first
+                var activeWindow = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive);
+                if (activeWindow != null)
+                    return activeWindow;
 
-            // Fall back to the main window
-            var mainWindow = System.Windows.Application.Current.MainWindow;
-            if (mainWindow != null && mainWindow.IsLoaded)
-                return mainWindow;
+                // Fall back to the main window
+                var mainWindow = System.Windows.Application.Current.MainWindow;
+                if (mainWindow != null && mainWindow.IsLoaded)
+                    return mainWindow;
 
-            // Last resort, get any window that's visible
-            return System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible)
-                   ?? System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault();
+                // Last resort, get any window that's visible
+                return System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible)
+                       ?? System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error getting owner window: {ex.Message}");
+                return null; // Return null instead of failing
+            }
         }
 
         public async Task LoadLatestTransactionIdAsync()
@@ -59,6 +67,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             LookupTransactionId = nextTransactionId.ToString();
+                            OnPropertyChanged(nameof(LookupTransactionId));
                         });
 
                         Debug.WriteLine($"Latest transaction ID: {latestId}, Next transaction ID: {nextTransactionId}");
@@ -69,6 +78,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             LookupTransactionId = "1";
+                            OnPropertyChanged(nameof(LookupTransactionId));
                         });
                     }
                 }
@@ -79,6 +89,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         LookupTransactionId = "1";
+                        OnPropertyChanged(nameof(LookupTransactionId));
                     });
                 }
             }, "Loading next transaction ID");
@@ -101,14 +112,16 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("Transaction ID must be a number");
                 }
 
-                // Clear any current transaction data first
-                ClearTransaction();
+                // Clear any current transaction data first - use SafeClearTransaction to avoid UI issues
+                await SafeClearTransactionAsync();
 
                 // Explicitly clear customer information
                 SelectedCustomer = null;
                 CustomerSearchText = string.Empty;
                 // Ensure dropdown is closed
                 IsCustomerSearchVisible = false;
+
+                // Ensure UI is updated
                 OnPropertyChanged(nameof(SelectedCustomer));
                 OnPropertyChanged(nameof(CustomerSearchText));
                 OnPropertyChanged(nameof(IsCustomerSearchVisible));
@@ -120,6 +133,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (transaction == null)
                 {
                     StatusMessage = $"Transaction #{transactionId} not found - Ready for new entry";
+                    OnPropertyChanged(nameof(StatusMessage));
                     return; // Exit without error
                 }
 
@@ -138,22 +152,31 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Populate customer information ONLY if available
                 if (transaction.CustomerId.HasValue && transaction.CustomerId.Value > 0)
                 {
-                    var customer = await _customerService.GetByIdAsync(transaction.CustomerId.Value);
-                    if (customer != null)
+                    try
                     {
-                        // Temporarily disable search trigger
-                        _isNavigating = true;
+                        var customer = await _customerService.GetByIdAsync(transaction.CustomerId.Value);
+                        if (customer != null)
+                        {
+                            // Temporarily disable search trigger
+                            _isNavigating = true;
 
-                        // Set the customer directly without showing dropdown
-                        SelectedCustomer = customer;
-                        CustomerSearchText = customer.Name;
+                            // Set the customer directly without showing dropdown
+                            SelectedCustomer = customer;
+                            CustomerSearchText = customer.Name ?? "Unknown";
 
-                        // Explicitly ensure dropdown is closed
-                        IsCustomerSearchVisible = false;
+                            // Explicitly ensure dropdown is closed
+                            IsCustomerSearchVisible = false;
+                            OnPropertyChanged(nameof(IsCustomerSearchVisible));
 
-                        // Re-enable search trigger after a short delay
-                        await Task.Delay(100);
-                        _isNavigating = false;
+                            // Re-enable search trigger after a short delay
+                            await Task.Delay(100);
+                            _isNavigating = false;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error loading customer for transaction: {ex.Message}");
+                        // Continue without customer data
                     }
                 }
 
@@ -162,13 +185,58 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Set editing state
                 IsEditingTransaction = true;
+                OnPropertyChanged(nameof(IsEditingTransaction));
+                OnPropertyChanged(nameof(CashPaymentButtonText));
+                OnPropertyChanged(nameof(CustomerBalanceButtonText));
+                OnPropertyChanged(nameof(EditModeIndicatorVisibility));
 
                 // Update UI
                 StatusMessage = $"Editing Transaction #{originalTransactionId}";
+                OnPropertyChanged(nameof(StatusMessage));
+                OnPropertyChanged(nameof(CurrentTransaction));
 
                 // Log the action
                 Debug.WriteLine($"Loaded Transaction #{originalTransactionId} for editing");
             }, "Looking up transaction", "Transaction loaded for editing");
+        }
+
+        // Helper method for safely clearing the transaction
+        private async Task SafeClearTransactionAsync()
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (CurrentTransaction != null)
+                    {
+                        if (CurrentTransaction.Details != null)
+                        {
+                            CurrentTransaction.Details.Clear();
+                        }
+
+                        // Reset state
+                        DiscountAmount = 0;
+                    }
+
+                    // Create a new transaction to ensure clean state
+                    CurrentTransaction = new TransactionDTO
+                    {
+                        Details = new ObservableCollection<TransactionDetailDTO>(),
+                        TransactionDate = DateTime.Now,
+                        Status = TransactionStatus.Pending
+                    };
+
+                    UpdateTotals();
+
+                    // Update UI
+                    OnPropertyChanged(nameof(CurrentTransaction));
+                    OnPropertyChanged(nameof(DiscountAmount));
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error clearing transaction: {ex.Message}");
+                }
+            });
         }
 
         // Helper method to explicitly trigger customer search
@@ -203,21 +271,28 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    // Clear existing results first
-                    FilteredCustomers.Clear();
-
-                    // Update filtered customers collection
-                    foreach (var customer in sanitizedCustomers)
+                    try
                     {
-                        FilteredCustomers.Add(customer);
+                        // Clear existing results first
+                        FilteredCustomers.Clear();
+
+                        // Update filtered customers collection
+                        foreach (var customer in sanitizedCustomers)
+                        {
+                            FilteredCustomers.Add(customer);
+                        }
+
+                        // Make customer search results visible
+                        IsCustomerSearchVisible = FilteredCustomers.Any();
+
+                        // Force UI updates
+                        OnPropertyChanged(nameof(FilteredCustomers));
+                        OnPropertyChanged(nameof(IsCustomerSearchVisible));
                     }
-
-                    // Make customer search results visible
-                    IsCustomerSearchVisible = FilteredCustomers.Any();
-
-                    // Force UI updates
-                    OnPropertyChanged(nameof(FilteredCustomers));
-                    OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error updating UI with customer search results: {ex.Message}");
+                    }
                 });
             }
             catch (Exception ex)
@@ -225,26 +300,47 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Error triggering customer search: {ex.Message}");
             }
         }
+
         private async void ShowInvalidLookupAlert()
         {
             await WindowManager.InvokeAsync(() =>
             {
-                MessageBox.Show(
-                    "Invalid transaction number. Please enter a numeric value.",
-                    "Invalid Input",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                try
+                {
+                    MessageBox.Show(
+                        "Invalid transaction number. Please enter a numeric value.",
+                        "Invalid Input",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error showing alert: {ex.Message}");
+                }
             });
 
-            // Update status message
-            StatusMessage = "Loading latest transaction number...";
+            try
+            {
+                // Update status message
+                StatusMessage = "Loading latest transaction number...";
+                OnPropertyChanged(nameof(StatusMessage));
 
-            // Reset to the latest transaction ID
-            await LoadLatestTransactionIdAsync();
+                // Reset to the latest transaction ID
+                await LoadLatestTransactionIdAsync();
 
-            // Update status message again
-            StatusMessage = "Ready for new transaction";
+                // Update status message again
+                StatusMessage = "Ready for new transaction";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error resetting transaction ID: {ex.Message}");
+                // Set a safe default
+                LookupTransactionId = "1";
+                StatusMessage = "Error loading transaction number";
+            }
         }
+
         private async Task UpdateLookupTransactionIdAsync()
         {
             try
@@ -265,7 +361,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Don't throw exception as this is a convenience feature
             }
         }
-
 
         private async Task UpdateExistingTransactionAsync()
         {
@@ -358,10 +453,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     await UpdateLookupTransactionIdAsync();
 
                     StatusMessage = $"Transaction #{updatedTransaction.TransactionId} updated successfully";
+                    OnPropertyChanged(nameof(StatusMessage));
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
+                    Debug.WriteLine($"Error updating transaction: {ex.Message}");
+                    try
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine("Transaction rollback successful");
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        Debug.WriteLine($"Rollback error: {rollbackEx.Message}");
+                        // Additional handling for failed rollbacks
+                    }
                     throw new InvalidOperationException($"Failed to update transaction: {ex.Message}", ex);
                 }
             }, "Updating transaction", "Transaction updated successfully");
@@ -369,25 +475,40 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void FilterProductsByCategory(CategoryDTO category)
         {
-            if (_allProducts == null) return;
-
-            // Log what we're doing
-            Debug.WriteLine($"Filtering products by category: {category?.Name ?? "null"}");
-
-            if (category == null || category.Name == "All")
+            if (_allProducts == null)
             {
-                // Show all ACTIVE products
-                FilteredProducts = new ObservableCollection<ProductDTO>(_allProducts.Where(p => p.IsActive));
-            }
-            else
-            {
-                // Show only ACTIVE products from the selected category
-                var filteredList = _allProducts.Where(p => p.CategoryId == category.CategoryId && p.IsActive).ToList();
-                FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
+                FilteredProducts = new ObservableCollection<ProductDTO>();
+                Debug.WriteLine("No products available to filter by category");
+                return;
             }
 
-            OnPropertyChanged(nameof(FilteredProducts));
-            Debug.WriteLine($"Filtered products by category: {category?.Name ?? "All"}, count: {FilteredProducts.Count}");
+            try
+            {
+                // Log what we're doing
+                Debug.WriteLine($"Filtering products by category: {category?.Name ?? "null"}");
+
+                if (category == null || category.Name == "All")
+                {
+                    // Show all ACTIVE products
+                    FilteredProducts = new ObservableCollection<ProductDTO>(_allProducts.Where(p => p.IsActive));
+                }
+                else
+                {
+                    // Show only ACTIVE products from the selected category
+                    var filteredList = _allProducts.Where(p => p.CategoryId == category.CategoryId && p.IsActive).ToList();
+                    FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
+                }
+
+                OnPropertyChanged(nameof(FilteredProducts));
+                Debug.WriteLine($"Filtered products by category: {category?.Name ?? "All"}, count: {FilteredProducts.Count}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error filtering products by category: {ex.Message}");
+                // Default to empty collection on error
+                FilteredProducts = new ObservableCollection<ProductDTO>();
+                OnPropertyChanged(nameof(FilteredProducts));
+            }
         }
 
         // Add this method to TransactionViewModel.Methods.cs
@@ -401,55 +522,85 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                const string userId = "default";
-                string restaurantModeStr = await _systemPreferencesService.GetPreferenceValueAsync(
-                    userId, "RestaurantMode", "false");
-
-                bool isRestaurantMode = bool.Parse(restaurantModeStr);
-
-                // Update properties on UI thread
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                try
                 {
-                    IsProductCardsVisible = isRestaurantMode;
-                    IsRestaurantMode = isRestaurantMode;
+                    const string userId = "default";
+                    string restaurantModeStr = await _systemPreferencesService.GetPreferenceValueAsync(
+                        userId, "RestaurantMode", "false");
 
-                    // Force UI update
-                    OnPropertyChanged(nameof(IsProductCardsVisible));
-                    OnPropertyChanged(nameof(IsRestaurantMode));
+                    bool isRestaurantMode = bool.Parse(restaurantModeStr);
 
-                    Debug.WriteLine($"Restaurant mode loaded from preferences: {isRestaurantMode}");
-                });
+                    // Update properties on UI thread
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        IsProductCardsVisible = isRestaurantMode;
+                        IsRestaurantMode = isRestaurantMode;
 
-                // Load categories if in restaurant mode
-                if (isRestaurantMode && (ProductCategories == null || ProductCategories.Count == 0))
+                        // Force UI update
+                        OnPropertyChanged(nameof(IsProductCardsVisible));
+                        OnPropertyChanged(nameof(IsRestaurantMode));
+
+                        Debug.WriteLine($"Restaurant mode loaded from preferences: {isRestaurantMode}");
+                    });
+
+                    // Load categories if in restaurant mode
+                    if (isRestaurantMode && (ProductCategories == null || ProductCategories.Count == 0))
+                    {
+                        await LoadProductCategoriesAsync();
+                    }
+                }
+                catch (Exception ex)
                 {
-                    await LoadProductCategoriesAsync();
+                    Debug.WriteLine($"Error loading restaurant mode preference: {ex.Message}");
+                    // Default to standard mode on error
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        IsProductCardsVisible = false;
+                        IsRestaurantMode = false;
+                        OnPropertyChanged(nameof(IsProductCardsVisible));
+                        OnPropertyChanged(nameof(IsRestaurantMode));
+                    });
                 }
             }, "Loading restaurant mode preference");
         }
 
         private void OnApplicationModeChanged(ApplicationModeChangedEvent evt)
         {
-            // Update on UI thread
-            System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            try
             {
-                // Update the view mode
-                IsProductCardsVisible = evt.IsRestaurantMode;
-                IsRestaurantMode = evt.IsRestaurantMode;
-
-                // Force UI refresh
-                OnPropertyChanged(nameof(IsProductCardsVisible));
-                OnPropertyChanged(nameof(IsRestaurantMode));
-
-                // Load categories if needed
-                if (evt.IsRestaurantMode && (ProductCategories == null || ProductCategories.Count == 0))
+                // Update on UI thread
+                System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    LoadProductCategoriesAsync().ConfigureAwait(false);
-                }
-            });
+                    try
+                    {
+                        // Update the view mode
+                        IsProductCardsVisible = evt.IsRestaurantMode;
+                        IsRestaurantMode = evt.IsRestaurantMode;
+
+                        // Force UI refresh
+                        OnPropertyChanged(nameof(IsProductCardsVisible));
+                        OnPropertyChanged(nameof(IsRestaurantMode));
+
+                        // Load categories if needed
+                        if (evt.IsRestaurantMode && (ProductCategories == null || ProductCategories.Count == 0))
+                        {
+                            LoadProductCategoriesAsync().ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error in UI update during mode change: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error handling application mode change: {ex.Message}");
+            }
         }
 
-        public void AddProductToTransactionWithQuantity(ProductDTO product, int quantity)
+        // Unified product addition method that replaces both previous methods
+        public void AddProductToTransaction(ProductDTO product, int quantity = 1)
         {
             // Validate product and quantity
             if (product == null)
@@ -465,53 +616,72 @@ namespace QuickTechSystems.WPF.ViewModels
                 quantity = 1;
             }
 
-            // Check if adding this product would result in low stock
-            CheckAndAlertLowStock(product, quantity);
+            try
+            {
+                // Check if adding this product would result in low stock
+                CheckAndAlertLowStock(product, quantity);
 
-            if (CurrentTransaction?.Details == null)
-            {
-                CurrentTransaction = new TransactionDTO
+                if (CurrentTransaction?.Details == null)
                 {
-                    Details = new ObservableCollection<TransactionDetailDTO>(),
-                    TransactionDate = DateTime.Now,
-                    Status = TransactionStatus.Pending
-                };
-            }
-
-            var existingDetail = CurrentTransaction.Details.FirstOrDefault(d => d.ProductId == product.ProductId);
-            if (existingDetail != null)
-            {
-                existingDetail.Quantity += quantity;
-                existingDetail.Total = existingDetail.Quantity * existingDetail.UnitPrice;
-                var index = CurrentTransaction.Details.IndexOf(existingDetail);
-                CurrentTransaction.Details.RemoveAt(index);
-                CurrentTransaction.Details.Insert(index, existingDetail);
-            }
-            else
-            {
-                // Get customer-specific price if available
-                decimal unitPrice = product.SalePrice;
-                if (_customerSpecificPrices.TryGetValue(product.ProductId, out decimal customPrice))
-                {
-                    unitPrice = customPrice;
+                    CurrentTransaction = new TransactionDTO
+                    {
+                        Details = new ObservableCollection<TransactionDetailDTO>(),
+                        TransactionDate = DateTime.Now,
+                        Status = TransactionStatus.Pending
+                    };
                 }
 
-                var detail = new TransactionDetailDTO
+                var existingDetail = CurrentTransaction.Details.FirstOrDefault(d => d.ProductId == product.ProductId);
+                if (existingDetail != null)
                 {
-                    ProductId = product.ProductId,
-                    ProductName = product.Name,
-                    ProductBarcode = product.Barcode,
-                    Quantity = quantity,
-                    UnitPrice = unitPrice,
-                    PurchasePrice = product.PurchasePrice,
-                    Total = unitPrice * quantity,
-                    TransactionId = CurrentTransaction.TransactionId
-                };
-                CurrentTransaction.Details.Add(detail);
-            }
+                    existingDetail.Quantity += quantity;
+                    existingDetail.Total = existingDetail.Quantity * existingDetail.UnitPrice;
 
-            UpdateTotals();
-            OnPropertyChanged(nameof(CurrentTransaction.Details));
+                    // Force UI refresh by removing and re-adding the item
+                    var index = CurrentTransaction.Details.IndexOf(existingDetail);
+                    if (index >= 0)
+                    {
+                        CurrentTransaction.Details.RemoveAt(index);
+                        CurrentTransaction.Details.Insert(index, existingDetail);
+                    }
+                }
+                else
+                {
+                    // Get customer-specific price if available
+                    decimal unitPrice = product.SalePrice;
+                    if (_customerSpecificPrices.TryGetValue(product.ProductId, out decimal customPrice))
+                    {
+                        unitPrice = customPrice;
+                    }
+
+                    var detail = new TransactionDetailDTO
+                    {
+                        ProductId = product.ProductId,
+                        ProductName = product.Name ?? "Unknown Product",
+                        ProductBarcode = product.Barcode ?? string.Empty,
+                        Quantity = quantity,
+                        UnitPrice = unitPrice,
+                        PurchasePrice = product.PurchasePrice,
+                        Total = unitPrice * quantity,
+                        TransactionId = CurrentTransaction.TransactionId
+                    };
+                    CurrentTransaction.Details.Add(detail);
+                }
+
+                // Update totals and UI
+                UpdateTotals();
+                OnPropertyChanged(nameof(CurrentTransaction));
+                OnPropertyChanged(nameof(CurrentTransaction.Details));
+
+                // Update status message
+                StatusMessage = $"Added: {product.Name} (Qty: {quantity})";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error adding product to transaction: {ex.Message}");
+                WindowManager.ShowError($"Error adding product: {ex.Message}");
+            }
         }
 
         private async void CheckAndAlertLowStock(ProductDTO product, int quantity)
@@ -519,54 +689,62 @@ namespace QuickTechSystems.WPF.ViewModels
             // Only check for active products
             if (product == null || !product.IsActive) return;
 
-            // Calculate the potential new stock level after this transaction
-            int potentialNewStock = product.CurrentStock - quantity;
-
-            // Check if the potential new stock is at or below the minimum stock level
-            if (potentialNewStock <= product.MinimumStock)
+            try
             {
-                // Display simplified alert to the user
-                await WindowManager.InvokeAsync(() =>
-                    MessageBox.Show(
-                        $"Alert: Product '{product.Name}' is reaching low stock level.",
-                        "Low Stock Alert",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning)
-                );
+                // Calculate the potential new stock level after this transaction
+                int potentialNewStock = product.CurrentStock - quantity;
 
-                // Use proper async task handling
-                try
+                // Check if the potential new stock is at or below the minimum stock level
+                if (potentialNewStock <= product.MinimumStock)
                 {
-                    var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
-                    string cashierId = currentUser?.EmployeeId.ToString() ?? "0";
-                    string cashierName = currentUser?.FullName ?? "Unknown";
+                    // Display simplified alert to the user
+                    await WindowManager.InvokeAsync(() =>
+                        MessageBox.Show(
+                            $"Alert: Product '{product.Name}' is reaching low stock level.",
+                            "Low Stock Alert",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning)
+                    );
 
-                    // Check if App and ServiceProvider exist
-                    if (App.Current is App app && app.ServiceProvider != null)
+                    // Use proper async task handling
+                    try
                     {
-                        var lowStockHistoryService = app.ServiceProvider.GetService<ILowStockHistoryService>();
-                        if (lowStockHistoryService != null)
+                        var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+                        string cashierId = currentUser?.EmployeeId.ToString() ?? "0";
+                        string cashierName = currentUser?.FullName ?? "Unknown";
+
+                        // Check if App and ServiceProvider exist
+                        if (App.Current is App app && app.ServiceProvider != null)
                         {
-                            await lowStockHistoryService.LogLowStockAlertAsync(
-                                product.ProductId,
-                                product.Name,
-                                product.CurrentStock,
-                                product.MinimumStock,
-                                cashierId,
-                                cashierName
-                            );
-                        }
-                        else
-                        {
-                            Debug.WriteLine("LowStockHistoryService is not available");
+                            var lowStockHistoryService = app.ServiceProvider.GetService<ILowStockHistoryService>();
+                            if (lowStockHistoryService != null)
+                            {
+                                await lowStockHistoryService.LogLowStockAlertAsync(
+                                    product.ProductId,
+                                    product.Name ?? "Unknown Product",
+                                    product.CurrentStock,
+                                    product.MinimumStock,
+                                    cashierId,
+                                    cashierName
+                                );
+                            }
+                            else
+                            {
+                                Debug.WriteLine("LowStockHistoryService is not available");
+                            }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error logging low stock alert: {ex.Message}");
+                        // Continue with transaction processing despite logging error
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error logging low stock alert: {ex.Message}");
-                    // Continue with transaction processing despite logging error
-                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error checking stock levels: {ex.Message}");
+                // Continue with transaction - don't block the sale
             }
         }
 
@@ -581,33 +759,43 @@ namespace QuickTechSystems.WPF.ViewModels
             for (int i = 0; i < productList.Count; i += batchSize)
             {
                 var batch = productList.Skip(i).Take(batchSize);
-                await Task.Run(() => {
-                    foreach (var product in batch)
-                    {
-                        try
-                        {
-                            var image = new BitmapImage();
-                            using (var ms = new MemoryStream(product.Image))
-                            {
-                                image.BeginInit();
-                                image.CacheOption = BitmapCacheOption.OnLoad;
-                                image.DecodePixelWidth = 150; // Optimize for display size
-                                image.StreamSource = ms;
-                                image.EndInit();
-                                image.Freeze(); // Important for cross-thread access
-                            }
 
-                            // Update image cache on UI thread
-                            System.Windows.Application.Current.Dispatcher.Invoke(() => {
-                                _imageCache[product.ProductId] = image;
-                            });
-                        }
-                        catch (Exception ex)
+                try
+                {
+                    await Task.Run(() => {
+                        foreach (var product in batch)
                         {
-                            Debug.WriteLine($"Error caching image for product {product.ProductId}: {ex.Message}");
+                            try
+                            {
+                                if (product?.Image == null) continue;
+
+                                var image = new BitmapImage();
+                                using (var ms = new MemoryStream(product.Image))
+                                {
+                                    image.BeginInit();
+                                    image.CacheOption = BitmapCacheOption.OnLoad;
+                                    image.DecodePixelWidth = 150; // Optimize for display size
+                                    image.StreamSource = ms;
+                                    image.EndInit();
+                                    image.Freeze(); // Important for cross-thread access
+                                }
+
+                                // Update image cache on UI thread
+                                System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                                    _imageCache[product.ProductId] = image;
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Error caching image for product {product?.ProductId}: {ex.Message}");
+                            }
                         }
-                    }
-                });
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error processing image batch: {ex.Message}");
+                }
 
                 // Allow UI to breathe between batches
                 await Task.Delay(10);
@@ -637,8 +825,16 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Toggled view. IsProductCardsVisible: {IsProductCardsVisible}, IsRestaurantMode: {IsRestaurantMode}");
 
                 // Save the preference
-                const string userId = "default";
-                await _systemPreferencesService.SavePreferenceAsync(userId, "RestaurantMode", IsRestaurantMode.ToString());
+                try
+                {
+                    const string userId = "default";
+                    await _systemPreferencesService.SavePreferenceAsync(userId, "RestaurantMode", IsRestaurantMode.ToString());
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error saving restaurant mode preference: {ex.Message}");
+                    // Continue even if saving preference fails
+                }
 
                 // Reload products when switching to card view
                 if (IsProductCardsVisible)
@@ -654,34 +850,39 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Toggling view mode");
         }
 
-
-
         private static SemaphoreSlim _categoryLoadSemaphore = new SemaphoreSlim(1, 1);
 
         public async Task LoadProductCategoriesAsync()
         {
+            bool semaphoreAcquired = false;
+
             try
             {
-                // Wait for any previous operations to complete
-                await _categoryLoadSemaphore.WaitAsync();
+                // Wait for any previous operations to complete with timeout
+                semaphoreAcquired = await _categoryLoadSemaphore.WaitAsync(TimeSpan.FromSeconds(5));
+                if (!semaphoreAcquired)
+                {
+                    Debug.WriteLine("Timed out waiting to load categories");
+                    return;
+                }
 
                 Debug.WriteLine("Loading product categories...");
 
-                try
+                var categories = await _categoryService.GetProductCategoriesAsync();
+                Debug.WriteLine($"Loaded {categories.Count()} categories");
+
+                // Create a list with "All" category first
+                var allCategoriesList = new List<CategoryDTO>
                 {
-                    var categories = await _categoryService.GetProductCategoriesAsync();
-                    Debug.WriteLine($"Loaded {categories.Count()} categories");
+                    new CategoryDTO { CategoryId = 0, Name = "All", Type = "Product" }
+                };
 
-                    // Create a list with "All" category first
-                    var allCategoriesList = new List<CategoryDTO>
-            {
-                new CategoryDTO { CategoryId = 0, Name = "All", Type = "Product" }
-            };
+                // Add the rest of the categories
+                allCategoriesList.AddRange(categories);
 
-                    // Add the rest of the categories
-                    allCategoriesList.AddRange(categories);
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    try
                     {
                         ProductCategories = new ObservableCollection<CategoryDTO>(allCategoriesList);
                         Debug.WriteLine($"Set ProductCategories with {ProductCategories.Count} items");
@@ -697,20 +898,28 @@ namespace QuickTechSystems.WPF.ViewModels
                         OnPropertyChanged(nameof(ProductCategories));
                         OnPropertyChanged(nameof(SelectedCategory));
                         OnPropertyChanged(nameof(IsRestaurantMode));
-                    });
-                }
-                finally
-                {
-                    // Always release the semaphore
-                    _categoryLoadSemaphore.Release();
-                }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error setting categories in UI: {ex.Message}");
+                    }
+                });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading product categories: {ex.Message}");
                 await ShowErrorMessageAsync($"Error loading product categories: {ex.Message}");
             }
+            finally
+            {
+                // Always release the semaphore if we acquired it
+                if (semaphoreAcquired)
+                {
+                    _categoryLoadSemaphore.Release();
+                }
+            }
         }
+
         private class DialogManager
         {
             private static readonly object _lockObj = new object();
@@ -738,70 +947,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
             }
-        }
-        public void AddProductToTransaction(ProductDTO product, int quantity = 1)
-        {
-            // Validate product
-            if (product == null)
-            {
-                WindowManager.ShowWarning("No product selected. Please select a product first.");
-                return;
-            }
-
-            // Validate quantity is positive
-            if (quantity <= 0)
-            {
-                WindowManager.ShowWarning("Quantity must be a positive number. It has been corrected to 1.");
-                quantity = 1;
-            }
-
-            // Check if adding this product would result in low stock
-            CheckAndAlertLowStock(product, quantity);
-
-            if (CurrentTransaction?.Details == null)
-            {
-                CurrentTransaction = new TransactionDTO
-                {
-                    Details = new ObservableCollection<TransactionDetailDTO>(),
-                    TransactionDate = DateTime.Now,
-                    Status = TransactionStatus.Pending
-                };
-            }
-
-            var existingDetail = CurrentTransaction.Details.FirstOrDefault(d => d.ProductId == product.ProductId);
-            if (existingDetail != null)
-            {
-                existingDetail.Quantity += quantity;
-                existingDetail.Total = existingDetail.Quantity * existingDetail.UnitPrice;
-                var index = CurrentTransaction.Details.IndexOf(existingDetail);
-                CurrentTransaction.Details.RemoveAt(index);
-                CurrentTransaction.Details.Insert(index, existingDetail);
-            }
-            else
-            {
-                // Get customer-specific price if available
-                decimal unitPrice = product.SalePrice;
-                if (_customerSpecificPrices.TryGetValue(product.ProductId, out decimal customPrice))
-                {
-                    unitPrice = customPrice;
-                }
-
-                var detail = new TransactionDetailDTO
-                {
-                    ProductId = product.ProductId,
-                    ProductName = product.Name,
-                    ProductBarcode = product.Barcode,
-                    Quantity = quantity,
-                    UnitPrice = unitPrice,
-                    PurchasePrice = product.PurchasePrice,
-                    Total = unitPrice * quantity,
-                    TransactionId = CurrentTransaction.TransactionId
-                };
-                CurrentTransaction.Details.Add(detail);
-            }
-
-            UpdateTotals();
-            OnPropertyChanged(nameof(CurrentTransaction.Details));
         }
 
         private async Task CloseDrawerAsync()
@@ -832,6 +977,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
 
                 var ownerWindow = GetOwnerWindow();
+                if (ownerWindow == null)
+                {
+                    throw new InvalidOperationException("Cannot find a valid window to show the dialog");
+                }
 
                 var dialog = new InputDialog("Close Drawer", "Enter final cash amount:")
                 {
@@ -848,16 +997,24 @@ namespace QuickTechSystems.WPF.ViewModels
                         throw new InvalidOperationException("Please enter a valid amount. Amount has been set to 0.");
                     }
 
+                    // Process drawer closing
                     await _drawerService.CloseDrawerAsync(finalAmount, "Closed by user at end of shift");
 
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        MessageBox.Show(
-                            ownerWindow,
-                            "Drawer closed successfully. The application will now exit.",
-                            "Success",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
+                        try
+                        {
+                            MessageBox.Show(
+                                ownerWindow,
+                                "Drawer closed successfully. The application will now exit.",
+                                "Success",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error showing close success message: {ex.Message}");
+                        }
                     });
 
                     // Close the application after showing the success message
@@ -865,27 +1022,53 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }, "Closing drawer");
         }
+
         private void StartNewTransaction()
         {
-            var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
-
-            CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
-            CurrentTransaction = new TransactionDTO
+            try
             {
-                TransactionDate = DateTime.Now,
-                Status = TransactionStatus.Pending,
-                Details = new ObservableCollection<TransactionDetailDTO>(),
-                CashierId = currentUser?.EmployeeId.ToString() ?? "0",
-                CashierName = currentUser?.FullName ?? "Unknown"
-            };
+                var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
 
-            // Update the UI with cashier info
-            CashierName = currentUser?.FullName ?? "Unknown";
+                CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
+                CurrentTransaction = new TransactionDTO
+                {
+                    TransactionDate = DateTime.Now,
+                    Status = TransactionStatus.Pending,
+                    Details = new ObservableCollection<TransactionDetailDTO>(),
+                    CashierId = currentUser?.EmployeeId.ToString() ?? "0",
+                    CashierName = currentUser?.FullName ?? "Unknown"
+                };
 
-            // Reset editing state
-            IsEditingTransaction = false;
+                // Update the UI with cashier info
+                CashierName = currentUser?.FullName ?? "Unknown";
 
-            ClearTotals();
+                // Reset editing state
+                IsEditingTransaction = false;
+                OnPropertyChanged(nameof(IsEditingTransaction));
+                OnPropertyChanged(nameof(CashPaymentButtonText));
+                OnPropertyChanged(nameof(CustomerBalanceButtonText));
+                OnPropertyChanged(nameof(EditModeIndicatorVisibility));
+
+                ClearTotals();
+
+                // Update status message
+                StatusMessage = "New transaction started";
+                OnPropertyChanged(nameof(StatusMessage));
+                OnPropertyChanged(nameof(CurrentTransaction));
+                OnPropertyChanged(nameof(CurrentTransactionNumber));
+                OnPropertyChanged(nameof(CashierName));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error starting new transaction: {ex.Message}");
+                // Create a minimal transaction to prevent null reference errors
+                CurrentTransaction = new TransactionDTO
+                {
+                    TransactionDate = DateTime.Now,
+                    Status = TransactionStatus.Pending,
+                    Details = new ObservableCollection<TransactionDetailDTO>(),
+                };
+            }
         }
 
         private async Task HoldTransaction()
@@ -895,10 +1078,44 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (CurrentTransaction?.Details.Any() == true)
                 {
                     CurrentTransaction.Status = TransactionStatus.Pending;
-                    await Task.Run(() => HeldTransactions.Add(CurrentTransaction));
+
+                    // Create a deep copy of the transaction before holding
+                    var transactionCopy = new TransactionDTO
+                    {
+                        TransactionId = CurrentTransaction.TransactionId,
+                        TransactionDate = CurrentTransaction.TransactionDate,
+                        CustomerId = CurrentTransaction.CustomerId,
+                        CustomerName = CurrentTransaction.CustomerName,
+                        TotalAmount = CurrentTransaction.TotalAmount,
+                        PaidAmount = CurrentTransaction.PaidAmount,
+                        TransactionType = CurrentTransaction.TransactionType,
+                        Status = TransactionStatus.Pending,
+                        PaymentMethod = CurrentTransaction.PaymentMethod,
+                        CashierId = CurrentTransaction.CashierId,
+                        CashierName = CurrentTransaction.CashierName,
+                        Details = new ObservableCollection<TransactionDetailDTO>(
+                            CurrentTransaction.Details.Select(d => new TransactionDetailDTO
+                            {
+                                ProductId = d.ProductId,
+                                ProductName = d.ProductName,
+                                ProductBarcode = d.ProductBarcode,
+                                Quantity = d.Quantity,
+                                UnitPrice = d.UnitPrice,
+                                PurchasePrice = d.PurchasePrice,
+                                Discount = d.Discount,
+                                Total = d.Total
+                            }))
+                    };
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        HeldTransactions.Add(transactionCopy);
+                        OnPropertyChanged(nameof(HeldTransactions));
+                    });
+
                     await WindowManager.InvokeAsync(() =>
                         MessageBox.Show("Transaction has been held successfully", "Success",
                             MessageBoxButton.OK, MessageBoxImage.Information));
+
                     StartNewTransaction();
                 }
                 else
@@ -946,10 +1163,22 @@ namespace QuickTechSystems.WPF.ViewModels
                 };
 
                 var result = await _quoteService.CreateAsync(quoteToCreate);
-                StartNewTransaction();
+                if (result != null)
+                {
+                    await WindowManager.InvokeAsync(() => MessageBox.Show(
+                        $"Quote #{result.QuoteNumber} created successfully",
+                        "Quote Saved",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information));
+
+                    StartNewTransaction();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Failed to create quote. Please try again.");
+                }
             }, "Quote saved successfully");
         }
-
 
         private async Task RecallTransaction()
         {
@@ -971,23 +1200,48 @@ namespace QuickTechSystems.WPF.ViewModels
                 var heldTransaction = HeldTransactions.LastOrDefault();
                 if (heldTransaction != null)
                 {
-                    await Task.Run(() =>
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        CurrentTransaction = heldTransaction;
-                        HeldTransactions.Remove(heldTransaction);
+                        try
+                        {
+                            CurrentTransaction = heldTransaction;
+                            HeldTransactions.Remove(heldTransaction);
+                            OnPropertyChanged(nameof(HeldTransactions));
+                            OnPropertyChanged(nameof(CurrentTransaction));
+
+                            // Also update customer info if available
+                            if (heldTransaction.CustomerId.HasValue && heldTransaction.CustomerId.Value > 0)
+                            {
+                                _customerService.GetByIdAsync(heldTransaction.CustomerId.Value)
+                                    .ContinueWith(t => {
+                                        if (t.IsCompleted && !t.IsFaulted && t.Result != null)
+                                        {
+                                            System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                                                _isNavigating = true;
+                                                SelectedCustomer = t.Result;
+                                                CustomerSearchText = t.Result.Name;
+                                                _isNavigating = false;
+                                            });
+                                        }
+                                    });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error recalling transaction: {ex.Message}");
+                            throw;
+                        }
                     });
+
                     UpdateTotals();
+                    StatusMessage = "Transaction recalled";
+                    OnPropertyChanged(nameof(StatusMessage));
                 }
                 else
                 {
                     throw new InvalidOperationException("No held transactions to recall");
                 }
             }, "Recalling transaction");
-        }
-
-        private async Task UpdateUI(Action action)
-        {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
         }
 
         private async Task VoidTransaction()
@@ -999,12 +1253,32 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("No transaction to void");
                 }
 
-                if (MessageBox.Show("Are you sure you want to void this transaction?", "Confirm Void",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                var result = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    "Are you sure you want to void this transaction?",
+                    "Confirm Void",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question));
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+
+                if (CurrentTransaction.TransactionId > 0)
                 {
+                    // This is an existing transaction that needs to be voided in the database
                     await _transactionService.UpdateStatusAsync(CurrentTransaction.TransactionId, TransactionStatus.Cancelled);
-                    StartNewTransaction();
+
+                    // Publish event to notify other components
+                    _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Update",
+                        new TransactionDTO
+                        {
+                            TransactionId = CurrentTransaction.TransactionId,
+                            Status = TransactionStatus.Cancelled
+                        }));
                 }
+
+                StartNewTransaction();
+                StatusMessage = "Transaction voided";
+                OnPropertyChanged(nameof(StatusMessage));
             }, "Voiding transaction");
         }
 
@@ -1109,67 +1383,73 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
-                await ExecuteOperationSafelyAsync(async () =>
-                {
-                    // Default to empty dictionary
-                    var newPrices = new Dictionary<int, decimal>();
+                // Default to empty dictionary
+                var newPrices = new Dictionary<int, decimal>();
 
-                    if (SelectedCustomer != null)
+                if (SelectedCustomer != null)
+                {
+                    try
                     {
-                        try
+                        var customerPrices = await _customerService.GetCustomProductPricesAsync(SelectedCustomer.CustomerId);
+                        if (customerPrices != null)
                         {
-                            var customerPrices = await _customerService.GetCustomProductPricesAsync(SelectedCustomer.CustomerId);
-                            if (customerPrices != null)
-                            {
-                                newPrices = customerPrices.ToDictionary(
-                                    cpp => cpp.ProductId,
-                                    cpp => cpp.Price
-                                );
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error getting customer prices: {ex.Message}");
-                            // Continue with empty pricing dictionary rather than failing
+                            newPrices = customerPrices.ToDictionary(
+                                cpp => cpp.ProductId,
+                                cpp => cpp.Price
+                            );
                         }
                     }
-
-                    // Update the prices dictionary
-                    CustomerSpecificPrices = newPrices;
-
-                    // Update prices for existing items in cart
-                    if (CurrentTransaction?.Details != null)
+                    catch (Exception ex)
                     {
-                        bool pricesChanged = false;
+                        Debug.WriteLine($"Error getting customer prices: {ex.Message}");
+                        // Continue with empty pricing dictionary rather than failing
+                    }
+                }
+
+                // Update the prices dictionary safely on UI thread
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                    CustomerSpecificPrices = newPrices;
+                });
+
+                // Update prices for existing items in cart
+                if (CurrentTransaction?.Details != null)
+                {
+                    bool pricesChanged = false;
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
                         foreach (var detail in CurrentTransaction.Details)
                         {
                             pricesChanged |= UpdateProductPrice(detail);
                         }
+                    });
 
-                        if (pricesChanged)
-                        {
-                            UpdateTotals();
+                    if (pricesChanged)
+                    {
+                        UpdateTotals();
 
-                            // Notify UI of updated items
-                            OnPropertyChanged(nameof(CurrentTransaction.Details));
-                        }
+                        // Notify UI of updated items
+                        OnPropertyChanged(nameof(CurrentTransaction.Details));
                     }
-                }, "Loading customer specific prices");
+                }
+
+                return;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading customer prices: {ex.Message}");
                 StatusMessage = "Error loading customer prices";
                 CustomerSpecificPrices = new Dictionary<int, decimal>();
+                throw;
             }
         }
 
-
         private bool UpdateProductPrice(TransactionDetailDTO detail)
         {
+            if (detail == null) return false;
+
             if (_customerSpecificPrices.TryGetValue(detail.ProductId, out decimal customPrice))
             {
-                if (detail.UnitPrice != customPrice)
+                if (Math.Abs(detail.UnitPrice - customPrice) > 0.001m) // Use small epsilon for decimal comparison
                 {
                     decimal oldTotal = detail.Total;
                     detail.UnitPrice = customPrice;
@@ -1185,35 +1465,61 @@ namespace QuickTechSystems.WPF.ViewModels
         private async Task<bool?> ShowDialog<T>(T dialog) where T : Window
         {
             return await WindowManager.InvokeAsync(() => {
-                dialog.Owner = GetOwnerWindow();
-                dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-                return dialog.ShowDialog();
+                try
+                {
+                    dialog.Owner = GetOwnerWindow();
+                    dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    return dialog.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error showing dialog: {ex.Message}");
+                    throw;
+                }
             });
         }
 
         private async Task<string> ShowInputDialog(string prompt, string title)
         {
-            return await WindowManager.InvokeAsync(() =>
+            try
             {
-                var dialog = new InputDialog(title, prompt)
+                return await WindowManager.InvokeAsync(() =>
                 {
-                    Owner = System.Windows.Application.Current.MainWindow
-                };
-                return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
-            });
+                    var dialog = new InputDialog(title, prompt)
+                    {
+                        Owner = GetOwnerWindow() ?? System.Windows.Application.Current.MainWindow
+                    };
+
+                    return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error showing input dialog: {ex.Message}");
+                return string.Empty;
+            }
         }
 
         private async Task ShowErrorMessageAsync(string message)
         {
             await WindowManager.InvokeAsync(() =>
             {
-                var ownerWindow = GetOwnerWindow();
-                MessageBox.Show(
-                    ownerWindow,
-                    message,
-                    "Error",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                try
+                {
+                    var ownerWindow = GetOwnerWindow();
+                    MessageBox.Show(
+                        ownerWindow ?? System.Windows.Application.Current.MainWindow,
+                        message,
+                        "Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error showing error message: {ex.Message}");
+                    // Last resort - write to console if even showing the error fails
+                    Console.WriteLine($"CRITICAL ERROR: {message}");
+                }
             });
         }
 
@@ -1223,46 +1529,86 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 var startDate = DateTime.Today;
                 var endDate = DateTime.Now;
-                var summary = await _drawerService.GetFinancialSummaryAsync(startDate, endDate);
 
-                DailySales = summary.Sales;
-                SupplierPayments = summary.SupplierPayments;
-                DailyExpenses = summary.Expenses;
+                try
+                {
+                    var summary = await _drawerService.GetFinancialSummaryAsync(startDate, endDate);
 
-                NetSales = DailySales;
-                NetCashflow = DailySales - SupplierPayments - DailyExpenses;
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        DailySales = summary.Sales;
+                        SupplierPayments = summary.SupplierPayments;
+                        DailyExpenses = summary.Expenses;
 
-                OnPropertyChanged(nameof(DailySales));
-                OnPropertyChanged(nameof(SupplierPayments));
-                OnPropertyChanged(nameof(DailyExpenses));
-                OnPropertyChanged(nameof(NetSales));
-                OnPropertyChanged(nameof(NetCashflow));
+                        NetSales = DailySales;
+                        NetCashflow = DailySales - SupplierPayments - DailyExpenses;
+
+                        OnPropertyChanged(nameof(DailySales));
+                        OnPropertyChanged(nameof(SupplierPayments));
+                        OnPropertyChanged(nameof(DailyExpenses));
+                        OnPropertyChanged(nameof(NetSales));
+                        OnPropertyChanged(nameof(NetCashflow));
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting financial summary: {ex.Message}");
+                    // Set default values on error
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        DailySales = 0;
+                        SupplierPayments = 0;
+                        DailyExpenses = 0;
+                        NetSales = 0;
+                        NetCashflow = 0;
+
+                        OnPropertyChanged(nameof(DailySales));
+                        OnPropertyChanged(nameof(SupplierPayments));
+                        OnPropertyChanged(nameof(DailyExpenses));
+                        OnPropertyChanged(nameof(NetSales));
+                        OnPropertyChanged(nameof(NetCashflow));
+                    });
+                }
             }, "Updating financial summary");
         }
 
         private void IncrementTransactionId()
         {
-            if (string.IsNullOrWhiteSpace(LookupTransactionId))
+            try
             {
-                LookupTransactionId = "1";
-            }
-            else if (int.TryParse(LookupTransactionId, out int currentId))
-            {
-                LookupTransactionId = (currentId + 1).ToString();
+                if (string.IsNullOrWhiteSpace(LookupTransactionId))
+                {
+                    LookupTransactionId = "1";
+                    return;
+                }
 
-                // Automatically trigger lookup
-                LookupTransactionAsync().ConfigureAwait(false);
+                if (int.TryParse(LookupTransactionId, out int currentId))
+                {
+                    LookupTransactionId = (currentId + 1).ToString();
+
+                    // Automatically trigger lookup
+                    LookupTransactionAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error incrementing transaction ID: {ex.Message}");
             }
         }
 
         private void DecrementTransactionId()
         {
-            if (int.TryParse(LookupTransactionId, out int currentId) && currentId > 1)
+            try
             {
-                LookupTransactionId = (currentId - 1).ToString();
+                if (int.TryParse(LookupTransactionId, out int currentId) && currentId > 1)
+                {
+                    LookupTransactionId = (currentId - 1).ToString();
 
-                // Automatically trigger lookup
-                LookupTransactionAsync().ConfigureAwait(false);
+                    // Automatically trigger lookup
+                    LookupTransactionAsync().ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error decrementing transaction ID: {ex.Message}");
             }
         }
 
@@ -1274,42 +1620,59 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Filter to only include active products
                 var activeProducts = products.Where(p => p.IsActive).ToList();
-                AllProducts = new ObservableCollection<ProductDTO>(activeProducts);
 
-                // Initialize FilteredProducts with only Internet category active products
-                var internetProducts = activeProducts
-                    .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
-                    .ToList();
-                FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                    AllProducts = new ObservableCollection<ProductDTO>(activeProducts);
+                    OnPropertyChanged(nameof(AllProducts));
+
+                    // Initialize FilteredProducts with only Internet category active products
+                    var internetProducts = activeProducts
+                        .Where(p => p.CategoryName?.Contains("Internet", StringComparison.OrdinalIgnoreCase) == true)
+                        .ToList();
+                    FilteredProducts = new ObservableCollection<ProductDTO>(internetProducts);
+                    OnPropertyChanged(nameof(FilteredProducts));
+                });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading products: {ex.Message}");
+                await ShowErrorMessageAsync("Error loading products. Some features may not work correctly.");
             }
         }
 
         private void FilterProductsForDropdown(string searchText)
         {
-            if (_allProducts == null)
+            try
             {
+                if (_allProducts == null)
+                {
+                    FilteredProducts = new ObservableCollection<ProductDTO>();
+                    Debug.WriteLine("No products available to filter");
+                    OnPropertyChanged(nameof(FilteredProducts));
+                    return;
+                }
+
+                // Always start with only active products
+                var filteredList = _allProducts.Where(p => p.IsActive).ToList();
+
+                if (!string.IsNullOrWhiteSpace(searchText))
+                {
+                    filteredList = filteredList.Where(p =>
+                        (p.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
+                        (p.Barcode?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true))
+                        .ToList();
+                }
+
+                FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
+                OnPropertyChanged(nameof(FilteredProducts));
+                Debug.WriteLine($"Filtered products count: {FilteredProducts.Count}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error filtering products: {ex.Message}");
                 FilteredProducts = new ObservableCollection<ProductDTO>();
-                Debug.WriteLine("No products available to filter");
-                return;
+                OnPropertyChanged(nameof(FilteredProducts));
             }
-
-            // Always start with only active products
-            var filteredList = _allProducts.Where(p => p.IsActive).ToList();
-
-            if (!string.IsNullOrWhiteSpace(searchText))
-            {
-                filteredList = filteredList.Where(p =>
-                    p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                    p.Barcode.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-            }
-
-            FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
-            Debug.WriteLine($"Filtered products count: {FilteredProducts.Count}");
         }
 
         private void CacheProductImage(ProductDTO product)

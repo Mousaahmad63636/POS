@@ -80,67 +80,109 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _lookupTransactionId;
             set
             {
-                // Declare parsedValue outside if statements to fix scope issue
-                int parsedValue = 0;
+                // Cleanup any existing timer first
+                CleanupLookupDebounceTimer();
 
-                // Better validation with specific error messages
-                if (!string.IsNullOrWhiteSpace(value) && !int.TryParse(value, out parsedValue))
+                // Validate input is numeric or empty
+                if (!string.IsNullOrWhiteSpace(value))
                 {
-                    // Invalid non-numeric input - show alert and reset to latest ID
-                    ShowInvalidLookupAlert();
-                    return; // Don't set the invalid value
+                    if (!int.TryParse(value, out int parsedValue))
+                    {
+                        // Invalid non-numeric input - show alert and reset to latest ID
+                        ShowInvalidLookupAlert();
+                        return; // Don't set the invalid value
+                    }
+
+                    if (parsedValue < 0)
+                    {
+                        WindowManager.InvokeAsync(() =>
+                            MessageBox.Show(
+                                "Transaction number cannot be negative.",
+                                "Invalid Input",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning));
+                        return;
+                    }
                 }
 
-                if (!string.IsNullOrWhiteSpace(value) && parsedValue < 0)
-                {
-                    WindowManager.InvokeAsync(() =>
-                        MessageBox.Show(
-                            "Transaction number cannot be negative.",
-                            "Invalid Input",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning));
-                    return;
-                }
-
-                // Only trigger lookup if the value actually changed
+                // Store whether the value actually changed
                 bool valueChanged = _lookupTransactionId != value;
+
+                // Set property
                 SetProperty(ref _lookupTransactionId, value);
 
-                // If value was changed through UI editing (not from code)
-                // and we have a valid ID, auto-trigger lookup
+                // Only trigger lookup if value changed through UI editing (not from code)
+                // and we have a valid ID, and we're not already in edit mode
                 if (valueChanged && !string.IsNullOrWhiteSpace(value) &&
                     int.TryParse(value, out _) &&
                     !IsEditingTransaction)
                 {
-                    // Clean up any existing timer before creating a new one
-                    if (_lookupDebounceTimer != null)
-                    {
-                        _lookupDebounceTimer.Stop();
-                        _lookupDebounceTimer.Dispose();
-                        _lookupDebounceTimer = null;
-                    }
-
                     // Create a new timer with proper disposal
                     _lookupDebounceTimer = new System.Timers.Timer(500); // 500ms delay
+
+                    // Use try-catch for the event handler
                     _lookupDebounceTimer.Elapsed += async (s, e) =>
                     {
-                        _lookupDebounceTimer.Stop();
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        try
                         {
-                            if (LookupTransactionCommand.CanExecute(null))
+                            // Stop timer first to prevent re-entry
+                            _lookupDebounceTimer?.Stop();
+
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                LookupTransactionCommand.Execute(null);
-                            }
-                        });
+                                try
+                                {
+                                    // Check if command can execute
+                                    if (LookupTransactionCommand?.CanExecute(null) == true)
+                                    {
+                                        LookupTransactionCommand.Execute(null);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error executing lookup command: {ex.Message}");
+                                    StatusMessage = "Error looking up transaction";
+                                    OnPropertyChanged(nameof(StatusMessage));
+                                }
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error in timer callback: {ex.Message}");
+                        }
                     };
+
+                    // Start the timer
                     _lookupDebounceTimer.Start();
                 }
             }
         }
 
-
         // Add a timer field to debounce lookup requests
         private System.Timers.Timer _lookupDebounceTimer;
+
+        // Helper method to clean up timer resources
+        private void CleanupLookupDebounceTimer()
+        {
+            if (_lookupDebounceTimer != null)
+            {
+                try
+                {
+                    _lookupDebounceTimer.Stop();
+                    _lookupDebounceTimer.Elapsed -= null; // Remove all event handlers
+                    _lookupDebounceTimer.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error cleaning up timer: {ex.Message}");
+                }
+                finally
+                {
+                    _lookupDebounceTimer = null;
+                }
+            }
+        }
+
         public CategoryDTO SelectedCategory
         {
             get => _selectedCategory;
@@ -307,26 +349,58 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedCustomer, value))
                 {
-                    // Use Task.Run to properly manage the async operation
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await LoadCustomerSpecificPrices();
-                        }
-                        catch (Exception ex)
-                        {
-                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                            {
-                                ShowErrorMessageAsync($"Error loading customer prices: {ex.Message}");
-                            });
-                        }
-                    });
+                    // Handle loading customer-specific prices safely
+                    LoadCustomerPricesSafely(value);
                 }
             }
         }
 
+        // Safe method to load customer specific prices
+        private void LoadCustomerPricesSafely(CustomerDTO customer)
+        {
+            // Early exit if no customer
+            if (customer == null)
+            {
+                CustomerSpecificPrices = new Dictionary<int, decimal>();
+                return;
+            }
 
+            try
+            {
+                StatusMessage = $"Loading prices for {customer.Name}...";
+                OnPropertyChanged(nameof(StatusMessage));
+
+                // Use the ExecuteOperationSafelyAsync method to properly handle async loading
+                ExecuteOperationSafelyAsync(async () =>
+                {
+                    try
+                    {
+                        await LoadCustomerSpecificPrices();
+
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                            StatusMessage = "Prices loaded successfully";
+                            OnPropertyChanged(nameof(StatusMessage));
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error loading customer prices: {ex.Message}");
+
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                            ShowErrorMessageAsync($"Error loading customer prices: {ex.Message}");
+                            StatusMessage = "Error loading customer prices";
+                            OnPropertyChanged(nameof(StatusMessage));
+                        });
+                    }
+                }, "Loading customer specific prices").ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error initializing customer price loading: {ex.Message}");
+                CustomerSpecificPrices = new Dictionary<int, decimal>();
+                StatusMessage = "Ready";
+            }
+        }
 
         public int ItemCount
         {
@@ -385,7 +459,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _customerSearchText, value))
                 {
                     // Only trigger search if not navigating between transactions
-                    if (!_isNavigating)
+                    if (!_isNavigating && !_suppressCustomerDropdown)
                     {
                         // Clear existing results first
                         FilteredCustomers.Clear();
@@ -420,29 +494,34 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedCustomerFromSearch, value) && value != null)
                 {
-                    // Prevent search from occurring by setting a flag before changing text
-                    _suppressCustomerDropdown = true;
+                    try
+                    {
+                        // Prevent search from occurring by setting a flag before changing text
+                        _suppressCustomerDropdown = true;
 
-                    // Update customer selection first
-                    SelectedCustomer = value;
+                        // Update customer selection first
+                        SelectedCustomer = value;
 
-                    // Set search text (this will trigger SearchCustomers)
-                    CustomerSearchText = value.Name;
+                        // Set search text (this will trigger SearchCustomers)
+                        CustomerSearchText = value.Name ?? string.Empty;
 
-                    // Force hide the dropdown
-                    IsCustomerSearchVisible = false;
+                        // Force hide the dropdown
+                        IsCustomerSearchVisible = false;
 
-                    // Clear the filtered customer list to prevent popup showing same customer
-                    FilteredCustomers.Clear();
+                        // Clear the filtered customer list to prevent popup showing same customer
+                        FilteredCustomers.Clear();
 
-                    // Make sure UI is immediately updated
-                    OnPropertyChanged(nameof(FilteredCustomers));
-                    OnPropertyChanged(nameof(IsCustomerSearchVisible));
-
-                    // Keep suppression active longer with a much longer delay
-                    Task.Delay(1000).ContinueWith(_ => {
-                        _suppressCustomerDropdown = false;
-                    });
+                        // Make sure UI is immediately updated
+                        OnPropertyChanged(nameof(FilteredCustomers));
+                        OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                    }
+                    finally
+                    {
+                        // Always reset the suppression flag after a delay
+                        Task.Delay(1000).ContinueWith(_ => {
+                            _suppressCustomerDropdown = false;
+                        });
+                    }
                 }
             }
         }
