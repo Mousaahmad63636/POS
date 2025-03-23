@@ -49,6 +49,7 @@ namespace QuickTechSystems.Application.Services
 
                     // Store the original total amount for drawer sync
                     decimal originalAmount = existingTransaction.TotalAmount;
+                    string originalPaymentMethod = existingTransaction.PaymentMethod;
 
                     // Update the existing transaction properties
                     existingTransaction.CustomerId = transactionDto.CustomerId;
@@ -56,7 +57,7 @@ namespace QuickTechSystems.Application.Services
                     existingTransaction.TotalAmount = transactionDto.TotalAmount;
                     existingTransaction.PaidAmount = transactionDto.PaidAmount;
                     existingTransaction.Status = transactionDto.Status;
-                    existingTransaction.PaymentMethod = transactionDto.PaymentMethod;
+                    existingTransaction.PaymentMethod = transactionDto.PaymentMethod; // Important: preserve payment method
 
                     // Get current transaction details from database
                     var existingDetails = await _unitOfWork.Context.Set<TransactionDetail>()
@@ -117,36 +118,11 @@ namespace QuickTechSystems.Application.Services
                     await _repository.UpdateAsync(existingTransaction);
                     await _unitOfWork.SaveChangesAsync();
 
-                    // Check if total amount has changed and update drawer transactions
-                    if (Math.Abs(originalAmount - transactionDto.TotalAmount) > 0.01m)
-                    {
-                        // Update drawer transactions - note we don't want this to be part of the same transaction
-                        // as it's OK if this fails - we can handle drawer reconciliation later
-                        await transaction.CommitAsync();
+                    // Check if total amount has changed
+                    decimal amountDifference = transactionDto.TotalAmount - originalAmount;
 
-                        if (existingTransaction.PaymentMethod?.ToLower() == "cash")
-                        {
-                            string description = $"Modified Transaction #{transactionDto.TransactionId}";
-                            try
-                            {
-                                await _drawerService.UpdateDrawerTransactionForModifiedSaleAsync(
-                                    transactionDto.TransactionId,
-                                    originalAmount,
-                                    transactionDto.TotalAmount,
-                                    description);
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Warning: Could not update drawer transaction: {ex.Message}");
-                                // We continue anyway since the transaction update succeeded
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Commit transaction if we haven't already
-                        await transaction.CommitAsync();
-                    }
+                    // Finish transaction operations - cash transactions are handled by the caller
+                    await transaction.CommitAsync();
 
                     // Get the updated transaction with all its details
                     var updatedTransaction = await _repository.Query()
@@ -159,13 +135,6 @@ namespace QuickTechSystems.Application.Services
 
                     // Publish event to notify other components of the update
                     _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Update", result));
-
-                    // Also publish drawer update event to refresh drawer views
-                    _eventAggregator.Publish(new DrawerUpdateEvent(
-                        "Transaction Update",
-                        transactionDto.TotalAmount - originalAmount,
-                        $"Transaction #{transactionDto.TransactionId} updated"
-                    ));
 
                     return result;
                 }

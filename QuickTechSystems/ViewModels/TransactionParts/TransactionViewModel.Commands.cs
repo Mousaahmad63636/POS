@@ -73,10 +73,23 @@ namespace QuickTechSystems.WPF.ViewModels
                 _ => !string.IsNullOrWhiteSpace(LookupTransactionId));
 
             AddToCustomerBalanceCommand = new AsyncRelayCommand(
-                async _ => await ProcessAsCustomerDebt(),
-                _ => CurrentTransaction?.Details != null &&
-                     CurrentTransaction.Details.Any() &&
-                     SelectedCustomer != null);
+     async _ =>
+     {
+
+         if (IsEditingTransaction && CurrentTransaction?.TransactionId > 0)
+         {
+
+             await UpdateExistingTransactionAsync();
+         }
+         else
+         {
+
+             await ProcessAsCustomerDebt();
+         }
+     },
+     _ => CurrentTransaction?.Details != null &&
+          CurrentTransaction.Details.Any() &&
+          SelectedCustomer != null);
 
             // Item management commands with conditions
             RemoveItemCommand = new RelayCommand(
@@ -108,26 +121,28 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Payment commands
             CashPaymentCommand = new AsyncRelayCommand(
-                async _ =>
-                {
-                    // Validate if there are products in the transaction
-                    if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
-                    {
-                        await ShowErrorMessageAsync("You must select a product before completing the sale.");
-                        return;
-                    }
+      async _ =>
+      {
+          // Validate if there are products in the transaction
+          if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+          {
+              await ShowErrorMessageAsync("You must select a product before completing the sale.");
+              return;
+          }
 
-                    // Check if this is an existing transaction that's being edited
-                    if (IsEditingTransaction && CurrentTransaction.TransactionId > 0)
-                    {
-                        await UpdateExistingTransactionAsync();
-                    }
-                    else
-                    {
-                        await ProcessCashPayment();
-                    }
-                },
-                _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+          // Check if this is an existing transaction that's being edited
+          if (IsEditingTransaction && CurrentTransaction.TransactionId > 0)
+          {
+              // Update existing transaction, preserving its original payment method
+              await UpdateExistingTransactionAsync();
+          }
+          else
+          {
+              // Create new cash transaction
+              await ProcessCashPayment();
+          }
+      },
+      _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
             ToggleViewCommand = new RelayCommand(_ => ToggleView());
 
@@ -348,17 +363,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-                var result = MessageBox.Show(
-                    "Do you want to exit without saving the sale?",
-                    "Confirm Clear",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    // Clear directly
-                    StartNewTransaction();
-                }
+               
             }
             catch (Exception ex)
             {

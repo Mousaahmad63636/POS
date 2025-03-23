@@ -286,16 +286,59 @@ namespace QuickTechSystems.WPF.ViewModels
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
+                    // Store original transaction details for comparison
+                    var originalTransaction = await _transactionService.GetByIdAsync(CurrentTransaction.TransactionId);
+                    if (originalTransaction == null)
+                    {
+                        throw new InvalidOperationException($"Original transaction #{CurrentTransaction.TransactionId} not found");
+                    }
+
+                    // Store original values for later comparison
+                    decimal originalAmount = originalTransaction.TotalAmount;
+                    string originalPaymentMethod = originalTransaction.PaymentMethod;
+                    bool isCustomerDebt = originalPaymentMethod == "CustomerDebt";
+                    int? originalCustomerId = originalTransaction.CustomerId;
+
                     // Prepare the transaction for update
                     CurrentTransaction.TransactionDate = DateTime.Now;
                     CurrentTransaction.CustomerId = SelectedCustomer?.CustomerId;
                     CurrentTransaction.CustomerName = SelectedCustomer?.Name ?? "Walk-in Customer";
                     CurrentTransaction.TotalAmount = TotalAmount;
                     CurrentTransaction.Status = TransactionStatus.Completed;
-                    CurrentTransaction.PaymentMethod = "Cash"; // Setting payment method for cash payment
+
+                    // Preserve the original payment method
+                    CurrentTransaction.PaymentMethod = originalPaymentMethod;
 
                     // Process the updated transaction
                     var updatedTransaction = await _transactionService.UpdateAsync(CurrentTransaction);
+
+                    // Calculate the difference in amount
+                    decimal amountDifference = TotalAmount - originalAmount;
+
+                    // If this is a customer debt transaction, update the customer balance only by the difference
+                    if (isCustomerDebt && Math.Abs(amountDifference) > 0.01m)
+                    {
+                        // Only update customer balance if customer ID matches
+                        if (SelectedCustomer?.CustomerId == originalCustomerId && originalCustomerId.HasValue)
+                        {
+                            await _customerService.UpdateBalanceAsync(
+                                originalCustomerId.Value,
+                                amountDifference  // Only apply the difference, not the full amount
+                            );
+
+                            Debug.WriteLine($"Updated customer balance by difference: {amountDifference:C2}");
+                        }
+                    }
+                    // Only update drawer for cash transactions
+                    else if (originalPaymentMethod.ToLower() == "cash" && Math.Abs(amountDifference) > 0.01m)
+                    {
+                        await _drawerService.UpdateDrawerTransactionForModifiedSaleAsync(
+                            CurrentTransaction.TransactionId,
+                            originalAmount,
+                            TotalAmount,
+                            $"Modified Transaction #{CurrentTransaction.TransactionId}"
+                        );
+                    }
 
                     // Publish event for the updated transaction
                     _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>(

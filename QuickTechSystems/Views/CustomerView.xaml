@@ -172,10 +172,6 @@
                                                         Foreground="#28a745"
                                                         Visibility="{Binding Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"
                                                         Margin="0,0,8,0"/>
-                                                <Button Content="Delete" 
-                                                        Click="DeleteButton_Click"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Foreground="#dc3545"/>
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>

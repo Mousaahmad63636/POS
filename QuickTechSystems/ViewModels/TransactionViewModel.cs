@@ -35,7 +35,10 @@ namespace QuickTechSystems.WPF.ViewModels
         private Dictionary<int, decimal> _customerSpecificPrices = new();
         private readonly ICategoryService _categoryService;
         private readonly ISystemPreferencesService _systemPreferencesService;
-
+        public string CashPaymentButtonText => IsEditingTransaction ? "Update Transaction" : "Cash Payment";
+        public string CustomerBalanceButtonText => IsEditingTransaction ? "Update Customer Balance" : "Add to Customer Balance";
+        public Visibility EditModeIndicatorVisibility =>
+    IsEditingTransaction ? Visibility.Visible : Visibility.Collapsed;
         // Thread synchronization
         private readonly SemaphoreSlim _transactionOperationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;

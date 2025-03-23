@@ -131,11 +131,11 @@
                     Command="{Binding CloseDrawerCommand}"
                     Style="{StaticResource BasicButtonStyle}"
                     Margin="4"/>
-            <Button Content="Cash Payment (F12)"
-                    Command="{Binding CashPaymentCommand}"
-                    Style="{StaticResource BasicButtonStyle}"
-                    Margin="4"/>
-            <Button Content="Add to Customer Balance"
+            <Button Content="{Binding CashPaymentButtonText}"
+        Command="{Binding CashPaymentCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Margin="4"/>
+            <Button Content="{Binding CustomerBalanceButtonText}"
         Command="{Binding AddToCustomerBalanceCommand}"
         Style="{StaticResource BasicButtonStyle}"
         Background="#FFA726"

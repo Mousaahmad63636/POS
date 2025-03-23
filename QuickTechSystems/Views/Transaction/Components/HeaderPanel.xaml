@@ -396,6 +396,24 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Border>
+                <Border Background="#FFC107" 
+        Padding="10,5"
+        HorizontalAlignment="Right"
+        VerticalAlignment="Top"
+        Margin="0,5,20,0"
+        CornerRadius="4"
+        Visibility="{Binding EditModeIndicatorVisibility}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="EDIT MODE" 
+                  FontWeight="Bold" 
+                  Foreground="#333333"/>
+                        <TextBlock Text=" - Transaction #" 
+                  Foreground="#333333"/>
+                        <TextBlock Text="{Binding CurrentTransaction.TransactionId}" 
+                  Foreground="#333333" 
+                  FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
                 <!-- Basic Totals Summary on the Right -->
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 
