@@ -54,6 +54,24 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        public async Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Where(p => p.Barcode == barcode);
+
+                if (excludeProductId > 0)
+                {
+                    query = query.Where(p => p.ProductId != excludeProductId);
+                }
+
+                var product = await query.FirstOrDefaultAsync();
+                return _mapper.Map<ProductDTO>(product);
+            });
+        }
         public async Task<bool> UpdateStockAsync(int productId, int quantity)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

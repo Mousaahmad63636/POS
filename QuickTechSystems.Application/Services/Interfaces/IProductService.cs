@@ -8,5 +8,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<bool> UpdateStockAsync(int productId, int quantity);
         Task<IEnumerable<ProductDTO>> GetLowStockProductsAsync();
         Task<ProductDTO?> GetByBarcodeAsync(string barcode);
+        Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0);
     }
 }

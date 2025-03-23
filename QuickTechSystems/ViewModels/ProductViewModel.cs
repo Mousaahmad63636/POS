@@ -269,6 +269,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand GenerateAutomaticBarcodeCommand { get; private set; }
         public ICommand UpdateStockCommand { get; private set; }
         public ICommand PrintBarcodeCommand { get; private set; }
+        public ICommand GenerateMissingBarcodesCommand { get; private set; }
         public ICommand UploadImageCommand { get; private set; }
         public ICommand ClearImageCommand { get; private set; }
 
@@ -398,6 +399,7 @@ namespace QuickTechSystems.WPF.ViewModels
             PrintBarcodeCommand = new AsyncRelayCommand(async _ => await PrintBarcodeAsync(), _ => !IsSaving);
             UploadImageCommand = new RelayCommand(_ => UploadImage());
             ClearImageCommand = new RelayCommand(_ => ClearImage());
+            GenerateMissingBarcodesCommand = new AsyncRelayCommand(async _ => await GenerateMissingBarcodeImages(), _ => !IsSaving);
         }
 
         protected override void SubscribeToEvents()
@@ -533,6 +535,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
+
         private async Task PrintBarcodeAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -549,11 +553,70 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                if (SelectedProduct.BarcodeImage == null)
+                if (string.IsNullOrWhiteSpace(SelectedProduct.Barcode))
                 {
-                    ShowTemporaryErrorMessage("Please generate a barcode first.");
+                    ShowTemporaryErrorMessage("This product does not have a barcode assigned.");
                     return;
                 }
+
+                // NEW CODE: Auto-generate barcode image if it doesn't exist
+                if (SelectedProduct.BarcodeImage == null)
+                {
+                    StatusMessage = "Generating barcode image...";
+                    IsSaving = true;
+
+                    try
+                    {
+                        // Generate the barcode image
+                        var barcodeData = _barcodeService.GenerateBarcode(SelectedProduct.Barcode);
+                        if (barcodeData != null)
+                        {
+                            SelectedProduct.BarcodeImage = barcodeData;
+                            BarcodeImage = LoadBarcodeImage(barcodeData);
+
+                            // Save the product with the new barcode image
+                            var productCopy = new ProductDTO
+                            {
+                                ProductId = SelectedProduct.ProductId,
+                                Name = SelectedProduct.Name,
+                                Barcode = SelectedProduct.Barcode,
+                                CategoryId = SelectedProduct.CategoryId,
+                                CategoryName = SelectedProduct.CategoryName,
+                                SupplierId = SelectedProduct.SupplierId,
+                                SupplierName = SelectedProduct.SupplierName,
+                                Description = SelectedProduct.Description,
+                                PurchasePrice = SelectedProduct.PurchasePrice,
+                                SalePrice = SelectedProduct.SalePrice,
+                                CurrentStock = SelectedProduct.CurrentStock,
+                                MinimumStock = SelectedProduct.MinimumStock,
+                                BarcodeImage = SelectedProduct.BarcodeImage,
+                                Speed = SelectedProduct.Speed,
+                                IsActive = SelectedProduct.IsActive,
+                                Image = SelectedProduct.Image,
+                                CreatedAt = SelectedProduct.CreatedAt,
+                                UpdatedAt = DateTime.Now
+                            };
+
+                            await _productService.UpdateAsync(productCopy);
+                            Debug.WriteLine("Barcode image generated and product updated");
+                        }
+                        else
+                        {
+                            ShowTemporaryErrorMessage("Failed to generate barcode image.");
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ShowTemporaryErrorMessage($"Error generating barcode image: {ex.Message}");
+                        return;
+                    }
+                    finally
+                    {
+                        IsSaving = false;
+                    }
+                }
+                // END NEW CODE
 
                 IsSaving = true;
                 StatusMessage = "Preparing barcode for printing...";
@@ -983,6 +1046,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
+
         protected override async Task LoadDataAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -1000,6 +1065,16 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Change this line to get only active categories
                 var categories = await _categoryService.GetActiveAsync();
                 var suppliers = await _supplierService.GetActiveAsync();
+
+                // NEW CODE: Check each product for barcode image
+                foreach (var product in products)
+                {
+                    if (!string.IsNullOrWhiteSpace(product.Barcode) && product.BarcodeImage == null)
+                    {
+                        Debug.WriteLine($"Product {product.Name} ({product.Barcode}) has no barcode image");
+                    }
+                }
+                // END NEW CODE
 
                 Products = new ObservableCollection<ProductDTO>(products);
                 Categories = new ObservableCollection<CategoryDTO>(categories);
@@ -1058,6 +1133,8 @@ namespace QuickTechSystems.WPF.ViewModels
             CalculateAggregatedValues();
         }
 
+        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
+
         public async Task SaveAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -1087,17 +1164,42 @@ namespace QuickTechSystems.WPF.ViewModels
                     var categoryPrefix = productToUpdate.CategoryId.ToString().PadLeft(3, '0');
 
                     productToUpdate.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
+                }
+
+                // NEW CODE: Always ensure barcode image exists before saving
+                if (productToUpdate.BarcodeImage == null && !string.IsNullOrWhiteSpace(productToUpdate.Barcode))
+                {
+                    Debug.WriteLine("Generating barcode image for product");
                     productToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(productToUpdate.Barcode);
 
                     // Update the UI image
                     BarcodeImage = LoadBarcodeImage(productToUpdate.BarcodeImage);
-                    Debug.WriteLine($"Generated barcode: {productToUpdate.Barcode}");
+                    Debug.WriteLine("Barcode image generated successfully");
                 }
 
                 if (!ValidateProduct(productToUpdate))
                 {
                     return;
                 }
+
+                // NEW CODE: Check for duplicate barcode
+                var existingProduct = await _productService.FindProductByBarcodeAsync(
+                    productToUpdate.Barcode,
+                    productToUpdate.ProductId);
+
+                if (existingProduct != null)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(
+                            $"Cannot save product: A product with barcode '{existingProduct.Barcode}' already exists: '{existingProduct.Name}'.",
+                            "Duplicate Barcode",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    });
+                    return;
+                }
+                // END NEW CODE
 
                 StatusMessage = "Saving product...";
 
@@ -1177,7 +1279,93 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-        // Add this new method to refresh a specific product without reloading everything
+
+        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
+
+        // Add this new method to the ProductViewModel class
+        private async Task GenerateMissingBarcodeImages()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Operation already in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsSaving = true;
+                StatusMessage = "Generating missing barcode images...";
+                int generatedCount = 0;
+
+                foreach (var product in Products.ToList())
+                {
+                    if (!string.IsNullOrWhiteSpace(product.Barcode) && product.BarcodeImage == null)
+                    {
+                        try
+                        {
+                            var barcodeData = _barcodeService.GenerateBarcode(product.Barcode);
+                            if (barcodeData != null)
+                            {
+                                product.BarcodeImage = barcodeData;
+
+                                var productCopy = new ProductDTO
+                                {
+                                    ProductId = product.ProductId,
+                                    Name = product.Name,
+                                    Barcode = product.Barcode,
+                                    CategoryId = product.CategoryId,
+                                    CategoryName = product.CategoryName,
+                                    SupplierId = product.SupplierId,
+                                    SupplierName = product.SupplierName,
+                                    Description = product.Description,
+                                    PurchasePrice = product.PurchasePrice,
+                                    SalePrice = product.SalePrice,
+                                    CurrentStock = product.CurrentStock,
+                                    MinimumStock = product.MinimumStock,
+                                    BarcodeImage = product.BarcodeImage,
+                                    Speed = product.Speed,
+                                    IsActive = product.IsActive,
+                                    Image = product.Image,
+                                    CreatedAt = product.CreatedAt,
+                                    UpdatedAt = DateTime.Now
+                                };
+
+                                await _productService.UpdateAsync(productCopy);
+                                generatedCount++;
+
+                                // Update status message periodically
+                                if (generatedCount % 5 == 0)
+                                {
+                                    StatusMessage = $"Generated {generatedCount} barcode images...";
+                                    await Task.Delay(10); // Allow UI to update
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error generating barcode for product {product.Name}: {ex.Message}");
+                            // Continue with next product
+                        }
+                    }
+                }
+
+                StatusMessage = $"Successfully generated {generatedCount} barcode images.";
+                await Task.Delay(2000);
+
+                // Refresh products to ensure we have the latest data
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryErrorMessage($"Error generating barcode images: {ex.Message}");
+            }
+            finally
+            {
+                IsSaving = false;
+                StatusMessage = string.Empty;
+                _operationLock.Release();
+            }
+        }
         private async Task RefreshSpecificProduct(int productId)
         {
             try
