@@ -13,11 +13,13 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Windows.Markup;
+using System.Text;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -422,6 +424,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Validating products...";
 
+                // Perform validation
                 var validationResults = ValidateAllProducts();
                 if (validationResults.Any())
                 {
@@ -429,6 +432,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
+                // Setup progress reporting
                 var progress = new Progress<string>(status =>
                 {
                     System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -437,32 +441,114 @@ namespace QuickTechSystems.WPF.ViewModels
                     });
                 });
 
+                // Filter out empty products
+                var productsToSave = Products.Where(p => !IsEmptyProduct(p)).ToList();
+
+                if (!productsToSave.Any())
+                {
+                    MessageBox.Show("No valid products to save.", "Information",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // Pre-process all products before saving
+                StatusMessage = "Preparing products for save...";
+                foreach (var product in productsToSave)
+                {
+                    NormalizeProductData(product);
+                    ValidateBarcode(product);
+                }
+
+                // Check for duplicate barcodes within the batch
+                var duplicateBarcodes = productsToSave
+                    .GroupBy(p => p.Barcode)
+                    .Where(g => g.Count() > 1)
+                    .Select(g => g.Key)
+                    .ToList();
+
+                if (duplicateBarcodes.Any())
+                {
+                    MessageBox.Show($"Found duplicate barcodes within the batch: {string.Join(", ", duplicateBarcodes)}",
+                        "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Check for existing barcodes in the database
+                StatusMessage = "Checking for duplicate barcodes...";
+                var existingBarcodes = new List<string>();
+                foreach (var product in productsToSave)
+                {
+                    try
+                    {
+                        var existingProduct = await _productService.FindProductByBarcodeAsync(product.Barcode);
+                        if (existingProduct != null)
+                        {
+                            existingBarcodes.Add($"{product.Barcode} (used by {existingProduct.Name})");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error checking barcode {product.Barcode}: {ex.Message}");
+                        // Continue checking other barcodes
+                    }
+                }
+
+                if (existingBarcodes.Any())
+                {
+                    MessageBox.Show($"Found barcodes that already exist in the database:\n{string.Join("\n", existingBarcodes)}",
+                        "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                StatusMessage = "Saving products...";
                 var successCount = 0;
                 var errors = new List<string>();
 
-                await Task.Run(async () =>
+                try
                 {
-                for (int i = 0; i < Products.Count; i++)
+                    // Try batch save first
+                    var savedProducts = await _productService.CreateBatchAsync(productsToSave, progress);
+                    successCount = savedProducts.Count;
+                }
+                catch (Exception ex)
                 {
-                    var product = Products[i];
-                    try
+                    // Get detailed error information
+                    var error = GetDetailedErrorMessage(ex);
+                    errors.Add($"Batch save failed: {error}");
+
+                    // Ask if user wants to try individual saves as fallback
+                    if (MessageBox.Show(
+                            "Batch save failed. Would you like to try saving products individually?\n\n" +
+                            "This may succeed for some products but not all.",
+                            "Error", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                     {
-                        if (IsEmptyProduct(product)) continue;
-
-                        ((IProgress<string>)progress).Report($"Processing product {i + 1} of {Products.Count}: {product.Name}");
-
-                        NormalizeProductData(product);
-                        ValidateBarcode(product);
-
-                        await _productService.CreateAsync(product);
-                        successCount++;
-                    }
-                        catch (Exception ex)
+                        // Try individual save as fallback
+                        for (int i = 0; i < productsToSave.Count; i++)
                         {
-                            errors.Add($"Error saving {product.Name}: {ex.Message}");
+                            try
+                            {
+                                var product = productsToSave[i];
+                                ((IProgress<string>)progress).Report($"Processing product {i + 1} of {productsToSave.Count}: {product.Name}");
+
+                                // Double-check the product barcode isn't already used before trying to save it
+                                var existingProduct = await _productService.FindProductByBarcodeAsync(product.Barcode);
+                                if (existingProduct != null)
+                                {
+                                    errors.Add($"Skipped '{product.Name}': Barcode '{product.Barcode}' is already used by '{existingProduct.Name}'");
+                                    continue;
+                                }
+
+                                await _productService.CreateAsync(product);
+                                successCount++;
+                            }
+                            catch (Exception innerEx)
+                            {
+                                var detailedMsg = GetDetailedErrorMessage(innerEx, productsToSave[i].Name);
+                                errors.Add(detailedMsg);
+                            }
                         }
                     }
-                });
+                }
 
                 if (successCount > 0)
                 {
@@ -471,21 +557,29 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     if (errors.Any())
                     {
-                        MessageBox.Show($"Some products failed to save:\n\n{string.Join("\n", errors)}",
-                            "Partial Success", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        var errorMessage = $"Some products failed to save:\n\n{string.Join("\n", errors)}";
+                        MessageBox.Show(errorMessage, "Partial Success", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                        // Log detailed errors
+                        Debug.WriteLine("Bulk save partial errors:\n" + errorMessage);
                     }
 
                     DialogResult = true;
                 }
                 else if (errors.Any())
                 {
-                    MessageBox.Show($"Failed to save any products:\n\n{string.Join("\n", errors)}",
-                        "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    var errorMessage = $"Failed to save any products:\n\n{string.Join("\n", errors)}";
+                    MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                    // Log detailed errors
+                    Debug.WriteLine("Bulk save failed:\n" + errorMessage);
                 }
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error during save operation: {ex.Message}");
+                var errorMessage = $"Error during save operation: {GetDetailedErrorMessage(ex)}";
+                await ShowErrorMessageAsync(errorMessage);
+                Debug.WriteLine("Bulk save unexpected error:\n" + errorMessage);
             }
             finally
             {
@@ -494,6 +588,37 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private string GetDetailedErrorMessage(Exception ex, string context = "")
+        {
+            var sb = new StringBuilder();
+            if (!string.IsNullOrEmpty(context))
+                sb.Append($"Error saving {context}: ");
+
+            sb.Append(ex.Message);
+
+            // Append inner exceptions for more detailed error information
+            var currentEx = ex;
+            while (currentEx.InnerException != null)
+            {
+                currentEx = currentEx.InnerException;
+                sb.Append($"\n→ {currentEx.Message}");
+            }
+
+            // Add Entity Framework validation errors if available
+            if (ex is DbUpdateException dbEx && dbEx.Entries != null && dbEx.Entries.Any())
+            {
+                sb.Append("\nEntity validation errors:");
+                foreach (var entry in dbEx.Entries)
+                {
+                    var entity = entry.Entity;
+                    sb.Append($"\n- {entity.GetType().Name}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        // Enhanced validation method to check for more issues
         private Dictionary<int, List<string>> ValidateAllProducts()
         {
             var errors = new Dictionary<int, List<string>>();
@@ -505,6 +630,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (IsEmptyProduct(product)) continue;
 
+                // Basic validation
                 if (string.IsNullOrWhiteSpace(product.Name))
                     productErrors.Add("Name is required");
 
@@ -523,9 +649,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (product.MinimumStock < 0)
                     productErrors.Add("Minimum stock cannot be negative");
 
-                if (product.MinimumStock > product.CurrentStock)
-                    productErrors.Add("Minimum stock cannot exceed current stock");
+                // Additional validation
+                if (product.SalePrice < product.PurchasePrice)
+                    productErrors.Add("Sale price should not be less than purchase price");
 
+                // Validate Speed format if provided
                 if (!string.IsNullOrWhiteSpace(product.Speed))
                 {
                     if (!decimal.TryParse(product.Speed, out _))
@@ -534,24 +662,40 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
+                // Barcode format validation if not empty
+                if (!string.IsNullOrWhiteSpace(product.Barcode))
+                {
+                    if (product.Barcode.Length < 4)
+                        productErrors.Add("Barcode must be at least 4 characters long");
+
+                    if (!product.Barcode.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '_'))
+                        productErrors.Add("Barcode can only contain letters, numbers, hyphens, and underscores");
+                }
+
+                // Check for duplicate barcodes within the entries
+                if (!string.IsNullOrWhiteSpace(product.Barcode))
+                {
+                    var duplicateIndices = new List<int>();
+
+                    for (int j = 0; j < Products.Count; j++)
+                    {
+                        if (j != i && !IsEmptyProduct(Products[j]) &&
+                            !string.IsNullOrWhiteSpace(Products[j].Barcode) &&
+                            Products[j].Barcode.Equals(product.Barcode, StringComparison.OrdinalIgnoreCase))
+                        {
+                            duplicateIndices.Add(j + 1); // +1 for human-readable row number
+                        }
+                    }
+
+                    if (duplicateIndices.Any())
+                        productErrors.Add($"Barcode '{product.Barcode}' is duplicated in rows: {string.Join(", ", duplicateIndices)}");
+                }
+
                 if (productErrors.Any())
                     errors.Add(i, productErrors);
             }
 
             return errors;
-        }
-
-        private bool IsEmptyProduct(ProductDTO product)
-        {
-            return string.IsNullOrWhiteSpace(product.Name) &&
-                   string.IsNullOrWhiteSpace(product.Barcode) &&
-                   product.CategoryId <= 0 &&
-                   !product.SupplierId.HasValue &&
-                   product.PurchasePrice == 0 &&
-                   product.SalePrice == 0 &&
-                   product.CurrentStock == 0 &&
-                   product.MinimumStock == 0 &&
-                   string.IsNullOrWhiteSpace(product.Speed);
         }
 
         private void DisplayValidationErrors(Dictionary<int, List<string>> errors)
@@ -574,68 +718,81 @@ namespace QuickTechSystems.WPF.ViewModels
             ValidationErrors = errors;
         }
 
+        // Enhanced barcode generation and validation
+        private void ValidateBarcode(ProductDTO product)
+        {
+            if (string.IsNullOrWhiteSpace(product.Barcode))
+            {
+                GenerateBarcodeForProduct(product);
+                return;
+            }
+
+            // Clean barcode (only keep alphanumeric characters, hyphens, and underscores)
+            product.Barcode = new string(product.Barcode.Where(c => char.IsLetterOrDigit(c) || c == '-' || c == '_').ToArray());
+
+            if (string.IsNullOrWhiteSpace(product.Barcode) || product.Barcode.Length < 4)
+            {
+                GenerateBarcodeForProduct(product);
+            }
+            else if (product.BarcodeImage == null)
+            {
+                // Generate barcode image if barcode exists but image doesn't
+                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+            }
+        }
+
+        private void GenerateBarcodeForProduct(ProductDTO product)
+        {
+            var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8); // Use ticks for uniqueness
+            var random = new Random();
+            var randomDigits = random.Next(1000, 9999).ToString();
+            var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "000").PadLeft(3, '0');
+
+            product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
+            product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+        }
+
+        // Enhanced NormalizeProductData method
         private void NormalizeProductData(ProductDTO product)
         {
-            product.Name = product.Name?.Trim();
-            product.Barcode = product.Barcode?.Trim();
+            // Trim text fields
+            product.Name = product.Name?.Trim() ?? string.Empty;
+            product.Barcode = product.Barcode?.Trim() ?? string.Empty;
             product.Description = product.Description?.Trim();
             product.Speed = product.Speed?.Trim();
 
+            // Ensure non-negative values
             product.CurrentStock = Math.Max(0, product.CurrentStock);
             product.MinimumStock = Math.Max(0, product.MinimumStock);
             product.SalePrice = Math.Max(0, product.SalePrice);
             product.PurchasePrice = Math.Max(0, product.PurchasePrice);
 
-            if (product.MinimumStock > product.CurrentStock)
-                product.MinimumStock = product.CurrentStock;
-
+            // Ensure price relationships are sensible
             if (product.SalePrice < product.PurchasePrice)
                 product.SalePrice = product.PurchasePrice;
 
+            // Set creation time if not already set
+            if (product.CreatedAt == default)
+                product.CreatedAt = DateTime.Now;
+
+            // Ensure UpdatedAt is set
+            product.UpdatedAt = DateTime.Now;
+
+            // Ensure IsActive is set
             product.IsActive = true;
         }
 
-        private void ValidateBarcode(ProductDTO product)
+        private bool IsEmptyProduct(ProductDTO product)
         {
-            if (string.IsNullOrWhiteSpace(product.Barcode))
-            {
-                GenerateBarcode(product);
-                return;
-            }
-
-            product.Barcode = new string(product.Barcode.Where(c => char.IsLetterOrDigit(c)).ToArray());
-
-            if (product.Barcode.Length < 8)
-            {
-                GenerateBarcode(product);
-            }
-        }
-
-        private void GenerateBarcode(object? parameter)
-        {
-            try
-            {
-                if (parameter is not ProductDTO product) return;
-
-                var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
-                var random = new Random();
-                var randomDigits = random.Next(1000, 9999).ToString();
-                var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
-
-                product.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
-                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
-
-                OnPropertyChanged(nameof(Products));
-
-                MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error generating barcode: {ex.Message}");
-                MessageBox.Show($"Error generating barcode: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            return string.IsNullOrWhiteSpace(product.Name) &&
+                   string.IsNullOrWhiteSpace(product.Barcode) &&
+                   product.CategoryId <= 0 &&
+                   !product.SupplierId.HasValue &&
+                   product.PurchasePrice == 0 &&
+                   product.SalePrice == 0 &&
+                   product.CurrentStock == 0 &&
+                   product.MinimumStock == 0 &&
+                   string.IsNullOrWhiteSpace(product.Speed);
         }
 
         private void AddEmptyRows(int count)
@@ -777,6 +934,34 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 MessageBox.Show($"Error applying quick fill: {ex.Message}",
                     "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void GenerateBarcode(object? parameter)
+        {
+            try
+            {
+                if (parameter is not ProductDTO product) return;
+
+                var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
+                var random = new Random();
+                var randomDigits = random.Next(1000, 9999).ToString();
+                var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
+
+                product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
+                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+
+                OnPropertyChanged(nameof(Products));
+
+                MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+
+                Debug.WriteLine($"Error generating barcode: {ex.Message}");
+                MessageBox.Show($"Error generating barcode: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 

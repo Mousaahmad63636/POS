@@ -18,6 +18,8 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using Microsoft.Win32;
 using System.Threading;
+using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -1158,23 +1160,33 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (string.IsNullOrWhiteSpace(productToUpdate.Barcode))
                 {
                     Debug.WriteLine("No barcode provided, generating automatic barcode");
-                    var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
+
+                    // Generate a unique barcode based on category, timestamp, and random number
+                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8); // Use ticks for uniqueness
                     var random = new Random();
                     var randomDigits = random.Next(1000, 9999).ToString();
                     var categoryPrefix = productToUpdate.CategoryId.ToString().PadLeft(3, '0');
 
-                    productToUpdate.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
+                    productToUpdate.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
                 }
 
-                // NEW CODE: Always ensure barcode image exists before saving
+                // Always ensure barcode image exists before saving
                 if (productToUpdate.BarcodeImage == null && !string.IsNullOrWhiteSpace(productToUpdate.Barcode))
                 {
                     Debug.WriteLine("Generating barcode image for product");
-                    productToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(productToUpdate.Barcode);
+                    try
+                    {
+                        productToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(productToUpdate.Barcode);
 
-                    // Update the UI image
-                    BarcodeImage = LoadBarcodeImage(productToUpdate.BarcodeImage);
-                    Debug.WriteLine("Barcode image generated successfully");
+                        // Update the UI image
+                        BarcodeImage = LoadBarcodeImage(productToUpdate.BarcodeImage);
+                        Debug.WriteLine("Barcode image generated successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error generating barcode image: {ex.Message}");
+                        // Continue despite this error - we can still save without the image
+                    }
                 }
 
                 if (!ValidateProduct(productToUpdate))
@@ -1182,24 +1194,31 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // NEW CODE: Check for duplicate barcode
-                var existingProduct = await _productService.FindProductByBarcodeAsync(
-                    productToUpdate.Barcode,
-                    productToUpdate.ProductId);
-
-                if (existingProduct != null)
+                // Check for duplicate barcode
+                try
                 {
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    var existingProduct = await _productService.FindProductByBarcodeAsync(
+                        productToUpdate.Barcode,
+                        productToUpdate.ProductId);
+
+                    if (existingProduct != null)
                     {
-                        MessageBox.Show(
-                            $"Cannot save product: A product with barcode '{existingProduct.Barcode}' already exists: '{existingProduct.Name}'.",
-                            "Duplicate Barcode",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                    });
-                    return;
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show(
+                                $"Cannot save product: A product with barcode '{existingProduct.Barcode}' already exists: '{existingProduct.Name}'.",
+                                "Duplicate Barcode",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                        });
+                        return;
+                    }
                 }
-                // END NEW CODE
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error checking for duplicate barcode: {ex.Message}");
+                    // Continue despite this error, as it's better to attempt the save
+                }
 
                 StatusMessage = "Saving product...";
 
@@ -1226,50 +1245,52 @@ namespace QuickTechSystems.WPF.ViewModels
                     UpdatedAt = DateTime.Now
                 };
 
-                if (productToUpdate.ProductId == 0)
+                try
                 {
-                    var result = await _productService.CreateAsync(productCopy);
+                    if (productToUpdate.ProductId == 0)
+                    {
+                        var result = await _productService.CreateAsync(productCopy);
 
-                    // REMOVED: Direct Products collection manipulation
-                    // ONLY update SelectedProduct reference
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        SelectedProduct = result;
+                        // Update SelectedProduct reference
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                            SelectedProduct = result;
+                        });
+
+                        // Use the result for updating UI
+                        productToUpdate = result;
+                    }
+                    else
+                    {
+                        await _productService.UpdateAsync(productCopy);
+                    }
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Product saved successfully.", "Success",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
                     });
 
-                    // Use the result for updating UI
-                    productToUpdate = result;
+                    // Recalculate totals after saving
+                    CalculateAggregatedValues();
+                    CalculateSelectedProductValues();
+
+                    CloseProductPopup();
+
+                    // Refresh specific product
+                    await RefreshSpecificProduct(productToUpdate.ProductId);
+
+                    Debug.WriteLine("Save completed, product refreshed");
                 }
-                else
+                catch (Exception ex)
                 {
-                    await _productService.UpdateAsync(productCopy);
-
-                    // REMOVED: Direct Products collection manipulation
-                    // Let event system handle collection updates consistently
+                    var errorMessage = GetDetailedErrorMessage(ex);
+                    Debug.WriteLine($"Save error: {errorMessage}");
+                    ShowTemporaryErrorMessage($"Error saving product: {errorMessage}");
                 }
-
-                // REMOVED: Explicit event publication
-                // Relying on service events for consistency
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    MessageBox.Show("Product saved successfully.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                });
-
-                // Recalculate totals after saving
-                CalculateAggregatedValues();
-                CalculateSelectedProductValues();
-
-                CloseProductPopup();
-
-                // Refresh specific product
-                await RefreshSpecificProduct(productToUpdate.ProductId);
-
-                Debug.WriteLine("Save completed, product refreshed");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Save error: {ex.Message}");
+                Debug.WriteLine($"Unexpected error in save operation: {ex.Message}");
                 ShowTemporaryErrorMessage($"Error saving product: {ex.Message}");
             }
             finally
@@ -1280,9 +1301,38 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
+        private string GetDetailedErrorMessage(Exception ex)
+        {
+            var sb = new StringBuilder();
+            sb.Append(ex.Message);
 
-        // Add this new method to the ProductViewModel class
+            // Collect inner exception details
+            var currentEx = ex;
+            while (currentEx.InnerException != null)
+            {
+                currentEx = currentEx.InnerException;
+                sb.Append($"\n→ {currentEx.Message}");
+            }
+
+            // Add Entity Framework validation errors if available
+            if (ex is DbUpdateException dbEx && dbEx.Entries != null && dbEx.Entries.Any())
+            {
+                sb.Append("\nValidation errors:");
+                foreach (var entry in dbEx.Entries)
+                {
+                    sb.Append($"\n- {entry.Entity.GetType().Name}");
+
+                    if (entry.State == EntityState.Added)
+                        sb.Append(" (Add)");
+                    else if (entry.State == EntityState.Modified)
+                        sb.Append(" (Update)");
+                    else if (entry.State == EntityState.Deleted)
+                        sb.Append(" (Delete)");
+                }
+            }
+
+            return sb.ToString();
+        }
         private async Task GenerateMissingBarcodeImages()
         {
             if (!await _operationLock.WaitAsync(0))
