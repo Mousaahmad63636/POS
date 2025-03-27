@@ -83,6 +83,11 @@
         <StackPanel Grid.Row="1" 
                   Orientation="Horizontal" 
                   Margin="0,0,0,10">
+            <Button Content="{DynamicResource Product_BulkAdd_AddOneRow}"
+                   Command="{Binding AddOneRowCommand}"
+                   Style="{StaticResource ActionButton}"
+                   Width="100"
+                   Margin="0,0,10,0"/>
             <Button Content="{DynamicResource Product_BulkAdd_AddFiveRows}"
                    Command="{Binding AddFiveRowsCommand}"
                    Style="{StaticResource ActionButton}"
@@ -172,8 +177,8 @@
                        Margin="0,0,10,0"/>
 
                 <TextBlock Grid.Column="2"
-          VerticalAlignment="Center"
-          Margin="10,0,0,0">
+                          VerticalAlignment="Center"
+                          Margin="10,0,0,0">
                     <TextBlock.Text>
                         <MultiBinding StringFormat="{}{0} {1}">
                             <Binding Path="SelectedForPrintingCount"/>

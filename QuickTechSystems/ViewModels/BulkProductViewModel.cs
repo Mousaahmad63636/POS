@@ -20,6 +20,10 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Windows.Markup;
 using System.Text;
+using System.Threading;
+using System.Data;
+using System.Globalization;
+using OfficeOpenXml; // EPPlus namespace
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -41,6 +45,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private int _labelsPerProduct = 1;
         private int _selectedForPrintingCount;
         private Dictionary<int, List<string>> _validationErrors;
+        private CancellationTokenSource _cancellationTokenSource;
+        private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+        private bool _isDisposed;
 
         public bool? DialogResult
         {
@@ -133,6 +140,9 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand GenerateBarcodeCommand { get; }
         public ICommand ImportFromExcelCommand { get; }
         public ICommand PrintBarcodesCommand { get; }
+        public ICommand SelectAllCommand { get; }
+        public ICommand AddOneRowCommand { get; }
+        public ICommand CancelOperationCommand { get; }
 
         public BulkProductViewModel(
             IProductService productService,
@@ -153,7 +163,8 @@ namespace QuickTechSystems.WPF.ViewModels
             _selectedQuickFillOption = "Category";
             _quickFillValue = string.Empty;
             _statusMessage = string.Empty;
-
+            _cancellationTokenSource = new CancellationTokenSource();
+            AddOneRowCommand = new RelayCommand(_ => AddEmptyRows(1), _ => !IsSaving);  // New command for adding a single row
             SaveCommand = new AsyncRelayCommand(async _ => await SaveProductsAsync(), _ => !IsSaving);
             AddFiveRowsCommand = new RelayCommand(_ => AddEmptyRows(5), _ => !IsSaving);
             AddTenRowsCommand = new RelayCommand(_ => AddEmptyRows(10), _ => !IsSaving);
@@ -161,11 +172,13 @@ namespace QuickTechSystems.WPF.ViewModels
             ClearAllCommand = new RelayCommand(_ => ClearAllRows(), _ => !IsSaving);
             ApplyQuickFillCommand = new RelayCommand(ApplyQuickFill, _ => !IsSaving);
             GenerateBarcodeCommand = new RelayCommand(GenerateBarcode, _ => !IsSaving);
-            ImportFromExcelCommand = new AsyncRelayCommand(async _ => await ImportFromExcel(), _ => !IsSaving);
+            ImportFromExcelCommand = new AsyncRelayCommand(async _ => await ImportFromExcelAsync(), _ => !IsSaving);
             PrintBarcodesCommand = new AsyncRelayCommand(async _ => await PrintBarcodesAsync(), _ => !IsSaving);
+            SelectAllCommand = new RelayCommand(_ => SelectAllProducts());
+            CancelOperationCommand = new RelayCommand(_ => CancelCurrentOperation(), _ => IsSaving);
 
             LoadInitialData();
-            Products.Add(new ProductDTO { IsActive = true });
+            Products.Add(CreateEmptyProduct());
 
             // Subscribe to PropertyChanged events of Products
             Products.CollectionChanged += (s, e) =>
@@ -187,11 +200,52 @@ namespace QuickTechSystems.WPF.ViewModels
             };
         }
 
+        private ProductDTO CreateEmptyProduct()
+        {
+            return new ProductDTO
+            {
+                IsActive = true,
+                CreatedAt = DateTime.Now,
+                MinimumStock = 0,
+                CurrentStock = 0
+            };
+        }
+
         private void Product_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(ProductDTO.IsSelectedForPrinting))
             {
                 UpdateSelectedForPrintingCount();
+            }
+            else if (e.PropertyName == nameof(ProductDTO.CategoryId))
+            {
+                UpdateCategoryName(sender as ProductDTO);
+            }
+            else if (e.PropertyName == nameof(ProductDTO.SupplierId))
+            {
+                UpdateSupplierName(sender as ProductDTO);
+            }
+        }
+
+        private void UpdateCategoryName(ProductDTO product)
+        {
+            if (product == null || product.CategoryId <= 0) return;
+
+            var category = Categories.FirstOrDefault(c => c.CategoryId == product.CategoryId);
+            if (category != null)
+            {
+                product.CategoryName = category.Name;
+            }
+        }
+
+        private void UpdateSupplierName(ProductDTO product)
+        {
+            if (product == null || !product.SupplierId.HasValue || product.SupplierId <= 0) return;
+
+            var supplier = Suppliers.FirstOrDefault(s => s.SupplierId == product.SupplierId);
+            if (supplier != null)
+            {
+                product.SupplierName = supplier.Name;
             }
         }
 
@@ -199,18 +253,45 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
-                var categories = await _categoryService.GetAllAsync();
-                var suppliers = await _supplierService.GetAllAsync();
+                var categories = await _categoryService.GetActiveAsync();
+                var suppliers = await _supplierService.GetActiveAsync();
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     Categories = new ObservableCollection<CategoryDTO>(categories);
                     Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
+                    Debug.WriteLine($"Loaded {categories.Count()} categories and {suppliers.Count()} suppliers");
                 });
             }
             catch (Exception ex)
             {
                 await ShowErrorMessageAsync($"Error loading data: {ex.Message}");
+                Debug.WriteLine($"Error loading initial data: {ex}");
+            }
+        }
+
+        private void SelectAllProducts()
+        {
+            foreach (var product in Products)
+            {
+                product.IsSelected = true;
+            }
+        }
+
+        private void CancelCurrentOperation()
+        {
+            try
+            {
+                if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cancellationTokenSource = new CancellationTokenSource();
+                    StatusMessage = "Operation cancelled.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error cancelling operation: {ex.Message}");
             }
         }
 
@@ -230,55 +311,68 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task PrintBarcodesAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryMessage("Another operation is in progress. Please wait.", MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 var selectedProducts = Products.Where(p => p.IsSelectedForPrinting).ToList();
 
                 if (!selectedProducts.Any())
                 {
-                    MessageBox.Show("Please select at least one product for printing.",
-                        "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Please select at least one product for printing.",
+                            "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
                     return;
                 }
 
                 if (LabelsPerProduct < 1)
                 {
-                    MessageBox.Show("Number of labels must be at least 1.",
-                        "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Number of labels must be at least 1.",
+                            "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
                     return;
                 }
 
                 StatusMessage = "Preparing barcodes for printing...";
                 IsSaving = true;
 
-                await Task.Run(async () =>
+                // Generate missing barcodes first
+                int generatedCount = 0;
+                foreach (var product in selectedProducts)
                 {
-                    foreach (var product in selectedProducts)
+                    if (string.IsNullOrWhiteSpace(product.Barcode))
                     {
-                        if (string.IsNullOrWhiteSpace(product.Barcode))
-                        {
-                            var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
-                            var random = new Random();
-                            var randomDigits = random.Next(1000, 9999).ToString();
-                            var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
-                            product.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
-                        }
-
-                        if (product.BarcodeImage == null)
-                        {
-                            product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
-                        }
+                        var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
+                        var random = new Random();
+                        var randomDigits = random.Next(1000, 9999).ToString();
+                        var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
+                        product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
+                        generatedCount++;
+                        StatusMessage = $"Generated {generatedCount} barcodes...";
                     }
 
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    if (product.BarcodeImage == null)
                     {
-                        var printDialog = new PrintDialog();
-                        if (printDialog.ShowDialog() == true)
-                        {
-                            var document = CreateBarcodeDocument(selectedProducts, LabelsPerProduct, printDialog);
-                            printDialog.PrintDocument(document.DocumentPaginator, "Product Barcodes");
-                        }
-                    });
+                        product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+                    }
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var printDialog = new PrintDialog();
+                    if (printDialog.ShowDialog() == true)
+                    {
+                        var document = CreateBarcodeDocument(selectedProducts, LabelsPerProduct, printDialog);
+                        printDialog.PrintDocument(document.DocumentPaginator, "Product Barcodes");
+                    }
                 });
 
                 StatusMessage = "Barcodes printed successfully.";
@@ -287,11 +381,13 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 await ShowErrorMessageAsync($"Error printing barcodes: {ex.Message}");
+                Debug.WriteLine($"Error printing barcodes: {ex}");
             }
             finally
             {
                 IsSaving = false;
                 StatusMessage = string.Empty;
+                _operationLock.Release();
             }
         }
 
@@ -300,11 +396,14 @@ namespace QuickTechSystems.WPF.ViewModels
             var document = new FixedDocument();
             var pageSize = new Size(printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight);
             var labelSize = new Size(96 * 2, 96); // 2 inches x 1 inch at 96 DPI
-            var margin = new Thickness(96 * 0.5); // 0.5 inch margins
+            var margin = new Thickness(96 * 0.25); // 0.25 inch margins for more efficient space usage
 
-            var labelsPerRow = (int)((pageSize.Width - margin.Left - margin.Right) / labelSize.Width);
-            var labelsPerColumn = (int)((pageSize.Height - margin.Top - margin.Bottom) / labelSize.Height);
+            // Calculate how many labels can fit on the page
+            var labelsPerRow = Math.Max(1, (int)((pageSize.Width - margin.Left - margin.Right) / labelSize.Width));
+            var labelsPerColumn = Math.Max(1, (int)((pageSize.Height - margin.Top - margin.Bottom) / labelSize.Height));
             var labelsPerPage = labelsPerRow * labelsPerColumn;
+
+            Debug.WriteLine($"Page can fit {labelsPerRow}x{labelsPerColumn} = {labelsPerPage} labels");
 
             var currentPage = CreateNewPage(pageSize, margin);
             var currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
@@ -371,6 +470,19 @@ namespace QuickTechSystems.WPF.ViewModels
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
+            // Ensure the barcode image exists
+            if (product.BarcodeImage == null && !string.IsNullOrWhiteSpace(product.Barcode))
+            {
+                try
+                {
+                    product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error generating barcode image: {ex.Message}");
+                }
+            }
+
             var image = new Image
             {
                 Source = LoadBarcodeImage(product.BarcodeImage),
@@ -382,7 +494,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Text = product.Barcode,
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 2, 0, 0)
+                Margin = new Thickness(0, 2, 0, 0),
+                FontSize = 10
             };
             Grid.SetRow(barcodeText, 1);
 
@@ -391,7 +504,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 Text = product.Name,
                 TextAlignment = TextAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 2, 0, 0)
+                Margin = new Thickness(0, 2, 0, 0),
+                FontSize = 9
             };
             Grid.SetRow(nameText, 2);
 
@@ -407,21 +521,39 @@ namespace QuickTechSystems.WPF.ViewModels
             if (imageData == null) return null;
 
             var image = new BitmapImage();
-            using (var ms = new MemoryStream(imageData))
+            try
             {
-                image.BeginInit();
-                image.CacheOption = BitmapCacheOption.OnLoad;
-                image.StreamSource = ms;
-                image.EndInit();
+                using (var ms = new MemoryStream(imageData))
+                {
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.StreamSource = ms;
+                    image.EndInit();
+                    image.Freeze(); // Important for cross-thread usage
+                }
+                return image;
             }
-            return image;
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading barcode image: {ex.Message}");
+                return null;
+            }
         }
 
         private async Task SaveProductsAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryMessage("Another operation is already in progress. Please wait.", MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 IsSaving = true;
+                _cancellationTokenSource = new CancellationTokenSource();
+                var token = _cancellationTokenSource.Token;
+
                 StatusMessage = "Validating products...";
 
                 // Perform validation
@@ -446,8 +578,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (!productsToSave.Any())
                 {
-                    MessageBox.Show("No valid products to save.", "Information",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("No valid products to save.", "Information",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
                     return;
                 }
 
@@ -455,6 +590,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Preparing products for save...";
                 foreach (var product in productsToSave)
                 {
+                    token.ThrowIfCancellationRequested();
                     NormalizeProductData(product);
                     ValidateBarcode(product);
                 }
@@ -468,8 +604,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (duplicateBarcodes.Any())
                 {
-                    MessageBox.Show($"Found duplicate barcodes within the batch: {string.Join(", ", duplicateBarcodes)}",
-                        "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show($"Found duplicate barcodes within the batch: {string.Join(", ", duplicateBarcodes)}",
+                            "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
                     return;
                 }
 
@@ -478,6 +617,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 var existingBarcodes = new List<string>();
                 foreach (var product in productsToSave)
                 {
+                    token.ThrowIfCancellationRequested();
+
                     try
                     {
                         var existingProduct = await _productService.FindProductByBarcodeAsync(product.Barcode);
@@ -495,8 +636,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (existingBarcodes.Any())
                 {
-                    MessageBox.Show($"Found barcodes that already exist in the database:\n{string.Join("\n", existingBarcodes)}",
-                        "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show($"Found barcodes that already exist in the database:\n{string.Join("\n", existingBarcodes)}",
+                            "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
                     return;
                 }
 
@@ -510,23 +654,40 @@ namespace QuickTechSystems.WPF.ViewModels
                     var savedProducts = await _productService.CreateBatchAsync(productsToSave, progress);
                     successCount = savedProducts.Count;
                 }
+                catch (OperationCanceledException)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Operation was cancelled by the user.", "Cancelled",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
+                    return;
+                }
                 catch (Exception ex)
                 {
                     // Get detailed error information
                     var error = GetDetailedErrorMessage(ex);
                     errors.Add($"Batch save failed: {error}");
+                    Debug.WriteLine($"Batch save error: {error}");
 
                     // Ask if user wants to try individual saves as fallback
-                    if (MessageBox.Show(
+                    var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        return MessageBox.Show(
                             "Batch save failed. Would you like to try saving products individually?\n\n" +
                             "This may succeed for some products but not all.",
-                            "Error", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                            "Error", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    });
+
+                    if (result == MessageBoxResult.Yes)
                     {
                         // Try individual save as fallback
                         for (int i = 0; i < productsToSave.Count; i++)
                         {
                             try
                             {
+                                token.ThrowIfCancellationRequested();
+
                                 var product = productsToSave[i];
                                 ((IProgress<string>)progress).Report($"Processing product {i + 1} of {productsToSave.Count}: {product.Name}");
 
@@ -541,10 +702,20 @@ namespace QuickTechSystems.WPF.ViewModels
                                 await _productService.CreateAsync(product);
                                 successCount++;
                             }
+                            catch (OperationCanceledException)
+                            {
+                                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                                {
+                                    MessageBox.Show("Operation was cancelled by the user.", "Cancelled",
+                                        MessageBoxButton.OK, MessageBoxImage.Information);
+                                });
+                                return;
+                            }
                             catch (Exception innerEx)
                             {
                                 var detailedMsg = GetDetailedErrorMessage(innerEx, productsToSave[i].Name);
                                 errors.Add(detailedMsg);
+                                Debug.WriteLine($"Individual save error: {detailedMsg}");
                             }
                         }
                     }
@@ -552,16 +723,22 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (successCount > 0)
                 {
-                    MessageBox.Show($"Successfully saved {successCount} products.", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show($"Successfully saved {successCount} products.", "Success",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    });
 
                     if (errors.Any())
                     {
                         var errorMessage = $"Some products failed to save:\n\n{string.Join("\n", errors)}";
-                        MessageBox.Show(errorMessage, "Partial Success", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show(errorMessage, "Partial Success", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        });
 
                         // Log detailed errors
-                        Debug.WriteLine("Bulk save partial errors:\n" + errorMessage);
+                        Debug.WriteLine("Bulk save partial errors:\n" + string.Join("\n", errors));
                     }
 
                     DialogResult = true;
@@ -569,11 +746,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 else if (errors.Any())
                 {
                     var errorMessage = $"Failed to save any products:\n\n{string.Join("\n", errors)}";
-                    MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(errorMessage, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    });
 
                     // Log detailed errors
-                    Debug.WriteLine("Bulk save failed:\n" + errorMessage);
+                    Debug.WriteLine("Bulk save complete failure:\n" + string.Join("\n", errors));
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "Operation cancelled.";
+                await Task.Delay(2000);
             }
             catch (Exception ex)
             {
@@ -585,6 +770,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsSaving = false;
                 StatusMessage = string.Empty;
+                _operationLock.Release();
             }
         }
 
@@ -712,8 +898,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 errorMessage.AppendLine();
             }
 
-            MessageBox.Show(errorMessage.ToString(), "Validation Errors",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(errorMessage.ToString(), "Validation Errors",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            });
 
             ValidationErrors = errors;
         }
@@ -749,7 +938,14 @@ namespace QuickTechSystems.WPF.ViewModels
             var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "000").PadLeft(3, '0');
 
             product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
-            product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+            try
+            {
+                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error generating barcode image: {ex.Message}");
+            }
         }
 
         // Enhanced NormalizeProductData method
@@ -780,6 +976,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Ensure IsActive is set
             product.IsActive = true;
+
+            // Update category and supplier names
+            UpdateCategoryName(product);
+            UpdateSupplierName(product);
         }
 
         private bool IsEmptyProduct(ProductDTO product)
@@ -799,7 +999,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             for (int i = 0; i < count; i++)
             {
-                Products.Add(new ProductDTO { IsActive = true });
+                Products.Add(CreateEmptyProduct());
             }
             OnPropertyChanged(nameof(Products));
         }
@@ -814,7 +1014,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             if (Products.Count == 0)
             {
-                Products.Add(new ProductDTO { IsActive = true });
+                Products.Add(CreateEmptyProduct());
             }
 
             ValidationErrors.Clear();
@@ -823,14 +1023,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void ClearAllRows()
         {
-            if (MessageBox.Show("Are you sure you want to clear all rows?",
-                "Confirm Clear All", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                Products.Clear();
-                Products.Add(new ProductDTO { IsActive = true });
-                ValidationErrors.Clear();
-                OnPropertyChanged(nameof(Products));
-            }
+                if (MessageBox.Show("Are you sure you want to clear all rows?",
+                    "Confirm Clear All", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                {
+                    Products.Clear();
+                    Products.Add(CreateEmptyProduct());
+                    ValidationErrors.Clear();
+                    OnPropertyChanged(nameof(Products));
+                }
+            });
         }
 
         private void ApplyQuickFill(object? parameter)
@@ -838,8 +1041,11 @@ namespace QuickTechSystems.WPF.ViewModels
             var selectedProducts = Products.Where(p => p.IsSelected).ToList();
             if (!selectedProducts.Any())
             {
-                MessageBox.Show("Please select at least one row to apply quick fill.",
-                    "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show("Please select at least one row to apply quick fill.",
+                        "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
                 return;
             }
 
@@ -859,6 +1065,29 @@ namespace QuickTechSystems.WPF.ViewModels
                                     product.CategoryName = category.Name;
                                 }
                             }
+                            else
+                            {
+                                ShowTemporaryMessage($"Category ID {categoryId} not found.", MessageBoxImage.Warning);
+                            }
+                        }
+                        else
+                        {
+                            // Try to find by name
+                            var category = Categories.FirstOrDefault(c =>
+                                c.Name.Equals(QuickFillValue, StringComparison.OrdinalIgnoreCase));
+
+                            if (category != null)
+                            {
+                                foreach (var product in selectedProducts)
+                                {
+                                    product.CategoryId = category.CategoryId;
+                                    product.CategoryName = category.Name;
+                                }
+                            }
+                            else
+                            {
+                                ShowTemporaryMessage("Please enter a valid category ID or name.", MessageBoxImage.Warning);
+                            }
                         }
                         break;
 
@@ -874,11 +1103,34 @@ namespace QuickTechSystems.WPF.ViewModels
                                     product.SupplierName = supplier.Name;
                                 }
                             }
+                            else
+                            {
+                                ShowTemporaryMessage($"Supplier ID {supplierId} not found.", MessageBoxImage.Warning);
+                            }
+                        }
+                        else
+                        {
+                            // Try to find by name
+                            var supplier = Suppliers.FirstOrDefault(s =>
+                                s.Name.Equals(QuickFillValue, StringComparison.OrdinalIgnoreCase));
+
+                            if (supplier != null)
+                            {
+                                foreach (var product in selectedProducts)
+                                {
+                                    product.SupplierId = supplier.SupplierId;
+                                    product.SupplierName = supplier.Name;
+                                }
+                            }
+                            else
+                            {
+                                ShowTemporaryMessage("Please enter a valid supplier ID or name.", MessageBoxImage.Warning);
+                            }
                         }
                         break;
 
                     case "Purchase Price":
-                        if (decimal.TryParse(QuickFillValue, out decimal purchasePrice))
+                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal purchasePrice))
                         {
                             foreach (var product in selectedProducts)
                             {
@@ -889,15 +1141,23 @@ namespace QuickTechSystems.WPF.ViewModels
                                 }
                             }
                         }
+                        else
+                        {
+                            ShowTemporaryMessage("Please enter a valid number for purchase price.", MessageBoxImage.Warning);
+                        }
                         break;
 
                     case "Sale Price":
-                        if (decimal.TryParse(QuickFillValue, out decimal salePrice))
+                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal salePrice))
                         {
                             foreach (var product in selectedProducts)
                             {
                                 product.SalePrice = Math.Max(product.PurchasePrice, salePrice);
                             }
+                        }
+                        else
+                        {
+                            ShowTemporaryMessage("Please enter a valid number for sale price.", MessageBoxImage.Warning);
                         }
                         break;
 
@@ -910,20 +1170,23 @@ namespace QuickTechSystems.WPF.ViewModels
                                 product.MinimumStock = Math.Max(0, stockValue / 2);
                             }
                         }
+                        else
+                        {
+                            ShowTemporaryMessage("Please enter a valid number for stock value.", MessageBoxImage.Warning);
+                        }
                         break;
 
                     case "Speed":
-                        if (decimal.TryParse(QuickFillValue, out decimal speedValue))
+                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal speedValue))
                         {
                             foreach (var product in selectedProducts)
                             {
-                                product.Speed = speedValue.ToString();
+                                product.Speed = speedValue.ToString(CultureInfo.InvariantCulture);
                             }
                         }
                         else
                         {
-                            MessageBox.Show("Please enter a valid number for speed.",
-                                "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            ShowTemporaryMessage("Please enter a valid number for speed.", MessageBoxImage.Warning);
                         }
                         break;
                 }
@@ -932,8 +1195,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error applying quick fill: {ex.Message}",
-                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowTemporaryMessage($"Error applying quick fill: {ex.Message}", MessageBoxImage.Error);
+                Debug.WriteLine($"Error applying quick fill: {ex}");
             }
         }
 
@@ -946,46 +1209,558 @@ namespace QuickTechSystems.WPF.ViewModels
                 var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
                 var random = new Random();
                 var randomDigits = random.Next(1000, 9999).ToString();
-                var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
+                var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "000").PadLeft(3, '0');
 
                 product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
                 product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
 
                 OnPropertyChanged(nameof(Products));
 
-                MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
             }
             catch (Exception ex)
             {
-
-                Debug.WriteLine($"Error generating barcode: {ex.Message}");
-                MessageBox.Show($"Error generating barcode: {ex.Message}", "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowTemporaryMessage($"Error generating barcode: {ex.Message}", MessageBoxImage.Error);
+                Debug.WriteLine($"Error generating barcode: {ex}");
             }
         }
 
-        private async Task ImportFromExcel()
+        private async Task ImportFromExcelAsync()
         {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryMessage("Another operation is in progress. Please wait.", MessageBoxImage.Warning);
+                return;
+            }
+
             try
             {
                 var openFileDialog = new OpenFileDialog
                 {
-                    Filter = "Excel Files|*.xlsx;*.xls|All files (*.*)|*.*",
-                    Title = "Select Excel File"
+                    Filter = "Excel Files|*.xlsx;*.xls|CSV Files|*.csv|All files (*.*)|*.*",
+                    Title = "Select Excel or CSV File"
                 };
 
-                if (openFileDialog.ShowDialog() == true)
+                var result = openFileDialog.ShowDialog();
+                if (result == true)
                 {
-                    StatusMessage = "Excel import feature is planned for a future update.";
-                    await Task.Delay(2000);
-                    StatusMessage = string.Empty;
+                    string filePath = openFileDialog.FileName;
+                    string fileExtension = Path.GetExtension(filePath).ToLower();
+
+                    StatusMessage = "Reading file...";
+                    IsSaving = true;
+                    _cancellationTokenSource = new CancellationTokenSource();
+                    var token = _cancellationTokenSource.Token;
+
+                    // Process based on file type
+                    if (fileExtension == ".csv")
+                    {
+                        await ImportFromCsvFile(filePath, token);
+                    }
+                    else if (fileExtension == ".xlsx" || fileExtension == ".xls")
+                    {
+                        await ImportFromExcelFileUsingEPPlus(filePath, token);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Unsupported file format. Please select an Excel or CSV file.",
+                            "Unsupported Format", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                StatusMessage = "Import cancelled.";
+                await Task.Delay(2000);
             }
             catch (Exception ex)
             {
-                await ShowErrorMessageAsync($"Error importing from Excel: {ex.Message}");
+                await ShowErrorMessageAsync($"Error importing file: {ex.Message}");
+                Debug.WriteLine($"Error in file import: {ex}");
             }
+            finally
+            {
+                IsSaving = false;
+                StatusMessage = string.Empty;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task ImportFromCsvFile(string filePath, CancellationToken token)
+        {
+            var importedProducts = new List<ProductDTO>();
+            var errors = new List<string>();
+
+            await Task.Run(() =>
+            {
+                try
+                {
+                    // Read all lines from the CSV file
+                    var lines = File.ReadAllLines(filePath);
+                    if (lines.Length <= 1)
+                    {
+                        throw new InvalidOperationException("CSV file contains no data rows.");
+                    }
+
+                    // Process header row to identify columns
+                    var headerLine = lines[0];
+                    var headers = SplitCsvLine(headerLine).Select(h => h.Trim().ToLowerInvariant()).ToArray();
+                    var columnMappings = new Dictionary<string, int>();
+
+                    for (int i = 0; i < headers.Length; i++)
+                    {
+                        columnMappings[headers[i]] = i;
+                    }
+
+                    // Required columns check
+                    var requiredColumns = new[] { "name", "category", "purchase price", "sale price" };
+                    var missingColumns = requiredColumns.Where(col => !columnMappings.Keys.Any(key => key.Contains(col))).ToList();
+
+                    if (missingColumns.Any())
+                    {
+                        throw new InvalidOperationException($"Missing required columns: {string.Join(", ", missingColumns)}");
+                    }
+
+                    // Process data rows
+                    for (int rowIndex = 1; rowIndex < lines.Length; rowIndex++)
+                    {
+                        token.ThrowIfCancellationRequested();
+
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            StatusMessage = $"Processing row {rowIndex} of {lines.Length - 1}...";
+                        });
+
+                        try
+                        {
+                            var line = lines[rowIndex];
+                            var values = SplitCsvLine(line);
+
+                            if (values.Length < headers.Length)
+                            {
+                                errors.Add($"Row {rowIndex + 1}: Not enough columns");
+                                continue;
+                            }
+
+                            var product = CreateEmptyProduct();
+
+                            // Process each column based on header mapping
+                            foreach (var mapping in columnMappings)
+                            {
+                                if (mapping.Value >= values.Length) continue;
+
+                                var value = values[mapping.Value]?.Trim() ?? string.Empty;
+                                if (string.IsNullOrEmpty(value)) continue;
+
+                                ProcessProductValue(product, mapping.Key, value, rowIndex + 1, errors);
+                            }
+
+                            // Validate product
+                            if (IsValidImportedProduct(product, rowIndex + 1, errors))
+                            {
+                                importedProducts.Add(product);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"Row {rowIndex + 1}: {ex.Message}");
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"Error processing CSV file: {ex.Message}",
+                            "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        Debug.WriteLine($"CSV import error: {ex}");
+                    });
+                    return;
+                }
+
+                UpdateUIWithImportedProducts(importedProducts, errors);
+            });
+        }
+
+        private async Task ImportFromExcelFileUsingEPPlus(string filePath, CancellationToken token)
+        {
+            var importedProducts = new List<ProductDTO>();
+            var errors = new List<string>();
+
+            await Task.Run(() =>
+            {
+                try
+                {
+                    // Set the license context for EPPlus - this line fixes the ambiguous reference error
+                    ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
+                    using (var package = new ExcelPackage(new FileInfo(filePath)))
+                    {
+                        var worksheet = package.Workbook.Worksheets.FirstOrDefault();
+                        if (worksheet == null)
+                        {
+                            throw new InvalidOperationException("No worksheet found in the Excel file.");
+                        }
+
+                        // Get row and column counts
+                        int rowCount = worksheet.Dimension?.Rows ?? 0;
+                        int colCount = worksheet.Dimension?.Columns ?? 0;
+
+                        if (rowCount <= 1) // Header row only or empty
+                        {
+                            throw new InvalidOperationException("Excel file contains no data rows.");
+                        }
+
+                        // Process header row to identify columns
+                        var columnMappings = new Dictionary<string, int>();
+                        for (int col = 1; col <= colCount; col++)
+                        {
+                            var headerValue = worksheet.Cells[1, col].Text?.Trim();
+                            if (!string.IsNullOrEmpty(headerValue))
+                            {
+                                columnMappings[headerValue.ToLowerInvariant()] = col;
+                            }
+                        }
+
+                        // Required columns check
+                        var requiredColumns = new[] { "name", "category", "purchase price", "sale price" };
+                        var missingColumns = requiredColumns.Where(col => !columnMappings.Keys.Any(key => key.Contains(col))).ToList();
+
+                        if (missingColumns.Any())
+                        {
+                            throw new InvalidOperationException($"Missing required columns: {string.Join(", ", missingColumns)}");
+                        }
+
+                        // Process data rows
+                        for (int row = 2; row <= rowCount; row++)
+                        {
+                            token.ThrowIfCancellationRequested();
+
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                StatusMessage = $"Processing row {row - 1} of {rowCount - 1}...";
+                            });
+
+                            try
+                            {
+                                var product = CreateEmptyProduct();
+
+                                // Extract product data from the row
+                                foreach (var mapping in columnMappings)
+                                {
+                                    var value = worksheet.Cells[row, mapping.Value].Text?.Trim();
+                                    if (string.IsNullOrEmpty(value)) continue;
+
+                                    ProcessProductValue(product, mapping.Key, value, row, errors);
+                                }
+
+                                // Validate product
+                                if (IsValidImportedProduct(product, row, errors))
+                                {
+                                    importedProducts.Add(product);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                errors.Add($"Row {row}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MessageBox.Show($"Error processing Excel file: {ex.Message}",
+                            "Import Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        Debug.WriteLine($"Excel import error: {ex}");
+                    });
+                    return;
+                }
+
+                UpdateUIWithImportedProducts(importedProducts, errors);
+            });
+        }
+
+        private void ProcessProductValue(ProductDTO product, string columnName, string value, int rowIndex, List<string> errors)
+        {
+            switch (columnName)
+            {
+                case var col when col.Contains("name"):
+                    product.Name = value;
+                    break;
+                case var col when col.Contains("barcode"):
+                    product.Barcode = value;
+                    break;
+                case var col when col.Contains("description"):
+                    product.Description = value;
+                    break;
+                case var col when col.Contains("category"):
+                    // Try to match by name first
+                    var category = System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        Categories.FirstOrDefault(c => c.Name.Equals(value, StringComparison.OrdinalIgnoreCase)));
+
+                    if (category != null)
+                    {
+                        product.CategoryId = category.CategoryId;
+                        product.CategoryName = category.Name;
+                    }
+                    else if (int.TryParse(value, out int categoryId))
+                    {
+                        // Try as ID if name match fails
+                        category = System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            Categories.FirstOrDefault(c => c.CategoryId == categoryId));
+
+                        if (category != null)
+                        {
+                            product.CategoryId = category.CategoryId;
+                            product.CategoryName = category.Name;
+                        }
+                        else
+                        {
+                            errors.Add($"Row {rowIndex}: Category '{value}' not found");
+                        }
+                    }
+                    else
+                    {
+                        errors.Add($"Row {rowIndex}: Category '{value}' not found");
+                    }
+                    break;
+                case var col when col.Contains("supplier"):
+                    // Try to match by name first
+                    var supplier = System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        Suppliers.FirstOrDefault(s => s.Name.Equals(value, StringComparison.OrdinalIgnoreCase)));
+
+                    if (supplier != null)
+                    {
+                        product.SupplierId = supplier.SupplierId;
+                        product.SupplierName = supplier.Name;
+                    }
+                    else if (int.TryParse(value, out int supplierId))
+                    {
+                        // Try as ID if name match fails
+                        supplier = System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            Suppliers.FirstOrDefault(s => s.SupplierId == supplierId));
+
+                        if (supplier != null)
+                        {
+                            product.SupplierId = supplier.SupplierId;
+                            product.SupplierName = supplier.Name;
+                        }
+                    }
+                    // Not adding an error since supplier is optional
+                    break;
+                case var col when col.Contains("purchase price"):
+                    if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal purchasePrice))
+                    {
+                        product.PurchasePrice = Math.Max(0, purchasePrice);
+                    }
+                    else
+                    {
+                        errors.Add($"Row {rowIndex}: Invalid purchase price '{value}'");
+                    }
+                    break;
+                case var col when col.Contains("sale price"):
+                    if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal salePrice))
+                    {
+                        product.SalePrice = Math.Max(0, salePrice);
+                    }
+                    else
+                    {
+                        errors.Add($"Row {rowIndex}: Invalid sale price '{value}'");
+                    }
+                    break;
+                case var col when col.Contains("current stock"):
+                    if (int.TryParse(value, out int currentStock))
+                    {
+                        product.CurrentStock = Math.Max(0, currentStock);
+                    }
+                    else
+                    {
+                        errors.Add($"Row {rowIndex}: Invalid current stock '{value}'");
+                    }
+                    break;
+                case var col when col.Contains("minimum stock"):
+                    if (int.TryParse(value, out int minimumStock))
+                    {
+                        product.MinimumStock = Math.Max(0, minimumStock);
+                    }
+                    else
+                    {
+                        errors.Add($"Row {rowIndex}: Invalid minimum stock '{value}'");
+                    }
+                    break;
+                case var col when col.Contains("speed"):
+                    product.Speed = value;
+                    break;
+            }
+        }
+
+        private bool IsValidImportedProduct(ProductDTO product, int rowIndex, List<string> errors)
+        {
+            if (!string.IsNullOrWhiteSpace(product.Name) &&
+                product.CategoryId > 0 &&
+                product.PurchasePrice > 0 &&
+                product.SalePrice > 0)
+            {
+                return true;
+            }
+            else if (!string.IsNullOrWhiteSpace(product.Name)) // If it has a name but is missing other required fields
+            {
+                var missingFields = new List<string>();
+                if (product.CategoryId <= 0) missingFields.Add("Category");
+                if (product.PurchasePrice <= 0) missingFields.Add("Purchase Price");
+                if (product.SalePrice <= 0) missingFields.Add("Sale Price");
+
+                errors.Add($"Row {rowIndex}: Product '{product.Name}' is missing required fields: {string.Join(", ", missingFields)}");
+            }
+            return false;
+        }
+
+        private string[] SplitCsvLine(string line)
+        {
+            var result = new List<string>();
+            var currentValue = new StringBuilder();
+            bool insideQuotes = false;
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+
+                if (c == '"')
+                {
+                    // If we encounter a double quote inside quoted text, it might be an escaped quote
+                    if (insideQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                    {
+                        // This is an escaped quote - add a single quote to the value and skip the next char
+                        currentValue.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        // Toggle the insideQuotes flag
+                        insideQuotes = !insideQuotes;
+                    }
+                }
+                else if (c == ',' && !insideQuotes)
+                {
+                    // End of field
+                    result.Add(currentValue.ToString());
+                    currentValue.Clear();
+                }
+                else
+                {
+                    // Regular character, add to the value
+                    currentValue.Append(c);
+                }
+            }
+
+            // Add the last field
+            result.Add(currentValue.ToString());
+
+            return result.ToArray();
+        }
+
+        private void UpdateUIWithImportedProducts(List<ProductDTO> importedProducts, List<string> errors)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (importedProducts.Any())
+                {
+                    // Ask user if they want to replace or append
+                    var hasExistingProducts = Products.Any(p => !IsEmptyProduct(p));
+                    bool replaceExisting = true;
+
+                    if (hasExistingProducts)
+                    {
+                        var response = MessageBox.Show(
+                            $"Found {importedProducts.Count} products in the file. Do you want to replace existing products?",
+                            "Import Options",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question);
+
+                        replaceExisting = response == MessageBoxResult.Yes;
+                    }
+
+                    if (replaceExisting)
+                    {
+                        Products.Clear();
+                    }
+                    else
+                    {
+                        ClearEmptyRows(); // Remove any empty rows before adding imported products
+                    }
+
+                    foreach (var product in importedProducts)
+                    {
+                        Products.Add(product);
+                    }
+
+                    // Ensure at least one empty row at the end
+                    if (!Products.Any(IsEmptyProduct))
+                    {
+                        Products.Add(CreateEmptyProduct());
+                    }
+
+                    // Report success
+                    MessageBox.Show(
+                        $"Successfully imported {importedProducts.Count} products." +
+                        (errors.Any() ? $"\n\nWarning: {errors.Count} rows had errors." : ""),
+                        "Import Complete",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+
+                    // If there were errors, offer to show them
+                    if (errors.Any())
+                    {
+                        var showErrors = MessageBox.Show(
+                            "Would you like to see the detailed error report?",
+                            "Import Warnings",
+                            MessageBoxButton.YesNo,
+                            MessageBoxImage.Question);
+
+                        if (showErrors == MessageBoxResult.Yes)
+                        {
+                            MessageBox.Show(
+                                string.Join("\n", errors),
+                                "Import Error Details",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                        }
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "No valid products were found in the file. Please check the file format and try again.",
+                        "Import Failed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+            });
+        }
+
+        private void ShowTemporaryMessage(string message, MessageBoxImage icon = MessageBoxImage.Information)
+        {
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                MessageBox.Show(message,
+                    icon == MessageBoxImage.Error ? "Error" :
+                    icon == MessageBoxImage.Warning ? "Warning" : "Information",
+                    MessageBoxButton.OK, icon);
+            });
         }
 
         private async Task ShowErrorMessageAsync(string message)
@@ -995,6 +1770,46 @@ namespace QuickTechSystems.WPF.ViewModels
                 MessageBox.Show(message, "Error",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             });
+        }
+
+        public override void Dispose()
+        {
+            if (!_isDisposed)
+            {
+                _isDisposed = true;
+
+                // Cancel any running operations
+                try
+                {
+                    if (_cancellationTokenSource != null)
+                    {
+                        _cancellationTokenSource.Cancel();
+                        _cancellationTokenSource.Dispose();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error during token source disposal: {ex.Message}");
+                }
+
+                // Dispose the operation lock
+                try
+                {
+                    _operationLock?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error during operation lock disposal: {ex.Message}");
+                }
+
+                // Unsubscribe from product property change events
+                foreach (var product in Products)
+                {
+                    product.PropertyChanged -= Product_PropertyChanged;
+                }
+
+                base.Dispose();
+            }
         }
     }
 }

@@ -28,6 +28,7 @@
     <system:String x:Key="Supplier_Email">Email</system:String>
     <system:String x:Key="Drawer_OpenedAt_Label">open</system:String>
     <system:String x:Key="Supplier_Address">Address</system:String>
+    <system:String x:Key="Product_BulkAdd_AddOneRow">Add 1 Row</system:String>
     <system:String x:Key="QuantityDialog_Title">Change Quantity</system:String>
     <system:String x:Key="QuantityDialog_CurrentQuantity">Current Quantity:</system:String>
     <system:String x:Key="QuantityDialog_NewQuantity">New Quantity:</system:String>

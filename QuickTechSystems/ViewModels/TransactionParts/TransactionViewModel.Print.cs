@@ -189,8 +189,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Navy
             };
-            header.Inlines.Add("لقمة عبدو \n #l2met abdo \n ");
-            header.Inlines.Add(new Run("76437472")
+            header.Inlines.Add(" اوتوماتيكو كافي \n ");
+
+            header.Inlines.Add(new Run("71999795 / 03889591")
             { FontSize = 14, FontWeight = FontWeights.Normal });
             flowDocument.Blocks.Add(header);
             flowDocument.Blocks.Add(CreateDivider());
