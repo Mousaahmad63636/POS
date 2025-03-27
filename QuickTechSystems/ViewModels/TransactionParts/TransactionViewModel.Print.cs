@@ -81,14 +81,14 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
-                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "اوتوماتيكو كافي");
-                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("PhoneNumber", "71999795 / 03889591");
+                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "Caffeina");
+                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("PhoneNumber", "71778826");
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error retrieving business settings: {ex.Message}");
-                    companyName = "اوتوماتيكو كافي"; // Default value
-                    phoneNumber = "71999795 / 03889591"; // Default value
+                    companyName = "Caffeina"; // Default value
+                    phoneNumber = "71778826"; // Default value
                 }
 
                 // All UI operations in a dedicated block
@@ -259,7 +259,7 @@ namespace QuickTechSystems.WPF.ViewModels
             header.Inlines.Add(new LineBreak());
 
             // Company Address (hardcoded)
-            header.Inlines.Add(new Run("Beirut-Biel")
+            header.Inlines.Add(new Run("قعقعية الجسر")
             {
                 FontSize = 12,
                 FontWeight = FontWeights.Normal
@@ -381,19 +381,14 @@ namespace QuickTechSystems.WPF.ViewModels
             };
 
             // Stay caffeinated!!
-            footer.Inlines.Add(new Run("Stay caffeinated!!")
+            footer.Inlines.Add(new Run("Welcome to Caffeina")
             {
                 FontSize = 14,
                 FontWeight = FontWeights.Bold
             });
             footer.Inlines.Add(new LineBreak());
 
-            // See you next time
-            footer.Inlines.Add(new Run("See you next time")
-            {
-                FontSize = 12,
-                FontWeight = FontWeights.Normal
-            });
+            // See you ne
 
             flowDocument.Blocks.Add(footer);
 
