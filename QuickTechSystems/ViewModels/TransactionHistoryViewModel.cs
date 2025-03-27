@@ -802,132 +802,142 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Get the owner window
                 var ownerWindow = GetOwnerWindow();
 
-                // Create print dialog without trying to set the Owner property
+                // Create print dialog
                 var printDialog = new PrintDialog();
 
-                // Setting the Owner through ShowDialog on PrintDialog isn't supported
-                // Instead, we'll make sure we're on the UI thread when showing the dialog
                 if (await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => printDialog.ShowDialog() == true))
                 {
                     var document = new FlowDocument
                     {
-                        PagePadding = new Thickness(50),
-                        FontFamily = new FontFamily("Arial")
+                        PagePadding = new Thickness(20), // Reduced padding for thermal printer
+                        FontFamily = new FontFamily("Arial"),
+                        PageWidth = 280, // Standard thermal printer width (80mm ≈ 280px)
+                        ColumnWidth = 280
                     };
 
                     // Report Header
-                    var reportHeader = new Paragraph(new Run("Transaction History Report"))
+                    var reportHeader = new Paragraph(new Run("Transaction Summary Report"))
                     {
-                        FontSize = 20,
+                        FontSize = 14, // Smaller font size
                         FontWeight = FontWeights.Bold,
                         TextAlignment = TextAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 20)
+                        Margin = new Thickness(0, 0, 0, 10) // Reduced margin
                     };
                     document.Blocks.Add(reportHeader);
 
                     // Date Range
                     var dateRange = new Paragraph
                     {
-                        Margin = new Thickness(0, 0, 0, 20)
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 10 // Smaller font
                     };
-                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}\n"));
+                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
                     document.Blocks.Add(dateRange);
 
                     // Summary Section
                     var summary = new Paragraph
                     {
-                        Margin = new Thickness(0, 0, 0, 20)
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 10 // Smaller font
                     };
                     summary.Inlines.Add(new Bold(new Run("Summary\n")));
                     summary.Inlines.Add(new Run($"Total Transactions: {FilteredTransactions.Count}\n"));
-                    summary.Inlines.Add(new Run($"Total Sales: {TotalSales:C}\n"));
-                    summary.Inlines.Add(new Run($"Total Profit: {TotalProfit:C}\n"));
+                    summary.Inlines.Add(new Run($"Total Sales: {TotalSales:C2}\n"));
+                    summary.Inlines.Add(new Run($"Total Profit: {TotalProfit:C2}"));
                     document.Blocks.Add(summary);
 
-                    // Category Summary
-                    if (CategorySales.Any())
-                    {
-                        var categorySummary = new Paragraph
+                    // Group products from all transactions
+                    var groupedProducts = FilteredTransactions
+                        .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
+                        .GroupBy(d => d.ProductName)
+                        .Select(g => new
                         {
-                            Margin = new Thickness(0, 0, 0, 20)
-                        };
-                        categorySummary.Inlines.Add(new Bold(new Run("Sales by Category\n")));
-                        foreach (var category in CategorySales.OrderByDescending(x => x.Value))
-                        {
-                            categorySummary.Inlines.Add(new Run($"{category.Key}: {category.Value:C}\n"));
-                        }
-                        document.Blocks.Add(categorySummary);
-                    }
+                            ProductName = g.Key,
+                            TotalQuantity = g.Sum(d => d.Quantity),
+                            TotalAmount = g.Sum(d => d.Total),
+                            AveragePrice = g.Sum(d => d.Total) / g.Sum(d => d.Quantity)
+                        })
+                        .OrderByDescending(g => g.TotalQuantity)
+                        .ToList();
 
-                    // Transactions Table
+                    // Products Table
                     var table = new Table { CellSpacing = 0 };
 
-                    // Define columns
-                    var columnWidths = new[] { 80.0, 120.0, 150.0, 100.0, 100.0, 120.0 };
-                    foreach (var width in columnWidths)
-                    {
-                        table.Columns.Add(new TableColumn { Width = new GridLength(width) });
-                    }
+                    // Define columns with proportional widths for thermal printer
+                    table.Columns.Add(new TableColumn { Width = new GridLength(2.5, GridUnitType.Star) }); // Product
+                    table.Columns.Add(new TableColumn { Width = new GridLength(0.8, GridUnitType.Star) }); // Qty
+                    table.Columns.Add(new TableColumn { Width = new GridLength(1.2, GridUnitType.Star) }); // Total
 
                     // Add header row
                     var tableHeaderRow = new TableRow { Background = Brushes.LightGray };
-                    foreach (var columnHeader in new[] { "ID", "Date", "Customer", "Total", "Status", "Cashier" })
-                    {
-                        tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run(columnHeader)))));
-                    }
+                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Product"))) { FontSize = 9 }));
+                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Qty"))) { FontSize = 9, TextAlignment = TextAlignment.Center }));
+                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total"))) { FontSize = 9, TextAlignment = TextAlignment.Right }));
 
                     var rowGroup = new TableRowGroup();
                     rowGroup.Rows.Add(tableHeaderRow);
 
-                    // Add transaction rows
-                    foreach (var transaction in FilteredTransactions)
+                    // Add grouped product rows
+                    foreach (var product in groupedProducts)
                     {
                         var row = new TableRow();
 
-                        // Add cells
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.TransactionId.ToString()))));
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.TransactionDate.ToString("g")))));
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.CustomerName ?? ""))));
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.TotalAmount.ToString("C")))));
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.Status.ToString()))));
-                        row.Cells.Add(new TableCell(new Paragraph(new Run(transaction.CashierName))));
+                        // Product name cell
+                        var nameCell = new TableCell();
+                        var nameParagraph = new Paragraph { FontSize = 9 };
+                        nameParagraph.Inlines.Add(new Run(product.ProductName ?? "Unknown"));
+                        nameCell.Blocks.Add(nameParagraph);
+                        row.Cells.Add(nameCell);
+
+                        // Quantity cell
+                        var qtyCell = new TableCell();
+                        var qtyParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Center };
+                        qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString()));
+                        qtyCell.Blocks.Add(qtyParagraph);
+                        row.Cells.Add(qtyCell);
+
+                        // Total amount cell
+                        var totalCell = new TableCell();
+                        var totalParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Right };
+                        totalParagraph.Inlines.Add(new Run(product.TotalAmount.ToString("C2")));
+                        totalCell.Blocks.Add(totalParagraph);
+                        row.Cells.Add(totalCell);
 
                         rowGroup.Rows.Add(row);
-
-                        // Add transaction details if present
-                        if (transaction.Details?.Any() == true)
-                        {
-                            var detailsRow = new TableRow();
-                            var detailsCell = new TableCell { ColumnSpan = 6 };
-                            var detailsParagraph = new Paragraph { Margin = new Thickness(20, 5, 5, 5) };
-
-                            foreach (var detail in transaction.Details)
-                            {
-                                detailsParagraph.Inlines.Add(new Run(
-                                    $"• {detail.ProductName} - Qty: {detail.Quantity} @ {detail.UnitPrice:C} = {detail.Total:C}\n"));
-                            }
-
-                            detailsCell.Blocks.Add(detailsParagraph);
-                            detailsRow.Cells.Add(detailsCell);
-                            rowGroup.Rows.Add(detailsRow);
-                        }
                     }
 
                     table.RowGroups.Add(rowGroup);
                     document.Blocks.Add(table);
+
+                    // Category Summary (if available)
+                    if (CategorySales.Any())
+                    {
+                        var categorySummary = new Paragraph
+                        {
+                            Margin = new Thickness(0, 10, 0, 10),
+                            FontSize = 10
+                        };
+                        categorySummary.Inlines.Add(new Bold(new Run("Sales by Category\n")));
+                        foreach (var category in CategorySales.OrderByDescending(x => x.Value).Take(5)) // Top 5 categories
+                        {
+                            categorySummary.Inlines.Add(new Run($"{category.Key}: {category.Value:C2}\n"));
+                        }
+                        document.Blocks.Add(categorySummary);
+                    }
 
                     // Footer
                     var footer = new Paragraph(new Run($"Generated: {DateTime.Now:g}"))
                     {
                         FontStyle = FontStyles.Italic,
                         TextAlignment = TextAlignment.Right,
-                        Margin = new Thickness(0, 20, 0, 0)
+                        Margin = new Thickness(0, 10, 0, 0),
+                        FontSize = 8 // Even smaller font for footer
                     };
                     document.Blocks.Add(footer);
 
                     // Print the document
                     printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator,
-                        "Transaction History Report");
+                        "Transaction Summary Report");
                 }
             }
             catch (Exception ex)
