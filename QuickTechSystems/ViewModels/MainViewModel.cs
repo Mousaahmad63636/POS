@@ -29,6 +29,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isLoading;
         private string _loadingMessage = "Loading...";
         private string _errorMessage = string.Empty;
+        private bool _isRestaurantMode;
 
         private bool _isNavigationEnabled = true;
         private DateTime _lastNavigationTime = DateTime.MinValue;
@@ -76,6 +77,19 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _isNavigationEnabled, value);
         }
 
+        public bool IsRestaurantMode
+        {
+            get => _isRestaurantMode;
+            set
+            {
+                if (SetProperty(ref _isRestaurantMode, value))
+                {
+                    Debug.WriteLine($"IsRestaurantMode changed to: {value}");
+                    // No need to publish event here - that's handled by the settings view
+                }
+            }
+        }
+
         // Role-based visibility properties
         public bool IsAdmin => _currentUserRole == UserRole.Admin;
         public bool IsManager => _currentUserRole == UserRole.Manager || IsAdmin;
@@ -94,7 +108,8 @@ namespace QuickTechSystems.WPF.ViewModels
             IServiceProvider serviceProvider,
             IEventAggregator eventAggregator,
             LanguageManager languageManager,
-            IActivityLogger activityLogger)
+            IActivityLogger activityLogger,
+            ISystemPreferencesService preferencesService)
             : base(eventAggregator)
         {
             _serviceProvider = serviceProvider;
@@ -105,6 +120,10 @@ namespace QuickTechSystems.WPF.ViewModels
             _currentUserRole = Enum.Parse<UserRole>(_currentUser.Role);
             Debug.WriteLine($"User logged in as: {_currentUser.Role} (Parsed Role: {_currentUserRole})"); // Debug log for role validation
 
+            // Subscribe to restaurant mode changes early
+            _eventAggregator.Subscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
+            Debug.WriteLine("Subscribed to ApplicationModeChangedEvent");
+
             NavigateCommand = new RelayCommand(ExecuteNavigation, CanExecuteNavigation);
             LogoutCommand = new RelayCommand(ExecuteLogout);
             ToggleSidebarCommand = new RelayCommand(_ => IsSidebarCollapsed = !IsSidebarCollapsed);
@@ -112,7 +131,36 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _languageManager.LanguageChanged += OnLanguageChanged;
 
+            // Initialize and load saved restaurant mode setting
+            Task.Run(async () => {
+                try
+                {
+                    var restaurantModeStr = await preferencesService.GetPreferenceValueAsync("default", "RestaurantMode", "false");
+                    bool restaurantMode = bool.Parse(restaurantModeStr);
+
+                    // Update the property on UI thread
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        Debug.WriteLine($"Setting IsRestaurantMode to {restaurantMode}");
+                        IsRestaurantMode = restaurantMode;
+                        Debug.WriteLine($"Restaurant mode loaded from preferences: {restaurantMode}");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error loading restaurant mode setting: {ex.Message}");
+                }
+            });
+
             InitializeAsync();
+        }
+
+        private void OnApplicationModeChanged(ApplicationModeChangedEvent evt)
+        {
+            // Ensure we're on the UI thread
+            System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                Debug.WriteLine($"Restaurant mode event received: {evt.IsRestaurantMode}");
+                IsRestaurantMode = evt.IsRestaurantMode;
+            });
         }
 
         private async void InitializeAsync()
@@ -122,6 +170,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = true;
                 LoadingMessage = "Initializing...";
                 await Task.Delay(100); // Prevent UI flicker
+
+                // Apply restaurant mode setting that was loaded during app startup
+                ((App)System.Windows.Application.Current).ApplyRestaurantModeSetting();
+
+                // Navigate to initial view
                 ExecuteNavigation(GetInitialView());
             }
             catch (Exception ex)

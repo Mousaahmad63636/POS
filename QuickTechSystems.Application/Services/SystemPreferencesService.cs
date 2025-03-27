@@ -5,6 +5,7 @@ using QuickTechSystems.Application.Interfaces;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Domain.Interfaces.Repositories;
+using System.Diagnostics;
 
 namespace QuickTechSystems.Application.Services
 {
@@ -68,7 +69,9 @@ namespace QuickTechSystems.Application.Services
             await _semaphore.WaitAsync();
             try
             {
-                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                // Use a new transaction scope for this operation
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
                 {
                     var preference = await _unitOfWork.SystemPreferences.Query()
                         .FirstOrDefaultAsync(p => p.UserId == userId && p.PreferenceKey == key);
@@ -92,7 +95,15 @@ namespace QuickTechSystems.Application.Services
                     }
 
                     await _unitOfWork.SaveChangesAsync();
-                });
+                    await transaction.CommitAsync();
+                    Debug.WriteLine($"Successfully saved preference: {key}={value}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error saving preference {key}: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             finally
             {
@@ -105,7 +116,8 @@ namespace QuickTechSystems.Application.Services
             await _semaphore.WaitAsync();
             try
             {
-                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
                 {
                     foreach (var (key, value) in preferences)
                     {
@@ -131,7 +143,15 @@ namespace QuickTechSystems.Application.Services
                         }
                     }
                     await _unitOfWork.SaveChangesAsync();
-                });
+                    await transaction.CommitAsync();
+                    Debug.WriteLine($"Successfully saved {preferences.Count} preferences");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error saving preferences batch: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
             }
             finally
             {
@@ -154,7 +174,8 @@ namespace QuickTechSystems.Application.Services
                 { "ItemsPerPage", "20" },
                 { "AutoLogoutMinutes", "30" },
                 { "EnableNotifications", "true" },
-                { "SoundEffects", "true" }
+                { "SoundEffects", "true" },
+                { "RestaurantMode", "false" } // Ensure RestaurantMode is included in defaults
             };
 
             await SavePreferencesAsync(userId, defaultPreferences);

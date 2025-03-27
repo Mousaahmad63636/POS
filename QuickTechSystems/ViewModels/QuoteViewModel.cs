@@ -487,8 +487,8 @@ namespace QuickTechSystems.WPF.ViewModels
         public override void Dispose()
         {
             // Cancel any pending initialization
-            _initializationCts.Cancel();
-            _initializationCts.Dispose();
+           // _initializationCts.Cancel();
+            //_initializationCts.Dispose();
 
             _operationLock?.Dispose();
             base.Dispose();

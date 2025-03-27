@@ -1,4 +1,5 @@
 ﻿// SystemPreferencesViewModel.cs
+using System.Diagnostics;
 using QuickTechSystems.Application.Events;
 
 namespace QuickTechSystems.WPF.ViewModels
@@ -13,6 +14,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _notificationsEnabled;
         private string _dateFormat;
         private string _timeFormat;
+        private bool _isRestaurantMode; // Added missing field
 
         public SystemPreferencesViewModel(
             ISystemPreferencesService preferencesService,
@@ -24,6 +26,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _currentLanguage = "en-US";
             _dateFormat = "MM/dd/yyyy";
             _timeFormat = "HH:mm:ss";
+            _isRestaurantMode = false; // Initialize with default value
 
             LoadCommand = new AsyncRelayCommand(async _ => await LoadPreferencesAsync());
             ResetCommand = new AsyncRelayCommand(async _ => await ResetPreferencesAsync());
@@ -109,6 +112,23 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Added missing property
+        public bool IsRestaurantMode
+        {
+            get => _isRestaurantMode;
+            set
+            {
+                if (SetProperty(ref _isRestaurantMode, value))
+                {
+                    _ = SavePreferenceAsync("RestaurantMode", value.ToString());
+
+                    // Publish event to update the application immediately
+                    _eventAggregator.Publish(new ApplicationModeChangedEvent(value));
+                    Debug.WriteLine($"Restaurant mode changed to: {value}");
+                }
+            }
+        }
+
         public ObservableCollection<string> AvailableThemes { get; } = new()
        {
            "Light", "Dark", "System"
@@ -150,12 +170,22 @@ namespace QuickTechSystems.WPF.ViewModels
                 var preferences = await _preferencesService.GetUserPreferencesAsync(userId);
                 Preferences = new ObservableCollection<SystemPreferenceDTO>(preferences);
 
+                // Get current values and log them
                 CurrentTheme = await _preferencesService.GetPreferenceValueAsync(userId, "Theme", "Light");
                 CurrentLanguage = await _preferencesService.GetPreferenceValueAsync(userId, "Language", "en-US");
                 SoundEffectsEnabled = bool.Parse(await _preferencesService.GetPreferenceValueAsync(userId, "SoundEffects", "true"));
                 NotificationsEnabled = bool.Parse(await _preferencesService.GetPreferenceValueAsync(userId, "EnableNotifications", "true"));
                 DateFormat = await _preferencesService.GetPreferenceValueAsync(userId, "DateFormat", "MM/dd/yyyy");
                 TimeFormat = await _preferencesService.GetPreferenceValueAsync(userId, "TimeFormat", "HH:mm:ss");
+
+                // Add logging for restaurant mode
+                var restaurantModeStr = await _preferencesService.GetPreferenceValueAsync(userId, "RestaurantMode", "false");
+                bool restaurantMode = bool.Parse(restaurantModeStr);
+                Debug.WriteLine($"Loaded RestaurantMode preference: {restaurantMode}");
+
+                // Set the property using the field to avoid triggering save
+                _isRestaurantMode = restaurantMode;
+                OnPropertyChanged(nameof(IsRestaurantMode));
             }
             catch (Exception ex)
             {
@@ -170,6 +200,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 const string userId = "default";
                 await _preferencesService.SavePreferenceAsync(userId, key, value);
+                Debug.WriteLine($"Preference saved: {key}={value}");
             }
             catch (Exception ex)
             {

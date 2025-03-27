@@ -23,6 +23,7 @@ using QuickTechSystems.Helpers;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using QuickTechSystems.Application.Interfaces;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace QuickTechSystems.WPF
 {
@@ -30,6 +31,7 @@ namespace QuickTechSystems.WPF
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _configuration;
+        private readonly IEventAggregator _eventAggregator;
         public IServiceProvider ServiceProvider => _serviceProvider;
 
         public App()
@@ -42,6 +44,9 @@ namespace QuickTechSystems.WPF
             var services = new ServiceCollection();
             ConfigureServices(services);
             _serviceProvider = services.BuildServiceProvider();
+
+            // Store the event aggregator at application level for easier access
+            _eventAggregator = _serviceProvider.GetRequiredService<IEventAggregator>();
         }
 
         private void ConfigureServices(IServiceCollection services)
@@ -168,6 +173,7 @@ namespace QuickTechSystems.WPF
                         var businessSettingsService = scope.ServiceProvider.GetRequiredService<IBusinessSettingsService>();
                         var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
                         var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
+                        var eventAggregator = scope.ServiceProvider.GetRequiredService<IEventAggregator>();
 
                         try
                         {
@@ -207,6 +213,7 @@ namespace QuickTechSystems.WPF
 
                         try
                         {
+                            // Load business settings first (before language settings)
                             splashViewModel.UpdateStatus("Loading business settings...");
                             var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
                             if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
@@ -214,13 +221,50 @@ namespace QuickTechSystems.WPF
                                 CurrencyHelper.UpdateExchangeRate(rate);
                             }
 
-                            splashViewModel.UpdateStatus("Setting language preferences...");
-                            var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
-                            await languageManager.SetLanguage(defaultLanguage);
+                            // Keep track of restaurant mode for later use
+                            string restaurantModeStr = "false";
+                            bool isRestaurantMode = false;
+
+                            try
+                            {
+                                // Load restaurant mode setting but don't apply it yet
+                                splashViewModel.UpdateStatus("Loading user preferences...");
+                                restaurantModeStr = await systemPreferencesService.GetPreferenceValueAsync("default", "RestaurantMode", "false");
+                                isRestaurantMode = bool.Parse(restaurantModeStr);
+                                Debug.WriteLine($"Loaded RestaurantMode preference: {isRestaurantMode}");
+                            }
+                            catch (Exception prefEx)
+                            {
+                                Debug.WriteLine($"Error loading restaurant mode preference: {prefEx.Message}");
+                            }
+
+                            // Load language setting and apply in UI thread
+                            try
+                            {
+                                splashViewModel.UpdateStatus("Setting language preferences...");
+                                var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
+
+                                // Apply language on UI thread to avoid cross-thread issues
+                                await Dispatcher.Invoke(async () =>
+                                {
+                                    await languageManager.SetLanguage(defaultLanguage);
+                                });
+                            }
+                            catch (Exception langEx)
+                            {
+                                Debug.WriteLine($"Error setting language: {langEx.Message}");
+                            }
+
+                            // We'll apply the restaurant mode setting later, after login
+                            if (isRestaurantMode)
+                            {
+                                Properties["RestaurantModeEnabled"] = true;
+                            }
                         }
                         catch (Exception settingsEx)
                         {
                             File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nSettings error: {settingsEx.Message}");
+                            Debug.WriteLine($"Settings error: {settingsEx.Message}");
                         }
                     }
 
@@ -261,6 +305,26 @@ namespace QuickTechSystems.WPF
                 }
 
                 Shutdown();
+            }
+        }
+
+        // Method to be called from MainViewModel.InitializeAsync to apply restaurant mode setting
+        public void ApplyRestaurantModeSetting()
+        {
+            if (Properties.Contains("RestaurantModeEnabled") && (bool)Properties["RestaurantModeEnabled"])
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        _eventAggregator.Publish(new ApplicationModeChangedEvent(true));
+                        Debug.WriteLine("Published ApplicationModeChangedEvent: true");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error publishing restaurant mode event: {ex.Message}");
+                    }
+                });
             }
         }
 

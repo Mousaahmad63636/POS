@@ -588,4 +588,6 @@
     <system:String x:Key="Employee_ProcessSalary">معالجة الراتب الشهري</system:String>
     <system:String x:Key="Employee_Withdrawal">سحب</system:String>
     <system:String x:Key="General_Processing">جارٍ المعالجة...</system:String>
+    <system:String x:Key="Product_BulkAdd_AddOneRow">إضافة صف واحد</system:String>
+    <system:String x:Key="TransactionHistory_Column_PaymentMethod">طريقة الدفع</system:String>
 </ResourceDictionary>

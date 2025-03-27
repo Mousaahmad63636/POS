@@ -626,10 +626,14 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 const string userId = "default";
                 await _systemPreferencesService.SavePreferenceAsync(userId, key, value);
+
+                // Add logging to track save operations
+                Debug.WriteLine($"Preference saved: {key}={value}");
             }
             catch (Exception ex)
             {
                 ShowTemporaryErrorMessage($"Error saving preference: {ex.Message}");
+                Debug.WriteLine($"Error saving preference {key}: {ex.Message}");
             }
             finally
             {

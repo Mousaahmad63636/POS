@@ -3,6 +3,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Threading;
 using QuickTechSystems.Application.Services.Interfaces;
 
 namespace QuickTechSystems.Helpers
@@ -10,27 +11,16 @@ namespace QuickTechSystems.Helpers
     public class LanguageManager
     {
         private readonly ISystemPreferencesService _preferencesService;
+        private readonly Dispatcher _uiDispatcher;
         private const string DefaultLanguage = "en-US";
         public event EventHandler<string>? LanguageChanged;
 
         public LanguageManager(ISystemPreferencesService preferencesService)
         {
             _preferencesService = preferencesService;
-            InitializeDefaultLanguageAsync();
-        }
+            _uiDispatcher = System.Windows.Application.Current.Dispatcher;
 
-        private async void InitializeDefaultLanguageAsync()
-        {
-            try
-            {
-                var savedLanguage = await _preferencesService.GetPreferenceValueAsync("default", "Language", DefaultLanguage);
-                await SetLanguage(savedLanguage);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error initializing default language: {ex.Message}");
-                await SetLanguage(DefaultLanguage);
-            }
+            // Don't call InitializeDefaultLanguageAsync here - it will be called explicitly from App.xaml.cs
         }
 
         public static ObservableCollection<LanguageInfo> AvailableLanguages { get; } = new()
@@ -41,6 +31,36 @@ namespace QuickTechSystems.Helpers
         };
 
         public async Task SetLanguage(string languageCode)
+        {
+            try
+            {
+                // Ensure we're on the UI thread
+                if (_uiDispatcher.CheckAccess())
+                {
+                    await ApplyLanguageChangeAsync(languageCode);
+                }
+                else
+                {
+                    await _uiDispatcher.InvokeAsync(async () =>
+                    {
+                        await ApplyLanguageChangeAsync(languageCode);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error setting language: {ex.Message}");
+
+                // Fallback to default language if there's an error
+                if (languageCode != DefaultLanguage)
+                {
+                    Debug.WriteLine("Falling back to default language");
+                    await SetLanguage(DefaultLanguage);
+                }
+            }
+        }
+
+        private async Task ApplyLanguageChangeAsync(string languageCode)
         {
             try
             {
@@ -58,8 +78,18 @@ namespace QuickTechSystems.Helpers
 
                 System.Windows.Application.Current.Resources.MergedDictionaries.Add(resourceDictionary);
 
-                // Save preference
-                await _preferencesService.SavePreferenceAsync("default", "Language", languageCode);
+                // Save preference in a separate task to avoid transaction conflicts
+                await Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _preferencesService.SavePreferenceAsync("default", "Language", languageCode);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error saving language preference: {ex.Message}");
+                    }
+                });
 
                 // Update FlowDirection for the entire application
                 var languageInfo = AvailableLanguages.FirstOrDefault(l => l.Code == languageCode);
@@ -75,14 +105,8 @@ namespace QuickTechSystems.Helpers
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error setting language: {ex.Message}");
-
-                // Fallback to default language if there's an error
-                if (languageCode != DefaultLanguage)
-                {
-                    Debug.WriteLine("Falling back to default language");
-                    await SetLanguage(DefaultLanguage);
-                }
+                Debug.WriteLine($"Error in ApplyLanguageChange: {ex.Message}");
+                throw;
             }
         }
 
