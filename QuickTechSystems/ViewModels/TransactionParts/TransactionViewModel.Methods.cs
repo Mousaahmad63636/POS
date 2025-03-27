@@ -684,6 +684,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // File: QuickTechSystems/ViewModels/TransactionParts/TransactionViewModel.Methods.cs
         private async void CheckAndAlertLowStock(ProductDTO product, int quantity)
         {
             // Only check for active products
@@ -697,7 +698,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Check if the potential new stock is at or below the minimum stock level
                 if (potentialNewStock <= product.MinimumStock)
                 {
-                    // Display simplified alert to the user
+                    // COMMENTED OUT: Display simplified alert to the user
+                    /* 
                     await WindowManager.InvokeAsync(() =>
                         MessageBox.Show(
                             $"Alert: Product '{product.Name}' is reaching low stock level.",
@@ -705,8 +707,9 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxButton.OK,
                             MessageBoxImage.Warning)
                     );
+                    */
 
-                    // Use proper async task handling
+                    // Still log the low stock event in the database
                     try
                     {
                         var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;

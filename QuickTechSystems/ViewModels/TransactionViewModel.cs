@@ -39,6 +39,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public string CustomerBalanceButtonText => IsEditingTransaction ? "Update Customer Balance" : "Add to Customer Balance";
         public Visibility EditModeIndicatorVisibility =>
             IsEditingTransaction ? Visibility.Visible : Visibility.Collapsed;
+        private readonly IBusinessSettingsService _businessSettingsService;
 
         // Thread synchronization
         private readonly SemaphoreSlim _transactionOperationLock = new SemaphoreSlim(1, 1);
@@ -89,6 +90,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _systemPreferencesService = systemPreferencesService ?? throw new ArgumentNullException(nameof(systemPreferencesService));
             _transactionChangedHandler = HandleTransactionChanged;
+            _businessSettingsService = businessSettingsService;
             _productChangedHandler = HandleProductChanged;
 
             try

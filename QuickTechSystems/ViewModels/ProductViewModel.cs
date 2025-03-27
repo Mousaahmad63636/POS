@@ -1136,7 +1136,6 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         // File: QuickTechSystems/ViewModels/ProductViewModel.cs
-
         public async Task SaveAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -1278,6 +1277,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // Refresh specific product
                     await RefreshSpecificProduct(productToUpdate.ProductId);
+
+                    // NEW LINE: Explicitly publish the event for the new product to update TransactionViewModel
+                    await RefreshTransactionProductLists();
 
                     Debug.WriteLine("Save completed, product refreshed");
                 }

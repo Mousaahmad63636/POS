@@ -9,6 +9,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.Application.Helpers;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -29,16 +30,65 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Preparing receipt...";
                 OnPropertyChanged(nameof(StatusMessage));
 
+                // Create a snapshot of the current transaction to prevent any modifications during printing
+                var transactionSnapshot = new TransactionDTO
+                {
+                    TransactionId = CurrentTransaction.TransactionId,
+                    TransactionDate = CurrentTransaction.TransactionDate,
+                    CustomerId = CurrentTransaction.CustomerId,
+                    CustomerName = CurrentTransaction.CustomerName,
+                    TotalAmount = TotalAmount,
+                    Details = new ObservableCollection<TransactionDetailDTO>(
+                        CurrentTransaction.Details.Select(d => new TransactionDetailDTO
+                        {
+                            ProductId = d.ProductId,
+                            ProductName = d.ProductName,
+                            ProductBarcode = d.ProductBarcode,
+                            Quantity = d.Quantity,
+                            UnitPrice = d.UnitPrice,
+                            PurchasePrice = d.PurchasePrice,
+                            Total = d.Total
+                        }))
+                };
+
                 // Get the latest transaction ID before printing
                 int transactionId;
                 try
                 {
                     transactionId = await _transactionService.GetLatestTransactionIdAsync();
+                    if (transactionId <= 0)
+                    {
+                        // If we couldn't get a valid ID, use the current transaction ID or a placeholder
+                        transactionId = CurrentTransaction.TransactionId > 0 ?
+                            CurrentTransaction.TransactionId :
+                            (int)(DateTime.Now.Ticks % 10000);
+                    }
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error getting latest transaction ID: {ex.Message}");
-                    transactionId = CurrentTransaction?.TransactionId ?? 0;
+                    transactionId = CurrentTransaction.TransactionId > 0 ?
+                        CurrentTransaction.TransactionId :
+                        (int)(DateTime.Now.Ticks % 10000);
+                }
+
+                Debug.WriteLine($"Printing transaction with {transactionSnapshot.Details.Count} items, " +
+                    $"Total: {transactionSnapshot.TotalAmount}");
+
+                // Retrieve company information from business settings
+                string companyName;
+                string phoneNumber;
+
+                try
+                {
+                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "اوتوماتيكو كافي");
+                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("PhoneNumber", "71999795 / 03889591");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error retrieving business settings: {ex.Message}");
+                    companyName = "اوتوماتيكو كافي"; // Default value
+                    phoneNumber = "71999795 / 03889591"; // Default value
                 }
 
                 // All UI operations in a dedicated block
@@ -119,7 +169,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        var flowDocument = CreateReceiptDocument(printDialog, transactionId);
+                        var flowDocument = CreateReceiptDocument(
+                            printDialog,
+                            transactionId,
+                            companyName,
+                            phoneNumber,
+                            transactionSnapshot);
 
                         // Execute printing on UI thread with proper error handling
                         try
@@ -169,8 +224,13 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Printing receipt", "PrintOperation");
         }
 
-        // New method to create the receipt document - extracted for clarity
-        private FlowDocument CreateReceiptDocument(PrintDialog printDialog, int transactionId)
+        // Updated to accept transaction parameter and new layout
+        private FlowDocument CreateReceiptDocument(
+            PrintDialog printDialog,
+            int transactionId,
+            string companyName,
+            string phoneNumber,
+            TransactionDTO transaction)
         {
             var flowDocument = new FlowDocument
             {
@@ -182,17 +242,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 PageHeight = printDialog.PrintableAreaHeight
             };
 
-            // 1. Header Section
+            // 1. Header Section - Updated layout
             var header = new Paragraph
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 5, 0, 0)
+            };
+
+            // Company Name
+            header.Inlines.Add(new Run(companyName)
             {
                 FontSize = 18,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Navy
-            };
-            header.Inlines.Add(" اوتوماتيكو كافي \n ");
+                Foreground = Brushes.Black
+            });
+            header.Inlines.Add(new LineBreak());
 
-            header.Inlines.Add(new Run("71999795 / 03889591")
-            { FontSize = 14, FontWeight = FontWeights.Normal });
+            // Company Address (hardcoded)
+            header.Inlines.Add(new Run("Beirut-Biel")
+            {
+                FontSize = 12,
+                FontWeight = FontWeights.Normal
+            });
+            header.Inlines.Add(new LineBreak());
+
+            // Phone Number
+            header.Inlines.Add(new Run(phoneNumber)
+            {
+                FontSize = 12,
+                FontWeight = FontWeights.Normal
+            });
+
             flowDocument.Blocks.Add(header);
             flowDocument.Blocks.Add(CreateDivider());
 
@@ -222,9 +302,13 @@ namespace QuickTechSystems.WPF.ViewModels
             headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
-            if (CurrentTransaction?.Details != null)
+            // Calculate totals directly from the transaction
+            decimal subTotal = 0;
+            decimal discount = DiscountAmount;
+
+            if (transaction?.Details != null && transaction.Details.Any())
             {
-                foreach (var item in CurrentTransaction.Details)
+                foreach (var item in transaction.Details)
                 {
                     var row = new TableRow();
                     row.Cells.Add(CreateCell(item.ProductName?.Trim() ?? "Unknown", alignment: TextAlignment.Left));
@@ -232,29 +316,86 @@ namespace QuickTechSystems.WPF.ViewModels
                     row.Cells.Add(CreateCell(item.UnitPrice.ToString("C2"), alignment: TextAlignment.Right));
                     row.Cells.Add(CreateCell(item.Total.ToString("C2"), alignment: TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
+
+                    // Add to subtotal
+                    subTotal += item.Total;
                 }
             }
+            else
+            {
+                Debug.WriteLine("Warning: No transaction details available for receipt");
+
+                // Add a row indicating no items
+                var emptyRow = new TableRow();
+                emptyRow.Cells.Add(CreateCell("No items available", alignment: TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", alignment: TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", alignment: TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", alignment: TextAlignment.Center));
+                itemsTable.RowGroups[0].Rows.Add(emptyRow);
+            }
+
             flowDocument.Blocks.Add(itemsTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            // 4. Totals Section
+            // 4. Totals Section - Calculate directly from items
             var totalsTable = new Table { FontSize = 12, CellSpacing = 0 };
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
-            AddTotalRow(totalsTable, "SUBTOTAL:", SubTotal.ToString("C2"));
-            if (DiscountAmount > 0)
-                AddTotalRow(totalsTable, "DISCOUNT:", $"-{DiscountAmount:C2}");
-            AddTotalRow(totalsTable, "TOTAL:", TotalAmount.ToString("C2"), true);
+
+            // Add subtotal row
+            AddTotalRow(totalsTable, "SUBTOTAL:", subTotal.ToString("C2"));
+
+            // Add discount row if applicable
+            if (discount > 0)
+                AddTotalRow(totalsTable, "DISCOUNT:", $"-{discount:C2}");
+
+            // Calculate and add total
+            decimal total = Math.Max(0, subTotal - discount);
+            AddTotalRow(totalsTable, "TOTAL:", total.ToString("C2"), true);
 
             // Add LBP amount if available
-            if (!string.IsNullOrEmpty(TotalAmountLBP) && TotalAmountLBP != "Error converting" && TotalAmountLBP != "0 LBP")
+            try
             {
-                AddTotalRow(totalsTable, "TOTAL LBP:", TotalAmountLBP, false);
+                var lbpAmount = CurrencyHelper.ConvertToLBP(total);
+                var formattedLbp = CurrencyHelper.FormatLBP(lbpAmount);
+
+                if (!string.IsNullOrEmpty(formattedLbp) && formattedLbp != "0 LBP")
+                {
+                    AddTotalRow(totalsTable, "TOTAL LBP:", formattedLbp, false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error calculating LBP amount: {ex.Message}");
             }
 
             flowDocument.Blocks.Add(totalsTable);
             flowDocument.Blocks.Add(CreateDivider());
+
+            // 5. Footer Section - New layout
+            var footer = new Paragraph
+            {
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 5)
+            };
+
+            // Stay caffeinated!!
+            footer.Inlines.Add(new Run("Stay caffeinated!!")
+            {
+                FontSize = 14,
+                FontWeight = FontWeights.Bold
+            });
+            footer.Inlines.Add(new LineBreak());
+
+            // See you next time
+            footer.Inlines.Add(new Run("See you next time")
+            {
+                FontSize = 12,
+                FontWeight = FontWeights.Normal
+            });
+
+            flowDocument.Blocks.Add(footer);
 
             return flowDocument;
         }

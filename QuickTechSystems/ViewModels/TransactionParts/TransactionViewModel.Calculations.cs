@@ -325,6 +325,22 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
+                // Retrieve company information from business settings
+                string companyName;
+                string phoneNumber;
+
+                try
+                {
+                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "اوتوماتيكو كافي");
+                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("PhoneNumber", "71999795 / 03889591");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error retrieving business settings: {ex.Message}");
+                    companyName = "اوتوماتيكو كافي"; // Default value
+                    phoneNumber = "71999795 / 03889591"; // Default value
+                }
+
                 await WindowManager.InvokeAsync(async () =>
                 {
                     var printDialog = new PrintDialog();
@@ -335,7 +351,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         PageWidth = printDialog.PrintableAreaWidth,
                         ColumnWidth = printDialog.PrintableAreaWidth,
                         FontFamily = new FontFamily("Courier New"),
-                        PagePadding = new Thickness(20, 0, 20, 0), // Matched with PrintReceipt
+                        PagePadding = new Thickness(20, 0, 20, 0),
                         TextAlignment = TextAlignment.Center,
                         PageHeight = printDialog.PrintableAreaHeight
                     };
@@ -343,13 +359,13 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Header Section
                     var header = new Paragraph
                     {
-                        FontSize = 18, // Matched with PrintReceipt
+                        FontSize = 18,
                         FontWeight = FontWeights.Bold,
                         Foreground = Brushes.Navy
                     };
-                    header.Inlines.Add(" اوتوماتيكو كافي \n ");
+                    header.Inlines.Add($"{companyName}\n");
 
-                    header.Inlines.Add(new Run("71999795 / 03889591")
+                    header.Inlines.Add(new Run(phoneNumber)
                     { FontSize = 14, FontWeight = FontWeights.Normal });
                     flowDocument.Blocks.Add(header);
                     flowDocument.Blocks.Add(CreateDivider());
