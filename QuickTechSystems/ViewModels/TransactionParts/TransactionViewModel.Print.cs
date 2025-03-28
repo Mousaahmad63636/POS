@@ -223,8 +223,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }, "Printing receipt", "PrintOperation");
         }
-
-        // Updated to accept transaction parameter and new layout
         private FlowDocument CreateReceiptDocument(
             PrintDialog printDialog,
             int transactionId,
@@ -236,25 +234,25 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 PageWidth = printDialog.PrintableAreaWidth,
                 ColumnWidth = printDialog.PrintableAreaWidth,
-                FontFamily = new FontFamily("Arial Black"), // Changed to a sharper, bolder font
-                FontWeight = FontWeights.Bold, // Make all text bold by default
-                PagePadding = new Thickness(20, 0, 20, 0),
+                FontFamily = new FontFamily("Arial"), // Changed to standard Arial
+                FontWeight = FontWeights.Normal, // Default to normal, we'll set bold individually
+                PagePadding = new Thickness(10, 0, 10, 0), // Reduced padding
                 TextAlignment = TextAlignment.Center,
                 PageHeight = printDialog.PrintableAreaHeight
             };
 
-            // 1. Header Section - Updated layout with sharper fonts
+            // 1. Header Section - Updated layout with smaller fonts
             var header = new Paragraph
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0)
+                Margin = new Thickness(0, 3, 0, 0)
             };
 
             // Company Name
             header.Inlines.Add(new Run(companyName)
             {
-                FontSize = 22, // Increased font size
-                FontWeight = FontWeights.ExtraBold, // Increased weight
+                FontSize = 16, // Reduced from 22
+                FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Black
             });
             header.Inlines.Add(new LineBreak());
@@ -262,7 +260,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // Company Address (hardcoded)
             header.Inlines.Add(new Run("Beirut-Biel")
             {
-                FontSize = 14, // Increased font size
+                FontSize = 11, // Reduced from 14
                 FontWeight = FontWeights.Bold
             });
             header.Inlines.Add(new LineBreak());
@@ -270,7 +268,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // Phone Number
             header.Inlines.Add(new Run(phoneNumber)
             {
-                FontSize = 14, // Increased font size
+                FontSize = 11, // Reduced from 14
                 FontWeight = FontWeights.Bold
             });
 
@@ -278,8 +276,8 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 2. Transaction Metadata
-            var metaTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased font size
-            metaTable.Columns.Add(new TableColumn { Width = new GridLength(120) });
+            var metaTable = new Table { FontSize = 10, CellSpacing = 0 }; // Reduced from 13
+            metaTable.Columns.Add(new TableColumn { Width = new GridLength(80) }); // Smaller width
             metaTable.Columns.Add(new TableColumn { Width = GridLength.Auto });
             metaTable.RowGroups.Add(new TableRowGroup());
             AddMetaRow(metaTable, "TRX #:", transactionId.ToString());
@@ -290,17 +288,17 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 3. Items Table
-            var itemsTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased font size
+            var itemsTable = new Table { FontSize = 10, CellSpacing = 0 }; // Reduced from 13
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(4, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             itemsTable.RowGroups.Add(new TableRowGroup());
             var headerRow = new TableRow { Background = Brushes.LightGray };
-            headerRow.Cells.Add(CreateCell("ITEM", FontWeights.ExtraBold, TextAlignment.Left)); // ExtraBold for headers
-            headerRow.Cells.Add(CreateCell("QTY", FontWeights.ExtraBold, TextAlignment.Center)); // ExtraBold for headers
-            headerRow.Cells.Add(CreateCell("PRICE", FontWeights.ExtraBold, TextAlignment.Right)); // ExtraBold for headers
-            headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.ExtraBold, TextAlignment.Right)); // ExtraBold for headers
+            headerRow.Cells.Add(CreateCell("ITEM", FontWeights.Bold, TextAlignment.Left));
+            headerRow.Cells.Add(CreateCell("QTY", FontWeights.Bold, TextAlignment.Center));
+            headerRow.Cells.Add(CreateCell("PRICE", FontWeights.Bold, TextAlignment.Right));
+            headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
             // Calculate totals directly from the transaction
@@ -312,10 +310,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 foreach (var item in transaction.Details)
                 {
                     var row = new TableRow();
-                    row.Cells.Add(CreateCell(item.ProductName?.Trim() ?? "Unknown", FontWeights.Bold, TextAlignment.Left));
-                    row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Bold, TextAlignment.Center));
-                    row.Cells.Add(CreateCell(item.UnitPrice.ToString("N0"), FontWeights.Bold, TextAlignment.Right)); // Remove currency symbol, show whole numbers
-                    row.Cells.Add(CreateCell(item.Total.ToString("N0"), FontWeights.Bold, TextAlignment.Right)); // Remove currency symbol, show whole numbers
+                    row.Cells.Add(CreateCell(item.ProductName?.Trim() ?? "Unknown", FontWeights.Normal, TextAlignment.Left));
+                    row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Normal, TextAlignment.Center));
+                    row.Cells.Add(CreateCell(item.UnitPrice.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell(item.Total.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
 
                     // Add to subtotal
@@ -328,10 +326,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Add a row indicating no items
                 var emptyRow = new TableRow();
-                emptyRow.Cells.Add(CreateCell("No items available", FontWeights.Bold, TextAlignment.Center));
-                emptyRow.Cells.Add(CreateCell("", FontWeights.Bold, TextAlignment.Center));
-                emptyRow.Cells.Add(CreateCell("", FontWeights.Bold, TextAlignment.Center));
-                emptyRow.Cells.Add(CreateCell("", FontWeights.Bold, TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("No items available", FontWeights.Normal, TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
                 itemsTable.RowGroups[0].Rows.Add(emptyRow);
             }
 
@@ -339,7 +337,7 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 4. Totals Section - ONLY show LBP amount
-            var totalsTable = new Table { FontSize = 14, CellSpacing = 0 }; // Increased font size
+            var totalsTable = new Table { FontSize = 11, CellSpacing = 0 }; // Reduced from 14
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
@@ -414,15 +412,15 @@ namespace QuickTechSystems.WPF.ViewModels
             var totalRow = new TableRow();
             totalRow.Cells.Add(new TableCell(new Paragraph(new Run("TOTAL:"))
             {
-                FontSize = 16,
-                FontWeight = FontWeights.ExtraBold,
+                FontSize = 12, // Reduced from 16
+                FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Left
             }));
 
             totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"{lbpTotal:N0} LBP"))
             {
-                FontSize = 16,
-                FontWeight = FontWeights.ExtraBold,
+                FontSize = 12, // Reduced from 16
+                FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Right
             }));
 
@@ -431,39 +429,37 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(totalsTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            // 5. Footer Section - New layout with bolder text
+            // 5. Footer Section - New layout with smaller text
             var footer = new Paragraph
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 5)
+                Margin = new Thickness(0, 5, 0, 3) // Reduced margin
             };
 
             // Stay caffeinated!!
             footer.Inlines.Add(new Run("Stay caffeinated!!")
             {
-                FontSize = 16,
-                FontWeight = FontWeights.ExtraBold
+                FontSize = 12, // Reduced from 16
+                FontWeight = FontWeights.Bold
             });
             footer.Inlines.Add(new LineBreak());
 
             // See you next time
             footer.Inlines.Add(new Run("See you next time")
             {
-                FontSize = 14,
-                FontWeight = FontWeights.Bold
+                FontSize = 10, // Reduced from 14
+                FontWeight = FontWeights.Normal
             });
 
             flowDocument.Blocks.Add(footer);
 
             return flowDocument;
         }
-
-        // Helper methods
         private TableCell CreateCell(string text, FontWeight fontWeight = default, TextAlignment alignment = TextAlignment.Left)
         {
             var paragraph = new Paragraph(new Run(text ?? string.Empty))
             {
-                FontWeight = fontWeight == default ? FontWeights.Bold : fontWeight, // Default to bold if not specified
+                FontWeight = fontWeight == default ? FontWeights.Normal : fontWeight, // Default to normal if not specified
                 TextAlignment = alignment
             };
             return new TableCell(paragraph);
@@ -474,8 +470,8 @@ namespace QuickTechSystems.WPF.ViewModels
             if (table == null) return;
 
             var row = new TableRow();
-            row.Cells.Add(CreateCell(label, FontWeights.ExtraBold)); // Increased boldness
-            row.Cells.Add(CreateCell(value ?? string.Empty, FontWeights.Bold)); // Always use bold
+            row.Cells.Add(CreateCell(label, FontWeights.Bold)); // Make label bold
+            row.Cells.Add(CreateCell(value ?? string.Empty, FontWeights.Normal)); // Use normal for values
             table.RowGroups[0].Rows.Add(row);
         }
 
@@ -484,7 +480,7 @@ namespace QuickTechSystems.WPF.ViewModels
             if (table == null) return;
 
             var row = new TableRow();
-            var fontWeight = isBold ? FontWeights.ExtraBold : FontWeights.Bold; 
+            var fontWeight = isBold ? FontWeights.Bold : FontWeights.Normal;
             row.Cells.Add(CreateCell(label, fontWeight, TextAlignment.Left));
             row.Cells.Add(CreateCell(value, fontWeight, TextAlignment.Right));
             table.RowGroups[0].Rows.Add(row);
@@ -494,9 +490,9 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             return new BlockUIContainer(new Border
             {
-                Height = 2, 
+                Height = 1, // Reduced from 2
                 Background = Brushes.Black,
-                Margin = new Thickness(0, 3, 0, 3) 
+                Margin = new Thickness(0, 2, 0, 2) // Reduced margins
             });
         }
     }
