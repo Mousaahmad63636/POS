@@ -47,6 +47,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             Quantity = d.Quantity,
                             UnitPrice = d.UnitPrice,
                             PurchasePrice = d.PurchasePrice,
+                            Discount = d.Discount,
                             Total = d.Total
                         }))
                 };
@@ -72,8 +73,12 @@ namespace QuickTechSystems.WPF.ViewModels
                         (int)(DateTime.Now.Ticks % 10000);
                 }
 
+                // Capture the current subtotal and discount amount for receipt printing
+                decimal currentSubTotal = SubTotal;
+                decimal currentDiscountAmount = DiscountAmount;
+
                 Debug.WriteLine($"Printing transaction with {transactionSnapshot.Details.Count} items, " +
-                    $"Total: {transactionSnapshot.TotalAmount}");
+                    $"Total: {transactionSnapshot.TotalAmount}, Discount: {currentDiscountAmount}");
 
                 // Retrieve company information from business settings
                 string companyName;
@@ -169,12 +174,15 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
+                        // Pass the discount amount and subtotal as separate parameters
                         var flowDocument = CreateReceiptDocument(
                             printDialog,
                             transactionId,
                             companyName,
                             phoneNumber,
-                            transactionSnapshot);
+                            transactionSnapshot,
+                            currentSubTotal,
+                            currentDiscountAmount);
 
                         // Execute printing on UI thread with proper error handling
                         try
@@ -224,11 +232,13 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Printing receipt", "PrintOperation");
         }
         private FlowDocument CreateReceiptDocument(
-            PrintDialog printDialog,
-            int transactionId,
-            string companyName,
-            string phoneNumber,
-            TransactionDTO transaction)
+     PrintDialog printDialog,
+     int transactionId,
+     string companyName,
+     string phoneNumber,
+     TransactionDTO transaction,
+     decimal subTotal,
+     decimal discountAmount)
         {
             var flowDocument = new FlowDocument
             {
@@ -282,8 +292,8 @@ namespace QuickTechSystems.WPF.ViewModels
             metaTable.RowGroups.Add(new TableRowGroup());
             AddMetaRow(metaTable, "TRX #:", transactionId.ToString());
             AddMetaRow(metaTable, "DATE:", DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
-            if (SelectedCustomer != null)
-                AddMetaRow(metaTable, "CUSTOMER:", SelectedCustomer.Name);
+            if (transaction.CustomerName != null && !string.IsNullOrEmpty(transaction.CustomerName))
+                AddMetaRow(metaTable, "CUSTOMER:", transaction.CustomerName);
             flowDocument.Blocks.Add(metaTable);
             flowDocument.Blocks.Add(CreateDivider());
 
@@ -302,9 +312,6 @@ namespace QuickTechSystems.WPF.ViewModels
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
             // Calculate totals directly from the transaction
-            decimal subTotal = 0;
-            decimal discount = DiscountAmount;
-
             if (transaction?.Details != null && transaction.Details.Any())
             {
                 foreach (var item in transaction.Details)
@@ -315,9 +322,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     row.Cells.Add(CreateCell(item.UnitPrice.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
                     row.Cells.Add(CreateCell(item.Total.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
-
-                    // Add to subtotal
-                    subTotal += item.Total;
                 }
             }
             else
@@ -371,26 +375,26 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Add discount row if applicable
             decimal lbpDiscount = 0;
-            if (discount > 0)
+            if (discountAmount > 0)
             {
                 try
                 {
-                    lbpDiscount = CurrencyHelper.ConvertToLBP(discount);
+                    lbpDiscount = CurrencyHelper.ConvertToLBP(discountAmount);
                     if (lbpDiscount == 0)
                     {
-                        lbpDiscount = discount * DEFAULT_EXCHANGE_RATE;
+                        lbpDiscount = discountAmount * DEFAULT_EXCHANGE_RATE;
                     }
                 }
                 catch
                 {
-                    lbpDiscount = discount * DEFAULT_EXCHANGE_RATE;
+                    lbpDiscount = discountAmount * DEFAULT_EXCHANGE_RATE;
                 }
 
                 AddTotalRow(totalsTable, "DISCOUNT:", $"-{lbpDiscount:N0} LBP");
             }
 
             // Calculate and add ONLY total in LBP
-            decimal total = Math.Max(0, subTotal - discount);
+            decimal total = Math.Max(0, subTotal - discountAmount);
             decimal lbpTotal;
 
             try
