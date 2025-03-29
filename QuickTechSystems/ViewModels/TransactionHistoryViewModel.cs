@@ -815,7 +815,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task PrintTransactionReportAsync()
         {
-            await EnsureExchangeRateLoaded();
             if (!FilteredTransactions.Any())
             {
                 await ShowErrorMessageAsync("No transactions to print");
@@ -843,19 +842,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     var document = new FlowDocument
                     {
-                        PagePadding = new Thickness(20), // Reduced padding for thermal printer
+                        PagePadding = new Thickness(20),
                         FontFamily = new FontFamily("Arial"),
-                        PageWidth = 280, // Standard thermal printer width (80mm ≈ 280px)
+                        PageWidth = 280,
                         ColumnWidth = 280
                     };
 
                     // Report Header
                     var reportHeader = new Paragraph(new Run("Transaction Summary Report"))
                     {
-                        FontSize = 14, // Smaller font size
+                        FontSize = 14,
                         FontWeight = FontWeights.Bold,
                         TextAlignment = TextAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 10) // Reduced margin
+                        Margin = new Thickness(0, 0, 0, 10)
                     };
                     document.Blocks.Add(reportHeader);
 
@@ -863,38 +862,55 @@ namespace QuickTechSystems.WPF.ViewModels
                     var dateRange = new Paragraph
                     {
                         Margin = new Thickness(0, 0, 0, 10),
-                        FontSize = 10 // Smaller font
+                        FontSize = 10
                     };
                     dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
                     document.Blocks.Add(dateRange);
 
-                    // Summary Section - Now with LBP only
+                    // Summary Section
                     var summary = new Paragraph
                     {
                         Margin = new Thickness(0, 0, 0, 10),
-                        FontSize = 10 // Smaller font
+                        FontSize = 10
                     };
                     summary.Inlines.Add(new Bold(new Run("Summary\n")));
                     summary.Inlines.Add(new Run($"Total Transactions: {FilteredTransactions.Count}\n"));
-
-                    // Use correct exchange rate and show only LBP values
-                    decimal totalSalesLBP = CurrencyHelper.ConvertToLBP(TotalSales);
-                   // decimal totalProfitLBP = CurrencyHelper.ConvertToLBP(TotalProfit);
-
-                    summary.Inlines.Add(new Run($"Total Sales: {CurrencyHelper.FormatLBP(totalSalesLBP)}\n"));
-                   // summary.Inlines.Add(new Run($"Total Profit: {CurrencyHelper.FormatLBP(totalProfitLBP)}"));
+                    summary.Inlines.Add(new Run($"Total Sales: {TotalSales:C2}\n"));
+                    summary.Inlines.Add(new Run($"Total Profit: {TotalProfit:C2}"));
                     document.Blocks.Add(summary);
 
-                    // Group products from all transactions
-                    var groupedProducts = FilteredTransactions
-                        .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
-                        .GroupBy(d => d.ProductName)
+                    // Create a flattened list of transaction details with actual final prices
+                    var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total)>();
+
+                    foreach (var transaction in FilteredTransactions)
+                    {
+                        if (transaction.Details == null) continue;
+
+                        foreach (var detail in transaction.Details)
+                        {
+                            // Calculate the actual unit price after discount
+                            decimal actualUnitPrice = detail.Quantity > 0
+                                ? (detail.Total / detail.Quantity)
+                                : 0;
+
+                            transactionItems.Add((
+                                detail.ProductName,
+                                detail.Quantity,
+                                actualUnitPrice,
+                                detail.Total
+                            ));
+                        }
+                    }
+
+                    // Group the flattened items by product name
+                    var groupedProducts = transactionItems
+                        .GroupBy(item => item.ProductName)
                         .Select(g => new
                         {
                             ProductName = g.Key,
-                            TotalQuantity = g.Sum(d => d.Quantity),
-                            TotalAmount = g.Sum(d => d.Total),
-                            AveragePrice = g.Sum(d => d.Total) / g.Sum(d => d.Quantity)
+                            TotalQuantity = g.Sum(item => item.Quantity),
+                            TotalAmount = g.Sum(item => item.Total),
+                            // Use the actual transaction amounts rather than recalculating
                         })
                         .OrderByDescending(g => g.TotalQuantity)
                         .ToList();
@@ -911,7 +927,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     var tableHeaderRow = new TableRow { Background = Brushes.LightGray };
                     tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Product"))) { FontSize = 9 }));
                     tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Qty"))) { FontSize = 9, TextAlignment = TextAlignment.Center }));
-                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total (LBP)"))) { FontSize = 9, TextAlignment = TextAlignment.Right }));
+                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total"))) { FontSize = 9, TextAlignment = TextAlignment.Right }));
 
                     var rowGroup = new TableRowGroup();
                     rowGroup.Rows.Add(tableHeaderRow);
@@ -935,14 +951,10 @@ namespace QuickTechSystems.WPF.ViewModels
                         qtyCell.Blocks.Add(qtyParagraph);
                         row.Cells.Add(qtyCell);
 
-                        // Total amount cell - Now with LBP only
+                        // Total amount cell - using exact amount from transactions
                         var totalCell = new TableCell();
                         var totalParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Right };
-
-                        // Convert to LBP and format
-                        decimal lbpAmount = CurrencyHelper.ConvertToLBP(product.TotalAmount);
-                        totalParagraph.Inlines.Add(new Run(CurrencyHelper.FormatLBP(lbpAmount)));
-
+                        totalParagraph.Inlines.Add(new Run(product.TotalAmount.ToString("C2")));
                         totalCell.Blocks.Add(totalParagraph);
                         row.Cells.Add(totalCell);
 
@@ -952,7 +964,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     table.RowGroups.Add(rowGroup);
                     document.Blocks.Add(table);
 
-                    // Category Summary with LBP only (if available)
+                    // Validate totals match
+                    decimal reportTotal = groupedProducts.Sum(p => p.TotalAmount);
+                    if (Math.Abs(reportTotal - TotalSales) > 0.01m)
+                    {
+                        var warning = new Paragraph
+                        {
+                            Margin = new Thickness(0, 10, 0, 5),
+                            FontSize = 8,
+                            Foreground = Brushes.Red
+                        };
+                        warning.Inlines.Add(new Run("Note: Totals may include rounding adjustments"));
+                        document.Blocks.Add(warning);
+                    }
+
+                    // Category Summary (if available)
                     if (CategorySales.Any())
                     {
                         var categorySummary = new Paragraph
@@ -961,11 +987,9 @@ namespace QuickTechSystems.WPF.ViewModels
                             FontSize = 10
                         };
                         categorySummary.Inlines.Add(new Bold(new Run("Sales by Category\n")));
-                        foreach (var category in CategorySales.OrderByDescending(x => x.Value).Take(5)) // Top 5 categories
+                        foreach (var category in CategorySales.OrderByDescending(x => x.Value).Take(5))
                         {
-                            // Convert to LBP and display only LBP value
-                            decimal lbpValue = CurrencyHelper.ConvertToLBP(category.Value);
-                            categorySummary.Inlines.Add(new Run($"{category.Key}: {CurrencyHelper.FormatLBP(lbpValue)}\n"));
+                            categorySummary.Inlines.Add(new Run($"{category.Key}: {category.Value:C2}\n"));
                         }
                         document.Blocks.Add(categorySummary);
                     }
@@ -976,7 +1000,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontStyle = FontStyles.Italic,
                         TextAlignment = TextAlignment.Right,
                         Margin = new Thickness(0, 10, 0, 0),
-                        FontSize = 8 // Even smaller font for footer
+                        FontSize = 8
                     };
                     document.Blocks.Add(footer);
 
@@ -995,6 +1019,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
