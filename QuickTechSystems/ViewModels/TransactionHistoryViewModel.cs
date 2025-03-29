@@ -856,32 +856,33 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Report Header
                     var reportHeader = new Paragraph(new Run("Transaction Summary Report"))
                     {
-                        FontSize = 16,
+                        FontSize = 14,
                         FontWeight = FontWeights.Bold,
                         TextAlignment = TextAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 10)
                     };
                     document.Blocks.Add(reportHeader);
 
+                    // Date Range
+                    var dateRange = new Paragraph
+                    {
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 10,
+                        TextAlignment = TextAlignment.Center
+                    };
+                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
+                    document.Blocks.Add(dateRange);
+
                     // Currency Notice
                     var currencyNotice = new Paragraph(new Run("All amounts in Lebanese Pounds (LBP)"))
                     {
-                        FontSize = 12,
-                        FontWeight = FontWeights.Bold,
+                        FontSize = 10,
+                        FontWeight = FontWeights.Normal,
                         TextAlignment = TextAlignment.Center,
                         Margin = new Thickness(0, 0, 0, 10),
                         Foreground = Brushes.DarkGreen
                     };
                     document.Blocks.Add(currencyNotice);
-
-                    // Date Range
-                    var dateRange = new Paragraph
-                    {
-                        Margin = new Thickness(0, 0, 0, 10),
-                        FontSize = 10
-                    };
-                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
-                    document.Blocks.Add(dateRange);
 
                     // Split transactions into discounted and non-discounted
                     var discountedTransactions = FilteredTransactions.Where(t =>
@@ -899,65 +900,11 @@ namespace QuickTechSystems.WPF.ViewModels
                         .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
                         .Sum(d => d.Discount);
 
-                    // Calculate pre-discount total sales (total + discounts)
-                    decimal preDiscountTotal = TotalSales + totalDiscountAmount;
-
-                    // Calculate pre-discount profit (assuming proportional impact on profit)
-                    decimal profitRatio = TotalSales > 0 ? TotalProfit / TotalSales : 0;
-                    decimal preDiscountProfit = TotalProfit + (totalDiscountAmount * profitRatio);
-
                     // Calculate LBP values
-                    decimal lbpPreDiscountTotal = CurrencyHelper.ConvertToLBP(preDiscountTotal);
-                    decimal lbpPreDiscountProfit = CurrencyHelper.ConvertToLBP(preDiscountProfit);
                     decimal lbpTotalSales = CurrencyHelper.ConvertToLBP(TotalSales);
-                    decimal lbpTotalProfit = CurrencyHelper.ConvertToLBP(TotalProfit);
                     decimal lbpDiscountedSales = CurrencyHelper.ConvertToLBP(discountedSalesTotal);
                     decimal lbpNonDiscountedSales = CurrencyHelper.ConvertToLBP(nonDiscountedSalesTotal);
                     decimal lbpTotalDiscountAmount = CurrencyHelper.ConvertToLBP(totalDiscountAmount);
-
-                    // Overall Summary Section with enhanced totals
-                    var summaryBlock = new Section() { Margin = new Thickness(0, 0, 0, 15) };
-
-                    // Summary Header
-                    var summaryHeader = new Paragraph(new Bold(new Run("OVERALL SUMMARY")))
-                    {
-                        FontSize = 14,
-                        Background = Brushes.LightGray,
-                        Padding = new Thickness(5),
-                        TextAlignment = TextAlignment.Center,
-                        Margin = new Thickness(0, 0, 0, 5)
-                    };
-                    summaryBlock.Blocks.Add(summaryHeader);
-
-                    // Create table for key metrics
-                    var summaryTable = new Table { CellSpacing = 0 };
-                    summaryTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
-                    summaryTable.Columns.Add(new TableColumn { Width = new GridLength(1.5, GridUnitType.Star) });
-                    summaryTable.RowGroups.Add(new TableRowGroup());
-
-                    // Add pre-discount totals first
-                    AddMetricRow(summaryTable, "Original Sales:", $"{lbpPreDiscountTotal:N0} LBP", 12, true, Brushes.Purple);
-                    AddMetricRow(summaryTable, "Original Profit:", $"{lbpPreDiscountProfit:N0} LBP", 12, true, Brushes.Purple);
-
-                    // Add discount information
-                    if (totalDiscountAmount > 0)
-                    {
-                        AddMetricRow(summaryTable, "Total Discounts:", $"-{lbpTotalDiscountAmount:N0} LBP", 12, true, Brushes.Crimson);
-                    }
-
-                    // Add final totals
-                    AddMetricRow(summaryTable, "Final Sales:", $"{lbpTotalSales:N0} LBP", 12, true, Brushes.DarkBlue);
-                    AddMetricRow(summaryTable, "Final Profit:", $"{lbpTotalProfit:N0} LBP", 12, true, Brushes.DarkGreen);
-                    AddMetricRow(summaryTable, "Total Transactions:", FilteredTransactions.Count.ToString(), 11);
-
-                    if (discountedTransactions.Any())
-                    {
-                        AddMetricRow(summaryTable, "Discounted Transactions:",
-                            $"{discountedTransactions.Count} ({(FilteredTransactions.Count > 0 ? (discountedTransactions.Count * 100.0 / FilteredTransactions.Count) : 0):F1}%)", 11);
-                    }
-
-                    summaryBlock.Blocks.Add(summaryTable);
-                    document.Blocks.Add(summaryBlock);
 
                     // Add a section for non-discounted transactions
                     if (nonDiscountedTransactions.Any())
@@ -970,17 +917,35 @@ namespace QuickTechSystems.WPF.ViewModels
                             Background = Brushes.LightGray,
                             Padding = new Thickness(5),
                             TextAlignment = TextAlignment.Center,
-                            Margin = new Thickness(0, 0, 0, 5)
+                            Margin = new Thickness(0, 0, 0, 10)
                         };
                         nonDiscountedSection.Blocks.Add(nonDiscountedHeader);
 
-                        // Add summary for non-discounted
+                        // Add summary for non-discounted with bold values
                         var nonDiscountedSummary = new Paragraph
                         {
-                            Margin = new Thickness(0, 0, 0, 5),
-                            FontSize = 10
+                            Margin = new Thickness(0, 0, 0, 10),
+                            TextAlignment = TextAlignment.Center
                         };
-                        nonDiscountedSummary.Inlines.Add(new Run($"Count: {nonDiscountedTransactions.Count} | Sales: {CurrencyHelper.FormatLBP(lbpNonDiscountedSales)}"));
+
+                        // Count with bold text
+                        nonDiscountedSummary.Inlines.Add(new Run("Count: ") { FontSize = 10 });
+                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"{nonDiscountedTransactions.Count}")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkBlue
+                        }));
+
+                        nonDiscountedSummary.Inlines.Add(new LineBreak());
+
+                        // Sales with bold text
+                        nonDiscountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
+                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"{lbpNonDiscountedSales:N0} LBP")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkGreen
+                        }));
+
                         nonDiscountedSection.Blocks.Add(nonDiscountedSummary);
 
                         // Create a table for non-discounted transactions by product
@@ -1000,19 +965,44 @@ namespace QuickTechSystems.WPF.ViewModels
                             Background = Brushes.LightGray,
                             Padding = new Thickness(5),
                             TextAlignment = TextAlignment.Center,
-                            Margin = new Thickness(0, 0, 0, 5)
+                            Margin = new Thickness(0, 0, 0, 10)
                         };
                         discountedSection.Blocks.Add(discountedHeader);
 
-                        // Add summary for discounted transactions
+                        // Add summary for discounted with bold values
                         var discountedSummary = new Paragraph
                         {
-                            Margin = new Thickness(0, 0, 0, 5),
-                            FontSize = 10
+                            Margin = new Thickness(0, 0, 0, 10),
+                            TextAlignment = TextAlignment.Center
                         };
 
-                        discountedSummary.Inlines.Add(new Run($"Count: {discountedTransactions.Count} | Sales: {CurrencyHelper.FormatLBP(lbpDiscountedSales)}\n"));
-                        discountedSummary.Inlines.Add(new Run($"Total Discount Amount: {CurrencyHelper.FormatLBP(lbpTotalDiscountAmount)}"));
+                        // Count with bold text
+                        discountedSummary.Inlines.Add(new Run("Count: ") { FontSize = 10 });
+                        discountedSummary.Inlines.Add(new Bold(new Run($"{discountedTransactions.Count}")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkBlue
+                        }));
+
+                        discountedSummary.Inlines.Add(new LineBreak());
+
+                        // Sales with bold text
+                        discountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
+                        discountedSummary.Inlines.Add(new Bold(new Run($"{lbpDiscountedSales:N0} LBP")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkGreen
+                        }));
+
+                        discountedSummary.Inlines.Add(new LineBreak());
+
+                        // Discount amount - regular size
+                        discountedSummary.Inlines.Add(new Run($"Total Discount: {lbpTotalDiscountAmount:N0} LBP")
+                        {
+                            FontSize = 10,
+                            Foreground = Brushes.Crimson
+                        });
+
                         discountedSection.Blocks.Add(discountedSummary);
 
                         // Create a table for discounted transactions by product
@@ -1021,50 +1011,38 @@ namespace QuickTechSystems.WPF.ViewModels
                         document.Blocks.Add(discountedSection);
                     }
 
-                    // Category Summary - LBP only
-                    if (CategorySales.Any())
+                    // TOTAL SALES SECTION - Added at the end as requested
+                    var totalSalesSection = new Section() { Margin = new Thickness(0, 10, 0, 15) };
+
+                    // Add a divider
+                    totalSalesSection.Blocks.Add(new Paragraph(new Run(""))
                     {
-                        var categorySection = new Section() { Margin = new Thickness(0, 0, 0, 15) };
+                        BorderBrush = Brushes.DarkGray,
+                        BorderThickness = new Thickness(0, 1, 0, 0),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
 
-                        var categoryHeader = new Paragraph(new Bold(new Run("SALES BY CATEGORY")))
-                        {
-                            FontSize = 12,
-                            Background = Brushes.LightGray,
-                            Padding = new Thickness(5),
-                            TextAlignment = TextAlignment.Center,
-                            Margin = new Thickness(0, 0, 0, 5)
-                        };
-                        categorySection.Blocks.Add(categoryHeader);
+                    // Total sales paragraph
+                    var totalSalesParagraph = new Paragraph
+                    {
+                        TextAlignment = TextAlignment.Center,
+                        Margin = new Thickness(0, 5, 0, 5),
+                    };
 
-                        // Create table for categories
-                        var categoryTable = new Table { CellSpacing = 0 };
-                        categoryTable.Columns.Add(new TableColumn { Width = new GridLength(1.5, GridUnitType.Star) });
-                        categoryTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
-                        categoryTable.RowGroups.Add(new TableRowGroup());
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL SALES: ")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.Black
+                    }));
 
-                        // Add header row
-                        var categoryHeaderRow = new TableRow { Background = Brushes.LightGray };
-                        categoryHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Category"))) { FontSize = 10 }));
-                        categoryHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Amount (LBP)")))
-                        { FontSize = 10, TextAlignment = TextAlignment.Right }));
-                        categoryTable.RowGroups[0].Rows.Add(categoryHeaderRow);
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalSales:N0} LBP")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.DarkGreen
+                    }));
 
-                        // Add category rows
-                        foreach (var category in CategorySales.OrderByDescending(x => x.Value).Take(10))
-                        {
-                            decimal lbpValue = CurrencyHelper.ConvertToLBP(category.Value);
-
-                            var row = new TableRow();
-                            row.Cells.Add(new TableCell(new Paragraph(new Run(category.Key)) { FontSize = 9 }));
-                            row.Cells.Add(new TableCell(new Paragraph(new Run($"{lbpValue:N0} LBP"))
-                            { FontSize = 9, TextAlignment = TextAlignment.Right }));
-
-                            categoryTable.RowGroups[0].Rows.Add(row);
-                        }
-
-                        categorySection.Blocks.Add(categoryTable);
-                        document.Blocks.Add(categorySection);
-                    }
+                    totalSalesSection.Blocks.Add(totalSalesParagraph);
+                    document.Blocks.Add(totalSalesSection);
 
                     // Footer
                     var footer = new Paragraph(new Run($"Generated: {DateTime.Now:g}"))
@@ -1091,7 +1069,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-        // Helper method to add a metric row with custom formatting
         private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
             bool isBold = false, Brush? foreground = null)
         {
