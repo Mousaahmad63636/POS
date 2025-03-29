@@ -46,7 +46,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isRefreshing;
         private bool _isLoading;
         private string _errorMessage = string.Empty;
-        private DateTime _startDate = DateTime.Today.AddDays(-30);
+        private DateTime _startDate = DateTime.Today;
         private DateTime _endDate = DateTime.Today;
         private bool _isDateRangeValid = true;
         private int _totalTransactions;
@@ -520,7 +520,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SearchText = string.Empty;
             SelectedCategory = Categories.First();
-            StartDate = DateTime.Today.AddDays(-30);
+            StartDate = DateTime.Today; // Changed from DateTime.Today.AddDays(-30)
             EndDate = DateTime.Today;
             ApplyFilters();
         }
