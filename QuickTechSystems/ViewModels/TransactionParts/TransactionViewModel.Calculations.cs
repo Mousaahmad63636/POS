@@ -183,12 +183,38 @@ namespace QuickTechSystems.WPF.ViewModels
                     dbTransaction = await _unitOfWork.BeginTransactionAsync();
 
                     var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
+
+                    // IMPORTANT FIX: Apply discount proportionally to all line items if there's a transaction-level discount
+                    if (DiscountAmount > 0 && CurrentTransaction.Details.Any())
+                    {
+                        // Calculate the discount ratio - how much of the original price we're discounting
+                        decimal subtotal = CurrentTransaction.Details.Sum(d => d.Total);
+                        decimal discountRatio = DiscountAmount / subtotal;
+
+                        // Apply proportional discount to each line item
+                        foreach (var detail in CurrentTransaction.Details)
+                        {
+                            // Calculate item-level discount
+                            decimal itemDiscount = Math.Round(detail.Total * discountRatio, 2);
+
+                            // Store the discount with the line item
+                            detail.Discount = itemDiscount;
+
+                            // Update the total for this item
+                            detail.Total = Math.Round(detail.Total - itemDiscount, 2);
+
+                            Debug.WriteLine($"Applied discount to {detail.ProductName}: Original=${detail.UnitPrice * detail.Quantity:F2}, " +
+                                           $"Discount=${itemDiscount:F2}, Final=${detail.Total:F2}");
+                        }
+                    }
+
+                    // Create transaction with properly discounted line items
                     var transactionToProcess = new TransactionDTO
                     {
                         TransactionDate = DateTime.Now,
                         CustomerId = SelectedCustomer?.CustomerId,
                         CustomerName = SelectedCustomer?.Name ?? "Walk-in Customer",
-                        TotalAmount = TotalAmount,
+                        TotalAmount = TotalAmount, // This is already correctly calculated with discount
                         PaidAmount = TotalAmount,
                         TransactionType = TransactionType.Sale,
                         Status = TransactionStatus.Completed,
@@ -204,8 +230,8 @@ namespace QuickTechSystems.WPF.ViewModels
                                 Quantity = d.Quantity,
                                 UnitPrice = d.UnitPrice,
                                 PurchasePrice = d.PurchasePrice,
-                                Discount = d.Discount,
-                                Total = d.Total
+                                Discount = d.Discount, // Now includes the calculated item discount
+                                Total = d.Total // Already updated to reflect the discount
                             }))
                     };
 

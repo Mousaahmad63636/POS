@@ -531,7 +531,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 TotalSales = FilteredTransactions.Sum(t => t.TotalAmount);
 
-                // Calculate profit with improved logic
+                // Calculate profit with correct discount handling
                 TotalProfit = FilteredTransactions.Sum(t =>
                 {
                     // Skip if transaction has no details
@@ -542,9 +542,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     if (t.TotalAmount == 0)
                         return 0;
 
-                    // Calculate base profit
-                    var itemProfit = t.Details.Sum(d => (d.UnitPrice - d.PurchasePrice) * d.Quantity);
-                    return itemProfit;
+                    // Calculate total purchase cost
+                    decimal purchaseCost = t.Details.Sum(d => d.PurchasePrice * d.Quantity);
+
+                    // Use transaction total amount (already includes discounts) instead of summing details
+                    return t.TotalAmount - purchaseCost;
                 });
             }
             catch (Exception ex)
@@ -880,7 +882,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     document.Blocks.Add(summary);
 
                     // Create a flattened list of transaction details with actual final prices
-                    var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total)>();
+                    var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total, decimal ProfitPerUnit)>();
 
                     foreach (var transaction in FilteredTransactions)
                     {
@@ -893,11 +895,20 @@ namespace QuickTechSystems.WPF.ViewModels
                                 ? (detail.Total / detail.Quantity)
                                 : 0;
 
+                            // Calculate profit per unit (after discount)
+                            decimal profitPerUnit = actualUnitPrice - detail.PurchasePrice;
+
+                            // Debug logging to verify correct price calculations
+                            Debug.WriteLine($"Product: {detail.ProductName}, Original: {detail.UnitPrice:C2}, " +
+                                $"Discounted: {actualUnitPrice:C2}, Purchase: {detail.PurchasePrice:C2}, " +
+                                $"Profit: {profitPerUnit:C2}, Total: {detail.Total:C2}");
+
                             transactionItems.Add((
                                 detail.ProductName,
                                 detail.Quantity,
-                                actualUnitPrice,
-                                detail.Total
+                                actualUnitPrice,   // Using actual unit price after discount
+                                detail.Total,
+                                profitPerUnit
                             ));
                         }
                     }
@@ -909,8 +920,9 @@ namespace QuickTechSystems.WPF.ViewModels
                         {
                             ProductName = g.Key,
                             TotalQuantity = g.Sum(item => item.Quantity),
+                            AverageUnitPrice = g.Sum(item => item.Total) / g.Sum(item => item.Quantity), // Calculate weighted average price
                             TotalAmount = g.Sum(item => item.Total),
-                            // Use the actual transaction amounts rather than recalculating
+                            TotalProfit = g.Sum(item => item.Quantity * item.ProfitPerUnit) // Calculate total profit
                         })
                         .OrderByDescending(g => g.TotalQuantity)
                         .ToList();
@@ -966,7 +978,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // Validate totals match
                     decimal reportTotal = groupedProducts.Sum(p => p.TotalAmount);
-                    if (Math.Abs(reportTotal - TotalSales) > 0.01m)
+                    decimal reportProfit = groupedProducts.Sum(p => p.TotalProfit);
+
+                    if (Math.Abs(reportTotal - TotalSales) > 0.01m || Math.Abs(reportProfit - TotalProfit) > 0.01m)
                     {
                         var warning = new Paragraph
                         {
@@ -976,6 +990,9 @@ namespace QuickTechSystems.WPF.ViewModels
                         };
                         warning.Inlines.Add(new Run("Note: Totals may include rounding adjustments"));
                         document.Blocks.Add(warning);
+
+                        Debug.WriteLine($"Report Total: {reportTotal:C2}, View Total: {TotalSales:C2}, Difference: {reportTotal - TotalSales:C2}");
+                        Debug.WriteLine($"Report Profit: {reportProfit:C2}, View Profit: {TotalProfit:C2}, Difference: {reportProfit - TotalProfit:C2}");
                     }
 
                     // Category Summary (if available)
@@ -1019,7 +1036,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
