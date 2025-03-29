@@ -9,7 +9,7 @@ namespace QuickTechSystems.Application.Helpers
     // Create new file: Application/Helpers/CurrencyHelper.cs
     public static class CurrencyHelper
     {
-        private static decimal _exchangeRate = 90000m;
+        private static decimal _exchangeRate = 100000m;
 
         public static void UpdateExchangeRate(decimal rate)
         {

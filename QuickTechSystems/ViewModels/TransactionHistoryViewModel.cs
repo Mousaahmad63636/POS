@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using QuickTechSystems.WPF.Commands;
+using QuickTechSystems.Application.Helpers;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -29,7 +30,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly ITransactionService _transactionService;
         private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
         private readonly ICategoryService _categoryService;
+        private readonly IBusinessSettingsService _businessSettingsService;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
+
         private bool _isDisposed;
         private CancellationTokenSource _cts;
 
@@ -47,6 +50,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private DateTime _endDate = DateTime.Today;
         private bool _isDateRangeValid = true;
         private int _totalTransactions;
+
         private Dictionary<string, decimal> _categorySales = new();
 
         private static TransactionHistoryViewModel _instance;
@@ -187,6 +191,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public TransactionHistoryViewModel(
      ITransactionService transactionService,
      ICategoryService categoryService,
+     IBusinessSettingsService businessSettingsService,
      IDbContextFactory<ApplicationDbContext> dbContextFactory,
      IEventAggregator eventAggregator) : base(eventAggregator)
         {
@@ -194,7 +199,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
-
+            _businessSettingsService = businessSettingsService ?? throw new ArgumentNullException(nameof(businessSettingsService));
             _transactions = new ObservableCollection<TransactionDTO>();
             _filteredTransactions = new ObservableCollection<TransactionDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
@@ -217,7 +222,35 @@ namespace QuickTechSystems.WPF.ViewModels
             IsDateRangeValid = StartDate <= EndDate;
             ErrorMessage = !IsDateRangeValid ? "Start date must be before or equal to end date" : string.Empty;
         }
+        private async Task EnsureExchangeRateLoaded()
+        {
+            try
+            {
+                // Try to get exchange rate from business settings
+                var rateSetting = await _businessSettingsService.GetByKeyAsync("ExchangeRate");
+                if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate) && rate > 0)
+                {
+                    CurrencyHelper.UpdateExchangeRate(rate);
+                    Debug.WriteLine($"Exchange rate loaded: {rate}");
+                }
+                else
+                {
+                    // Use a default value as fallback
+                    CurrencyHelper.UpdateExchangeRate(100000m);
+                    Debug.WriteLine("Using default exchange rate: 100000");
+                }
 
+                // Force a small calculation to verify
+                decimal test = CurrencyHelper.ConvertToLBP(1);
+                Debug.WriteLine($"Verification: 1 USD = {test} LBP");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading exchange rate: {ex.Message}");
+                // Ensure a fallback value is set
+                CurrencyHelper.UpdateExchangeRate(100000m);
+            }
+        }
         private async Task InitializeAsync()
         {
             try
@@ -782,6 +815,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task PrintTransactionReportAsync()
         {
+            await EnsureExchangeRateLoaded();
             if (!FilteredTransactions.Any())
             {
                 await ShowErrorMessageAsync("No transactions to print");
@@ -834,7 +868,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
                     document.Blocks.Add(dateRange);
 
-                    // Summary Section
+                    // Summary Section - Now with LBP only
                     var summary = new Paragraph
                     {
                         Margin = new Thickness(0, 0, 0, 10),
@@ -842,8 +876,13 @@ namespace QuickTechSystems.WPF.ViewModels
                     };
                     summary.Inlines.Add(new Bold(new Run("Summary\n")));
                     summary.Inlines.Add(new Run($"Total Transactions: {FilteredTransactions.Count}\n"));
-                    summary.Inlines.Add(new Run($"Total Sales: {TotalSales:C2}\n"));
-                    summary.Inlines.Add(new Run($"Total Profit: {TotalProfit:C2}"));
+
+                    // Use correct exchange rate and show only LBP values
+                    decimal totalSalesLBP = CurrencyHelper.ConvertToLBP(TotalSales);
+                   // decimal totalProfitLBP = CurrencyHelper.ConvertToLBP(TotalProfit);
+
+                    summary.Inlines.Add(new Run($"Total Sales: {CurrencyHelper.FormatLBP(totalSalesLBP)}\n"));
+                   // summary.Inlines.Add(new Run($"Total Profit: {CurrencyHelper.FormatLBP(totalProfitLBP)}"));
                     document.Blocks.Add(summary);
 
                     // Group products from all transactions
@@ -872,7 +911,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     var tableHeaderRow = new TableRow { Background = Brushes.LightGray };
                     tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Product"))) { FontSize = 9 }));
                     tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Qty"))) { FontSize = 9, TextAlignment = TextAlignment.Center }));
-                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total"))) { FontSize = 9, TextAlignment = TextAlignment.Right }));
+                    tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total (LBP)"))) { FontSize = 9, TextAlignment = TextAlignment.Right }));
 
                     var rowGroup = new TableRowGroup();
                     rowGroup.Rows.Add(tableHeaderRow);
@@ -896,10 +935,14 @@ namespace QuickTechSystems.WPF.ViewModels
                         qtyCell.Blocks.Add(qtyParagraph);
                         row.Cells.Add(qtyCell);
 
-                        // Total amount cell
+                        // Total amount cell - Now with LBP only
                         var totalCell = new TableCell();
                         var totalParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Right };
-                        totalParagraph.Inlines.Add(new Run(product.TotalAmount.ToString("C2")));
+
+                        // Convert to LBP and format
+                        decimal lbpAmount = CurrencyHelper.ConvertToLBP(product.TotalAmount);
+                        totalParagraph.Inlines.Add(new Run(CurrencyHelper.FormatLBP(lbpAmount)));
+
                         totalCell.Blocks.Add(totalParagraph);
                         row.Cells.Add(totalCell);
 
@@ -909,7 +952,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     table.RowGroups.Add(rowGroup);
                     document.Blocks.Add(table);
 
-                    // Category Summary (if available)
+                    // Category Summary with LBP only (if available)
                     if (CategorySales.Any())
                     {
                         var categorySummary = new Paragraph
@@ -920,7 +963,9 @@ namespace QuickTechSystems.WPF.ViewModels
                         categorySummary.Inlines.Add(new Bold(new Run("Sales by Category\n")));
                         foreach (var category in CategorySales.OrderByDescending(x => x.Value).Take(5)) // Top 5 categories
                         {
-                            categorySummary.Inlines.Add(new Run($"{category.Key}: {category.Value:C2}\n"));
+                            // Convert to LBP and display only LBP value
+                            decimal lbpValue = CurrencyHelper.ConvertToLBP(category.Value);
+                            categorySummary.Inlines.Add(new Run($"{category.Key}: {CurrencyHelper.FormatLBP(lbpValue)}\n"));
                         }
                         document.Blocks.Add(categorySummary);
                     }
@@ -950,7 +995,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
@@ -966,13 +1010,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     MessageBoxImage.Error);
             });
 
-            // Automatically clear error after delay
-            Task.Run(async () =>
+           await Task.Run(async () =>
             {
-                await Task.Delay(3000); // Show error for 3 seconds
+                await Task.Delay(3000); 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (ErrorMessage == message) // Only clear if still the same message
+                    if (ErrorMessage == message) 
                     {
                         ErrorMessage = string.Empty;
                     }
