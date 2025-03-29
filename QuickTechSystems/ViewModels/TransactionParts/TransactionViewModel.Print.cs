@@ -231,22 +231,23 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }, "Printing receipt", "PrintOperation");
         }
+
         private FlowDocument CreateReceiptDocument(
-     PrintDialog printDialog,
-     int transactionId,
-     string companyName,
-     string phoneNumber,
-     TransactionDTO transaction,
-     decimal subTotal,
-     decimal discountAmount)
+    PrintDialog printDialog,
+    int transactionId,
+    string companyName,
+    string phoneNumber,
+    TransactionDTO transaction,
+    decimal subTotal,
+    decimal discountAmount)
         {
             var flowDocument = new FlowDocument
             {
                 PageWidth = printDialog.PrintableAreaWidth,
                 ColumnWidth = printDialog.PrintableAreaWidth,
-                FontFamily = new FontFamily("Arial"), // Changed to standard Arial
-                FontWeight = FontWeights.Normal, // Default to normal, we'll set bold individually
-                PagePadding = new Thickness(10, 0, 10, 0), // Reduced padding
+                FontFamily = new FontFamily("Arial"),
+                FontWeight = FontWeights.Normal,
+                PagePadding = new Thickness(10, 0, 10, 0),
                 TextAlignment = TextAlignment.Center,
                 PageHeight = printDialog.PrintableAreaHeight
             };
@@ -261,7 +262,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // Company Name
             header.Inlines.Add(new Run(companyName)
             {
-                FontSize = 16, // Reduced from 22
+                FontSize = 16,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Black
             });
@@ -270,7 +271,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // Company Address (hardcoded)
             header.Inlines.Add(new Run("Beirut-Biel")
             {
-                FontSize = 11, // Reduced from 14
+                FontSize = 11,
                 FontWeight = FontWeights.Bold
             });
             header.Inlines.Add(new LineBreak());
@@ -278,7 +279,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // Phone Number
             header.Inlines.Add(new Run(phoneNumber)
             {
-                FontSize = 11, // Reduced from 14
+                FontSize = 11,
                 FontWeight = FontWeights.Bold
             });
 
@@ -286,8 +287,8 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 2. Transaction Metadata
-            var metaTable = new Table { FontSize = 10, CellSpacing = 0 }; // Reduced from 13
-            metaTable.Columns.Add(new TableColumn { Width = new GridLength(80) }); // Smaller width
+            var metaTable = new Table { FontSize = 10, CellSpacing = 0 };
+            metaTable.Columns.Add(new TableColumn { Width = new GridLength(80) });
             metaTable.Columns.Add(new TableColumn { Width = GridLength.Auto });
             metaTable.RowGroups.Add(new TableRowGroup());
             AddMetaRow(metaTable, "TRX #:", transactionId.ToString());
@@ -298,7 +299,7 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 3. Items Table
-            var itemsTable = new Table { FontSize = 10, CellSpacing = 0 }; // Reduced from 13
+            var itemsTable = new Table { FontSize = 10, CellSpacing = 0 };
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(4, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
@@ -311,16 +312,52 @@ namespace QuickTechSystems.WPF.ViewModels
             headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
+            // Default exchange rate if the helper fails
+            const decimal DEFAULT_EXCHANGE_RATE = 90000m;
+
             // Calculate totals directly from the transaction
             if (transaction?.Details != null && transaction.Details.Any())
             {
                 foreach (var item in transaction.Details)
                 {
                     var row = new TableRow();
+
+                    // Convert unit price to LBP
+                    decimal lbpUnitPrice;
+                    try
+                    {
+                        lbpUnitPrice = CurrencyHelper.ConvertToLBP(item.UnitPrice);
+                        if (lbpUnitPrice == 0 && item.UnitPrice > 0)
+                        {
+                            lbpUnitPrice = item.UnitPrice * DEFAULT_EXCHANGE_RATE;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error converting unit price to LBP: {ex.Message}");
+                        lbpUnitPrice = item.UnitPrice * DEFAULT_EXCHANGE_RATE;
+                    }
+
+                    // Convert total to LBP
+                    decimal lbpItemTotal;  // Renamed from lbpTotal to avoid conflict
+                    try
+                    {
+                        lbpItemTotal = CurrencyHelper.ConvertToLBP(item.Total);
+                        if (lbpItemTotal == 0 && item.Total > 0)
+                        {
+                            lbpItemTotal = item.Total * DEFAULT_EXCHANGE_RATE;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error converting line total to LBP: {ex.Message}");
+                        lbpItemTotal = item.Total * DEFAULT_EXCHANGE_RATE;
+                    }
+
                     row.Cells.Add(CreateCell(item.ProductName?.Trim() ?? "Unknown", FontWeights.Normal, TextAlignment.Left));
                     row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Normal, TextAlignment.Center));
-                    row.Cells.Add(CreateCell(item.UnitPrice.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
-                    row.Cells.Add(CreateCell(item.Total.ToString("N0"), FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"{lbpUnitPrice:N0} LBP", FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"{lbpItemTotal:N0} LBP", FontWeights.Normal, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
                 }
             }
@@ -341,14 +378,10 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(CreateDivider());
 
             // 4. Totals Section - ONLY show LBP amount
-            var totalsTable = new Table { FontSize = 11, CellSpacing = 0 }; // Reduced from 14
+            var totalsTable = new Table { FontSize = 11, CellSpacing = 0 };
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
-
-            // Use direct calculation instead of helper to prevent issues
-            // Default exchange rate if the helper fails
-            const decimal DEFAULT_EXCHANGE_RATE = 90000m;
 
             // Add subtotal row in LBP
             decimal lbpSubtotal;
@@ -395,35 +428,35 @@ namespace QuickTechSystems.WPF.ViewModels
 
             // Calculate and add ONLY total in LBP
             decimal total = Math.Max(0, subTotal - discountAmount);
-            decimal lbpTotal;
+            decimal lbpFinalTotal;  // Renamed from lbpTotal to avoid conflict
 
             try
             {
-                lbpTotal = CurrencyHelper.ConvertToLBP(total);
-                if (lbpTotal == 0 && total > 0)
+                lbpFinalTotal = CurrencyHelper.ConvertToLBP(total);
+                if (lbpFinalTotal == 0 && total > 0)
                 {
-                    lbpTotal = total * DEFAULT_EXCHANGE_RATE;
+                    lbpFinalTotal = total * DEFAULT_EXCHANGE_RATE;
                 }
-                Debug.WriteLine($"USD Total: {total}, LBP Total: {lbpTotal}");
+                Debug.WriteLine($"USD Total: {total}, LBP Total: {lbpFinalTotal}");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error converting total to LBP: {ex.Message}");
-                lbpTotal = total * DEFAULT_EXCHANGE_RATE;
+                lbpFinalTotal = total * DEFAULT_EXCHANGE_RATE;
             }
 
             // Bold, larger font for the total in LBP
             var totalRow = new TableRow();
             totalRow.Cells.Add(new TableCell(new Paragraph(new Run("TOTAL:"))
             {
-                FontSize = 12, // Reduced from 16
+                FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Left
             }));
 
-            totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"{lbpTotal:N0} LBP"))
+            totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"{lbpFinalTotal:N0} LBP"))
             {
-                FontSize = 12, // Reduced from 16
+                FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Right
             }));
@@ -437,13 +470,13 @@ namespace QuickTechSystems.WPF.ViewModels
             var footer = new Paragraph
             {
                 TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 3) // Reduced margin
+                Margin = new Thickness(0, 5, 0, 3)
             };
 
             // Stay caffeinated!!
             footer.Inlines.Add(new Run("Stay caffeinated!!")
             {
-                FontSize = 12, // Reduced from 16
+                FontSize = 12,
                 FontWeight = FontWeights.Bold
             });
             footer.Inlines.Add(new LineBreak());
@@ -451,7 +484,7 @@ namespace QuickTechSystems.WPF.ViewModels
             // See you next time
             footer.Inlines.Add(new Run("See you next time")
             {
-                FontSize = 10, // Reduced from 14
+                FontSize = 10,
                 FontWeight = FontWeights.Normal
             });
 
@@ -459,6 +492,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return flowDocument;
         }
+
         private TableCell CreateCell(string text, FontWeight fontWeight = default, TextAlignment alignment = TextAlignment.Left)
         {
             var paragraph = new Paragraph(new Run(text ?? string.Empty))
