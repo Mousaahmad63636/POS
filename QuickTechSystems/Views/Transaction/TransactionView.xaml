@@ -145,6 +145,10 @@
                     Command="{Binding ClearTransactionCommand}"
                     Style="{StaticResource BasicButtonStyle}"
                     Margin="4"/>
+            <Button Content="New Transaction"
+        Command="{Binding NewTransactionWindowCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Margin="4"/>
         </UniformGrid>
 
         <!-- Minimal Status Bar -->

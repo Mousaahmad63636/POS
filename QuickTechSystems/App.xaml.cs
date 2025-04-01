@@ -83,7 +83,8 @@ namespace QuickTechSystems.WPF
             // Repositories and Unit of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
-
+            // In your startup configuration
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
             // Application Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
@@ -99,7 +100,8 @@ namespace QuickTechSystems.WPF
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
-
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
+            services.AddTransient<TransactionViewModel>();
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
             services.AddTransient<SplashScreenView>();

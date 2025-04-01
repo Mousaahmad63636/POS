@@ -48,7 +48,18 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null; // Return null instead of failing
             }
         }
-
+        private void OpenNewTransactionWindow()
+        {
+            try
+            {
+                _transactionWindowManager.OpenNewTransactionWindow();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
+                WindowManager.ShowError("Failed to open new transaction window. Please try again.");
+            }
+        }
         public async Task LoadLatestTransactionIdAsync()
         {
             await ExecuteOperationSafelyAsync(async () =>

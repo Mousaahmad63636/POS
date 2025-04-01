@@ -19,6 +19,7 @@ using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Application.Helpers;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -78,6 +79,7 @@ namespace QuickTechSystems.WPF.ViewModels
             IQuoteService quoteService,
             ICategoryService categoryService,
             IBusinessSettingsService businessSettingsService,
+             ITransactionWindowManager transactionWindowManager,
             ISystemPreferencesService systemPreferencesService,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
@@ -92,6 +94,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _transactionChangedHandler = HandleTransactionChanged;
             _businessSettingsService = businessSettingsService;
             _productChangedHandler = HandleProductChanged;
+            _transactionWindowManager = transactionWindowManager;
 
             try
             {

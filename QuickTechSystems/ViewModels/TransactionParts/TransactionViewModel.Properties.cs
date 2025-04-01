@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows.Media.Imaging;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -36,6 +37,8 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _supplierPayments;
         private decimal _dailyExpenses;
         private decimal _netCashflow;
+        private ITransactionWindowManager _transactionWindowManager;
+        public ICommand NewTransactionWindowCommand { get; private set; }
         private ObservableCollection<ProductDTO> _allProducts = new();
         private string _dropdownSearchText = string.Empty;
         private string _totalAmountLBP = "0 LBP";
