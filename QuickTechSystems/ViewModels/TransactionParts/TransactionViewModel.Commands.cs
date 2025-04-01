@@ -67,6 +67,18 @@ namespace QuickTechSystems.WPF.ViewModels
             CancelTransactionCommand = new RelayCommand(
                 _ => CancelTransaction(),
                 _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+            NewTransactionWindowCommand = new RelayCommand(_ =>
+            {
+                try
+                {
+                    _transactionWindowManager.OpenNewTransactionWindow();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
+                    WindowManager.ShowError("Failed to open new transaction window. Please try again.");
+                }
+            });
 
             LookupTransactionCommand = new AsyncRelayCommand(
                 async _ => await LookupTransactionAsync(),

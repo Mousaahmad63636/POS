@@ -6,12 +6,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
         mc:Ignorable="d"
-        Title="Transaction Window"
-        Height="800" 
-        Width="1200"
+        Title="Transaction"
+        Width="1280" Height="800"
         WindowStartupLocation="CenterScreen">
+
     <Grid>
-        <!-- Use the correct namespace - the TransactionView appears to be directly in Views folder -->
+        <!-- Put the transaction view here -->
         <local:TransactionView />
     </Grid>
 </Window>

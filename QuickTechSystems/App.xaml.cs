@@ -100,12 +100,13 @@ namespace QuickTechSystems.WPF
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
-            services.AddSingleton<QuickTechSystems.WPF.Services.ITransactionWindowManager, TransactionWindowManager>();
+        
+
             services.AddTransient<TransactionViewModel>();
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
             services.AddTransient<SplashScreenView>();
-
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
             // View Models
             services.AddScoped<MainViewModel>();
             services.AddScoped<LoginViewModel>();

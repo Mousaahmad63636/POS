@@ -9,17 +9,10 @@ using QuickTechSystems.WPF.Views;
 
 namespace QuickTechSystems.WPF.Services
 {
-    public interface ITransactionWindowManager
-    {
-        void OpenNewTransactionWindow();
-        void CloseAllTransactionWindows();
-        int ActiveWindowCount { get; }
-    }
-
     public class TransactionWindowManager : ITransactionWindowManager
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly List<TransactionWindow> _activeWindows = new();
+        private readonly List<Window> _activeWindows = new();
 
         public int ActiveWindowCount => _activeWindows.Count;
 
@@ -32,18 +25,34 @@ namespace QuickTechSystems.WPF.Services
         {
             try
             {
-                // Use the service provider to create a new instance of TransactionViewModel
-                var viewModel = _serviceProvider.GetRequiredService<TransactionViewModel>();
+                // Create a scope to ensure isolated service instances
+                using var scope = _serviceProvider.CreateScope();
 
-                // Create a new transaction window with the view model
-                var window = new TransactionWindow(viewModel);
+                // Get a new TransactionViewModel from the scope
+                var viewModel = scope.ServiceProvider.GetRequiredService<TransactionViewModel>();
 
-                // Handle window closed event to remove from active windows
+                // Initialize the new view model (create a clean transaction)
+                viewModel.StartNewTransaction();
+
+                // Create a transaction window
+                var window = new TransactionWindow
+                {
+                    DataContext = viewModel,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen
+                };
+
+                // Handle window closing to clean up resources
                 window.Closed += (sender, args) =>
                 {
-                    if (sender is TransactionWindow closedWindow)
+                    if (sender is Window closedWindow)
                     {
                         _activeWindows.Remove(closedWindow);
+
+                        // Explicitly dispose the ViewModel when window is closed
+                        if (closedWindow.DataContext is IDisposable disposable)
+                        {
+                            disposable.Dispose();
+                        }
                     }
                 };
 
@@ -72,6 +81,12 @@ namespace QuickTechSystems.WPF.Services
             {
                 try
                 {
+                    // Dispose ViewModel before closing window
+                    if (window.DataContext is IDisposable disposable)
+                    {
+                        disposable.Dispose();
+                    }
+
                     window.Close();
                 }
                 catch (Exception ex)

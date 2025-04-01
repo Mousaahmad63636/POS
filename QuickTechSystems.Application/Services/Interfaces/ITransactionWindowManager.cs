@@ -1,5 +1,7 @@
-﻿// Path: QuickTechSystems.Application/Services/Interfaces/ITransactionWindowManager.cs
-namespace QuickTechSystems.Application.Services.Interfaces
+﻿// Path: QuickTechSystems.WPF/Services/ITransactionWindowManager.cs
+using System.Windows;
+
+namespace QuickTechSystems.WPF.Services
 {
     public interface ITransactionWindowManager
     {

@@ -1037,13 +1037,26 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Closing drawer");
         }
 
-        private void StartNewTransaction()
+        public void StartNewTransaction()
         {
             try
             {
+                // Get current user information
                 var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
 
+                // Generate a new unique transaction ID based on current timestamp
                 CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
+
+                // Reset customer selection
+                SelectedCustomer = null;
+                CustomerSearchText = string.Empty;
+                IsCustomerSearchVisible = false;
+
+                // Reset product selection
+                ProductSearchText = string.Empty;
+                IsProductSearchVisible = false;
+
+                // Create a completely fresh transaction object
                 CurrentTransaction = new TransactionDTO
                 {
                     TransactionDate = DateTime.Now,
@@ -1058,19 +1071,29 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Reset editing state
                 IsEditingTransaction = false;
+
+                // Reset financial values
+                DiscountAmount = 0;
+                ClearTotals();
+
+                // Reset any cached product or customer data
+                CustomerSpecificPrices = new Dictionary<int, decimal>();
+
+                // Update status message
+                StatusMessage = "New transaction started";
+
+                // Notify UI of changes to ensure everything updates properly
                 OnPropertyChanged(nameof(IsEditingTransaction));
                 OnPropertyChanged(nameof(CashPaymentButtonText));
                 OnPropertyChanged(nameof(CustomerBalanceButtonText));
                 OnPropertyChanged(nameof(EditModeIndicatorVisibility));
-
-                ClearTotals();
-
-                // Update status message
-                StatusMessage = "New transaction started";
                 OnPropertyChanged(nameof(StatusMessage));
                 OnPropertyChanged(nameof(CurrentTransaction));
                 OnPropertyChanged(nameof(CurrentTransactionNumber));
                 OnPropertyChanged(nameof(CashierName));
+                OnPropertyChanged(nameof(SelectedCustomer));
+                OnPropertyChanged(nameof(CustomerSearchText));
+                OnPropertyChanged(nameof(IsCustomerSearchVisible));
             }
             catch (Exception ex)
             {
@@ -1084,7 +1107,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 };
             }
         }
-
         private async Task HoldTransaction()
         {
             await ExecuteOperationSafelyAsync(async () =>
