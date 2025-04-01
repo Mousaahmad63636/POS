@@ -10,9 +10,8 @@
         Height="800" 
         Width="1200"
         WindowStartupLocation="CenterScreen">
-
     <Grid>
-        <!-- Host the TransactionView user control -->
+        <!-- Use the correct namespace - the TransactionView appears to be directly in Views folder -->
         <local:TransactionView />
     </Grid>
 </Window>

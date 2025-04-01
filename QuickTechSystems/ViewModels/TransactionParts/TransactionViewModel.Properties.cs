@@ -37,7 +37,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _supplierPayments;
         private decimal _dailyExpenses;
         private decimal _netCashflow;
-        private ITransactionWindowManager _transactionWindowManager;
+        private QuickTechSystems.WPF.Services.ITransactionWindowManager _transactionWindowManager;
         public ICommand NewTransactionWindowCommand { get; private set; }
         private ObservableCollection<ProductDTO> _allProducts = new();
         private string _dropdownSearchText = string.Empty;

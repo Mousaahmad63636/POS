@@ -71,17 +71,17 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         public TransactionViewModel(
-            IUnitOfWork unitOfWork,
-            ITransactionService transactionService,
-            ICustomerService customerService,
-            IProductService productService,
-            IDrawerService drawerService,
-            IQuoteService quoteService,
-            ICategoryService categoryService,
-            IBusinessSettingsService businessSettingsService,
-             ITransactionWindowManager transactionWindowManager,
-            ISystemPreferencesService systemPreferencesService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
+     IUnitOfWork unitOfWork,
+     ITransactionService transactionService,
+     ICustomerService customerService,
+     IProductService productService,
+     IDrawerService drawerService,
+     IQuoteService quoteService,
+     ICategoryService categoryService,
+     IBusinessSettingsService businessSettingsService,
+     QuickTechSystems.WPF.Services.ITransactionWindowManager transactionWindowManager, // Fully qualified here
+     ISystemPreferencesService systemPreferencesService,
+     IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
