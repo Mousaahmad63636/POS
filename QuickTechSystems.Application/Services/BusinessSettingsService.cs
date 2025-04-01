@@ -83,75 +83,89 @@ namespace QuickTechSystems.Application.Services
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 var defaultSettings = new List<BusinessSetting>
-                {
-                    new() {
-                        Key = "CompanyName",
-                        Value = "QuickTech Systems",
-                        Group = "General",
-                        Description = "Company name displayed on receipts and reports",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "Address",
-                        Value = "",
-                        Group = "General",
-                        Description = "Company address",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "Phone",
-                        Value = "",
-                        Group = "General",
-                        Description = "Company phone number",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "Email",
-                        Value = "",
-                        Group = "General",
-                        Description = "Company email address",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "Currency",
-                        Value = "USD",
-                        Group = "Financial",
-                        Description = "Default currency",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "TaxRate",
-                        Value = "0",
-                        Group = "Financial",
-                        Description = "Default tax rate percentage",
-                        DataType = "decimal",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "LowStockThreshold",
-                        Value = "10",
-                        Group = "Inventory",
-                        Description = "Low stock alert threshold",
-                        DataType = "int",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "EnableEmailReceipts",
-                        Value = "false",
-                        Group = "Sales",
-                        Description = "Enable email receipts",
-                        DataType = "boolean",
-                        IsSystem = true
-                    },
-                    new() {
-                        Key = "ExchangeRate",
-                        Value = "90000",  // Default exchange rate
-                        Group = "Financial",
-                        Description = "Exchange rate (LBP per USD)",
-                        DataType = "decimal",
-                        IsSystem = true
-                    }
-                };
+        {
+            new() {
+                Key = "CompanyName",
+                Value = "QuickTech Systems",
+                Group = "General",
+                Description = "Company name displayed on receipts and reports",
+                IsSystem = true
+            },
+            new() {
+                Key = "Address",
+                Value = "",
+                Group = "General",
+                Description = "Company address",
+                IsSystem = true
+            },
+            new() {
+                Key = "Phone",
+                Value = "",
+                Group = "General",
+                Description = "Company phone number",
+                IsSystem = true
+            },
+            new() {
+                Key = "Email",
+                Value = "",
+                Group = "General",
+                Description = "Company email address",
+                IsSystem = true
+            },
+            new() {
+                Key = "Currency",
+                Value = "USD",
+                Group = "Financial",
+                Description = "Default currency",
+                IsSystem = true
+            },
+            new() {
+                Key = "TaxRate",
+                Value = "0",
+                Group = "Financial",
+                Description = "Default tax rate percentage",
+                DataType = "decimal",
+                IsSystem = true
+            },
+            new() {
+                Key = "LowStockThreshold",
+                Value = "10",
+                Group = "Inventory",
+                Description = "Low stock alert threshold",
+                DataType = "int",
+                IsSystem = true
+            },
+            new() {
+                Key = "EnableEmailReceipts",
+                Value = "false",
+                Group = "Sales",
+                Description = "Enable email receipts",
+                DataType = "boolean",
+                IsSystem = true
+            },
+            new() {
+                Key = "ExchangeRate",
+                Value = "90000",  // Default exchange rate
+                Group = "Financial",
+                Description = "Exchange rate (LBP per USD)",
+                DataType = "decimal",
+                IsSystem = true
+            },
+            new() {
+                Key = "ReceiptFooter1",
+                Value = "Stay caffeinated!!",  // First footer line
+                Group = "Sales",
+                Description = "Primary message at bottom of receipt",
+                IsSystem = true
+            },
+            new() {
+                Key = "ReceiptFooter2",
+                Value = "See you next time",  // Second footer line
+                Group = "Sales",
+                Description = "Secondary message at bottom of receipt",
+                IsSystem = true
+            }
+        };
 
                 foreach (var setting in defaultSettings)
                 {
