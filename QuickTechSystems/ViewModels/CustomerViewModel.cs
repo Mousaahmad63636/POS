@@ -17,6 +17,7 @@ namespace QuickTechSystems.WPF.ViewModels
     {
         private readonly ICustomerService _customerService;
         private readonly IProductService _productService;
+        private readonly ITransactionService _transactionService;
         private ObservableCollection<CustomerDTO> _customers;
         private CustomerDTO? _selectedCustomer;
         private bool _isEditing;
@@ -37,6 +38,8 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _errorMessage = string.Empty;
         private bool _hasErrors;
         private bool _isPaymentDialogOpen;
+        private ObservableCollection<TransactionDTO> _paymentHistory = new ObservableCollection<TransactionDTO>();
+        private bool _isPaymentHistoryVisible;
 
         #region Properties
         public bool IsSaving
@@ -118,6 +121,42 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _hasErrors;
             set => SetProperty(ref _hasErrors, value);
         }
+
+        public bool IsPaymentDialogOpen
+        {
+            get => _isPaymentDialogOpen;
+            set => SetProperty(ref _isPaymentDialogOpen, value);
+        }
+
+        public decimal PaymentAmount
+        {
+            get => _paymentAmount;
+            set => SetProperty(ref _paymentAmount, value);
+        }
+
+        public ExpenseDTO CurrentExpense
+        {
+            get => _currentExpense;
+            set => SetProperty(ref _currentExpense, value);
+        }
+
+        public bool IsNewExpense
+        {
+            get => _isNewExpense;
+            set => SetProperty(ref _isNewExpense, value);
+        }
+
+        public ObservableCollection<TransactionDTO> PaymentHistory
+        {
+            get => _paymentHistory;
+            set => SetProperty(ref _paymentHistory, value);
+        }
+
+        public bool IsPaymentHistoryVisible
+        {
+            get => _isPaymentHistoryVisible;
+            set => SetProperty(ref _isPaymentHistoryVisible, value);
+        }
         #endregion
 
         #region Commands
@@ -131,21 +170,29 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand CloseProductPricesDialogCommand { get; }
         public ICommand ResetCustomPriceCommand { get; }
         public ICommand ResetAllCustomPricesCommand { get; }
+        public ICommand ProcessPaymentCommand { get; }
+        public ICommand ShowPaymentDialogCommand { get; }
+        public ICommand ClosePaymentDialogCommand { get; }
+        public ICommand ShowPaymentHistoryCommand { get; }
+        public ICommand ClosePaymentHistoryCommand { get; }
         #endregion
 
         public CustomerViewModel(
             ICustomerService customerService,
             IProductService productService,
+            ITransactionService transactionService,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _customerService = customerService ?? throw new ArgumentNullException(nameof(customerService));
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
+            _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _customers = new ObservableCollection<CustomerDTO>();
             _customerProducts = new ObservableCollection<CustomerProductPriceViewModel>();
             _customerChangedHandler = HandleCustomerChanged;
+
             ShowPaymentDialogCommand = new AsyncRelayCommand(
-      async _ => await ShowPaymentDialog(),
-      _ => !IsSaving && SelectedCustomer != null && SelectedCustomer.Balance > 0);
+                async _ => await ShowPaymentDialog(),
+                _ => !IsSaving && SelectedCustomer != null && SelectedCustomer.Balance > 0);
 
             ClosePaymentDialogCommand = new RelayCommand(
                 _ => ClosePaymentDialog(),
@@ -154,6 +201,15 @@ namespace QuickTechSystems.WPF.ViewModels
             ProcessPaymentCommand = new AsyncRelayCommand(
                 async _ => await ProcessPayment(),
                 _ => !IsSaving && PaymentAmount > 0 && SelectedCustomer != null);
+
+            ShowPaymentHistoryCommand = new AsyncRelayCommand(
+                async _ => await ShowPaymentHistory(),
+                _ => SelectedCustomer != null);
+
+            ClosePaymentHistoryCommand = new RelayCommand(
+                _ => ClosePaymentHistory(),
+                _ => IsPaymentHistoryVisible);
+
             LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
             AddCommand = new RelayCommand(_ => AddNew(), _ => !IsSaving);
             SaveCommand = new AsyncRelayCommand(async _ => await SaveAsync(), _ => !IsSaving);
@@ -173,118 +229,12 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
-        public bool IsPaymentDialogOpen
-        {
-            get => _isPaymentDialogOpen;
-            set => SetProperty(ref _isPaymentDialogOpen, value);
-        }
+
         protected override void UnsubscribeFromEvents()
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
-        public ExpenseDTO CurrentExpense
-        {
-            get => _currentExpense;
-            set => SetProperty(ref _currentExpense, value);
-        }
-        private async Task ShowPaymentDialog()
-        {
-            if (SelectedCustomer == null || SelectedCustomer.Balance <= 0)
-            {
-                await ShowErrorMessageAsync("Customer has no balance to pay.");
-                return;
-            }
 
-            // Reset payment amount
-            PaymentAmount = SelectedCustomer.Balance;
-            IsPaymentDialogOpen = true;
-        }
-
-        private void ClosePaymentDialog()
-        {
-            IsPaymentDialogOpen = false;
-            PaymentAmount = 0;
-        }
-
-        private async Task ProcessPayment()
-        {
-            try
-            {
-                if (SelectedCustomer == null)
-                    return;
-
-                if (PaymentAmount <= 0)
-                {
-                    await ShowErrorMessageAsync("Payment amount must be greater than zero.");
-                    return;
-                }
-
-                if (PaymentAmount > SelectedCustomer.Balance)
-                {
-                    await ShowErrorMessageAsync("Payment amount cannot exceed customer's balance.");
-                    return;
-                }
-
-                IsSaving = true;
-                ErrorMessage = string.Empty;
-                HasErrors = false;
-
-                string reference = $"DEBT-{DateTime.Now:yyyyMMddHHmmss}";
-
-                // Process the payment
-                bool success = await ExecuteDbOperationSafelyAsync(async () =>
-                {
-                    return await _customerService.ProcessPaymentAsync(
-                        SelectedCustomer.CustomerId,
-                        PaymentAmount,
-                        reference);
-                }, "Processing customer payment");
-
-                if (success)
-                {
-                    // Close payment dialog
-                    ClosePaymentDialog();
-
-                    // Reload customer data
-                    await LoadDataAsync();
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        MessageBox.Show(
-                            "Success",
-                            "Payment Processed",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error processing payment: {ex.Message}");
-                await ShowErrorMessageAsync($"Error processing payment: {ex.Message}");
-            }
-            finally
-            {
-                IsSaving = false;
-            }
-        }
-
-
-        public decimal PaymentAmount
-        {
-            get => _paymentAmount;
-            set => SetProperty(ref _paymentAmount, value);
-        }
-
-  
-        public ICommand ProcessPaymentCommand { get; }
-        public ICommand ShowPaymentDialogCommand { get; }
-        public ICommand ClosePaymentDialogCommand { get; }
-        public bool IsNewExpense
-        {
-            get => _isNewExpense;
-            set => SetProperty(ref _isNewExpense, value);
-        }
         private async void HandleCustomerChanged(EntityChangedEvent<CustomerDTO> evt)
         {
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -317,7 +267,6 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         #region Database Operations
-        // Helper method for safe database operations
         private async Task<T> ExecuteDbOperationSafelyAsync<T>(Func<Task<T>> operation, string operationName = "Database operation")
         {
             Debug.WriteLine($"BEGIN: {operationName}");
@@ -367,7 +316,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Overload for void operations
         private async Task ExecuteDbOperationSafelyAsync(Func<Task> operation, string operationName = "Database operation")
         {
             await ExecuteDbOperationSafelyAsync<bool>(async () =>
@@ -871,6 +819,156 @@ namespace QuickTechSystems.WPF.ViewModels
         }
         #endregion
 
+        #region Payment Management
+        private async Task ShowPaymentDialog()
+        {
+            if (SelectedCustomer == null || SelectedCustomer.Balance <= 0)
+            {
+                await ShowErrorMessageAsync("Customer has no balance to pay.");
+                return;
+            }
+
+            // Reset payment amount
+            PaymentAmount = SelectedCustomer.Balance;
+            IsPaymentDialogOpen = true;
+        }
+
+        private void ClosePaymentDialog()
+        {
+            IsPaymentDialogOpen = false;
+            PaymentAmount = 0;
+        }
+
+        private async Task ProcessPayment()
+        {
+            try
+            {
+                if (SelectedCustomer == null)
+                    return;
+
+                if (PaymentAmount <= 0)
+                {
+                    await ShowErrorMessageAsync("Payment amount must be greater than zero.");
+                    return;
+                }
+
+                if (PaymentAmount > SelectedCustomer.Balance)
+                {
+                    await ShowErrorMessageAsync("Payment amount cannot exceed customer's balance.");
+                    return;
+                }
+
+                IsSaving = true;
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                string reference = $"DEBT-{DateTime.Now:yyyyMMddHHmmss}";
+
+                // Process the payment
+                bool success = await ExecuteDbOperationSafelyAsync(async () =>
+                {
+                    return await _customerService.ProcessPaymentAsync(
+                        SelectedCustomer.CustomerId,
+                        PaymentAmount,
+                        reference);
+                }, "Processing customer payment");
+
+                if (success)
+                {
+                    // Close payment dialog
+                    ClosePaymentDialog();
+
+                    // Reload customer data
+                    await LoadDataAsync();
+
+                    // Reload payment history if it's visible
+                    if (IsPaymentHistoryVisible)
+                    {
+                        await LoadPaymentHistory();
+                    }
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(
+                            "Success",
+                            "Payment Processed",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error processing payment: {ex.Message}");
+                await ShowErrorMessageAsync($"Error processing payment: {ex.Message}");
+            }
+            finally
+            {
+                IsSaving = false;
+            }
+        }
+
+        private async Task ShowPaymentHistory()
+        {
+            if (SelectedCustomer == null)
+                return;
+
+            try
+            {
+                IsPaymentHistoryVisible = true;
+                await LoadPaymentHistory();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error loading payment history: {ex.Message}");
+                IsPaymentHistoryVisible = false;
+            }
+        }
+
+        private async Task LoadPaymentHistory()
+        {
+            if (SelectedCustomer == null)
+                return;
+
+            try
+            {
+                IsSaving = true;
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                // Get all transactions for the customer
+                var transactions = await ExecuteDbOperationSafelyAsync(async () =>
+                {
+                    return await _transactionService.GetByCustomerAsync(SelectedCustomer.CustomerId);
+                }, "Loading payment history");
+
+                // Filter for payment transactions only
+                var paymentRecords = transactions
+                    .OrderByDescending(t => t.TransactionDate)
+                    .ToList();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    PaymentHistory = new ObservableCollection<TransactionDTO>(paymentRecords);
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading payment history: {ex.Message}");
+                await ShowErrorMessageAsync($"Error loading payment history: {ex.Message}");
+            }
+            finally
+            {
+                IsSaving = false;
+            }
+        }
+
+        public void ClosePaymentHistory()
+        {
+            IsPaymentHistoryVisible = false;
+        }
+        #endregion
+
         #region IDisposable Implementation
         public void Dispose()
         {
@@ -888,6 +986,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Clear collections to help with garbage collection
                 Customers?.Clear();
                 CustomerProducts?.Clear();
+                PaymentHistory?.Clear();
             }
         }
         #endregion

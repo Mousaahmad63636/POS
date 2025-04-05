@@ -15,13 +15,11 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Header -->
             <TextBlock Text="Current Order" 
                        FontWeight="Bold" 
                        FontSize="16" 
                        Margin="0,0,0,10"/>
 
-            <!-- Products Table -->
             <DataGrid Grid.Row="1"
                       ItemsSource="{Binding CurrentTransaction.Details}"
                       AutoGenerateColumns="False"
@@ -53,6 +51,19 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
+                    <DataGridTemplateColumn Header="Price" Width="80">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding UnitPrice, StringFormat={}{0:C2}}"
+                                        Click="PriceButton_Click"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        HorizontalAlignment="Right"
+                                        Padding="5,5"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                     <DataGridTextColumn Header="Total" 
                                        Binding="{Binding Total, StringFormat=C2, FallbackValue=$0.00}" 
                                        Width="80">
@@ -64,7 +75,6 @@
                             </Style>
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
-                    <!-- Delete Button Column -->
                     <DataGridTemplateColumn Width="40">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>

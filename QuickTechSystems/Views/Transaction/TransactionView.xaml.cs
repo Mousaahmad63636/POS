@@ -29,6 +29,32 @@ namespace QuickTechSystems.WPF.Views
             this.SizeChanged += OnControlSizeChanged;
         }
 
+        private void PriceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.DataContext is TransactionDetailDTO detail)
+            {
+                ShowPriceKeypad(detail);
+            }
+        }
+        private void ShowPriceKeypad(TransactionDetailDTO detail)
+        {
+            var window = new PriceDialog(detail.ProductName, detail.UnitPrice)
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            if (window.ShowDialog() == true)
+            {
+                // Update price in data model
+                detail.UnitPrice = window.NewPrice;
+                detail.Total = detail.UnitPrice * detail.Quantity;
+
+                // Update totals in view model
+                var viewModel = DataContext as TransactionViewModel;
+                viewModel?.UpdateTotals();
+            }
+        }
+
         private void TransactionView_Loaded(object sender, RoutedEventArgs e)
         {
             // Ensure DataContext is set properly

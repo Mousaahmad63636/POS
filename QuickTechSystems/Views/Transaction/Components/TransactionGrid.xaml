@@ -25,23 +25,19 @@
                     </Style>
                 </DataGridTextColumn.ElementStyle>
             </DataGridTextColumn>
-            <DataGridTextColumn Header="{DynamicResource Transaction_Column_UnitPrice}" 
-                              Binding="{Binding UnitPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged, FallbackValue=$0.00}"
-                              Width="120"
-                              IsReadOnly="False">
-                <DataGridTextColumn.ElementStyle>
-                    <Style TargetType="TextBlock">
-                        <Setter Property="TextAlignment" Value="Right"/>
-                        <Setter Property="Padding" Value="8,0"/>
-                    </Style>
-                </DataGridTextColumn.ElementStyle>
-                <DataGridTextColumn.EditingElementStyle>
-                    <Style TargetType="TextBox">
-                        <Setter Property="TextAlignment" Value="Right"/>
-                        <EventSetter Event="LostFocus" Handler="UnitPrice_LostFocus"/>
-                    </Style>
-                </DataGridTextColumn.EditingElementStyle>
-            </DataGridTextColumn>
+            <DataGridTemplateColumn Header="{DynamicResource Transaction_Column_UnitPrice}" Width="120">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Button Content="{Binding UnitPrice, StringFormat={}{0:C2}}"
+                    Click="PriceButton_Click"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    HorizontalAlignment="Right"
+                    Padding="8,0"/>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
             <DataGridTemplateColumn Width="50">
                 <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Application.DTOs;
@@ -32,6 +33,8 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? PrintReceiptCommand { get; private set; }
         public ICommand AddToCustomerBalanceCommand { get; private set; }
         public ICommand CloseDrawerCommand { get; private set; }
+
+        public ICommand ChangePriceCommand { get; private set; }
         public ICommand SaveAsQuoteCommand { get; private set; }
         public ICommand SelectCategoryCommand { get; private set; }
         public ICommand ClearCustomerCommand { get; private set; }
@@ -54,6 +57,10 @@ namespace QuickTechSystems.WPF.ViewModels
             RecallTransactionCommand = new AsyncRelayCommand(
                 async _ => await RecallTransaction(),
                 _ => HeldTransactions != null && HeldTransactions.Any());
+
+            ChangePriceCommand = new AsyncRelayCommand(
+    async _ => await ChangePrice(),
+    _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
 
             VoidTransactionCommand = new AsyncRelayCommand(
                 async _ => await VoidTransaction(),
@@ -185,6 +192,81 @@ namespace QuickTechSystems.WPF.ViewModels
             CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
+
+
+        private async Task ChangePrice()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
+                {
+                    throw new InvalidOperationException("No items in transaction");
+                }
+
+                // Get the selected item or the last item added if none is selected
+                var selectedDetail = CurrentTransaction.Details.FirstOrDefault(d => d.IsSelected);
+                if (selectedDetail == null)
+                {
+                    // If no item is selected, use the last item
+                    selectedDetail = CurrentTransaction.Details.LastOrDefault();
+                    if (selectedDetail == null)
+                    {
+                        throw new InvalidOperationException("No item selected");
+                    }
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    var dialog = new PriceDialog(selectedDetail.ProductName, selectedDetail.UnitPrice)
+                    {
+                        Owner = System.Windows.Application.Current.MainWindow
+                    };
+
+                    if (dialog.ShowDialog() == true)
+                    {
+                        // Validate new price
+                        if (dialog.NewPrice <= 0)
+                        {
+                            MessageBox.Show(
+                                "Price must be a positive number.",
+                                "Invalid Price",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        // Only allow price increases
+                        if (dialog.NewPrice < selectedDetail.UnitPrice)
+                        {
+                            MessageBox.Show(
+                                "New price cannot be lower than current price.",
+                                "Invalid Price",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        // Update price and recalculate total
+                        selectedDetail.UnitPrice = dialog.NewPrice;
+                        selectedDetail.Total = selectedDetail.Quantity * selectedDetail.UnitPrice;
+
+                        // Force UI refresh
+                        var index = CurrentTransaction.Details.IndexOf(selectedDetail);
+                        if (index >= 0)
+                        {
+                            CurrentTransaction.Details.RemoveAt(index);
+                            CurrentTransaction.Details.Insert(index, selectedDetail);
+                        }
+
+                        // Update totals and notify UI
+                        UpdateTotals();
+                        OnPropertyChanged(nameof(CurrentTransaction.Details));
+                        OnPropertyChanged(nameof(CurrentTransaction));
+                    }
+                });
+            }, "Changing price");
+        }
+
         private async Task ProcessAsCustomerDebt()
         {
             await ExecuteOperationSafelyAsync(async () =>
@@ -263,6 +345,27 @@ namespace QuickTechSystems.WPF.ViewModels
                     ));
 
                     await dbTransaction.CommitAsync();
+
+                    // Store the current transaction for printing
+                    CurrentTransaction = transactionResult;
+
+                    // Print receipt after successful transaction
+                    try
+                    {
+                        await PrintReceipt();
+                    }
+                    catch (Exception printEx)
+                    {
+                        Debug.WriteLine($"Error printing receipt: {printEx.Message}");
+                        await WindowManager.InvokeAsync(() =>
+                            MessageBox.Show(
+                                "Transaction completed successfully but there was an error printing the receipt.",
+                                "Print Error",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning)
+                        );
+                        // Don't fail the whole transaction for a print error
+                    }
 
                     // Show success message
                     await WindowManager.InvokeAsync(() =>
