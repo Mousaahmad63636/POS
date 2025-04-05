@@ -103,10 +103,13 @@ namespace QuickTechSystems.WPF
         
 
             services.AddTransient<TransactionViewModel>();
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
+
+
             services.AddTransient<SplashScreenView>();
-            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
+
             // View Models
             services.AddScoped<MainViewModel>();
             services.AddScoped<LoginViewModel>();
@@ -123,7 +126,6 @@ namespace QuickTechSystems.WPF
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
-            services.AddScoped<TransactionViewModel>();
             services.AddTransient<BulkProductViewModel>();
             services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
             services.AddScoped<LowStockHistoryViewModel>();

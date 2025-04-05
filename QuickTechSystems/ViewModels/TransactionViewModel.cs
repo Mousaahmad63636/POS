@@ -115,6 +115,41 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Add this method to TransactionViewModel.cs
+        public async Task InitializeForNewWindowAsync()
+        {
+            try
+            {
+                // Explicitly initialize everything needed for a new window
+                StatusMessage = "Initializing...";
+                OnPropertyChanged(nameof(StatusMessage));
+
+                // Initialize commands first to ensure they are available
+                InitializeCommands();
+                InitializeCollections();
+                StartNewTransaction();
+
+                // Load data asynchronously
+                await LoadDataAsync();
+                await LoadExchangeRate(_businessSettingsService);
+                await LoadRestaurantModePreference();
+
+                // Setup UI refresh timer for date/time
+                SetupDateTimeRefreshTimer();
+
+                // Update status after successful initialization
+                StatusMessage = "Ready";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error initializing transaction view model: {ex.Message}");
+                StatusMessage = "Error during initialization";
+                OnPropertyChanged(nameof(StatusMessage));
+                throw; // Re-throw to allow the calling code to handle the error
+            }
+        }
+
         // Proper async initialization to replace direct calls in constructor
         private async Task InitializeAsync(IBusinessSettingsService businessSettingsService)
         {
@@ -144,7 +179,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Error during initialization";
             }
         }
-
+        public async Task InitializeDataAsync()
+        {
+            await LoadDataAsync();
+        }
         // Setup timer with proper disposal management
         private void SetupDateTimeRefreshTimer()
         {

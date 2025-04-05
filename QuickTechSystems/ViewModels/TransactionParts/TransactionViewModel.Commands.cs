@@ -43,7 +43,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
             IncrementTransactionIdCommand = new RelayCommand(_ => IncrementTransactionId());
             DecrementTransactionIdCommand = new RelayCommand(_ => DecrementTransactionId());
-            NewTransactionWindowCommand = new RelayCommand(_ => OpenNewTransactionWindow());
             // Existing commands
             ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
 

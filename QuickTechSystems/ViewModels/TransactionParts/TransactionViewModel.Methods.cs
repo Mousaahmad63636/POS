@@ -52,12 +52,21 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
+                System.Diagnostics.Debug.WriteLine("Opening new transaction window...");
+
+                if (_transactionWindowManager == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("ERROR: TransactionWindowManager is null");
+                    WindowManager.ShowError("Transaction Window Manager is not available");
+                    return;
+                }
+
                 _transactionWindowManager.OpenNewTransactionWindow();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
-                WindowManager.ShowError("Failed to open new transaction window. Please try again.");
+                System.Diagnostics.Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
+                WindowManager.ShowError($"Failed to open new transaction window: {ex.Message}");
             }
         }
         public async Task LoadLatestTransactionIdAsync()

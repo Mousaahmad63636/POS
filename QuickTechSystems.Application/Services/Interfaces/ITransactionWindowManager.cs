@@ -1,6 +1,4 @@
 ﻿// Path: QuickTechSystems.WPF/Services/ITransactionWindowManager.cs
-using System.Windows;
-
 namespace QuickTechSystems.WPF.Services
 {
     public interface ITransactionWindowManager

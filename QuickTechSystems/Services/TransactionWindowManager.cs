@@ -1,7 +1,9 @@
 ﻿// Path: QuickTechSystems.WPF/Services/TransactionWindowManager.cs
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using QuickTechSystems.WPF.ViewModels;
@@ -21,7 +23,7 @@ namespace QuickTechSystems.WPF.Services
             _serviceProvider = serviceProvider;
         }
 
-        public void OpenNewTransactionWindow()
+        public async void OpenNewTransactionWindow()
         {
             try
             {
@@ -31,10 +33,7 @@ namespace QuickTechSystems.WPF.Services
                 // Get a new TransactionViewModel from the scope
                 var viewModel = scope.ServiceProvider.GetRequiredService<TransactionViewModel>();
 
-                // Initialize the new view model (create a clean transaction)
-                viewModel.StartNewTransaction();
-
-                // Create a transaction window
+                // Create a transaction window but don't show it yet
                 var window = new TransactionWindow
                 {
                     DataContext = viewModel,
@@ -59,11 +58,35 @@ namespace QuickTechSystems.WPF.Services
                 // Add to active windows list
                 _activeWindows.Add(window);
 
-                // Show the window
+                // Show the window first - this is important for UI updates to work properly
                 window.Show();
+
+                // Initialize the view model AFTER showing the window but BEFORE user can interact
+                // This ensures the UI thread is available to process updates
+                window.IsEnabled = false; // Temporarily disable interaction
+                try
+                {
+                    // Call initialization explicitly
+                    await viewModel.InitializeForNewWindowAsync();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error initializing view model: {ex.Message}");
+                    MessageBox.Show(
+                        $"Error initializing transaction window: {ex.Message}",
+                        "Initialization Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+                finally
+                {
+                    // Re-enable interaction with the window
+                    window.IsEnabled = true;
+                }
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
                 MessageBox.Show(
                     $"Error opening new transaction window: {ex.Message}",
                     "Error",
@@ -91,7 +114,7 @@ namespace QuickTechSystems.WPF.Services
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Error closing window: {ex.Message}");
+                    Debug.WriteLine($"Error closing window: {ex.Message}");
                 }
             }
 
