@@ -110,6 +110,27 @@ namespace QuickTechSystems.WPF.ViewModels
                     footerText2 = "See you next time";
                 }
 
+                // Get customer balance if a customer is selected
+                decimal customerBalance = 0;
+                if (transactionSnapshot.CustomerId.HasValue && SelectedCustomer != null)
+                {
+                    try
+                    {
+                        // Get fresh customer info to ensure we have the most up-to-date balance
+                        var customer = await _customerService.GetByIdAsync(SelectedCustomer.CustomerId);
+                        if (customer != null)
+                        {
+                            customerBalance = customer.Balance;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error retrieving customer balance: {ex.Message}");
+                        // Fall back to the selected customer's balance if we couldn't get fresh data
+                        customerBalance = SelectedCustomer.Balance;
+                    }
+                }
+
                 // All UI operations in a dedicated block
                 await WindowManager.InvokeAsync(async () =>
                 {
@@ -188,7 +209,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        // Pass the business settings to the document creation method
+                        // Pass the business settings and customer balance to the document creation method
                         var flowDocument = CreateReceiptDocument(
                             printDialog,
                             transactionId,
@@ -200,7 +221,8 @@ namespace QuickTechSystems.WPF.ViewModels
                             footerText2,
                             transactionSnapshot,
                             currentSubTotal,
-                            currentDiscountAmount);
+                            currentDiscountAmount,
+                            customerBalance);
 
                         // Execute printing on UI thread with proper error handling
                         try
@@ -261,7 +283,8 @@ namespace QuickTechSystems.WPF.ViewModels
             string footerText2,
             TransactionDTO transaction,
             decimal subTotal,
-            decimal discountAmount)
+            decimal discountAmount,
+            decimal customerBalance = 0) // Added customer balance parameter with default value
         {
             var flowDocument = new FlowDocument
             {
@@ -289,6 +312,35 @@ namespace QuickTechSystems.WPF.ViewModels
                 Foreground = Brushes.Black
             });
             header.Inlines.Add(new LineBreak());
+
+            // Add logo image below company name
+            try
+            {
+                BitmapImage logo = new BitmapImage();
+                logo.BeginInit();
+                logo.UriSource = new Uri("pack://application:,,,/Resources/Images/Logo.png");
+                logo.CacheOption = BitmapCacheOption.OnLoad;
+                logo.EndInit();
+                logo.Freeze(); // Important for cross-thread access
+
+                Image logoImage = new Image
+                {
+                    Source = logo,
+                    Width = 150, // Set appropriate width
+                    Height = 70, // Set appropriate height
+                    Stretch = Stretch.Uniform,
+                    Margin = new Thickness(0, 5, 0, 5)
+                };
+
+                // Add logo to header
+                header.Inlines.Add(new InlineUIContainer(logoImage));
+                header.Inlines.Add(new LineBreak());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading logo image: {ex.Message}");
+                // Continue without logo if there's an error
+            }
 
             // Company Address
             if (!string.IsNullOrWhiteSpace(address))
@@ -351,52 +403,16 @@ namespace QuickTechSystems.WPF.ViewModels
             headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
-            // Default exchange rate if the helper fails
-            const decimal DEFAULT_EXCHANGE_RATE = 90000m;
-
             // Calculate totals directly from the transaction
             if (transaction?.Details != null && transaction.Details.Any())
             {
                 foreach (var item in transaction.Details)
                 {
                     var row = new TableRow();
-
-                    // Convert unit price to LBP
-                    decimal lbpUnitPrice;
-                    try
-                    {
-                        lbpUnitPrice = CurrencyHelper.ConvertToLBP(item.UnitPrice);
-                        if (lbpUnitPrice == 0 && item.UnitPrice > 0)
-                        {
-                            lbpUnitPrice = item.UnitPrice * DEFAULT_EXCHANGE_RATE;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error converting unit price to LBP: {ex.Message}");
-                        lbpUnitPrice = item.UnitPrice * DEFAULT_EXCHANGE_RATE;
-                    }
-
-                    // Convert total to LBP
-                    decimal lbpItemTotal;  // Renamed from lbpTotal to avoid conflict
-                    try
-                    {
-                        lbpItemTotal = CurrencyHelper.ConvertToLBP(item.Total);
-                        if (lbpItemTotal == 0 && item.Total > 0)
-                        {
-                            lbpItemTotal = item.Total * DEFAULT_EXCHANGE_RATE;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error converting line total to LBP: {ex.Message}");
-                        lbpItemTotal = item.Total * DEFAULT_EXCHANGE_RATE;
-                    }
-
                     row.Cells.Add(CreateCell(item.ProductName?.Trim() ?? "Unknown", FontWeights.Normal, TextAlignment.Left));
                     row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Normal, TextAlignment.Center));
-                    row.Cells.Add(CreateCell($"{lbpUnitPrice:N0} LBP", FontWeights.Normal, TextAlignment.Right));
-                    row.Cells.Add(CreateCell($"{lbpItemTotal:N0} LBP", FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"${item.UnitPrice:N2}", FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"${item.Total:N2}", FontWeights.Normal, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
                 }
             }
@@ -416,75 +432,25 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(itemsTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            // 4. Totals Section - ONLY show LBP amount
+            // 4. Totals Section - USD amounts
             var totalsTable = new Table { FontSize = 11, CellSpacing = 0 };
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
 
-            // Add subtotal row in LBP
-            decimal lbpSubtotal;
-            try
-            {
-                // Try using the helper first
-                lbpSubtotal = CurrencyHelper.ConvertToLBP(subTotal);
-
-                // If we get zero but have a non-zero subtotal, use default rate
-                if (lbpSubtotal == 0 && subTotal > 0)
-                {
-                    lbpSubtotal = subTotal * DEFAULT_EXCHANGE_RATE;
-                }
-
-                Debug.WriteLine($"USD Subtotal: {subTotal}, LBP Subtotal: {lbpSubtotal}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error converting subtotal to LBP: {ex.Message}");
-                lbpSubtotal = subTotal * DEFAULT_EXCHANGE_RATE;
-            }
-
-            AddTotalRow(totalsTable, "SUBTOTAL:", $"{lbpSubtotal:N0} LBP");
+            // Add subtotal row
+            AddTotalRow(totalsTable, "SUBTOTAL:", $"${subTotal:N2}");
 
             // Add discount row if applicable
-            decimal lbpDiscount = 0;
             if (discountAmount > 0)
             {
-                try
-                {
-                    lbpDiscount = CurrencyHelper.ConvertToLBP(discountAmount);
-                    if (lbpDiscount == 0)
-                    {
-                        lbpDiscount = discountAmount * DEFAULT_EXCHANGE_RATE;
-                    }
-                }
-                catch
-                {
-                    lbpDiscount = discountAmount * DEFAULT_EXCHANGE_RATE;
-                }
-
-                AddTotalRow(totalsTable, "DISCOUNT:", $"-{lbpDiscount:N0} LBP");
+                AddTotalRow(totalsTable, "DISCOUNT:", $"-${discountAmount:N2}");
             }
 
-            // Calculate and add ONLY total in LBP
+            // Calculate final total
             decimal total = Math.Max(0, subTotal - discountAmount);
-            decimal lbpFinalTotal;  // Renamed from lbpTotal to avoid conflict
 
-            try
-            {
-                lbpFinalTotal = CurrencyHelper.ConvertToLBP(total);
-                if (lbpFinalTotal == 0 && total > 0)
-                {
-                    lbpFinalTotal = total * DEFAULT_EXCHANGE_RATE;
-                }
-                Debug.WriteLine($"USD Total: {total}, LBP Total: {lbpFinalTotal}");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error converting total to LBP: {ex.Message}");
-                lbpFinalTotal = total * DEFAULT_EXCHANGE_RATE;
-            }
-
-            // Bold, larger font for the total in LBP
+            // Bold, larger font for the total
             var totalRow = new TableRow();
             totalRow.Cells.Add(new TableCell(new Paragraph(new Run("TOTAL:"))
             {
@@ -493,7 +459,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 TextAlignment = TextAlignment.Left
             }));
 
-            totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"{lbpFinalTotal:N0} LBP"))
+            totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"${total:N2}"))
             {
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
@@ -504,6 +470,92 @@ namespace QuickTechSystems.WPF.ViewModels
 
             flowDocument.Blocks.Add(totalsTable);
             flowDocument.Blocks.Add(CreateDivider());
+
+            // Add customer balance section if customer exists and has a balance
+            if (transaction.CustomerId.HasValue && customerBalance > 0)
+            {
+                // Create a balance table with the same column structure as totals
+                var balanceTable = new Table { FontSize = 11, CellSpacing = 0 };
+                balanceTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
+                balanceTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
+                balanceTable.RowGroups.Add(new TableRowGroup());
+
+                // Add header for customer balance section
+                var balanceHeaderRow = new TableRow { Background = Brushes.LightGray };
+                var headerCell = new TableCell(new Paragraph(new Bold(new Run("CUSTOMER ACCOUNT")))
+                {
+                    TextAlignment = TextAlignment.Center,
+                    FontSize = 11
+                });
+                headerCell.ColumnSpan = 2;
+                balanceHeaderRow.Cells.Add(headerCell);
+                balanceTable.RowGroups[0].Rows.Add(balanceHeaderRow);
+
+                // Calculate values for customer information
+                // Calculate new total balance
+                decimal newBalance = customerBalance + total;
+
+                // Calculate LBP value for the new balance only (for dual display)
+                decimal lbpNewBalance;
+                try
+                {
+                    lbpNewBalance = CurrencyHelper.ConvertToLBP(newBalance);
+                    if (lbpNewBalance == 0 && newBalance > 0)
+                    {
+                        // Default exchange rate if conversion fails
+                        lbpNewBalance = newBalance * 90000m;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error converting new balance to LBP: {ex.Message}");
+                    lbpNewBalance = newBalance * 90000m;
+                }
+
+                // Add rows for balance information in USD
+                AddTotalRow(balanceTable, "PREVIOUS BALANCE:", $"${customerBalance:N2}");
+                AddTotalRow(balanceTable, "CURRENT PURCHASE:", $"${total:N2}");
+
+                // Create a custom paragraph for dual-currency display of the new total balance
+                var totalBalanceRow = new TableRow();
+                totalBalanceRow.Cells.Add(new TableCell(new Paragraph(new Run("NEW TOTAL BALANCE:"))
+                {
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Left
+                }));
+
+                // Create a cell with multiple lines for USD and LBP values
+                var balanceCell = new TableCell();
+                var balanceParagraph = new Paragraph
+                {
+                    TextAlignment = TextAlignment.Right,
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold
+                };
+
+                // Add USD value
+                balanceParagraph.Inlines.Add(new Run($"${newBalance:N2}")
+                {
+                    Foreground = Brushes.DarkRed
+                });
+                balanceParagraph.Inlines.Add(new LineBreak());
+
+                // Add LBP value in slightly smaller font
+                balanceParagraph.Inlines.Add(new Run($"{lbpNewBalance:N0} LBP")
+                {
+                    FontSize = 10,
+                    Foreground = Brushes.DarkRed
+                });
+
+                balanceCell.Blocks.Add(balanceParagraph);
+                totalBalanceRow.Cells.Add(balanceCell);
+
+                balanceTable.RowGroups[0].Rows.Add(totalBalanceRow);
+
+                flowDocument.Blocks.Add(balanceTable);
+                flowDocument.Blocks.Add(CreateDivider());
+            }
 
             // 5. Footer Section - Now using custom footer text from business settings
             var footer = new Paragraph
