@@ -306,11 +306,12 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 PageWidth = printDialog.PrintableAreaWidth,
                 ColumnWidth = printDialog.PrintableAreaWidth,
-                FontFamily = new FontFamily("Arial"),
+                FontFamily = new FontFamily("Segoe UI, Arial"), // Better font rendering
                 FontWeight = FontWeights.Normal,
                 PagePadding = new Thickness(10, 0, 10, 0),
                 TextAlignment = TextAlignment.Center,
                 PageHeight = printDialog.PrintableAreaHeight
+                // Original flow direction maintained
             };
 
             var header = new Paragraph
@@ -321,7 +322,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             header.Inlines.Add(new Run(companyName)
             {
-                FontSize = 17,
+                FontSize = 20, // Increased from 17
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Black
             });
@@ -357,7 +358,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 header.Inlines.Add(new Run(address)
                 {
-                    FontSize = 12,
+                    FontSize = 14, // Increased from 12
                     FontWeight = FontWeights.Bold
                 });
                 header.Inlines.Add(new LineBreak());
@@ -367,7 +368,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 header.Inlines.Add(new Run(phoneNumber)
                 {
-                    FontSize = 12,
+                    FontSize = 14, // Increased from 12
                     FontWeight = FontWeights.Bold
                 });
             }
@@ -377,7 +378,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 header.Inlines.Add(new LineBreak());
                 header.Inlines.Add(new Run(email)
                 {
-                    FontSize = 11,
+                    FontSize = 13, // Increased from 11
                     FontWeight = FontWeights.Normal
                 });
             }
@@ -385,36 +386,36 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(header);
             flowDocument.Blocks.Add(CreateDivider());
 
-            var metaTable = new Table { FontSize = 11, CellSpacing = 0 };
-            metaTable.Columns.Add(new TableColumn { Width = new GridLength(80) });
+            var metaTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased from 11
+            metaTable.Columns.Add(new TableColumn { Width = new GridLength(100) }); // Slightly wider
             metaTable.Columns.Add(new TableColumn { Width = GridLength.Auto });
             metaTable.RowGroups.Add(new TableRowGroup());
-            AddMetaRow(metaTable, "TRX #:", transactionId.ToString());
-            AddMetaRow(metaTable, "DATE:", DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
+            AddMetaRow(metaTable, "رقم العملية:", transactionId.ToString());
+            AddMetaRow(metaTable, "التاريخ:", DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
 
             var customerRow = new TableRow();
-            customerRow.Cells.Add(new TableCell(new Paragraph(new Run("CUSTOMER:"))
+            customerRow.Cells.Add(new TableCell(new Paragraph(new Run("العميل:"))
             {
                 FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Left,
-                FontSize = 13
+                TextAlignment = TextAlignment.Left, // Original alignment preserved
+                FontSize = 15 // Increased from 13
             }));
 
-            string customerDisplay = "Guest Customer";
+            string customerDisplay = "عميل زائر";
             if (!string.IsNullOrEmpty(transaction.CustomerName))
             {
                 customerDisplay = transaction.CustomerName;
             }
             else if (transaction.CustomerId.HasValue)
             {
-                customerDisplay = $"Customer ID: {transaction.CustomerId}";
+                customerDisplay = $"رقم العميل: {transaction.CustomerId}";
             }
 
             customerRow.Cells.Add(new TableCell(new Paragraph(new Run(customerDisplay))
             {
                 FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Left,
-                FontSize = 13
+                TextAlignment = TextAlignment.Left, // Original alignment preserved
+                FontSize = 15 // Increased from 13
             }));
 
             metaTable.RowGroups[0].Rows.Add(customerRow);
@@ -422,7 +423,7 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(metaTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            var itemsTable = new Table { FontSize = 11, CellSpacing = 0 };
+            var itemsTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased from 11
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(6, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
@@ -430,10 +431,10 @@ namespace QuickTechSystems.WPF.ViewModels
             itemsTable.RowGroups.Add(new TableRowGroup());
 
             var headerRow = new TableRow { Background = Brushes.LightGray };
-            headerRow.Cells.Add(CreateCell("ITEM", FontWeights.Bold, TextAlignment.Left));
-            headerRow.Cells.Add(CreateCell("QTY", FontWeights.Bold, TextAlignment.Center));
-            headerRow.Cells.Add(CreateCell("PRICE", FontWeights.Bold, TextAlignment.Right));
-            headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
+            headerRow.Cells.Add(CreateCell("المنتج", FontWeights.Bold, TextAlignment.Left)); // Arabic text, original alignment
+            headerRow.Cells.Add(CreateCell("الكمية", FontWeights.Bold, TextAlignment.Center));
+            headerRow.Cells.Add(CreateCell("السعر", FontWeights.Bold, TextAlignment.Right));
+            headerRow.Cells.Add(CreateCell("المجموع", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
 
             if (transaction?.Details != null && transaction.Details.Any())
@@ -451,7 +452,7 @@ namespace QuickTechSystems.WPF.ViewModels
             else
             {
                 var emptyRow = new TableRow();
-                emptyRow.Cells.Add(CreateCell("No items available", FontWeights.Normal, TextAlignment.Center));
+                emptyRow.Cells.Add(CreateCell("لا توجد منتجات", FontWeights.Normal, TextAlignment.Center));
                 emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
                 emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
                 emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
@@ -461,31 +462,31 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(itemsTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            var totalsTable = new Table { FontSize = 12, CellSpacing = 0 };
+            var totalsTable = new Table { FontSize = 14, CellSpacing = 0 }; // Increased from 12
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
 
-            AddTotalRow(totalsTable, "SUBTOTAL:", $"${subTotal:N2}");
+            AddTotalRow(totalsTable, "المجموع الفرعي:", $"${subTotal:N2}");
 
             if (discountAmount > 0)
             {
-                AddTotalRow(totalsTable, "DISCOUNT:", $"-${discountAmount:N2}");
+                AddTotalRow(totalsTable, "الخصم:", $"-${discountAmount:N2}");
             }
 
             decimal total = Math.Max(0, subTotal - discountAmount);
 
             var totalRow = new TableRow();
-            totalRow.Cells.Add(new TableCell(new Paragraph(new Run("TOTAL:"))
+            totalRow.Cells.Add(new TableCell(new Paragraph(new Run("المجموع:"))
             {
-                FontSize = 13,
+                FontSize = 15, // Increased from 13
                 FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Left
+                TextAlignment = TextAlignment.Left // Original alignment preserved
             }));
 
             totalRow.Cells.Add(new TableCell(new Paragraph(new Run($"${total:N2}"))
             {
-                FontSize = 13,
+                FontSize = 15, // Increased from 13
                 FontWeight = FontWeights.Bold,
                 TextAlignment = TextAlignment.Right
             }));
@@ -497,16 +498,16 @@ namespace QuickTechSystems.WPF.ViewModels
 
             if (transaction.CustomerId.HasValue && (previousCustomerBalance > 0 || total > 0))
             {
-                var balanceTable = new Table { FontSize = 12, CellSpacing = 0 };
+                var balanceTable = new Table { FontSize = 14, CellSpacing = 0 }; // Increased from 12
                 balanceTable.Columns.Add(new TableColumn { Width = new GridLength(3, GridUnitType.Star) });
                 balanceTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
                 balanceTable.RowGroups.Add(new TableRowGroup());
 
                 var balanceHeaderRow = new TableRow { Background = Brushes.LightGray };
-                var headerCell = new TableCell(new Paragraph(new Bold(new Run("CUSTOMER ACCOUNT")))
+                var headerCell = new TableCell(new Paragraph(new Bold(new Run("حساب العميل")))
                 {
                     TextAlignment = TextAlignment.Center,
-                    FontSize = 12
+                    FontSize = 14 // Increased from 12
                 });
                 headerCell.ColumnSpan = 2;
                 balanceHeaderRow.Cells.Add(headerCell);
@@ -529,22 +530,22 @@ namespace QuickTechSystems.WPF.ViewModels
                     lbpNewBalance = newBalance * 90000m;
                 }
 
-                AddTotalRow(balanceTable, "PREVIOUS BALANCE:", $"${previousCustomerBalance:N2}");
-                AddTotalRow(balanceTable, "CURRENT PURCHASE:", $"${total:N2}");
+                AddTotalRow(balanceTable, "الرصيد السابق:", $"${previousCustomerBalance:N2}");
+                AddTotalRow(balanceTable, "المشتريات الحالية:", $"${total:N2}");
 
                 var totalBalanceRow = new TableRow();
-                totalBalanceRow.Cells.Add(new TableCell(new Paragraph(new Run("NEW TOTAL BALANCE:"))
+                totalBalanceRow.Cells.Add(new TableCell(new Paragraph(new Run("الرصيد الإجمالي الجديد:"))
                 {
-                    FontSize = 13,
+                    FontSize = 15, // Increased from 13
                     FontWeight = FontWeights.Bold,
-                    TextAlignment = TextAlignment.Left
+                    TextAlignment = TextAlignment.Left // Original alignment preserved
                 }));
 
                 var balanceCell = new TableCell();
                 var balanceParagraph = new Paragraph
                 {
                     TextAlignment = TextAlignment.Right,
-                    FontSize = 13,
+                    FontSize = 15, // Increased from 13
                     FontWeight = FontWeights.Bold
                 };
 
@@ -556,7 +557,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 balanceParagraph.Inlines.Add(new Run($"{lbpNewBalance:N0} LBP ما يعادله")
                 {
-                    FontSize = 11,
+                    FontSize = 13, // Increased from 11
                     Foreground = Brushes.DarkRed
                 });
 
@@ -579,7 +580,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 footer.Inlines.Add(new Run(footerText1)
                 {
-                    FontSize = 13,
+                    FontSize = 15, // Increased from 13
                     FontWeight = FontWeights.Bold
                 });
                 footer.Inlines.Add(new LineBreak());
@@ -589,7 +590,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 footer.Inlines.Add(new Run(footerText2)
                 {
-                    FontSize = 11,
+                    FontSize = 13, // Increased from 11
                     FontWeight = FontWeights.Normal
                 });
             }
