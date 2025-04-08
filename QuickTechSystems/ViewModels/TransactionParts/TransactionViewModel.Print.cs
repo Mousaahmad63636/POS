@@ -8,6 +8,8 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Helpers;
 
@@ -36,19 +38,48 @@ namespace QuickTechSystems.WPF.ViewModels
                     CustomerId = CurrentTransaction.CustomerId,
                     CustomerName = SelectedCustomer?.Name ?? CurrentTransaction.CustomerName,
                     TotalAmount = TotalAmount,
-                    Details = new ObservableCollection<TransactionDetailDTO>(
-                        CurrentTransaction.Details.Select(d => new TransactionDetailDTO
-                        {
-                            ProductId = d.ProductId,
-                            ProductName = d.ProductName,
-                            ProductBarcode = d.ProductBarcode,
-                            Quantity = d.Quantity,
-                            UnitPrice = d.UnitPrice,
-                            PurchasePrice = d.PurchasePrice,
-                            Discount = d.Discount,
-                            Total = d.Total
-                        }))
+                    Details = new ObservableCollection<TransactionDetailDTO>()
                 };
+
+                var productCache = new Dictionary<int, ProductDTO>();
+
+                foreach (var detail in CurrentTransaction.Details)
+                {
+                    var detailCopy = new TransactionDetailDTO
+                    {
+                        TransactionDetailId = detail.TransactionDetailId,
+                        TransactionId = detail.TransactionId,
+                        ProductId = detail.ProductId,
+                        Quantity = detail.Quantity,
+                        UnitPrice = detail.UnitPrice,
+                        PurchasePrice = detail.PurchasePrice,
+                        Discount = detail.Discount,
+                        Total = detail.Total,
+                        ProductBarcode = detail.ProductBarcode
+                    };
+
+                    if (string.IsNullOrWhiteSpace(detail.ProductName))
+                    {
+                        if (!productCache.TryGetValue(detail.ProductId, out var product))
+                        {
+                            product = await _productService.GetByIdAsync(detail.ProductId);
+                            if (product != null)
+                            {
+                                productCache[detail.ProductId] = product;
+                            }
+                        }
+
+                        detailCopy.ProductName = productCache.TryGetValue(detail.ProductId, out var cachedProduct)
+                            ? cachedProduct.Name
+                            : $"Product {detail.ProductId}";
+                    }
+                    else
+                    {
+                        detailCopy.ProductName = detail.ProductName;
+                    }
+
+                    transactionSnapshot.Details.Add(detailCopy);
+                }
 
                 int transactionId;
                 try
@@ -71,9 +102,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 decimal currentSubTotal = SubTotal;
                 decimal currentDiscountAmount = DiscountAmount;
-
-                Debug.WriteLine($"Printing transaction with {transactionSnapshot.Details.Count} items, " +
-                    $"Total: {transactionSnapshot.TotalAmount}, Discount: {currentDiscountAmount}");
 
                 string companyName;
                 string address;
@@ -394,9 +422,7 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(metaTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            // Items table with adjusted widths to ensure product names are visible
             var itemsTable = new Table { FontSize = 11, CellSpacing = 0 };
-            // Note the increased width ratio for the product name column (6 stars instead of 4)
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(6, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
             itemsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
@@ -409,43 +435,21 @@ namespace QuickTechSystems.WPF.ViewModels
             headerRow.Cells.Add(CreateCell("PRICE", FontWeights.Bold, TextAlignment.Right));
             headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
             itemsTable.RowGroups[0].Rows.Add(headerRow);
+
             if (transaction?.Details != null && transaction.Details.Any())
             {
                 foreach (var item in transaction.Details)
                 {
-                    string productName = item.ProductName?.Trim() ?? "Unknown";
-                    Debug.WriteLine($"Adding product to receipt: {productName}");
-
                     var row = new TableRow();
-
-                    // Create text block for product name with fixed properties
-                    var nameText = new TextBlock
-                    {
-                        Text = productName,
-                        TextWrapping = TextWrapping.Wrap,
-                        Foreground = Brushes.Black,
-                        FontWeight = FontWeights.Normal,
-                        FontSize = 11
-                    };
-
-                    // Add TextBlock directly to document
-                    var nameContainer = new BlockUIContainer(nameText);
-                    var nameCell = new TableCell { Padding = new Thickness(4) };
-                    nameCell.Blocks.Add(nameContainer);
-                    row.Cells.Add(nameCell);
-
-                    // Other cells remain the same
+                    row.Cells.Add(CreateCell(item.ProductName, FontWeights.Normal, TextAlignment.Left));
                     row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Normal, TextAlignment.Center));
                     row.Cells.Add(CreateCell($"${item.UnitPrice:N2}", FontWeights.Normal, TextAlignment.Right));
                     row.Cells.Add(CreateCell($"${item.Total:N2}", FontWeights.Normal, TextAlignment.Right));
-
                     itemsTable.RowGroups[0].Rows.Add(row);
                 }
             }
             else
             {
-                Debug.WriteLine("Warning: No transaction details available for receipt");
-
                 var emptyRow = new TableRow();
                 emptyRow.Cells.Add(CreateCell("No items available", FontWeights.Normal, TextAlignment.Center));
                 emptyRow.Cells.Add(CreateCell("", FontWeights.Normal, TextAlignment.Center));
@@ -601,7 +605,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 FontWeight = fontWeight == default ? FontWeights.Normal : fontWeight,
                 TextAlignment = alignment,
-                Margin = new Thickness(2) // Add some margin to ensure text doesn't get cut off
+                Margin = new Thickness(2)
             };
             return new TableCell(paragraph);
         }
