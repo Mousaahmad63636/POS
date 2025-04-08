@@ -587,6 +587,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
@@ -626,8 +627,42 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Date Filter Controls - NEW SECTION -->
+                        <Border Grid.Row="2" 
+                                Padding="24,16"
+                                Background="White">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <CheckBox Grid.Column="0" Content="Filter by Date:" IsChecked="{Binding UseDateFilter}" 
+                                          VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                                <TextBlock Grid.Column="1" Text="From:" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           IsEnabled="{Binding UseDateFilter}"/>
+
+                                <DatePicker Grid.Column="2" SelectedDate="{Binding FilterStartDate}" Width="120" Margin="0,0,10,0"
+                                            IsEnabled="{Binding UseDateFilter}"/>
+
+                                <TextBlock Grid.Column="3" Text="To:" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           IsEnabled="{Binding UseDateFilter}"/>
+
+                                <DatePicker Grid.Column="4" SelectedDate="{Binding FilterEndDate}" Width="120" Margin="0,0,10,0"
+                                            IsEnabled="{Binding UseDateFilter}"/>
+
+                                <Button Grid.Column="5" Content="Apply Filter" Command="{Binding ApplyDateFilterCommand}"
+                                        IsEnabled="{Binding UseDateFilter}" HorizontalAlignment="Left" Padding="10,3"/>
+                            </Grid>
+                        </Border>
+
                         <!-- Payment History DataGrid -->
-                        <DataGrid Grid.Row="2"
+                        <DataGrid Grid.Row="3"
                                   ItemsSource="{Binding PaymentHistory}"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
@@ -682,7 +717,7 @@
                                 </DataGridTextColumn>
 
                                 <DataGridTextColumn Header="Type"
-                                                  Binding="{Binding PaymentMethod}"
+                                                  Binding="{Binding TransactionType}"
                                                   Width="120">
                                     <DataGridTextColumn.ElementStyle>
                                         <Style TargetType="TextBlock">
@@ -733,7 +768,7 @@
                         </DataGrid>
 
                         <!-- Dialog Footer -->
-                        <Border Grid.Row="3" Background="#F8F9FA" CornerRadius="0,0,8,8">
+                        <Border Grid.Row="4" Background="#F8F9FA" CornerRadius="0,0,8,8">
                             <Grid Margin="24,16">
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Close"

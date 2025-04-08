@@ -35,9 +35,13 @@ namespace QuickTechSystems.WPF.ViewModels
         // Concurrency control
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
+        private bool _useDateFilter = true;
         private string _errorMessage = string.Empty;
         private bool _hasErrors;
         private bool _isPaymentDialogOpen;
+        // Add these new properties to CustomerViewModel class
+        private DateTime _filterStartDate = DateTime.Now.AddDays(-7); // Default to last week
+        private DateTime _filterEndDate = DateTime.Now;
         private ObservableCollection<TransactionDTO> _paymentHistory = new ObservableCollection<TransactionDTO>();
         private bool _isPaymentHistoryVisible;
 
@@ -209,6 +213,10 @@ namespace QuickTechSystems.WPF.ViewModels
             ClosePaymentHistoryCommand = new RelayCommand(
                 _ => ClosePaymentHistory(),
                 _ => IsPaymentHistoryVisible);
+            // In the constructor, add this command:
+            ApplyDateFilterCommand = new AsyncRelayCommand(
+                async _ => await LoadPaymentHistory(),
+                _ => SelectedCustomer != null);
 
             LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
             AddCommand = new RelayCommand(_ => AddNew(), _ => !IsSaving);
@@ -224,7 +232,29 @@ namespace QuickTechSystems.WPF.ViewModels
             // Start initial data load
             _ = LoadDataAsync();
         }
+        public DateTime FilterStartDate
+        {
+            get => _filterStartDate;
+            set => SetProperty(ref _filterStartDate, value);
+        }
 
+        public DateTime FilterEndDate
+        {
+            get => _filterEndDate;
+            set => SetProperty(ref _filterEndDate, value);
+        }
+
+        public bool UseDateFilter
+        {
+            get => _useDateFilter;
+            set
+            {
+                if (SetProperty(ref _useDateFilter, value))
+                {
+                    _ = LoadPaymentHistory();
+                }
+            }
+        }
         protected override void SubscribeToEvents()
         {
             _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
@@ -939,17 +969,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Get all transactions for the customer
                 var transactions = await ExecuteDbOperationSafelyAsync(async () =>
                 {
-                    return await _transactionService.GetByCustomerAsync(SelectedCustomer.CustomerId);
+                    if (UseDateFilter)
+                    {
+                        return await _transactionService.GetByCustomerAndDateRangeAsync(
+                            SelectedCustomer.CustomerId,
+                            FilterStartDate,
+                            FilterEndDate);
+                    }
+                    else
+                    {
+                        return await _transactionService.GetByCustomerAsync(SelectedCustomer.CustomerId);
+                    }
                 }, "Loading payment history");
 
-                // Filter for payment transactions only
-                var paymentRecords = transactions
-                    .OrderByDescending(t => t.TransactionDate)
-                    .ToList();
+                // Process transactions to ensure proper paid amounts
+                foreach (var transaction in transactions)
+                {
+                    // For Payment transaction type, ensure PaidAmount is set properly
+                    if (transaction.TransactionType.ToString() == "Payment")
+                    {
+                        // If this is a payment and PaidAmount is 0, set it to TotalAmount
+                        if (transaction.PaidAmount <= 0)
+                        {
+                            transaction.PaidAmount = transaction.TotalAmount;
+                        }
+                    }
+                }
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    PaymentHistory = new ObservableCollection<TransactionDTO>(paymentRecords);
+                    PaymentHistory = new ObservableCollection<TransactionDTO>(
+                        transactions.OrderByDescending(t => t.TransactionDate));
                 });
             }
             catch (Exception ex)
@@ -962,7 +1012,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = false;
             }
         }
-
         public void ClosePaymentHistory()
         {
             IsPaymentHistoryVisible = false;

@@ -33,6 +33,25 @@ namespace QuickTechSystems.Application.Services
             _customerService = customerService;
         }
 
+        // Path: QuickTechSystems.Application/Services/TransactionService.cs
+
+        public async Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var transactions = await _repository.Query()
+                    .Include(t => t.Customer)
+                    .Include(t => t.TransactionDetails)
+                    .ThenInclude(td => td.Product)
+                    .Where(t => t.CustomerId == customerId &&
+                                t.TransactionDate >= startDate.Date &&
+                                t.TransactionDate <= endDate.Date.AddDays(1).AddSeconds(-1))
+                    .ToListAsync();
+
+                return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+            });
+        }
+
         public async Task<TransactionDTO> UpdateAsync(TransactionDTO transactionDto)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

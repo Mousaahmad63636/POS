@@ -1,4 +1,4 @@
-﻿// QuickTechSystems.WPF.Converters/PaymentButtonVisibilityConverter.cs
+﻿// Path: QuickTechSystems.WPF.Converters/PaymentButtonVisibilityConverter.cs
 using System;
 using System.Globalization;
 using System.Windows;

@@ -13,6 +13,9 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<TransactionDTO> ProcessSaleAsync(TransactionDTO transaction);
         Task<TransactionDTO?> GetLastTransactionAsync();
         Task<int> GetLatestTransactionIdAsync();
+        // Path: QuickTechSystems.Application/Services/Interfaces/ITransactionService.cs
+
+        Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate);
         Task<bool> DeleteAsync(int transactionId);
         Task<TransactionDTO> ProcessPaymentTransactionAsync(TransactionDTO transaction);
         Task<int> GetTransactionCountByDateRangeAsync(DateTime startDate, DateTime endDate);

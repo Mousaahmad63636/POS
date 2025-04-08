@@ -142,6 +142,7 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+        // Path: QuickTechSystems.Application/Services/CustomerService.cs
 
         public async Task<bool> ProcessPaymentAsync(int customerId, decimal amount, string reference)
         {
@@ -165,6 +166,24 @@ namespace QuickTechSystems.Application.Services
                     customer.UpdatedAt = DateTime.Now;
 
                     await _repository.UpdateAsync(customer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Create a payment transaction record
+                    var paymentTransaction = new Transaction
+                    {
+                        CustomerId = customerId,
+                        CustomerName = customer.Name,
+                        TotalAmount = amount,
+                        PaidAmount = amount, // Set PaidAmount explicitly for payment transactions
+                        TransactionDate = DateTime.Now,
+                        TransactionType = Domain.Enums.TransactionType.Payment,
+                        Status = Domain.Enums.TransactionStatus.Completed,
+                        PaymentMethod = "Cash",
+                        CashierId = "System",
+                        CashierName = "Debt Payment"
+                    };
+
+                    await _unitOfWork.Transactions.AddAsync(paymentTransaction);
                     await _unitOfWork.SaveChangesAsync();
 
                     // Update drawer (increase cash) if the drawer service is available
