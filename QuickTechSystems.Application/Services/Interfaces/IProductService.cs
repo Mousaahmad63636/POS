@@ -9,7 +9,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
     public interface IProductService : IBaseService<ProductDTO>
     {
         Task<IEnumerable<ProductDTO>> GetByCategoryAsync(int categoryId);
-        Task<bool> UpdateStockAsync(int productId, int quantity);
+        Task<bool> UpdateStockAsync(int productId, decimal quantity);  // Changed from int to decimal
         Task<IEnumerable<ProductDTO>> GetLowStockProductsAsync();
         Task<ProductDTO?> GetByBarcodeAsync(string barcode);
         Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0);

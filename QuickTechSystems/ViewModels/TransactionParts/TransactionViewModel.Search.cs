@@ -623,15 +623,15 @@ namespace QuickTechSystems.WPF.ViewModels
                             if (dialog.NewQuantity <= 0)
                             {
                                 MessageBox.Show(
-                                    "Quantity must be a positive number. It has been corrected to 1.",
+                                    "Quantity must be a positive number. It has been corrected to 0.01.",
                                     "Invalid Quantity",
                                     MessageBoxButton.OK,
                                     MessageBoxImage.Warning);
-                                dialog.NewQuantity = 1;
+                                dialog.NewQuantity = 0.01m;
                             }
 
                             // Save original quantity for status message
-                            int originalQuantity = itemToModify.Quantity;
+                            decimal originalQuantity = itemToModify.Quantity;
 
                             // Update the quantity and total
                             itemToModify.Quantity = dialog.NewQuantity;
@@ -651,7 +651,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             OnPropertyChanged(nameof(CurrentTransaction));
 
                             // Update status message
-                            StatusMessage = $"Changed quantity of '{itemToModify.ProductName}' from {originalQuantity} to {dialog.NewQuantity}";
+                            StatusMessage = $"Changed quantity of '{itemToModify.ProductName}' from {originalQuantity:0.##} to {dialog.NewQuantity:0.##}";
                             OnPropertyChanged(nameof(StatusMessage));
                         }
                         else

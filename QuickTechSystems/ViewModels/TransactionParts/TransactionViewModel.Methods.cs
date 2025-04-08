@@ -619,91 +619,141 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Unified product addition method that replaces both previous methods
-        public void AddProductToTransaction(ProductDTO product, int quantity = 1)
+        // Change from private to public
+        public void AddProductToTransaction(ProductDTO product)
         {
-            // Validate product and quantity
-            if (product == null)
-            {
-                WindowManager.ShowWarning("No product selected. Please select a product first.");
-                return;
-            }
-
-            // Validate quantity is positive
-            if (quantity <= 0)
-            {
-                WindowManager.ShowWarning("Quantity must be a positive number. It has been corrected to 1.");
-                quantity = 1;
-            }
+            if (product == null) return;
 
             try
             {
-                // Check if adding this product would result in low stock
-                CheckAndAlertLowStock(product, quantity);
-
-                if (CurrentTransaction?.Details == null)
+                if (CurrentTransaction == null)
                 {
-                    CurrentTransaction = new TransactionDTO
-                    {
-                        Details = new ObservableCollection<TransactionDetailDTO>(),
-                        TransactionDate = DateTime.Now,
-                        Status = TransactionStatus.Pending
-                    };
+                    StartNewTransaction();
                 }
 
-                var existingDetail = CurrentTransaction.Details.FirstOrDefault(d => d.ProductId == product.ProductId);
+                // Check if product is already in the transaction
+                var existingDetail = CurrentTransaction.Details?.FirstOrDefault(d =>
+                    d.ProductId == product.ProductId);
+
+                // Get price from customer-specific pricing if available
+                decimal unitPrice = product.SalePrice;
+                if (CustomerSpecificPrices.TryGetValue(product.ProductId, out decimal specialPrice))
+                {
+                    unitPrice = specialPrice;
+                }
+
                 if (existingDetail != null)
                 {
-                    existingDetail.Quantity += quantity;
-                    existingDetail.Total = existingDetail.Quantity * existingDetail.UnitPrice;
+                    // Update existing detail
+                    decimal oldQuantity = existingDetail.Quantity;
+                    existingDetail.Quantity += 1m; // Add exactly 1 unit
 
-                    // Force UI refresh by removing and re-adding the item
-                    var index = CurrentTransaction.Details.IndexOf(existingDetail);
-                    if (index >= 0)
-                    {
-                        CurrentTransaction.Details.RemoveAt(index);
-                        CurrentTransaction.Details.Insert(index, existingDetail);
-                    }
+                    // Recalculate total with precise decimal arithmetic
+                    existingDetail.Total = decimal.Multiply(existingDetail.Quantity, existingDetail.UnitPrice);
+
+                    StatusMessage = $"Added 1 more {product.Name} (Total: {existingDetail.Quantity})";
                 }
                 else
                 {
-                    // Get customer-specific price if available
-                    decimal unitPrice = product.SalePrice;
-                    if (_customerSpecificPrices.TryGetValue(product.ProductId, out decimal customPrice))
-                    {
-                        unitPrice = customPrice;
-                    }
-
+                    // Add new detail
                     var detail = new TransactionDetailDTO
                     {
                         ProductId = product.ProductId,
-                        ProductName = product.Name ?? "Unknown Product",
-                        ProductBarcode = product.Barcode ?? string.Empty,
-                        Quantity = quantity,
+                        ProductName = product.Name,
+                        ProductBarcode = product.Barcode,
+                        CategoryId = product.CategoryId,
+                        Quantity = 1m, // Start with exactly 1 unit
                         UnitPrice = unitPrice,
                         PurchasePrice = product.PurchasePrice,
-                        Total = unitPrice * quantity,
-                        TransactionId = CurrentTransaction.TransactionId
+                        Total = unitPrice // Total for 1 unit equals unit price
                     };
+
                     CurrentTransaction.Details.Add(detail);
+                    StatusMessage = $"Added {product.Name}";
                 }
 
-                // Update totals and UI
+                // Update totals
                 UpdateTotals();
-                OnPropertyChanged(nameof(CurrentTransaction));
-                OnPropertyChanged(nameof(CurrentTransaction.Details));
 
-                // Update status message
-                StatusMessage = $"Added: {product.Name} (Qty: {quantity})";
+                // Signal property changes
+                OnPropertyChanged(nameof(CurrentTransaction));
                 OnPropertyChanged(nameof(StatusMessage));
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error adding product to transaction: {ex.Message}");
-                WindowManager.ShowError($"Error adding product: {ex.Message}");
+                StatusMessage = $"Error adding product: {ex.Message}";
+                OnPropertyChanged(nameof(StatusMessage));
             }
         }
 
+        // Add this public method to TransactionViewModel class
+        public void AddProductToTransactionWithQuantity(ProductDTO product, decimal quantity)
+        {
+            if (product == null) return;
+
+            try
+            {
+                if (CurrentTransaction == null)
+                {
+                    StartNewTransaction();
+                }
+
+                // Check if product is already in the transaction
+                var existingDetail = CurrentTransaction.Details?.FirstOrDefault(d =>
+                    d.ProductId == product.ProductId);
+
+                // Get price from customer-specific pricing if available
+                decimal unitPrice = product.SalePrice;
+                if (CustomerSpecificPrices.TryGetValue(product.ProductId, out decimal specialPrice))
+                {
+                    unitPrice = specialPrice;
+                }
+
+                if (existingDetail != null)
+                {
+                    // Update existing detail
+                    decimal oldQuantity = existingDetail.Quantity;
+                    existingDetail.Quantity += quantity; // Add specified quantity
+
+                    // Recalculate total with precise decimal arithmetic
+                    existingDetail.Total = decimal.Multiply(existingDetail.Quantity, existingDetail.UnitPrice);
+
+                    StatusMessage = $"Added {quantity} more {product.Name} (Total: {existingDetail.Quantity})";
+                }
+                else
+                {
+                    // Add new detail
+                    var detail = new TransactionDetailDTO
+                    {
+                        ProductId = product.ProductId,
+                        ProductName = product.Name,
+                        ProductBarcode = product.Barcode,
+                        CategoryId = product.CategoryId,
+                        Quantity = quantity, // Use specified quantity
+                        UnitPrice = unitPrice,
+                        PurchasePrice = product.PurchasePrice,
+                        Total = decimal.Multiply(quantity, unitPrice) // Calculate total with precise decimal math
+                    };
+
+                    CurrentTransaction.Details.Add(detail);
+                    StatusMessage = $"Added {quantity} {product.Name}";
+                }
+
+                // Update totals
+                UpdateTotals();
+
+                // Signal property changes
+                OnPropertyChanged(nameof(CurrentTransaction));
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error adding product to transaction: {ex.Message}");
+                StatusMessage = $"Error adding product: {ex.Message}";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+        }
         // File: QuickTechSystems/ViewModels/TransactionParts/TransactionViewModel.Methods.cs
         private async void CheckAndAlertLowStock(ProductDTO product, int quantity)
         {

@@ -92,7 +92,7 @@ namespace QuickTechSystems.Application.Services
                         ProductId = detail.ProductId,
                         ProductName = detail.ProductName,
                         UnitPrice = detail.UnitPrice,
-                        Quantity = detail.Quantity,
+                        Quantity = detail.Quantity, // Now decimal to decimal - no conversion needed
                         Total = detail.Total
                     }).ToList()
                 };
@@ -138,7 +138,7 @@ namespace QuickTechSystems.Application.Services
                             {
                                 ProductId = qd.ProductId,
                                 ProductName = qd.ProductName,
-                                Quantity = qd.Quantity,
+                                Quantity = qd.Quantity, // Now decimal to decimal - no conversion needed
                                 UnitPrice = qd.UnitPrice,
                                 Total = qd.Total
                             })

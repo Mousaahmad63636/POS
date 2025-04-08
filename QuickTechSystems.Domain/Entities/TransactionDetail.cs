@@ -5,7 +5,7 @@
         public int TransactionDetailId { get; set; }
         public int TransactionId { get; set; }
         public int ProductId { get; set; }
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal PurchasePrice { get; set; }
         public decimal Discount { get; set; }

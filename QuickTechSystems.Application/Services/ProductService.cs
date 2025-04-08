@@ -73,7 +73,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        public async Task<bool> UpdateStockAsync(int productId, int quantity)
+        public async Task<bool> UpdateStockAsync(int productId, decimal quantity)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -88,9 +88,11 @@ namespace QuickTechSystems.Application.Services
                         return false;
                     }
 
-                    // Update stock and timestamp - no validation checking for negative values
-                    int oldStock = product.CurrentStock;
-                    product.CurrentStock = product.CurrentStock + quantity;
+                    // Store original stock for logging
+                    decimal oldStock = product.CurrentStock;
+
+                    // Calculate new stock - ensure we use exact decimal math with no rounding
+                    product.CurrentStock = decimal.Add(product.CurrentStock, quantity);
                     product.UpdatedAt = DateTime.Now;
 
                     await _repository.UpdateAsync(product);
@@ -98,7 +100,7 @@ namespace QuickTechSystems.Application.Services
 
                     Debug.WriteLine($"Stock updated for product {productId}: {oldStock} → {product.CurrentStock}");
 
-                    // Explicitly publish event about stock change
+                    // Publish update event
                     var productDto = _mapper.Map<ProductDTO>(product);
                     _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
 

@@ -1101,10 +1101,11 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         // Helper method to create product summary tables
+        // Helper method to create product summary tables
         private void CreateProductTable(Section section, List<TransactionDTO> transactions)
         {
             // Create a flattened list of transaction details
-            var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice,
+            var transactionItems = new List<(string ProductName, decimal Quantity, decimal FinalUnitPrice,
                 decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
 
             foreach (var transaction in transactions)
@@ -1181,7 +1182,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Quantity cell
                 var qtyCell = new TableCell();
                 var qtyParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Center };
-                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString()));
+                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString("0.##"))); // Format decimals properly
                 qtyCell.Blocks.Add(qtyParagraph);
                 row.Cells.Add(qtyCell);
 

@@ -88,7 +88,7 @@ namespace QuickTechSystems.Application.Services
                             if (existingDetail != null)
                             {
                                 // Calculate stock difference
-                                int quantityDifference = detailDto.Quantity - existingDetail.Quantity;
+                                decimal quantityDifference = detailDto.Quantity - existingDetail.Quantity;
                                 if (quantityDifference != 0)
                                 {
                                     // Update stock
@@ -185,10 +185,11 @@ namespace QuickTechSystems.Application.Services
                                 detail.Quantity); // Add stock back (positive value)
 
                             // Add inventory history entry
+                            // Add inventory history entry
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = detail.Quantity,
+                                QuantityChanged = detail.Quantity, // Now using decimal directly - no casting needed
                                 OperationType = TransactionType.Adjustment,
                                 Date = DateTime.Now,
                                 Reference = $"DeleteTx-{transactionId}",
@@ -265,10 +266,19 @@ namespace QuickTechSystems.Application.Services
                         {
                             detail.PurchasePrice = product.PurchasePrice;
 
-                            // Decrement stock - negative quantity because it's a sale
                             bool stockUpdated = await _productService.UpdateStockAsync(
-                                detail.ProductId,
-                                -detail.Quantity);
+     detail.ProductId,
+     decimal.Negate(detail.Quantity));
+
+                            await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
+                            {
+                                ProductId = detail.ProductId,
+                                QuantityChanged = decimal.Negate(detail.Quantity), // Use precise decimal negation
+                                OperationType = TransactionType.Sale,
+                                Date = DateTime.Now,
+                                Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
+                                Notes = $"Sold in transaction"
+                            });
 
                             if (!stockUpdated)
                             {
@@ -284,7 +294,7 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity,
+                                QuantityChanged = -detail.Quantity, // Now using decimal directly - no casting needed
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
@@ -642,7 +652,7 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity,
+                                QuantityChanged = -detail.Quantity, // Now using decimal directly - no casting needed
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
@@ -684,6 +694,7 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
 
         public override async Task<IEnumerable<TransactionDTO>> GetAllAsync()
         {

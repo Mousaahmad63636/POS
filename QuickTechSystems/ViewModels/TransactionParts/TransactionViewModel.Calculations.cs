@@ -42,7 +42,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 ItemCount = 0;
                 SubTotal = 0;
                 TaxAmount = 0;
-                DiscountAmount = Math.Max(0, DiscountAmount); // Ensure non-negative
+                DiscountAmount = 0;
                 TotalAmount = 0;
                 TotalAmountLBP = "0 LBP";
                 return;
@@ -50,9 +50,21 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-                // Calculate subtotal from items, handling potential null values
-                ItemCount = CurrentTransaction.Details.Sum(d => d?.Quantity ?? 0);
-                SubTotal = CurrentTransaction.Details.Sum(d => d?.Total ?? 0);
+                // Calculate values using precise decimal arithmetic
+                ItemCount = CurrentTransaction.Details.Sum(d => d?.Quantity ?? 0m);
+
+                // Recalculate each detail's total to ensure accuracy with decimal quantities
+                foreach (var detail in CurrentTransaction.Details)
+                {
+                    if (detail != null)
+                    {
+                        // Ensure each line item total is calculated precisely
+                        detail.Total = decimal.Multiply(detail.Quantity, detail.UnitPrice) - detail.Discount;
+                    }
+                }
+
+                // Calculate subtotal as sum of all item totals
+                SubTotal = CurrentTransaction.Details.Sum(d => d?.Total ?? 0m);
 
                 // Tax is not used in this system
                 TaxAmount = 0;
@@ -62,9 +74,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 DiscountAmount = Math.Min(DiscountAmount, SubTotal); // Cap discount at subtotal
 
                 // Calculate final total (subtotal - discount, no tax)
-                TotalAmount = Math.Max(0, SubTotal - DiscountAmount);
+                TotalAmount = decimal.Subtract(SubTotal, DiscountAmount);
+                TotalAmount = Math.Max(0, TotalAmount); // Ensure non-negative
 
-                // Update LBP amount with proper error handling
+                // Update LBP amount
                 try
                 {
                     decimal lbpAmount = CurrencyHelper.ConvertToLBP(TotalAmount);
@@ -74,6 +87,12 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     Debug.WriteLine($"Error converting to LBP: {ex.Message}");
                     TotalAmountLBP = "Error converting";
+                }
+
+                // Force update all transaction totals
+                if (CurrentTransaction != null)
+                {
+                    CurrentTransaction.TotalAmount = TotalAmount;
                 }
             }
             catch (Exception ex)
@@ -94,8 +113,8 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(TotalAmount));
             OnPropertyChanged(nameof(TotalAmountLBP));
             OnPropertyChanged(nameof(DiscountAmount));
+            OnPropertyChanged(nameof(CurrentTransaction));
         }
-
         private async Task ChangeQuantity()
         {
             await ExecuteOperationSafelyAsync(async () =>
@@ -130,11 +149,11 @@ namespace QuickTechSystems.WPF.ViewModels
                         if (dialog.NewQuantity <= 0)
                         {
                             MessageBox.Show(
-                                "Quantity must be a positive number. It has been corrected to 1.",
+                                "Quantity must be a positive number. It has been corrected to 0.01.",
                                 "Invalid Quantity",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Warning);
-                            dialog.NewQuantity = 1;
+                            dialog.NewQuantity = 0.01m;
                         }
 
                         // Update quantity and recalculate total
@@ -423,11 +442,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     headerRow.Cells.Add(CreateCell("TOTAL", FontWeights.Bold, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(headerRow);
 
+                    // In the loop for creating receipt items
                     foreach (var item in lastTransaction.Details)
                     {
                         var row = new TableRow();
                         row.Cells.Add(CreateCell(item.ProductName.Trim(), alignment: TextAlignment.Left));
-                        row.Cells.Add(CreateCell(item.Quantity.ToString(), alignment: TextAlignment.Center));
+                        row.Cells.Add(CreateCell(item.Quantity.ToString("0.##"), alignment: TextAlignment.Center));
                         row.Cells.Add(CreateCell(item.UnitPrice.ToString("C2"), alignment: TextAlignment.Right));
                         row.Cells.Add(CreateCell(item.Total.ToString("C2"), alignment: TextAlignment.Right));
                         itemsTable.RowGroups[0].Rows.Add(row);
