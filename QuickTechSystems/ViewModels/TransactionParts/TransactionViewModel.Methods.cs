@@ -686,7 +686,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 OnPropertyChanged(nameof(StatusMessage));
             }
         }
-
+        public void AddProductToTransaction(ProductDTO product, decimal quantity)
+        {
+            AddProductToTransactionWithQuantity(product, quantity);
+        }
+        public void AddProductToTransaction(ProductDTO product, int quantity)
+        {
+            // Convert the int quantity to decimal and call our implementation method
+            AddProductToTransactionWithQuantity(product, Convert.ToDecimal(quantity));
+        }
         // Add this public method to TransactionViewModel class
         public void AddProductToTransactionWithQuantity(ProductDTO product, decimal quantity)
         {

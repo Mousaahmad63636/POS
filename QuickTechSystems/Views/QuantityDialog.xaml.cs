@@ -21,6 +21,13 @@ namespace QuickTechSystems.WPF.Views
             NewQuantity = currentQuantity;
             DataContext = this;
 
+            // Set focus to the quantity textbox and select all text when the dialog loads
+            this.Loaded += (s, e) =>
+            {
+                QuantityTextBox.Focus();
+                QuantityTextBox.SelectAll();
+            };
+
             // Handle closing
             this.Closing += (s, e) =>
             {
@@ -50,22 +57,94 @@ namespace QuickTechSystems.WPF.Views
 
         private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
         {
-            if (sender is TextBox textBox)
-            {
-                // Get the text that would result if the input is accepted
-                string proposedText = textBox.Text.Substring(0, textBox.SelectionStart) +
-                                     e.Text +
-                                     textBox.Text.Substring(textBox.SelectionStart + textBox.SelectionLength);
+            var textBox = sender as TextBox;
+            if (textBox == null) return;
 
-                // Check if the proposed text is a valid decimal
-                e.Handled = !decimal.TryParse(proposedText, NumberStyles.AllowDecimalPoint,
-                                            CultureInfo.InvariantCulture, out _);
+            // Get the text that would result after this input
+            string proposedText = textBox.Text.Substring(0, textBox.SelectionStart) +
+                                 e.Text +
+                                 textBox.Text.Substring(textBox.SelectionStart + textBox.SelectionLength);
+
+            // Special handling for decimal separator (both period and comma)
+            if (e.Text == "." || e.Text == ",")
+            {
+                // Only allow one decimal separator
+                if (textBox.Text.Contains(".") || textBox.Text.Contains(","))
+                {
+                    e.Handled = true;
+                    return;
+                }
+
+                // Allow the decimal separator
+                e.Handled = false;
+                return;
+            }
+
+            // For other characters, check if the result would be a valid decimal
+            e.Handled = !decimal.TryParse(proposedText,
+                                     NumberStyles.AllowDecimalPoint,
+                                     CultureInfo.InvariantCulture,
+                                     out _);
+        }
+
+        private void QuantityTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Allow navigation keys
+            if (e.Key == Key.Back || e.Key == Key.Delete || e.Key == Key.Left ||
+                e.Key == Key.Right || e.Key == Key.Tab || e.Key == Key.Enter)
+                return;
+
+            // Allow digits on the number pad
+            if (e.Key >= Key.NumPad0 && e.Key <= Key.NumPad9)
+                return;
+
+            // Allow regular digits
+            if (e.Key >= Key.D0 && e.Key <= Key.D9 && e.KeyboardDevice.Modifiers != ModifierKeys.Shift)
+                return;
+
+            // Allow decimal point (both period and decimal key)
+            if (e.Key == Key.Decimal || e.Key == Key.OemPeriod || e.Key == Key.OemComma)
+            {
+                var textBox = sender as TextBox;
+                if (textBox != null && !textBox.Text.Contains(".") && !textBox.Text.Contains(","))
+                    return;
+            }
+
+            // Block all other keys
+            e.Handled = true;
+        }
+
+        private void QuantityTextBox_Pasting(object sender, DataObjectPastingEventArgs e)
+        {
+            if (e.DataObject.GetDataPresent(typeof(string)))
+            {
+                string pastedText = (string)e.DataObject.GetData(typeof(string));
+
+                var textBox = sender as TextBox;
+                if (textBox != null)
+                {
+                    // Construct the text that would result after pasting
+                    string proposedText = textBox.Text.Substring(0, textBox.SelectionStart) +
+                                         pastedText +
+                                         textBox.Text.Substring(textBox.SelectionStart + textBox.SelectionLength);
+
+                    // Check if the result would be a valid decimal
+                    if (!decimal.TryParse(proposedText,
+                                       NumberStyles.AllowDecimalPoint,
+                                       CultureInfo.InvariantCulture,
+                                       out _))
+                    {
+                        e.CancelCommand();
+                    }
+                }
+                else
+                {
+                    e.CancelCommand();
+                }
             }
             else
             {
-                // Fallback validation if sender is not a TextBox
-                e.Handled = !decimal.TryParse(e.Text, NumberStyles.AllowDecimalPoint,
-                                            CultureInfo.InvariantCulture, out _);
+                e.CancelCommand();
             }
         }
     }
