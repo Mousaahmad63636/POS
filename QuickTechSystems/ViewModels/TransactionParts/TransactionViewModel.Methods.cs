@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -23,7 +24,23 @@ namespace QuickTechSystems.WPF.ViewModels
                 Details = new ObservableCollection<TransactionDetailDTO>()
             };
         }
+        private void SubscribeToAllDetails()
+        {
+            if (CurrentTransaction?.Details == null) return;
 
+            foreach (var detail in CurrentTransaction.Details)
+            {
+                SubscribeToDetailChanges(detail);
+            }
+
+            // Also subscribe to collection changes
+            if (CurrentTransaction.Details is ObservableCollection<TransactionDetailDTO> observableDetails)
+            {
+                // Remove previous handler if exists to avoid duplicates
+                observableDetails.CollectionChanged -= TransactionDetails_CollectionChanged;
+                observableDetails.CollectionChanged += TransactionDetails_CollectionChanged;
+            }
+        }
         private Window GetOwnerWindow()
         {
             try
@@ -46,6 +63,27 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Debug.WriteLine($"Error getting owner window: {ex.Message}");
                 return null; // Return null instead of failing
+            }
+        }
+        private void SubscribeToDetailChanges(TransactionDetailDTO detail)
+        {
+            if (detail != null)
+            {
+                // Unsubscribe first to avoid duplicate subscriptions
+                detail.PropertyChanged -= TransactionDetail_PropertyChanged;
+                detail.PropertyChanged += TransactionDetail_PropertyChanged;
+            }
+        }
+
+        private void TransactionDetail_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TransactionDetailDTO.Quantity) ||
+                e.PropertyName == nameof(TransactionDetailDTO.UnitPrice) ||
+                e.PropertyName == nameof(TransactionDetailDTO.Discount) ||
+                e.PropertyName == nameof(TransactionDetailDTO.Total))
+            {
+                // Update totals whenever a relevant property changes
+                UpdateTotals();
             }
         }
         private void OpenNewTransactionWindow()
@@ -168,7 +206,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Update the current transaction with the retrieved data
                 CurrentTransaction = transaction;
                 CurrentTransactionNumber = transaction.TransactionId.ToString();
-
+                SubscribeToAllDetails();
                 // Populate customer information ONLY if available
                 if (transaction.CustomerId.HasValue && transaction.CustomerId.Value > 0)
                 {
@@ -619,7 +657,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Change from private to public
         public void AddProductToTransaction(ProductDTO product)
         {
             if (product == null) return;
@@ -669,6 +706,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     };
 
                     CurrentTransaction.Details.Add(detail);
+
+                    // Subscribe to property changes for the new detail
+                    SubscribeToDetailChanges(detail);
+
                     StatusMessage = $"Added {product.Name}";
                 }
 
@@ -1123,7 +1164,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 ProductSearchText = string.Empty;
                 IsProductSearchVisible = false;
 
-                // Create a completely fresh transaction object
                 CurrentTransaction = new TransactionDTO
                 {
                     TransactionDate = DateTime.Now,
@@ -1161,7 +1201,13 @@ namespace QuickTechSystems.WPF.ViewModels
                 OnPropertyChanged(nameof(SelectedCustomer));
                 OnPropertyChanged(nameof(CustomerSearchText));
                 OnPropertyChanged(nameof(IsCustomerSearchVisible));
+                if (CurrentTransaction.Details is ObservableCollection<TransactionDetailDTO> observableDetails)
+                {
+                    observableDetails.CollectionChanged += TransactionDetails_CollectionChanged;
+                }
             }
+
+
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error starting new transaction: {ex.Message}");
@@ -1173,6 +1219,31 @@ namespace QuickTechSystems.WPF.ViewModels
                     Details = new ObservableCollection<TransactionDetailDTO>(),
                 };
             }
+        }
+
+
+        private void TransactionDetails_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            // Handle added items
+            if (e.NewItems != null)
+            {
+                foreach (TransactionDetailDTO detail in e.NewItems)
+                {
+                    SubscribeToDetailChanges(detail);
+                }
+            }
+
+            // Handle removed items
+            if (e.OldItems != null)
+            {
+                foreach (TransactionDetailDTO detail in e.OldItems)
+                {
+                    detail.PropertyChanged -= TransactionDetail_PropertyChanged;
+                }
+            }
+
+            // Update totals whenever the collection changes
+            UpdateTotals();
         }
         private async Task HoldTransaction()
         {
