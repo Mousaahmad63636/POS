@@ -576,101 +576,64 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task ChangeItemQuantityAsync()
         {
-            // Preliminary check before entering the safe operation
-            if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
-            {
-                await ShowErrorMessageAsync("No items in transaction to change quantity");
-                return;
-            }
-
             await ExecuteOperationSafelyAsync(async () =>
             {
-                // Get the item to modify (either selected or last)
-                var selectedItems = CurrentTransaction.Details.Where(d => d.IsSelected).ToList();
-                var itemToModify = selectedItems.FirstOrDefault();
-
-                // If no item is selected, use the last item
-                if (itemToModify == null)
+                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
                 {
-                    itemToModify = CurrentTransaction.Details.LastOrDefault();
-                    if (itemToModify == null)
+                    throw new InvalidOperationException("No items in transaction");
+                }
+
+                // Get the selected item or the last item added if none is selected
+                var selectedDetail = CurrentTransaction.Details.FirstOrDefault(d => d.IsSelected);
+                if (selectedDetail == null)
+                {
+                    // If no item is selected, use the last item
+                    selectedDetail = CurrentTransaction.Details.LastOrDefault();
+                    if (selectedDetail == null)
                     {
-                        throw new InvalidOperationException("No item available to modify");
+                        throw new InvalidOperationException("No item selected");
                     }
                 }
 
-                // Get the owner window for the dialog
-                var ownerWindow = GetOwnerWindow();
-                if (ownerWindow == null)
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    throw new InvalidOperationException("Cannot find a valid window to show dialog");
-                }
-
-                // Create and show the quantity dialog
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    try
+                    var dialog = new QuantityDialog(selectedDetail.ProductName, selectedDetail.Quantity)
                     {
-                        var dialog = new QuantityDialog(itemToModify.ProductName ?? "Selected Item", itemToModify.Quantity)
-                        {
-                            Owner = ownerWindow,
-                            WindowStartupLocation = WindowStartupLocation.CenterOwner
-                        };
+                        Owner = System.Windows.Application.Current.MainWindow
+                    };
 
-                        if (dialog.ShowDialog() == true)
-                        {
-                            // Validate new quantity
-                            if (dialog.NewQuantity <= 0)
-                            {
-                                MessageBox.Show(
-                                    "Quantity must be a positive number. It has been corrected to 0.01.",
-                                    "Invalid Quantity",
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Warning);
-                                dialog.NewQuantity = 0.01m;
-                            }
-
-                            // Save original quantity for status message
-                            decimal originalQuantity = itemToModify.Quantity;
-
-                            // Update the quantity and total
-                            itemToModify.Quantity = dialog.NewQuantity;
-                            itemToModify.Total = itemToModify.Quantity * itemToModify.UnitPrice;
-
-                            // Force UI refresh
-                            var index = CurrentTransaction.Details.IndexOf(itemToModify);
-                            if (index >= 0)
-                            {
-                                CurrentTransaction.Details.RemoveAt(index);
-                                CurrentTransaction.Details.Insert(index, itemToModify);
-                            }
-
-                            // Update totals
-                            UpdateTotals();
-                            OnPropertyChanged(nameof(CurrentTransaction.Details));
-                            OnPropertyChanged(nameof(CurrentTransaction));
-
-                            // Update status message
-                            StatusMessage = $"Changed quantity of '{itemToModify.ProductName}' from {originalQuantity:0.##} to {dialog.NewQuantity:0.##}";
-                            OnPropertyChanged(nameof(StatusMessage));
-                        }
-                        else
-                        {
-                            StatusMessage = "Quantity change cancelled";
-                            OnPropertyChanged(nameof(StatusMessage));
-                        }
-                    }
-                    catch (Exception ex)
+                    if (dialog.ShowDialog() == true)
                     {
-                        Debug.WriteLine($"Error updating quantity: {ex.Message}");
-                        MessageBox.Show("An unexpected error occurred. Please try again.", "Error",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        // Validate new quantity
+                        if (dialog.NewQuantity <= 0)
+                        {
+                            MessageBox.Show(
+                                "Quantity must be a positive number. It has been corrected to 0.01.",
+                                "Invalid Quantity",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            dialog.NewQuantity = 0.01m;
+                        }
 
-                        StatusMessage = "Error changing quantity";
-                        OnPropertyChanged(nameof(StatusMessage));
+                        // Update quantity and recalculate total
+                        selectedDetail.Quantity = dialog.NewQuantity;
+                        selectedDetail.Total = selectedDetail.Quantity * selectedDetail.UnitPrice;
+
+                        // Force UI refresh
+                        var index = CurrentTransaction.Details.IndexOf(selectedDetail);
+                        if (index >= 0)
+                        {
+                            CurrentTransaction.Details.RemoveAt(index);
+                            CurrentTransaction.Details.Insert(index, selectedDetail);
+                        }
+
+                        // Update totals and notify UI
+                        UpdateTotals();
+                        OnPropertyChanged(nameof(CurrentTransaction.Details));
+                        OnPropertyChanged(nameof(CurrentTransaction));
                     }
                 });
-            }, "Changing item quantity");
+            }, "Changing quantity");
         }
     }
 }
