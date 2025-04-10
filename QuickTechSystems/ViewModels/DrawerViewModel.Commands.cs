@@ -52,7 +52,36 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync($"Error opening drawer: {ex.Message}");
             }
         }
+        public async Task CloseDrawerWithCurrentBalance()
+        {
+            try
+            {
+                IsProcessing = true;
 
+                if (CurrentDrawer == null)
+                {
+                    await ShowErrorMessageAsync("No active drawer found");
+                    return;
+                }
+
+                // Use the current balance as the final amount
+                decimal currentBalance = CurrentDrawer.CurrentBalance;
+
+                // Close the drawer
+                CurrentDrawer = await _drawerService.CloseDrawerAsync(currentBalance, string.Empty);
+                await LoadDrawerHistoryAsync();
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in CloseDrawerWithCurrentBalance: {ex}");
+                await ShowErrorMessageAsync($"Error closing drawer: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
         private async Task AddCashAsync()
         {
             try
@@ -188,9 +217,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                if (amount <= 0)
+                if (amount < 0) // Changed from <= 0 to < 0 to allow zero
                 {
-                    await ShowErrorMessageAsync("Amount must be greater than zero");
+                    await ShowErrorMessageAsync("Amount cannot be negative");
                     return;
                 }
 
@@ -202,6 +231,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
                 MessageBox.Show("Drawer opened successfully.", "Success",
+
+
+
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -209,8 +241,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync($"Error opening drawer: {ex.Message}");
             }
         }
-
-        // Add the remaining direct action methods as outlined in previous responses
 
         public async Task AddCashWithDetails(decimal amount, string description)
         {

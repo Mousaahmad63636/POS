@@ -89,10 +89,26 @@ namespace QuickTechSystems.WPF.Views
             RemoveCashPopup.IsOpen = true;
         }
 
-        private void CloseDrawerCommand_Execute(object sender, RoutedEventArgs e)
+        private async void CloseDrawerCommand_Execute(object sender, RoutedEventArgs e)
         {
             ActionsPopup.IsOpen = false;
-            CloseDrawerPopup.IsOpen = true;
+
+            if (ViewModel != null && ViewModel.CurrentDrawer != null)
+            {
+                decimal currentBalance = ViewModel.CurrentDrawer.CurrentBalance;
+
+                MessageBoxResult result = MessageBox.Show(
+                    $"Current cash in drawer: {currentBalance:C2}\n\nAre you sure you want to close the drawer?",
+                    "Close Drawer",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Close the drawer using the current balance directly
+                    await ViewModel.CloseDrawerWithAmount(currentBalance);
+                }
+            }
         }
 
         private void PrintReportCommand_Execute(object sender, RoutedEventArgs e)

@@ -1078,24 +1078,33 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Check if there's an ongoing transaction
                 if (CurrentTransaction?.Details?.Any() == true)
                 {
-                    var confirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    var transactionConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
                         "You have an ongoing transaction. Closing the drawer will cancel this transaction. Continue?",
                         "Unsaved Transaction",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Warning));
 
-                    if (confirmResult != MessageBoxResult.Yes)
+                    if (transactionConfirmResult != MessageBoxResult.Yes)
                         return;
                 }
 
-                // Add a second confirmation for drawer closing
-                var secondConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
-                    "Are you sure you want to close the drawer? This will end your current session.",
+                // Get current drawer balance
+                var drawer = await _drawerService.GetCurrentDrawerAsync();
+                if (drawer == null)
+                {
+                    throw new InvalidOperationException("No active drawer found");
+                }
+
+                decimal currentBalance = drawer.CurrentBalance;
+
+                // Show confirmation with current balance
+                var drawerCloseConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    $"Current cash in drawer: {currentBalance:C2}\n\nAre you sure you want to close the drawer? This will end your current session.",
                     "Confirm Drawer Close",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question));
 
-                if (secondConfirmResult != MessageBoxResult.Yes)
+                if (drawerCloseConfirmResult != MessageBoxResult.Yes)
                     return;
 
                 var ownerWindow = GetOwnerWindow();
@@ -1104,44 +1113,28 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("Cannot find a valid window to show the dialog");
                 }
 
-                var dialog = new InputDialog("Close Drawer", "Enter final cash amount:")
-                {
-                    Owner = ownerWindow,
-                    WindowStartupLocation = WindowStartupLocation.CenterOwner
-                };
+                // Process drawer closing with current balance
+                await _drawerService.CloseDrawerAsync(currentBalance, "Closed by user at end of shift");
 
-                bool? inputResult = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => dialog.ShowDialog());
-
-                if (inputResult == true)
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (!decimal.TryParse(dialog.Input, out decimal finalAmount))
+                    try
                     {
-                        throw new InvalidOperationException("Please enter a valid amount. Amount has been set to 0.");
+                        MessageBox.Show(
+                            ownerWindow,
+                            "Drawer closed successfully. The application will now exit.",
+                            "Success",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
                     }
-
-                    // Process drawer closing
-                    await _drawerService.CloseDrawerAsync(finalAmount, "Closed by user at end of shift");
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            MessageBox.Show(
-                                ownerWindow,
-                                "Drawer closed successfully. The application will now exit.",
-                                "Success",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error showing close success message: {ex.Message}");
-                        }
-                    });
+                        Debug.WriteLine($"Error showing close success message: {ex.Message}");
+                    }
+                });
 
-                    // Close the application after showing the success message
-                    System.Windows.Application.Current.Shutdown();
-                }
+                // Close the application after showing the success message
+                System.Windows.Application.Current.Shutdown();
             }, "Closing drawer");
         }
 
