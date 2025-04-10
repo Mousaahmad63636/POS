@@ -58,6 +58,7 @@
                             <TextBlock Text="{DynamicResource Customer_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
                             <TextBlock Text="Manage your customers and their information" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,16"/>
                         </StackPanel>
+                        
 
                         <Button Grid.Column="1" 
                                 Content="Add New Customer" 
@@ -72,8 +73,21 @@
                                 </Style>
                             </Button.Resources>
                         </Button>
+                        
                     </Grid>
-
+                    <Button Grid.Column="1" 
+        Content="Refresh Data" 
+        Command="{Binding LoadCommand}"
+        Style="{StaticResource ActionButtonStyle}"
+        Background="#007BFF"
+        VerticalAlignment="Top"
+        Margin="10,8,0,0">
+                        <Button.Resources>
+                            <Style TargetType="Border">
+                                <Setter Property="CornerRadius" Value="4"/>
+                            </Style>
+                        </Button.Resources>
+                    </Button>
                     <Border Style="{StaticResource PageDivider}"/>
                 </StackPanel>
 
@@ -595,7 +609,7 @@
                         <!-- Dialog Header -->
                         <Border Grid.Row="0" Background="#007BFF" CornerRadius="8,8,0,0">
                             <Grid Margin="24,16">
-                                <TextBlock Text="Payment History" 
+                                <TextBlock Text="{Binding PaymentHistoryTitle, FallbackValue='Payment History'}" 
                                           FontSize="18"
                                           FontWeight="SemiBold"
                                           Foreground="White"
@@ -627,10 +641,10 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Date Filter Controls - NEW SECTION -->
+                        <!-- Date Filter Controls - ENHANCED SECTION -->
                         <Border Grid.Row="2" 
                                 Padding="24,16"
-                                Background="White">
+                                Background="#F8F9FA">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -639,30 +653,61 @@
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <CheckBox Grid.Column="0" Content="Filter by Date:" IsChecked="{Binding UseDateFilter}" 
-                                          VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                          VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold"/>
 
                                 <TextBlock Grid.Column="1" Text="From:" VerticalAlignment="Center" Margin="0,0,5,0"
                                            IsEnabled="{Binding UseDateFilter}"/>
 
                                 <DatePicker Grid.Column="2" SelectedDate="{Binding FilterStartDate}" Width="120" Margin="0,0,10,0"
-                                            IsEnabled="{Binding UseDateFilter}"/>
+                                            IsEnabled="{Binding UseDateFilter}" BorderBrush="#007BFF"/>
 
                                 <TextBlock Grid.Column="3" Text="To:" VerticalAlignment="Center" Margin="0,0,5,0"
                                            IsEnabled="{Binding UseDateFilter}"/>
 
                                 <DatePicker Grid.Column="4" SelectedDate="{Binding FilterEndDate}" Width="120" Margin="0,0,10,0"
-                                            IsEnabled="{Binding UseDateFilter}"/>
+                                            IsEnabled="{Binding UseDateFilter}" BorderBrush="#007BFF"/>
 
                                 <Button Grid.Column="5" Content="Apply Filter" Command="{Binding ApplyDateFilterCommand}"
-                                        IsEnabled="{Binding UseDateFilter}" HorizontalAlignment="Left" Padding="10,3"/>
+                                        IsEnabled="{Binding UseDateFilter}" HorizontalAlignment="Left" 
+                                        Background="#007BFF" Foreground="White" Padding="12,6" BorderThickness="0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#0056b3"/>
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Background" Value="#99CCFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+
+                                <Button Grid.Column="6" Content="Print" x:Name="PrintButton"
+                                        Command="{Binding PrintPaymentHistoryCommand}"
+                                        Background="#28a745" Foreground="White" 
+                                        Padding="12,6" BorderThickness="0" Margin="10,0,0,0">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#218838"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
                             </Grid>
                         </Border>
 
                         <!-- Payment History DataGrid -->
-                        <DataGrid Grid.Row="3"
+                        <DataGrid x:Name="PaymentHistoryGrid" 
+                                  Grid.Row="3"
                                   ItemsSource="{Binding PaymentHistory}"
                                   AutoGenerateColumns="False"
                                   IsReadOnly="True"
@@ -716,6 +761,18 @@
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
 
+                                <DataGridTextColumn Header="Customer"
+                                                  Binding="{Binding CustomerName}"
+                                                  Width="180">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Padding" Value="16,10"/>
+                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+
                                 <DataGridTextColumn Header="Type"
                                                   Binding="{Binding TransactionType}"
                                                   Width="120">
@@ -749,6 +806,7 @@
                                             <Setter Property="VerticalAlignment" Value="Center"/>
                                             <Setter Property="Padding" Value="0,10,16,10"/>
                                             <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#28a745"/>
                                         </Style>
                                     </DataGridTextColumn.ElementStyle>
                                 </DataGridTextColumn>
@@ -770,6 +828,10 @@
                         <!-- Dialog Footer -->
                         <Border Grid.Row="4" Background="#F8F9FA" CornerRadius="0,0,8,8">
                             <Grid Margin="24,16">
+                                <TextBlock Text="{Binding PaymentHistorySummary}" 
+                                           FontWeight="SemiBold" 
+                                           VerticalAlignment="Center"
+                                           HorizontalAlignment="Left"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                     <Button Content="Close"
                                            Command="{Binding ClosePaymentHistoryCommand}"

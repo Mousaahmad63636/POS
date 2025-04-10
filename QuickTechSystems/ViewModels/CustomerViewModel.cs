@@ -6,6 +6,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Printing;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
@@ -32,15 +36,13 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isNewCustomer;
         private FlowDirection _currentFlowDirection = FlowDirection.LeftToRight;
         private decimal _paymentAmount;
-        // Concurrency control
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
         private bool _useDateFilter = true;
         private string _errorMessage = string.Empty;
         private bool _hasErrors;
         private bool _isPaymentDialogOpen;
-        // Add these new properties to CustomerViewModel class
-        private DateTime _filterStartDate = DateTime.Now.AddDays(-7); // Default to last week
+        private DateTime _filterStartDate = DateTime.Now.AddDays(-7);
         private DateTime _filterEndDate = DateTime.Now;
         private ObservableCollection<TransactionDTO> _paymentHistory = new ObservableCollection<TransactionDTO>();
         private bool _isPaymentHistoryVisible;
@@ -161,6 +163,54 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _isPaymentHistoryVisible;
             set => SetProperty(ref _isPaymentHistoryVisible, value);
         }
+
+        public string PaymentHistoryTitle
+        {
+            get
+            {
+                if (UseDateFilter && SelectedCustomer != null)
+                {
+                    return $"Payment History ({FilterStartDate:MM/dd/yyyy} - {FilterEndDate:MM/dd/yyyy})";
+                }
+                return "All Payment History";
+            }
+        }
+
+        public string PaymentHistorySummary
+        {
+            get
+            {
+                if (PaymentHistory == null || PaymentHistory.Count == 0)
+                    return "No transactions found";
+
+                decimal totalPaid = PaymentHistory.Sum(t => t.PaidAmount);
+                return $"Total Paid: {totalPaid:C2}";
+            }
+        }
+
+        public DateTime FilterStartDate
+        {
+            get => _filterStartDate;
+            set => SetProperty(ref _filterStartDate, value);
+        }
+
+        public DateTime FilterEndDate
+        {
+            get => _filterEndDate;
+            set => SetProperty(ref _filterEndDate, value);
+        }
+
+        public bool UseDateFilter
+        {
+            get => _useDateFilter;
+            set
+            {
+                if (SetProperty(ref _useDateFilter, value))
+                {
+                    _ = LoadPaymentHistory();
+                }
+            }
+        }
         #endregion
 
         #region Commands
@@ -180,6 +230,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ClosePaymentDialogCommand { get; }
         public ICommand ShowPaymentHistoryCommand { get; }
         public ICommand ClosePaymentHistoryCommand { get; }
+        public ICommand PrintPaymentHistoryCommand { get; }
         #endregion
 
         public CustomerViewModel(
@@ -214,10 +265,14 @@ namespace QuickTechSystems.WPF.ViewModels
             ClosePaymentHistoryCommand = new RelayCommand(
                 _ => ClosePaymentHistory(),
                 _ => IsPaymentHistoryVisible);
-            // In the constructor, add this command:
-                ApplyDateFilterCommand = new AsyncRelayCommand(
+
+            ApplyDateFilterCommand = new AsyncRelayCommand(
                 async _ => await LoadPaymentHistory(),
                 _ => SelectedCustomer != null);
+
+            PrintPaymentHistoryCommand = new AsyncRelayCommand(
+                async _ => await PrintPaymentHistory(),
+                _ => PaymentHistory != null && PaymentHistory.Count > 0);
 
             LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
             AddCommand = new RelayCommand(_ => AddNew(), _ => !IsSaving);
@@ -230,32 +285,9 @@ namespace QuickTechSystems.WPF.ViewModels
             ResetCustomPriceCommand = new RelayCommand(param => ResetCustomPrice(param as CustomerProductPriceViewModel), _ => !IsSaving);
             ResetAllCustomPricesCommand = new RelayCommand(_ => ResetAllCustomPrices(), _ => !IsSaving);
 
-            // Start initial data load
             _ = LoadDataAsync();
         }
-        public DateTime FilterStartDate
-        {
-            get => _filterStartDate;
-            set => SetProperty(ref _filterStartDate, value);
-        }
 
-        public DateTime FilterEndDate
-        {
-            get => _filterEndDate;
-            set => SetProperty(ref _filterEndDate, value);
-        }
-
-        public bool UseDateFilter
-        {
-            get => _useDateFilter;
-            set
-            {
-                if (SetProperty(ref _useDateFilter, value))
-                {
-                    _ = LoadPaymentHistory();
-                }
-            }
-        }
         protected override void SubscribeToEvents()
         {
             _eventAggregator.Subscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
@@ -310,16 +342,40 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Operation in progress, waiting... (attempt {waitCount})");
                 await Task.Delay(100);
 
-                // Safety timeout
+                // Safety timeout - auto-reset after 5 seconds
                 if (waitCount > 50) // 5 seconds max wait
                 {
-                    Debug.WriteLine("TIMEOUT waiting for operation lock, proceeding anyway");
+                    Debug.WriteLine("TIMEOUT waiting for operation lock, resetting lock");
+                    _operationInProgress = false;
+                    if (_operationLock.CurrentCount == 0)
+                    {
+                        _operationLock.Release();
+                    }
                     break;
                 }
             }
 
             Debug.WriteLine($"Acquiring operation lock for: {operationName}");
-            await _operationLock.WaitAsync();
+
+            // Use a timeout for acquiring the lock
+            bool lockAcquired = await _operationLock.WaitAsync(5000); // 5 second timeout
+
+            // In ExecuteDbOperationSafelyAsync method, replace this code:
+            if (!lockAcquired)
+            {
+                Debug.WriteLine($"FAILED to acquire lock for {operationName}, forcing reset");
+                // Force reset the lock
+                _operationInProgress = false;
+
+                // Instead of creating a new SemaphoreSlim, reset the existing one
+                while (_operationLock.CurrentCount == 0)
+                {
+                    _operationLock.Release();
+                }
+
+                await _operationLock.WaitAsync();
+            }
+
             _operationInProgress = true;
 
             try
@@ -363,20 +419,18 @@ namespace QuickTechSystems.WPF.ViewModels
 
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                // For critical errors, also show a message box
                 if (message.Contains("critical") || message.Contains("exception"))
                 {
                     MessageBox.Show(message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             });
 
-            // Automatically clear error after delay
             Task.Run(async () =>
             {
-                await Task.Delay(5000); // Show error for 5 seconds
+                await Task.Delay(5000);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (ErrorMessage == message) // Only clear if still the same message
+                    if (ErrorMessage == message)
                     {
                         ErrorMessage = string.Empty;
                         HasErrors = false;
@@ -395,21 +449,17 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = string.Empty;
                 HasErrors = false;
 
-                // Get customers asynchronously using the safe operation method
                 var customers = await ExecuteDbOperationSafelyAsync(async () =>
                 {
                     return await _customerService.GetAllAsync();
                 }, "Loading customers");
 
-                // Preserve the currently selected customer ID if any
                 int? selectedCustomerId = SelectedCustomer?.CustomerId;
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    // Create new collection with fetched data
                     Customers = new ObservableCollection<CustomerDTO>(customers);
 
-                    // If there was a selected customer, try to reselect it in the new collection
                     if (selectedCustomerId.HasValue)
                     {
                         SelectedCustomer = Customers.FirstOrDefault(c => c.CustomerId == selectedCustomerId.Value);
@@ -534,7 +584,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     Address = SelectedCustomer.Address,
                     IsActive = SelectedCustomer.IsActive,
                     CreatedAt = customerId == 0 ? DateTime.Now : SelectedCustomer.CreatedAt,
-                    UpdatedAt = customerId != 0 ? DateTime.Now : null
+                    UpdatedAt = customerId != 0 ? DateTime.Now : null,
+                    Balance = SelectedCustomer.Balance,
+                    TransactionCount = SelectedCustomer.TransactionCount
                 };
 
                 if (customerToSave.CustomerId == 0)
@@ -628,21 +680,17 @@ namespace QuickTechSystems.WPF.ViewModels
                     ErrorMessage = string.Empty;
                     HasErrors = false;
 
-                    // Store the ID of the customer being deleted for later reference
                     int customerIdToDelete = SelectedCustomer.CustomerId;
 
-                    // Close the popup first to improve UI responsiveness
                     CloseCustomerPopup();
 
                     try
                     {
-                        // Perform the deletion using safe operation
                         await ExecuteDbOperationSafelyAsync(async () =>
                         {
                             await _customerService.DeleteAsync(customerIdToDelete);
                         }, "Deleting customer");
 
-                        // Remove from local collection to immediately update UI
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             var customerToRemove = Customers.FirstOrDefault(c => c.CustomerId == customerIdToDelete);
@@ -651,7 +699,6 @@ namespace QuickTechSystems.WPF.ViewModels
                                 Customers.Remove(customerToRemove);
                             }
 
-                            // Clear selection
                             SelectedCustomer = null;
                         });
 
@@ -661,7 +708,6 @@ namespace QuickTechSystems.WPF.ViewModels
                                 MessageBoxButton.OK, MessageBoxImage.Information);
                         });
 
-                        // Reload data to ensure consistency with database
                         await LoadDataAsync();
                     }
                     catch (InvalidOperationException ex)
@@ -677,7 +723,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         if (result == MessageBoxResult.Yes)
                         {
-                            // Get the customer from the collection again since we closed the popup
                             SelectedCustomer = Customers.FirstOrDefault(c => c.CustomerId == customerIdToDelete);
 
                             if (SelectedCustomer != null)
@@ -706,7 +751,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     await ShowErrorMessageAsync($"Error deleting customer: {ex.Message}");
                 }
 
-                // Always refresh the data after an error to ensure consistency
                 await LoadDataAsync();
             }
             finally
@@ -727,7 +771,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = string.Empty;
                 HasErrors = false;
 
-                // Get all products and customer's custom prices using safe operations
                 var products = await ExecuteDbOperationSafelyAsync(async () =>
                 {
                     return await _productService.GetAllAsync();
@@ -859,7 +902,22 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            // Reset payment amount
+            // First refresh the customer data to ensure we have the latest balance
+            try
+            {
+                var refreshedCustomer = await _customerService.GetByIdAsync(SelectedCustomer.CustomerId);
+                if (refreshedCustomer != null)
+                {
+                    // Update the selected customer with fresh data
+                    SelectedCustomer = refreshedCustomer;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error refreshing customer before payment: {ex.Message}");
+            }
+
+            // Reset payment amount to current balance
             PaymentAmount = SelectedCustomer.Balance;
             IsPaymentDialogOpen = true;
         }
@@ -893,49 +951,126 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = string.Empty;
                 HasErrors = false;
 
+                // Generate unique reference
                 string reference = $"DEBT-{DateTime.Now:yyyyMMddHHmmss}";
 
-                // Process the payment
-                bool success = await ExecuteDbOperationSafelyAsync(async () =>
+                Debug.WriteLine($"Starting payment process for customer {SelectedCustomer.CustomerId}, amount: {PaymentAmount}");
+
+                try
                 {
-                    return await _customerService.ProcessPaymentAsync(
+                    // Process the payment with timeout handling
+                    var paymentTask = _customerService.ProcessPaymentAsync(
                         SelectedCustomer.CustomerId,
                         PaymentAmount,
                         reference);
-                }, "Processing customer payment");
 
-                if (success)
-                {
-                    // Close payment dialog
-                    ClosePaymentDialog();
+                    // Add timeout to prevent hanging
+                    var timeoutTask = Task.Delay(10000); // 10 second timeout
 
-                    // Reload customer data
-                    await LoadDataAsync();
+                    var completedTask = await Task.WhenAny(paymentTask, timeoutTask);
 
-                    // Reload payment history if it's visible
-                    if (IsPaymentHistoryVisible)
+                    if (completedTask == timeoutTask)
                     {
-                        await LoadPaymentHistory();
+                        Debug.WriteLine("Payment processing timed out");
+                        await ShowErrorMessageAsync("Payment processing timed out. Please try again.");
+                        return;
                     }
 
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    bool success = await paymentTask;
+
+                    if (success)
                     {
-                        MessageBox.Show(
-                            "Success",
-                            "Payment Processed",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    });
+                        Debug.WriteLine("Payment processed successfully");
+
+                        await Task.Delay(200); // Add a small delay for UI responsiveness
+                        ClosePaymentDialog();
+
+                        await ForceDataRefresh();
+
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            MessageBox.Show(
+                                "Payment processed successfully.",
+                                "Success",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                        });
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Payment processing returned false");
+                        await ShowErrorMessageAsync("Payment could not be processed. Please try again.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Exception during payment processing: {ex.Message}");
+                    await ShowErrorMessageAsync($"Error processing payment: {ex.Message}");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error processing payment: {ex.Message}");
+                Debug.WriteLine($"Error in payment method: {ex.Message}");
                 await ShowErrorMessageAsync($"Error processing payment: {ex.Message}");
             }
             finally
             {
                 IsSaving = false;
+            }
+        }
+
+        private async Task ForceDataRefresh()
+        {
+            Debug.WriteLine("Forcing complete data refresh");
+
+            try
+            {
+                // Clear operation lock if stuck
+                if (_operationInProgress)
+                {
+                    _operationInProgress = false;
+                    if (_operationLock.CurrentCount == 0)
+                    {
+                        _operationLock.Release();
+                        Debug.WriteLine("Released potentially stuck operation lock");
+                    }
+                }
+
+                // Instead of reassigning the readonly field, just make sure it's released
+                while (_operationLock.CurrentCount == 0)
+                {
+                    _operationLock.Release();
+                }
+
+                // Reload customer data using direct database call
+                var refreshedCustomers = await _customerService.GetAllAsync();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    // Get currently selected customer ID
+                    int? selectedId = SelectedCustomer?.CustomerId;
+
+                    // Update the customers collection
+                    Customers = new ObservableCollection<CustomerDTO>(refreshedCustomers);
+
+                    // Reselect the customer if needed
+                    if (selectedId.HasValue)
+                    {
+                        SelectedCustomer = Customers.FirstOrDefault(c => c.CustomerId == selectedId.Value);
+                    }
+                });
+
+                // Reload payment history if visible
+                if (IsPaymentHistoryVisible)
+                {
+                    await LoadPaymentHistory();
+                }
+
+                Debug.WriteLine("Data refresh completed successfully");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during force refresh: {ex.Message}");
             }
         }
 
@@ -967,15 +1102,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = string.Empty;
                 HasErrors = false;
 
-                // Get all transactions for the customer
                 var transactions = await ExecuteDbOperationSafelyAsync(async () =>
                 {
                     if (UseDateFilter)
                     {
+                        DateTime endDateInclusive = FilterEndDate.AddDays(1).AddSeconds(-1);
                         return await _transactionService.GetByCustomerAndDateRangeAsync(
                             SelectedCustomer.CustomerId,
                             FilterStartDate,
-                            FilterEndDate);
+                            endDateInclusive);
                     }
                     else
                     {
@@ -983,13 +1118,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }, "Loading payment history");
 
-                // Process transactions to ensure proper paid amounts
                 foreach (var transaction in transactions)
                 {
-                    // For Payment transaction type, ensure PaidAmount is set properly
-                    if (transaction.TransactionType.ToString() == "Payment")
+                    if (transaction.TransactionType.ToString() == "Payment" ||
+                        transaction.TransactionType.ToString() == "Adjustment")
                     {
-                        // If this is a payment and PaidAmount is 0, set it to TotalAmount
                         if (transaction.PaidAmount <= 0)
                         {
                             transaction.PaidAmount = transaction.TotalAmount;
@@ -1001,6 +1134,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     PaymentHistory = new ObservableCollection<TransactionDTO>(
                         transactions.OrderByDescending(t => t.TransactionDate));
+
+                    OnPropertyChanged(nameof(PaymentHistoryTitle));
+                    OnPropertyChanged(nameof(PaymentHistorySummary));
                 });
             }
             catch (Exception ex)
@@ -1013,9 +1149,154 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = false;
             }
         }
+
         public void ClosePaymentHistory()
         {
             IsPaymentHistoryVisible = false;
+        }
+
+        private async Task PrintPaymentHistory()
+        {
+            try
+            {
+                IsSaving = true;
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    PrintDialog printDialog = new PrintDialog();
+                    if (printDialog.ShowDialog() == true)
+                    {
+                        FlowDocument document = new FlowDocument();
+                        document.FontFamily = new System.Windows.Media.FontFamily("Segoe UI");
+                        document.PagePadding = new Thickness(50);
+
+                        Paragraph title = new Paragraph(new Run(
+                            $"Payment History for {SelectedCustomer.Name}"))
+                        {
+                            FontSize = 18,
+                            FontWeight = FontWeights.Bold,
+                            TextAlignment = TextAlignment.Center,
+                            Margin = new Thickness(0, 0, 0, 10)
+                        };
+                        document.Blocks.Add(title);
+
+                        // Add current balance below the name
+                        Paragraph balance = new Paragraph(new Run(
+                            $"Current Balance: {SelectedCustomer.Balance:C2}"))
+                        {
+                            FontSize = 14,
+                            FontWeight = FontWeights.SemiBold,
+                            TextAlignment = TextAlignment.Center,
+                            Margin = new Thickness(0, 0, 0, 20)
+                        };
+                        document.Blocks.Add(balance);
+
+                        if (UseDateFilter)
+                        {
+                            Paragraph dateRange = new Paragraph(new Run(
+                                $"Period: {FilterStartDate:MM/dd/yyyy} - {FilterEndDate:MM/dd/yyyy}"))
+                            {
+                                FontSize = 12,
+                                TextAlignment = TextAlignment.Center,
+                                Margin = new Thickness(0, 0, 0, 20)
+                            };
+                            document.Blocks.Add(dateRange);
+                        }
+
+                        Table table = new Table();
+                        table.CellSpacing = 0;
+                        table.BorderBrush = Brushes.Black;
+                        table.BorderThickness = new Thickness(1);
+
+                        table.Columns.Add(new TableColumn() { Width = new GridLength(120) }); // Date
+                        table.Columns.Add(new TableColumn() { Width = new GridLength(100) }); // Trx #
+                        table.Columns.Add(new TableColumn() { Width = new GridLength(100) }); // Paid Amount
+
+                        TableRowGroup headerRowGroup = new TableRowGroup();
+                        TableRow headerRow = new TableRow();
+                        headerRow.Background = new SolidColorBrush(Colors.LightGray);
+
+                        headerRow.Cells.Add(CreateHeaderCell("Date"));
+                        headerRow.Cells.Add(CreateHeaderCell("Trx #"));
+                        headerRow.Cells.Add(CreateHeaderCell("Paid Amount"));
+
+                        headerRowGroup.Rows.Add(headerRow);
+                        table.RowGroups.Add(headerRowGroup);
+
+                        TableRowGroup dataRowGroup = new TableRowGroup();
+
+                        foreach (var transaction in PaymentHistory)
+                        {
+                            TableRow row = new TableRow();
+
+                            row.Cells.Add(CreateCell(transaction.TransactionDate.ToString("MM/dd/yyyy HH:mm")));
+                            row.Cells.Add(CreateCell(transaction.TransactionId.ToString()));
+                            row.Cells.Add(CreateCell(transaction.PaidAmount.ToString("C2"), TextAlignment.Right));
+
+                            dataRowGroup.Rows.Add(row);
+                        }
+
+                        table.RowGroups.Add(dataRowGroup);
+                        document.Blocks.Add(table);
+
+                        Paragraph summary = new Paragraph(new Run(PaymentHistorySummary))
+                        {
+                            FontSize = 14,
+                            FontWeight = FontWeights.Bold,
+                            TextAlignment = TextAlignment.Right,
+                            Margin = new Thickness(0, 20, 0, 0)
+                        };
+                        document.Blocks.Add(summary);
+
+                        Paragraph footer = new Paragraph(new Run(
+                            $"Printed on {DateTime.Now:MM/dd/yyyy HH:mm:ss}"))
+                        {
+                            FontSize = 10,
+                            TextAlignment = TextAlignment.Right,
+                            Margin = new Thickness(0, 40, 0, 0)
+                        };
+                        document.Blocks.Add(footer);
+
+                        IDocumentPaginatorSource paginatorSource = document;
+                        printDialog.PrintDocument(paginatorSource.DocumentPaginator, "Payment History");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error printing payment history: {ex.Message}");
+                await ShowErrorMessageAsync($"Error printing payment history: {ex.Message}");
+            }
+            finally
+            {
+                IsSaving = false;
+            }
+        }
+
+        private TableCell CreateHeaderCell(string text)
+        {
+            TableCell cell = new TableCell();
+            Paragraph p = new Paragraph(new Run(text));
+            p.FontWeight = FontWeights.Bold;
+            cell.Blocks.Add(p);
+            cell.BorderBrush = Brushes.Black;
+            cell.BorderThickness = new Thickness(1);
+            cell.Padding = new Thickness(5);
+            return cell;
+        }
+
+        private TableCell CreateCell(string text, TextAlignment alignment = TextAlignment.Left)
+        {
+            TableCell cell = new TableCell();
+            Paragraph p = new Paragraph(new Run(text));
+            p.TextAlignment = alignment;
+            cell.Blocks.Add(p);
+            cell.BorderBrush = Brushes.Black;
+            cell.BorderThickness = new Thickness(1);
+            cell.Padding = new Thickness(5);
+            return cell;
         }
         #endregion
 
@@ -1033,7 +1314,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 UnsubscribeFromEvents();
                 _operationLock?.Dispose();
 
-                // Clear collections to help with garbage collection
                 Customers?.Clear();
                 CustomerProducts?.Clear();
                 PaymentHistory?.Clear();
