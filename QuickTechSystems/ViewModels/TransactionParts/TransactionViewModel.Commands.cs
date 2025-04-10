@@ -283,15 +283,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("No items in transaction to add to customer balance.");
                 }
 
-                // Confirm with user
-                var dialogResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
-                    $"Add {TotalAmount:C2} to {SelectedCustomer.Name}'s balance?\n\nThis will not affect the cash drawer.",
-                    "Confirm Debt Transaction",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question));
-
-                if (dialogResult != MessageBoxResult.Yes)
-                    return;
+                // No confirmation dialog - proceed directly
 
                 IDbContextTransaction dbTransaction = null;
                 TransactionDTO transactionResult = null;
@@ -367,16 +359,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         // Don't fail the whole transaction for a print error
                     }
 
-                    // Show success message
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show(
-                            $"Transaction #{transactionResult.TransactionId} has been added to {SelectedCustomer.Name}'s balance.",
-                            "Debt Transaction Complete",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information)
-                    );
-
-                    // Start new transaction
+                    // Start new transaction without showing success message
                     StartNewTransaction();
                 }
                 catch (Exception ex)

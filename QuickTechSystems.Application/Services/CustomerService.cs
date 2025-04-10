@@ -143,7 +143,6 @@ namespace QuickTechSystems.Application.Services
             });
         }
         // Path: QuickTechSystems.Application/Services/CustomerService.cs
-
         public async Task<bool> ProcessPaymentAsync(int customerId, decimal amount, string reference)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -176,7 +175,7 @@ namespace QuickTechSystems.Application.Services
                         TotalAmount = amount,
                         PaidAmount = amount, // Set PaidAmount explicitly for payment transactions
                         TransactionDate = DateTime.Now,
-                        TransactionType = Domain.Enums.TransactionType.Payment,
+                        TransactionType = Domain.Enums.TransactionType.Adjustment, // Changed from Payment to Adjustment
                         Status = Domain.Enums.TransactionStatus.Completed,
                         PaymentMethod = "Cash",
                         CashierId = "System",

@@ -169,6 +169,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand SaveCommand { get; }
         public ICommand DeleteCommand { get; }
         public ICommand SearchCommand { get; }
+        public ICommand ApplyDateFilterCommand { get; }
         public ICommand SetProductPricesCommand { get; }
         public ICommand SaveCustomPricesCommand { get; }
         public ICommand CloseProductPricesDialogCommand { get; }
@@ -214,7 +215,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _ => ClosePaymentHistory(),
                 _ => IsPaymentHistoryVisible);
             // In the constructor, add this command:
-            ApplyDateFilterCommand = new AsyncRelayCommand(
+                ApplyDateFilterCommand = new AsyncRelayCommand(
                 async _ => await LoadPaymentHistory(),
                 _ => SelectedCustomer != null);
 

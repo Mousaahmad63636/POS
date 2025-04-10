@@ -289,18 +289,18 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         private FlowDocument CreateReceiptDocument(
-            PrintDialog printDialog,
-            int transactionId,
-            string companyName,
-            string address,
-            string phoneNumber,
-            string email,
-            string footerText1,
-            string footerText2,
-            TransactionDTO transaction,
-            decimal subTotal,
-            decimal discountAmount,
-            decimal previousCustomerBalance)
+        PrintDialog printDialog,
+        int transactionId,
+        string companyName,
+        string address,
+        string phoneNumber,
+        string email,
+        string footerText1,
+        string footerText2,
+        TransactionDTO transaction,
+        decimal subTotal,
+        decimal discountAmount,
+        decimal previousCustomerBalance)
         {
             var flowDocument = new FlowDocument
             {
@@ -384,23 +384,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
 
             flowDocument.Blocks.Add(header);
-            flowDocument.Blocks.Add(CreateDivider());
 
-            var metaTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased from 11
-            metaTable.Columns.Add(new TableColumn { Width = new GridLength(100) }); // Slightly wider
-            metaTable.Columns.Add(new TableColumn { Width = GridLength.Auto });
-            metaTable.RowGroups.Add(new TableRowGroup());
-            AddMetaRow(metaTable, "رقم العملية:", transactionId.ToString());
-            AddMetaRow(metaTable, "التاريخ:", DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
-
-            var customerRow = new TableRow();
-            customerRow.Cells.Add(new TableCell(new Paragraph(new Run("العميل:"))
-            {
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Left, // Original alignment preserved
-                FontSize = 15 // Increased from 13
-            }));
-
+            // Add customer name paragraph before divider
             string customerDisplay = "عميل زائر";
             if (!string.IsNullOrEmpty(transaction.CustomerName))
             {
@@ -411,14 +396,34 @@ namespace QuickTechSystems.WPF.ViewModels
                 customerDisplay = $"رقم العميل: {transaction.CustomerId}";
             }
 
-            customerRow.Cells.Add(new TableCell(new Paragraph(new Run(customerDisplay))
+            var customerParagraph = new Paragraph
             {
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Left, // Original alignment preserved
-                FontSize = 15 // Increased from 13
-            }));
+                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 10, 0, 10)
+            };
 
-            metaTable.RowGroups[0].Rows.Add(customerRow);
+            customerParagraph.Inlines.Add(new Run("العميل:")
+            {
+                FontSize = 16,
+                FontWeight = FontWeights.Bold
+            });
+            customerParagraph.Inlines.Add(new Run(" "));
+            customerParagraph.Inlines.Add(new Run(customerDisplay)
+            {
+                FontSize = 16,
+                FontWeight = FontWeights.Bold
+            });
+
+            flowDocument.Blocks.Add(customerParagraph);
+
+            flowDocument.Blocks.Add(CreateDivider());
+
+            var metaTable = new Table { FontSize = 13, CellSpacing = 0 }; // Increased from 11
+            metaTable.Columns.Add(new TableColumn { Width = new GridLength(100) }); // Slightly wider
+            metaTable.Columns.Add(new TableColumn { Width = GridLength.Auto });
+            metaTable.RowGroups.Add(new TableRowGroup());
+            AddMetaRow(metaTable, "رقم العملية:", transactionId.ToString());
+            AddMetaRow(metaTable, "التاريخ:", DateTime.Now.ToString("MM/dd/yyyy hh:mm tt"));
 
             flowDocument.Blocks.Add(metaTable);
             flowDocument.Blocks.Add(CreateDivider());
