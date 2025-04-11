@@ -16,7 +16,6 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand PrintReportCommand { get; }
         public ICommand LoadFinancialDataCommand { get; }
 
-        // In DrawerViewModel.cs
         private async Task OpenDrawerAsync()
         {
             try
@@ -52,6 +51,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync($"Error opening drawer: {ex.Message}");
             }
         }
+
         public async Task CloseDrawerWithCurrentBalance()
         {
             try
@@ -64,10 +64,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Use the current balance as the final amount
                 decimal currentBalance = CurrentDrawer.CurrentBalance;
-
-                // Close the drawer
                 CurrentDrawer = await _drawerService.CloseDrawerAsync(currentBalance, string.Empty);
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
@@ -82,6 +79,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
+
         private async Task AddCashAsync()
         {
             try
@@ -95,7 +93,28 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (dialog.ShowDialog() == true && decimal.TryParse(dialog.Input, out decimal amount))
                 {
-                    CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, true);
+                    var descDialog = new InputDialog("Add Cash", "Enter a description:")
+                    {
+                        Owner = window
+                    };
+
+                    string description = "Cash added to drawer";
+                    if (descDialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(descDialog.Input))
+                    {
+                        description = descDialog.Input;
+                    }
+
+                    if (amount <= 0)
+                    {
+                        await ShowErrorMessageAsync("Amount must be greater than zero");
+                        return;
+                    }
+
+                    CurrentDrawer = await _drawerService.ProcessTransactionAsync(
+                        amount,
+                        "Cash In",
+                        description);
+
                     await LoadDrawerHistoryAsync();
                     UpdateStatus();
                     MessageBox.Show($"Successfully added {amount:C2}", "Success",
@@ -132,7 +151,28 @@ namespace QuickTechSystems.WPF.ViewModels
                         return;
                     }
 
-                    CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, false);
+                    var descDialog = new InputDialog("Remove Cash", "Enter a reason:")
+                    {
+                        Owner = window
+                    };
+
+                    string description = "Cash removed from drawer";
+                    if (descDialog.ShowDialog() == true && !string.IsNullOrWhiteSpace(descDialog.Input))
+                    {
+                        description = descDialog.Input;
+                    }
+
+                    if (amount <= 0)
+                    {
+                        await ShowErrorMessageAsync("Amount must be greater than zero");
+                        return;
+                    }
+
+                    CurrentDrawer = await _drawerService.ProcessTransactionAsync(
+                        amount,
+                        "Cash Out",
+                        description);
+
                     await LoadDrawerHistoryAsync();
                     UpdateStatus();
                     MessageBox.Show($"Successfully removed {amount:C2}", "Success",
@@ -164,15 +204,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     string notes = await ShowNotesInputDialog();
 
-                    // Store the current balance before closing
                     decimal currentBalance = CurrentDrawer?.CurrentBalance ?? 0;
-
-                    // Close the drawer
                     CurrentDrawer = await _drawerService.CloseDrawerAsync(finalAmount, notes);
                     await LoadDrawerHistoryAsync();
                     UpdateStatus();
 
-                    // Calculate difference manually in case CurrentDrawer.Difference is null
                     decimal difference = finalAmount - currentBalance;
 
                     var message = difference == 0
@@ -205,7 +241,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return dialog.ShowDialog() == true ? dialog.Input : string.Empty;
         }
-        // Add these methods to DrawerViewModel.Commands.cs
+
         public async Task OpenDrawerWithAmount(decimal amount)
         {
             try
@@ -217,7 +253,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                if (amount < 0) // Changed from <= 0 to < 0 to allow zero
+                if (amount < 0)
                 {
                     await ShowErrorMessageAsync("Amount cannot be negative");
                     return;
@@ -231,9 +267,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
                 MessageBox.Show("Drawer opened successfully.", "Success",
-
-
-
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
@@ -254,7 +287,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, true);
+                CurrentDrawer = await _drawerService.ProcessTransactionAsync(
+                    amount,
+                    "Cash In",
+                    string.IsNullOrWhiteSpace(description) ? "Cash added to drawer" : description);
+
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
                 MessageBox.Show($"Successfully added {amount:C2}", "Success",
@@ -289,7 +326,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                CurrentDrawer = await _drawerService.AddCashTransactionAsync(amount, false);
+                CurrentDrawer = await _drawerService.ProcessTransactionAsync(
+                    amount,
+                    "Cash Out",
+                    string.IsNullOrWhiteSpace(description) ? "Cash removed from drawer" : description);
+
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
                 MessageBox.Show($"Successfully removed {amount:C2}", "Success",
@@ -317,15 +358,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Store the current balance before closing
                 decimal currentBalance = CurrentDrawer?.CurrentBalance ?? 0;
-
-                // Close the drawer
                 CurrentDrawer = await _drawerService.CloseDrawerAsync(finalAmount, string.Empty);
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
 
-                // Calculate difference manually in case CurrentDrawer.Difference is null
                 decimal difference = finalAmount - currentBalance;
 
                 var message = difference == 0
@@ -370,6 +407,5 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
-
     }
 }
