@@ -28,16 +28,20 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
+        // ---- Tab Navigation ----
         private void TabButton_Click(object sender, RoutedEventArgs e)
         {
+            // Reset all tabs to unselected
             TabCurrentDrawer.Tag = null;
             TabTransactionHistory.Tag = null;
             TabProfitAnalysis.Tag = null;
 
+            // Hide all views
             CurrentDrawerView.Visibility = Visibility.Collapsed;
             TransactionHistoryView.Visibility = Visibility.Collapsed;
             ProfitAnalysisView.Visibility = Visibility.Collapsed;
 
+            // Set selected tab and show corresponding view
             if (sender == TabCurrentDrawer)
             {
                 TabCurrentDrawer.Tag = "Selected";
@@ -55,6 +59,7 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
+        // ---- Popup Handlers ----
         private void SummaryButton_Click(object sender, RoutedEventArgs e)
         {
             SummaryPopup.IsOpen = true;
@@ -65,6 +70,7 @@ namespace QuickTechSystems.WPF.Views
             ActionsPopup.IsOpen = true;
         }
 
+        // Direct commands without using reflection - safer approach
         private void OpenDrawerCommand_Execute(object sender, RoutedEventArgs e)
         {
             ActionsPopup.IsOpen = false;
@@ -83,25 +89,10 @@ namespace QuickTechSystems.WPF.Views
             RemoveCashPopup.IsOpen = true;
         }
 
-        private async void CloseDrawerCommand_Execute(object sender, RoutedEventArgs e)
+        private void CloseDrawerCommand_Execute(object sender, RoutedEventArgs e)
         {
             ActionsPopup.IsOpen = false;
-
-            if (ViewModel != null && ViewModel.CurrentDrawer != null)
-            {
-                decimal currentBalance = ViewModel.CurrentDrawer.CurrentBalance;
-
-                MessageBoxResult result = MessageBox.Show(
-                    $"Current cash in drawer: {currentBalance:C2}\n\nAre you sure you want to close the drawer?",
-                    "Close Drawer",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    await ViewModel.CloseDrawerWithAmount(currentBalance);
-                }
-            }
+            CloseDrawerPopup.IsOpen = true;
         }
 
         private void PrintReportCommand_Execute(object sender, RoutedEventArgs e)
@@ -119,6 +110,7 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
+        // Form confirmation handlers - directly call the ViewModel methods
         private async void OpenDrawerConfirm_Click(object sender, RoutedEventArgs e)
         {
             if (ViewModel != null)
@@ -187,6 +179,7 @@ namespace QuickTechSystems.WPF.Views
 
         private void ClosePopup_Click(object sender, RoutedEventArgs e)
         {
+            // Close all popups
             SummaryPopup.IsOpen = false;
             ActionsPopup.IsOpen = false;
             OpenDrawerPopup.IsOpen = false;

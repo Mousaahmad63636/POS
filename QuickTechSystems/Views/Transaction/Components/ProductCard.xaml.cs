@@ -2,7 +2,6 @@
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Globalization;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.WPF.ViewModels;
 
@@ -108,9 +107,7 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             AddButton(keypadGrid, "2", 2, 1);
             AddButton(keypadGrid, "3", 2, 2);
             AddButton(keypadGrid, "0", 3, 0);
-
-            // Add decimal point button instead of "00"
-            AddButton(keypadGrid, ".", 3, 1);
+            AddButton(keypadGrid, "00", 3, 1);
 
             // Clear button
             var clearButton = AddButton(keypadGrid, "C", 3, 2);
@@ -150,7 +147,7 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             actionGrid.Children.Add(addButton);
             addButton.Click += (s, e) =>
             {
-                if (decimal.TryParse(quantityText.Text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal qty) && qty > 0)
+                if (int.TryParse(quantityText.Text, out int qty) && qty > 0)
                 {
                     window.DialogResult = true;
                 }
@@ -166,14 +163,14 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             // Show dialog and process result
             if (window.ShowDialog() == true)
             {
-                decimal quantity = decimal.Parse(quantityText.Text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture);
+                int quantity = int.Parse(quantityText.Text);
 
                 // Use the view model to add the product with quantity
                 var viewModel = FindViewModel();
                 if (viewModel != null)
                 {
                     // Add to cart with quantity
-                    viewModel.AddProductToTransactionWithQuantity(product, quantity);
+                    viewModel.AddProductToTransaction(product, quantity);
                 }
             }
 
@@ -196,19 +193,14 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
                     button.Click += (s, e) =>
                     {
                         string currentVal = quantityText.Text;
-
-                        // Handle decimal point
-                        if (text == "." && currentVal.Contains("."))
-                            return; // Don't add multiple decimal points
-
-                        if (currentVal == "0" && text != ".")
+                        if (currentVal == "0")
                             quantityText.Text = text;
                         else
                             quantityText.Text += text;
 
                         // Prevent unreasonable quantities
                         if (quantityText.Text.Length > 5 ||
-                            (decimal.TryParse(quantityText.Text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out decimal val) && val > 10000))
+                            (int.TryParse(quantityText.Text, out int val) && val > 10000))
                         {
                             quantityText.Text = quantityText.Text.Substring(0, quantityText.Text.Length - text.Length);
                         }
@@ -232,7 +224,6 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             }
             return null;
         }
-
         public void Dispose()
         {
             // Clean up all event handlers
@@ -242,7 +233,6 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
             // Clear data context to allow GC to collect it
             this.DataContext = null;
         }
-
         private void Cleanup()
         {
             this.MouseLeftButtonDown -= OnCardClicked;

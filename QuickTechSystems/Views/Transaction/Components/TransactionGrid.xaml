@@ -15,44 +15,33 @@
             <DataGridTextColumn Header="{DynamicResource Transaction_Column_Description}" 
                               Binding="{Binding ProductName, FallbackValue='Unknown Product'}"
                               Width="*"/>
-
-            <!-- Quantity Column - Always directly editable with keyboard -->
-            <DataGridTemplateColumn Header="{DynamicResource Transaction_Column_Quantity}" Width="80">
-                <DataGridTemplateColumn.CellTemplate>
-                    <DataTemplate>
-                        <TextBox Text="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}"
-                                 TextAlignment="Center"
-                                 Padding="8,0"
-                                 PreviewTextInput="Quantity_PreviewTextInput"
-                                 LostFocus="Quantity_LostFocus"/>
-                    </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
-
-            <DataGridTemplateColumn Header="{DynamicResource Transaction_Column_UnitPrice}" Width="120">
-                <DataGridTemplateColumn.CellTemplate>
-                    <DataTemplate>
-                        <Button Content="{Binding UnitPrice, StringFormat={}{0:C2}}"
-                                Click="PriceButton_Click"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                HorizontalAlignment="Right"
-                                Padding="8,0"/>
-                    </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
-
-            <DataGridTemplateColumn Header="{DynamicResource Transaction_Column_Total}" Width="120">
-                <DataGridTemplateColumn.CellTemplate>
-                    <DataTemplate>
-                        <TextBlock Text="{Binding Total, StringFormat={}{0:C2}}"
-                                   TextAlignment="Right"
-                                   Padding="8,0"/>
-                    </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
-
+            <DataGridTextColumn Header="{DynamicResource Transaction_Column_Quantity}" 
+                              Binding="{Binding Quantity, FallbackValue=0}"
+                              Width="80">
+                <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="TextAlignment" Value="Center"/>
+                        <Setter Property="Padding" Value="8,0"/>
+                    </Style>
+                </DataGridTextColumn.ElementStyle>
+            </DataGridTextColumn>
+            <DataGridTextColumn Header="{DynamicResource Transaction_Column_UnitPrice}" 
+                              Binding="{Binding UnitPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged, FallbackValue=$0.00}"
+                              Width="120"
+                              IsReadOnly="False">
+                <DataGridTextColumn.ElementStyle>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="TextAlignment" Value="Right"/>
+                        <Setter Property="Padding" Value="8,0"/>
+                    </Style>
+                </DataGridTextColumn.ElementStyle>
+                <DataGridTextColumn.EditingElementStyle>
+                    <Style TargetType="TextBox">
+                        <Setter Property="TextAlignment" Value="Right"/>
+                        <EventSetter Event="LostFocus" Handler="UnitPrice_LostFocus"/>
+                    </Style>
+                </DataGridTextColumn.EditingElementStyle>
+            </DataGridTextColumn>
             <DataGridTemplateColumn Width="50">
                 <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>

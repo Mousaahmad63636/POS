@@ -15,7 +15,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _currentTransactionNumber = string.Empty;
         private TransactionDTO? _currentTransaction;
         private CustomerDTO? _selectedCustomer;
-        private decimal _itemCount;
+        private int _itemCount;
         private decimal _subTotal;
         private decimal _taxAmount;
         private decimal _discountAmount;
@@ -405,11 +405,12 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public decimal ItemCount
+        public int ItemCount
         {
             get => _itemCount;
             set => SetProperty(ref _itemCount, value);
         }
+
         public decimal SubTotal
         {
             get => _subTotal;

@@ -11,10 +11,9 @@ namespace QuickTechSystems.Application.DTOs
         private int _productId;
         private string _productName = string.Empty;
         private string _productBarcode = string.Empty;
-        private decimal _quantity;
+        private int _quantity;
         private decimal _unitPrice;
         private decimal _purchasePrice;
-
         private decimal _discount;
         private decimal _total;
         private bool _isSelected;
@@ -96,7 +95,7 @@ namespace QuickTechSystems.Application.DTOs
             }
         }
 
-        public decimal Quantity  // Changed from int to decimal
+        public int Quantity
         {
             get => _quantity;
             set

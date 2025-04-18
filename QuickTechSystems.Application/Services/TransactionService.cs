@@ -33,25 +33,6 @@ namespace QuickTechSystems.Application.Services
             _customerService = customerService;
         }
 
-        // Path: QuickTechSystems.Application/Services/TransactionService.cs
-
-        public async Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                var transactions = await _repository.Query()
-                    .Include(t => t.Customer)
-                    .Include(t => t.TransactionDetails)
-                    .ThenInclude(td => td.Product)
-                    .Where(t => t.CustomerId == customerId &&
-                                t.TransactionDate >= startDate.Date &&
-                                t.TransactionDate <= endDate.Date.AddDays(1).AddSeconds(-1))
-                    .ToListAsync();
-
-                return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
-            });
-        }
-
         public async Task<TransactionDTO> UpdateAsync(TransactionDTO transactionDto)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -106,8 +87,8 @@ namespace QuickTechSystems.Application.Services
 
                             if (existingDetail != null)
                             {
-                                // Calculate stock difference
-                                decimal quantityDifference = detailDto.Quantity - existingDetail.Quantity;
+                                // Calculate stock difference - with explicit cast to resolve the decimal-to-int conversion
+                                int quantityDifference = (int)(detailDto.Quantity - existingDetail.Quantity);
                                 if (quantityDifference != 0)
                                 {
                                     // Update stock
@@ -165,7 +146,61 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+        public async Task<decimal> GetTransactionProfitByDateRangeAsync(
+    DateTime startDate, DateTime endDate, int? categoryId = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    // Normalize dates to start and end of day
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
 
+                    // Get all relevant transactions
+                    var transactionsQuery = _repository.Query()
+                        .Include(t => t.TransactionDetails)
+                            .ThenInclude(td => td.Product)
+                        .Where(t => t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
+                                   t.Status == TransactionStatus.Completed &&
+                                   t.TransactionType == TransactionType.Sale);
+
+                    // Apply category filter if specified
+                    if (categoryId.HasValue && categoryId.Value > 0)
+                    {
+                        transactionsQuery = transactionsQuery.Where(t =>
+                            t.TransactionDetails.Any(d => d.Product.CategoryId == categoryId.Value));
+                    }
+
+                    var transactions = await transactionsQuery.ToListAsync();
+
+                    // Calculate profit
+                    decimal totalProfit = 0;
+                    foreach (var transaction in transactions)
+                    {
+                        if (transaction.TransactionDetails == null || !transaction.TransactionDetails.Any())
+                            continue;
+
+                        if (transaction.TotalAmount == 0)
+                            continue;
+
+                        // Calculate total purchase cost
+                        decimal purchaseCost = transaction.TransactionDetails.Sum(d => d.PurchasePrice * d.Quantity);
+
+                        // Calculate profit
+                        totalProfit += (transaction.TotalAmount - purchaseCost);
+                    }
+
+                    return totalProfit;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error getting transaction profit: {ex.Message}");
+                    throw new InvalidOperationException("Error retrieving transaction profit", ex);
+                }
+            });
+        }
         public async Task<bool> DeleteAsync(int transactionId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -204,11 +239,10 @@ namespace QuickTechSystems.Application.Services
                                 detail.Quantity); // Add stock back (positive value)
 
                             // Add inventory history entry
-                            // Add inventory history entry
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = detail.Quantity, // Now using decimal directly - no casting needed
+                                QuantityChanged = detail.Quantity,
                                 OperationType = TransactionType.Adjustment,
                                 Date = DateTime.Now,
                                 Reference = $"DeleteTx-{transactionId}",
@@ -285,19 +319,10 @@ namespace QuickTechSystems.Application.Services
                         {
                             detail.PurchasePrice = product.PurchasePrice;
 
+                            // Decrement stock - negative quantity because it's a sale
                             bool stockUpdated = await _productService.UpdateStockAsync(
-     detail.ProductId,
-     decimal.Negate(detail.Quantity));
-
-                            await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
-                            {
-                                ProductId = detail.ProductId,
-                                QuantityChanged = decimal.Negate(detail.Quantity), // Use precise decimal negation
-                                OperationType = TransactionType.Sale,
-                                Date = DateTime.Now,
-                                Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
-                                Notes = $"Sold in transaction"
-                            });
+                                detail.ProductId,
+                                -detail.Quantity);
 
                             if (!stockUpdated)
                             {
@@ -313,7 +338,7 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity, // Now using decimal directly - no casting needed
+                                QuantityChanged = -detail.Quantity,
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
@@ -404,6 +429,62 @@ namespace QuickTechSystems.Application.Services
                     Debug.WriteLine($"Error processing payment transaction: {ex.Message}");
                     await dbTransaction.RollbackAsync();
                     throw;
+                }
+            });
+        }
+
+        public async Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    // Normalize dates to start and end of day
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+                    // Get transactions for the specific customer within date range
+                    var transactions = await _repository.Query()
+                        .Include(t => t.Customer)
+                        .Include(t => t.TransactionDetails)
+                            .ThenInclude(td => td.Product)
+                                .ThenInclude(p => p.Category)
+                        .Where(t => t.CustomerId == customerId &&
+                                   t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
+                                   t.Status == TransactionStatus.Completed)
+                        .OrderByDescending(t => t.TransactionDate)
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    if (transactions == null || !transactions.Any())
+                    {
+                        Debug.WriteLine($"No transactions found for customer {customerId} between {normalizedStartDate:d} and {normalizedEndDate:d}");
+                        return new List<TransactionDTO>();
+                    }
+
+                    var dtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+
+                    // Calculate detailed information for each transaction
+                    foreach (var dto in dtos)
+                    {
+                        if (dto.Details != null)
+                        {
+                            foreach (var detail in dto.Details)
+                            {
+                                // Ensure proper calculations
+                                detail.UpdateTotal();
+                            }
+                        }
+                    }
+
+                    return dtos;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in GetByCustomerAndDateRangeAsync: {ex.Message}");
+                    Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                    throw new InvalidOperationException($"Error retrieving transactions for customer {customerId} by date range", ex);
                 }
             });
         }
@@ -500,6 +581,83 @@ namespace QuickTechSystems.Application.Services
                     Debug.WriteLine($"Error in GetByDateRangeAsync: {ex.Message}");
                     Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                     throw new InvalidOperationException("Error retrieving transactions by date range", ex);
+                }
+            });
+        }
+
+        public async Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(
+            DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    // Normalize dates to start and end of day
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+                    // Validate date range
+                    if (normalizedStartDate > normalizedEndDate)
+                    {
+                        throw new ArgumentException("Start date must be before or equal to end date");
+                    }
+
+                    // Get base query for transactions matching the criteria
+                    var query = _repository.Query()
+                        .Include(t => t.Customer)
+                        .Include(t => t.TransactionDetails)
+                            .ThenInclude(td => td.Product)
+                                .ThenInclude(p => p.Category)
+                        .Where(t => t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
+                                   t.Status == TransactionStatus.Completed)
+                        .OrderByDescending(t => t.TransactionDate)
+                        .AsNoTracking();  // For better performance
+
+                    // Apply category filter if specified
+                    if (categoryId.HasValue && categoryId.Value > 0)
+                    {
+                        query = query.Where(t => t.TransactionDetails
+                            .Any(d => d.Product.CategoryId == categoryId.Value));
+                    }
+
+                    // Get total count for pagination
+                    int totalCount = await query.CountAsync();
+
+                    // Apply pagination
+                    var transactions = await query
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)
+                        .ToListAsync();
+
+                    if (transactions == null || !transactions.Any())
+                    {
+                        Debug.WriteLine($"No transactions found between {normalizedStartDate:d} and {normalizedEndDate:d} for page {page}");
+                        return (new List<TransactionDTO>(), totalCount);
+                    }
+
+                    var dtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+
+                    // Calculate detailed information for each transaction
+                    foreach (var dto in dtos)
+                    {
+                        if (dto.Details != null)
+                        {
+                            foreach (var detail in dto.Details)
+                            {
+                                // Ensure proper calculations
+                                detail.UpdateTotal();
+                            }
+                        }
+                    }
+
+                    return (dtos, totalCount);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in GetByDateRangePagedAsync: {ex.Message}");
+                    Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                    throw new InvalidOperationException("Error retrieving paginated transactions by date range", ex);
                 }
             });
         }
@@ -671,7 +829,7 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChanged = -detail.Quantity, // Now using decimal directly - no casting needed
+                                QuantityChanged = -detail.Quantity,
                                 OperationType = TransactionType.Sale,
                                 Date = DateTime.Now,
                                 Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
@@ -713,7 +871,6 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
 
         public override async Task<IEnumerable<TransactionDTO>> GetAllAsync()
         {

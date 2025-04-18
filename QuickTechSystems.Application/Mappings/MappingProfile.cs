@@ -24,11 +24,7 @@ namespace QuickTechSystems.Application.Mappings
             CreateMap<Customer, CustomerDTO>()
                 .ForMember(dest => dest.TransactionCount, opt => opt.MapFrom(src => src.Transactions.Count));
             CreateMap<CustomerDTO, Customer>();
-            CreateMap<CustomerDTO, Customer>()
-    .ForMember(dest => dest.Balance, opt => opt.MapFrom(src => src.Balance));
 
-            CreateMap<Customer, CustomerDTO>()
-                .ForMember(dest => dest.Balance, opt => opt.MapFrom(src => src.Balance));
             // Transaction Mappings
             CreateMap<Transaction, TransactionDTO>()
                 .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : string.Empty))

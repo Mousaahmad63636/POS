@@ -1,9 +1,13 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Data;
+using System.Globalization;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.WPF.ViewModels;
 
 namespace QuickTechSystems.WPF.Views
 {
@@ -13,9 +17,9 @@ namespace QuickTechSystems.WPF.Views
         private const int TYPE_COLUMN_INDEX = 3;
         private const int ITEMS_COLUMN_INDEX = 4;
         private const int STATUS_COLUMN_INDEX = 6;
-        private const int PAYMENT_METHOD_COLUMN_INDEX = 7; // Add this new constant
-        private const int CASHIER_COLUMN_INDEX = 8; // Update from 7 to 8
-        private const int ROLE_COLUMN_INDEX = 9; // Update from 8 to 9
+        private const int PAYMENT_METHOD_COLUMN_INDEX = 7;
+        private const int CASHIER_COLUMN_INDEX = 8;
+        private const int ROLE_COLUMN_INDEX = 9;
 
         public TransactionHistoryView()
         {
@@ -63,7 +67,7 @@ namespace QuickTechSystems.WPF.Views
             // Determine which columns to show based on available width
             bool showTypeColumn = width >= 800;
             bool showStatusColumn = width >= 1000;
-            bool showPaymentMethodColumn = width >= 1100; // Add this line
+            bool showPaymentMethodColumn = width >= 1100;
             bool showCashierColumn = width >= 1200;
             bool showRoleColumn = width >= 1400;
 
@@ -109,12 +113,52 @@ namespace QuickTechSystems.WPF.Views
                     : Visibility.Collapsed;
         }
 
-
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             if (sender is TextBox textBox && DataContext is TransactionHistoryViewModel viewModel)
             {
                 viewModel.SearchText = textBox.Text;
+            }
+        }
+
+        // Corrected pagination converter class
+        public class PaginationConverters : IValueConverter
+        {
+            public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                if (value is int currentPage)
+                {
+                    // Get the view model directly from the binding source
+                    if (parameter is string param)
+                    {
+                        // This will be a relative binding, so we'll need to get the parent control
+                        var element = (parameter as FrameworkElement)?.DataContext as TransactionHistoryViewModel
+                                   ?? (value as FrameworkElement)?.DataContext as TransactionHistoryViewModel;
+
+                        // Since we can't reliably get the ViewModel from the control hierarchy,
+                        // we'll just handle simple cases without relying on ViewModel properties
+                        switch (param)
+                        {
+                            case "prev":
+                                return currentPage > 1; // Enable "Previous" if not on first page
+
+                            case "next":
+                                // We don't have access to TotalPages here
+                                // Use a simple check - assume we're not on last page if page > 0
+                                return currentPage > 0;
+
+                            case "info":
+                                // Return simple page info
+                                return $"Page {currentPage}";
+                        }
+                    }
+                }
+                return value;
+            }
+
+            public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            {
+                throw new NotImplementedException();
             }
         }
     }

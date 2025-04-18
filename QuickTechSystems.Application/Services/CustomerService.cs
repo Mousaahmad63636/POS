@@ -36,41 +36,7 @@ namespace QuickTechSystems.Application.Services
                 return _mapper.Map<IEnumerable<CustomerDTO>>(customers);
             });
         }
-        public override async Task<bool> UpdateAsync(CustomerDTO entity)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                try
-                {
-                    var customer = await _repository.GetByIdAsync(entity.CustomerId);
-                    if (customer == null)
-                        return false;
 
-                    // Explicitly map all properties including Balance
-                    customer.Name = entity.Name;
-                    customer.Phone = entity.Phone;
-                    customer.Email = entity.Email;
-                    customer.Address = entity.Address;
-                    customer.IsActive = entity.IsActive;
-                    customer.UpdatedAt = DateTime.Now;
-                    customer.Balance = entity.Balance; // Explicitly set Balance
-
-                    await _repository.UpdateAsync(customer);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Publish customer updated event
-                    var customerDto = _mapper.Map<CustomerDTO>(customer);
-                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
-
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error updating customer: {ex.Message}");
-                    throw;
-                }
-            });
-        }
         public new async Task<CustomerDTO?> GetByIdAsync(int id)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -176,116 +142,55 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
         public async Task<bool> ProcessPaymentAsync(int customerId, decimal amount, string reference)
         {
-            // Add a retry mechanism for improved reliability
-            const int maxRetries = 3;
-            int retryCount = 0;
-
-            while (retryCount < maxRetries)
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                    var customer = await _repository.GetByIdAsync(customerId);
+                    if (customer == null)
+                        return false;
+
+                    if (amount <= 0)
+                        throw new InvalidOperationException("Payment amount must be greater than zero");
+
+                    if (amount > customer.Balance)
+                        throw new InvalidOperationException("Payment amount cannot exceed customer balance");
+
+                    // Update customer balance (reduce debt)
+                    customer.Balance -= amount;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    await _repository.UpdateAsync(customer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Update drawer (increase cash) if the drawer service is available
+                    if (_drawerService != null)
                     {
-                        // Start a transaction with a timeout
-                        using var transaction = await _unitOfWork.BeginTransactionAsync();
-                        try
-                        {
-                            // Get fresh customer data
-                            var customer = await _repository.GetByIdAsync(customerId);
-                            if (customer == null)
-                            {
-                                Debug.WriteLine($"Customer {customerId} not found");
-                                return false;
-                            }
+                        await _drawerService.ProcessCashReceiptAsync(
+                            amount,
+                            $"Debt payment from: {customer.Name}, Ref: {reference}"
+                        );
+                    }
 
-                            if (amount <= 0)
-                            {
-                                Debug.WriteLine("Payment amount must be greater than zero");
-                                throw new InvalidOperationException("Payment amount must be greater than zero");
-                            }
+                    await transaction.CommitAsync();
 
-                            if (amount > customer.Balance)
-                            {
-                                Debug.WriteLine($"Payment amount {amount} exceeds balance {customer.Balance}");
-                                throw new InvalidOperationException("Payment amount cannot exceed customer balance");
-                            }
+                    // Publish customer updated event
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
 
-                            // Update customer balance (reduce debt)
-                            customer.Balance -= amount;
-                            customer.UpdatedAt = DateTime.Now;
-
-                            Debug.WriteLine($"Updating customer {customerId} balance to {customer.Balance}");
-                            await _repository.UpdateAsync(customer);
-                            await _unitOfWork.SaveChangesAsync();
-
-                            // Create a payment transaction record
-                            var paymentTransaction = new Transaction
-                            {
-                                CustomerId = customerId,
-                                CustomerName = customer.Name,
-                                TotalAmount = amount,
-                                PaidAmount = amount, // Set PaidAmount explicitly for payment transactions
-                                TransactionDate = DateTime.Now,
-                                TransactionType = Domain.Enums.TransactionType.Adjustment,
-                                Status = Domain.Enums.TransactionStatus.Completed,
-                                PaymentMethod = "Cash",
-                                CashierId = "System",
-                                CashierName = "Debt Payment",
-                            };
-
-                            Debug.WriteLine("Adding transaction record");
-                            await _unitOfWork.Transactions.AddAsync(paymentTransaction);
-                            await _unitOfWork.SaveChangesAsync();
-
-                            // Update drawer (increase cash) if the drawer service is available
-                            if (_drawerService != null)
-                            {
-                                Debug.WriteLine("Processing cash receipt");
-                                await _drawerService.ProcessCashReceiptAsync(
-                                    amount,
-                                    $"Debt payment from: {customer.Name}, Ref: {reference}"
-                                );
-                            }
-
-                            Debug.WriteLine("Committing transaction");
-                            await transaction.CommitAsync();
-
-                            // Publish customer updated event
-                            var customerDto = _mapper.Map<CustomerDTO>(customer);
-                            _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
-
-                            Debug.WriteLine("Payment processing completed successfully");
-                            return true;
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error processing customer payment: {ex.Message}");
-                            Debug.WriteLine($"Rolling back transaction");
-                            await transaction.RollbackAsync();
-                            throw;
-                        }
-                    });
+                    return true;
                 }
                 catch (Exception ex)
                 {
-                    retryCount++;
-                    Debug.WriteLine($"Payment processing attempt {retryCount} failed: {ex.Message}");
-
-                    if (retryCount >= maxRetries)
-                    {
-                        Debug.WriteLine("Max retries reached, giving up");
-                        throw;
-                    }
-
-                    // Wait before retrying (exponential backoff)
-                    await Task.Delay(500 * retryCount);
+                    Debug.WriteLine($"Error processing customer payment: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
                 }
-            }
-
-            // Should never reach here, but just in case
-            return false;
+            });
         }
 
         public async Task<decimal> GetBalanceAsync(int customerId)

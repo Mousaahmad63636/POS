@@ -92,7 +92,8 @@ namespace QuickTechSystems.Application.Services
                     decimal oldStock = product.CurrentStock;
 
                     // Calculate new stock - ensure we use exact decimal math with no rounding
-                    product.CurrentStock = decimal.Add(product.CurrentStock, quantity);
+                    decimal newStock = decimal.Add(product.CurrentStock, quantity);
+                    product.CurrentStock = (int)newStock; // Explicit cast to int
                     product.UpdatedAt = DateTime.Now;
 
                     await _repository.UpdateAsync(product);

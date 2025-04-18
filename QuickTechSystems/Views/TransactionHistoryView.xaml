@@ -21,6 +21,8 @@
                     <RowDefinition Height="*"/>
                     <!-- DataGrid -->
                     <RowDefinition Height="Auto"/>
+                    <!-- Pagination Controls -->
+                    <RowDefinition Height="Auto"/>
                     <!-- Error Message -->
                 </Grid.RowDefinitions>
 
@@ -216,8 +218,78 @@
                     </DataGrid.Columns>
                 </DataGrid>
 
-                <!-- Error Message Box -->
-                <Border Grid.Row="2"
+                <!-- Simplified Pagination Controls - Row 2 -->
+                <Grid Grid.Row="2" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Page Size Selector -->
+                        <ColumnDefinition Width="*"/>
+                        <!-- Page Navigation Buttons -->
+                        <ColumnDefinition Width="Auto"/>
+                        <!-- Page Info Display -->
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Page Size Selector -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Items per page:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox ItemsSource="{Binding AvailablePageSizes}" 
+                                  SelectedItem="{Binding PageSize}" 
+                                  Width="65" 
+                                  Style="{StaticResource ModernComboBox}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" HorizontalAlignment="Center"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <!-- Page Navigation Controls - Simplified -->
+                    <StackPanel Grid.Column="1" 
+                                HorizontalAlignment="Center" 
+                                Orientation="Horizontal" 
+                                VerticalAlignment="Center">
+                        <!-- Previous Button -->
+                        <Button Content="Previous" 
+                                Command="{Binding PreviousPageCommand}" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="2,0"
+                                Padding="8,4"
+                                Height="28"/>
+
+                        <!-- Current Page Display -->
+                        <Border Background="{StaticResource PrimaryColor}" 
+                                CornerRadius="4" 
+                                Margin="8,0" 
+                                Padding="12,4">
+                            <TextBlock Text="{Binding CurrentPage}" 
+                                       Foreground="White" 
+                                       FontWeight="Bold"/>
+                        </Border>
+
+                        <!-- Next Button -->
+                        <Button Content="Next" 
+                                Command="{Binding NextPageCommand}" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="2,0"
+                                Padding="8,4"
+                                Height="28"/>
+                    </StackPanel>
+
+                    <!-- Page Information -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Page " Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text="{Binding CurrentPage}" Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text=" of " Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text="{Binding TotalPages}" Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text=" (" Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text="{Binding TotalTransactions}" Foreground="{StaticResource TextSecondaryColor}"/>
+                        <TextBlock Text=" total)" Foreground="{StaticResource TextSecondaryColor}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Error Message Box - Now in Row 3 -->
+                <Border Grid.Row="3"
                         Background="{StaticResource BorderColor}"
                         BorderBrush="{StaticResource DangerColor}"
                         BorderThickness="1"
@@ -231,9 +303,9 @@
                                VerticalAlignment="Center"/>
                 </Border>
 
-                <!-- Loading Overlay -->
+                <!-- Loading Overlay - Update RowSpan to cover all 4 rows -->
                 <Border Grid.Row="0" 
-                        Grid.RowSpan="3" 
+                        Grid.RowSpan="4" 
                         Style="{StaticResource LoadingOverlay}" 
                         Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel HorizontalAlignment="Center" 

@@ -1,7 +1,7 @@
 ﻿<Window x:Class="QuickTechSystems.WPF.Views.Dialogs.NumericKeypadDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Enter Quantity" Height="200" Width="300"
+        Title="Enter Quantity" Height="400" Width="300"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="White">
@@ -9,7 +9,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -18,20 +18,44 @@
                    FontWeight="Bold" FontSize="16" 
                    TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-        <!-- Input Label -->
-        <TextBlock Grid.Row="1" Text="Enter quantity:" Margin="0,0,0,5"/>
-
         <!-- Display -->
-        <TextBox Grid.Row="2" x:Name="DisplayText"
-                 Text="{Binding QuantityStr, UpdateSourceTrigger=PropertyChanged}"
-                 FontSize="18" 
-                 FontWeight="Bold"
-                 TextAlignment="Right" 
-                 Padding="10,5" 
-                 Margin="0,0,0,15"/>
+        <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" Margin="0,0,0,15">
+            <TextBlock x:Name="DisplayText" FontSize="24" FontWeight="Bold" 
+                       TextAlignment="Right" Padding="10,5" 
+                       Text="{Binding Quantity}"/>
+        </Border>
+
+        <!-- Keypad -->
+        <Grid Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Number buttons -->
+            <Button Grid.Row="0" Grid.Column="0" Content="7" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="0" Grid.Column="1" Content="8" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="0" Grid.Column="2" Content="9" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="1" Grid.Column="0" Content="4" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="1" Grid.Column="1" Content="5" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="1" Grid.Column="2" Content="6" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="2" Grid.Column="0" Content="1" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="2" Grid.Column="1" Content="2" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="2" Grid.Column="2" Content="3" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="3" Grid.Column="0" Content="0" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="3" Grid.Column="1" Content="00" FontSize="20" Margin="3" Click="NumberButton_Click"/>
+            <Button Grid.Row="3" Grid.Column="2" Content="C" FontSize="20" Margin="3" Click="ClearButton_Click"/>
+        </Grid>
 
         <!-- Action Buttons -->
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="3" Margin="0,15,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>

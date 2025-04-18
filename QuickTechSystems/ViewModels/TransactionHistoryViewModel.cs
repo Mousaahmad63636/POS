@@ -51,6 +51,13 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isDateRangeValid = true;
         private int _totalTransactions;
 
+        // Pagination properties
+        private int _currentPage = 1;
+        private int _pageSize = 10;
+        private int _totalPages;
+        private ObservableCollection<int> _pageNumbers;
+        private List<int> _visiblePageNumbers = new List<int>();
+
         private Dictionary<string, decimal> _categorySales = new();
 
         private static TransactionHistoryViewModel _instance;
@@ -81,6 +88,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedCategory, value))
                 {
+                    _currentPage = 1; // Reset to first page when changing category
+                    OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
             }
@@ -118,6 +127,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _startDate, value))
                 {
                     ValidateDateRange();
+                    _currentPage = 1; // Reset to first page when changing date range
+                    OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
             }
@@ -131,6 +142,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _endDate, value))
                 {
                     ValidateDateRange();
+                    _currentPage = 1; // Reset to first page when changing date range
+                    OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
             }
@@ -149,6 +162,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                 {
+                    _currentPage = 1; // Reset to first page when searching
+                    OnPropertyChanged(nameof(CurrentPage));
                     ApplyFilters();
                 }
             }
@@ -171,6 +186,67 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _errorMessage;
             private set => SetProperty(ref _errorMessage, value);
         }
+
+        // Pagination properties
+        public int CurrentPage
+        {
+            get => _currentPage;
+            set
+            {
+                if (value < 1 || value > TotalPages) return;
+                if (SetProperty(ref _currentPage, value))
+                {
+                    _ = SafeLoadDataAsync();
+                    UpdateVisiblePageNumbers();
+                    OnPropertyChanged(nameof(IsFirstPage));
+                    OnPropertyChanged(nameof(IsLastPage));
+                }
+            }
+        }
+
+        public int PageSize
+        {
+            get => _pageSize;
+            set
+            {
+                if (SetProperty(ref _pageSize, value))
+                {
+                    _currentPage = 1; // Reset to first page when changing page size
+                    OnPropertyChanged(nameof(CurrentPage));
+                    _ = SafeLoadDataAsync();
+                }
+            }
+        }
+
+        public int TotalPages
+        {
+            get => _totalPages;
+            private set
+            {
+                if (SetProperty(ref _totalPages, value))
+                {
+                    UpdateVisiblePageNumbers();
+                    OnPropertyChanged(nameof(IsFirstPage));
+                    OnPropertyChanged(nameof(IsLastPage));
+                }
+            }
+        }
+
+        public ObservableCollection<int> PageNumbers
+        {
+            get => _pageNumbers;
+            private set => SetProperty(ref _pageNumbers, value);
+        }
+
+        public List<int> VisiblePageNumbers
+        {
+            get => _visiblePageNumbers;
+            private set => SetProperty(ref _visiblePageNumbers, value);
+        }
+
+        public bool IsFirstPage => CurrentPage <= 1;
+        public bool IsLastPage => CurrentPage >= TotalPages;
+
         public static void ForceRefresh()
         {
             if (_instance != null)
@@ -181,12 +257,21 @@ namespace QuickTechSystems.WPF.ViewModels
                 });
             }
         }
+
         public ICommand ExportCommand { get; }
         public ICommand PrintReportCommand { get; }
         public ICommand RefreshCommand { get; }
         public ICommand ViewTransactionDetailsCommand { get; }
         public ICommand ClearFiltersCommand { get; }
         public ICommand DeleteTransactionCommand { get; }
+
+        // Pagination commands
+        public ICommand NextPageCommand { get; }
+        public ICommand PreviousPageCommand { get; }
+        public ICommand GoToPageCommand { get; }
+        public ICommand ChangePageSizeCommand { get; }
+
+        public ObservableCollection<int> AvailablePageSizes { get; } = new ObservableCollection<int> { 10, 25, 50, 100 };
 
         public TransactionHistoryViewModel(
      ITransactionService transactionService,
@@ -205,6 +290,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _categories = new ObservableCollection<CategoryDTO>();
             _transactionChangedHandler = HandleTransactionChanged;
             _cts = new CancellationTokenSource();
+            _pageNumbers = new ObservableCollection<int>();
 
             ExportCommand = new AsyncRelayCommand(async _ => await ExportTransactionsAsync(), CanExecuteCommand);
             PrintReportCommand = new AsyncRelayCommand(async _ => await PrintTransactionReportAsync(), CanExecuteCommand);
@@ -214,7 +300,43 @@ namespace QuickTechSystems.WPF.ViewModels
                 async transaction => await DeleteTransactionAsync(transaction),
                 CanDeleteTransaction);
 
+            // Pagination commands
+            NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
+            PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
+            GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
+            ChangePageSizeCommand = new RelayCommand<int>(size => PageSize = size);
+
             _ = InitializeAsync();
+        }
+
+        private void UpdateVisiblePageNumbers()
+        {
+            var visiblePages = new List<int>();
+            int startPage = Math.Max(1, CurrentPage - 2);
+            int endPage = Math.Min(TotalPages, CurrentPage + 2);
+
+            // Always show first page
+            if (startPage > 1)
+            {
+                visiblePages.Add(1);
+                if (startPage > 2) visiblePages.Add(-1); // -1 represents ellipsis
+            }
+
+            // Add current range
+            for (int i = startPage; i <= endPage; i++)
+            {
+                visiblePages.Add(i);
+            }
+
+            // Always show last page
+            if (endPage < TotalPages)
+            {
+                if (endPage < TotalPages - 1) visiblePages.Add(-1); // -1 represents ellipsis
+                visiblePages.Add(TotalPages);
+            }
+
+            VisiblePageNumbers = visiblePages;
+            OnPropertyChanged(nameof(VisiblePageNumbers));
         }
 
         private void ValidateDateRange()
@@ -340,9 +462,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         if (FilteredTransactions.Contains(transaction))
                             FilteredTransactions.Remove(transaction);
 
-                        // Recalculate totals
-                        CalculateTotals();
-
                         // Show success message
                         MessageBox.Show(
                             GetOwnerWindow(),
@@ -351,6 +470,9 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxButton.OK,
                             MessageBoxImage.Information);
                     });
+
+                    // Refresh data to ensure pagination is correct and update totals for entire date range
+                    await SafeLoadDataAsync();
                 }
                 else
                 {
@@ -439,40 +561,42 @@ namespace QuickTechSystems.WPF.ViewModels
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
-                    // Create a new context for this operation
-                    using var context = await _dbContextFactory.CreateDbContextAsync();
+                    // Get the category ID filter
+                    int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
 
-                    var transactions = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
+                    // Retrieve paginated transactions
+                    var (transactions, totalCount) = await _transactionService.GetByDateRangePagedAsync(
+                        StartDate, EndDate, CurrentPage, PageSize, categoryId);
+
                     if (linkedCts.Token.IsCancellationRequested) return;
 
+                    // Get summary data for the entire date range (not just current page)
                     var summary = await _transactionService.GetTransactionSummaryByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
                     var categorySales = await _transactionService.GetCategorySalesByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    var transactionCount = await _transactionService.GetTransactionCountByDateRangeAsync(StartDate, EndDate);
+                    // Calculate profit for the entire date range
+                    var totalProfit = await _transactionService.GetTransactionProfitByDateRangeAsync(
+                        StartDate, EndDate, categoryId);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    if (SelectedCategory?.CategoryId > 0)
-                    {
-                        transactions = transactions.Where(t =>
-                            t.Details.Any(d => d.CategoryId == SelectedCategory.CategoryId)).ToList();
-                    }
+                    // Calculate total pages
+                    int calculatedTotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         if (!linkedCts.Token.IsCancellationRequested)
                         {
-                            Transactions = new ObservableCollection<TransactionDTO>(
-                                transactions.OrderByDescending(t => t.TransactionDate)
-                            );
+                            Transactions = new ObservableCollection<TransactionDTO>(transactions);
+                            TotalTransactions = totalCount;
+                            TotalPages = calculatedTotalPages;
                             TotalSales = summary;
-                            TotalTransactions = transactionCount;
+                            TotalProfit = totalProfit;
                             CategorySales = new Dictionary<string, decimal>(categorySales);
 
                             ApplyFilters();
-                            CalculateTotals();
                         }
                     });
                 }
@@ -508,7 +632,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
 
                 FilteredTransactions = new ObservableCollection<TransactionDTO>(filtered);
-                CalculateTotals();
+
+                // Don't recalculate totals - we're using the full date range totals
+                // CalculateTotals();
             }
             catch (Exception ex)
             {
@@ -520,19 +646,19 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SearchText = string.Empty;
             SelectedCategory = Categories.First();
-            StartDate = DateTime.Today; // Changed from DateTime.Today.AddDays(-30)
+            StartDate = DateTime.Today;
             EndDate = DateTime.Today;
+            CurrentPage = 1;
             ApplyFilters();
         }
 
+        // This method is kept for reference but no longer used for main calculations
         private void CalculateTotals()
         {
             try
             {
-                TotalSales = FilteredTransactions.Sum(t => t.TotalAmount);
-
-                // Calculate profit with correct discount handling
-                TotalProfit = FilteredTransactions.Sum(t =>
+                var filteredSales = FilteredTransactions.Sum(t => t.TotalAmount);
+                var filteredProfit = FilteredTransactions.Sum(t =>
                 {
                     // Skip if transaction has no details
                     if (t.Details == null || !t.Details.Any())
@@ -548,12 +674,18 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Use transaction total amount (already includes discounts) instead of summing details
                     return t.TotalAmount - purchaseCost;
                 });
+
+                // Only update if we're supposed to show filtered values instead of overall totals
+                // Uncomment these if you want to show filtered values instead
+                // TotalSales = filteredSales;
+                // TotalProfit = filteredProfit;
             }
             catch (Exception ex)
             {
                 HandleError("Error calculating totals", ex);
             }
         }
+
         private async Task RefreshDataAsync()
         {
             try
@@ -578,8 +710,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             return parameter is TransactionDTO;
         }
-
-
 
         private Window GetOwnerWindow()
         {
@@ -817,12 +947,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task PrintTransactionReportAsync()
         {
-            if (!FilteredTransactions.Any())
-            {
-                await ShowErrorMessageAsync("No transactions to print");
-                return;
-            }
-
             if (!await _operationLock.WaitAsync(0))
             {
                 await ShowErrorMessageAsync("Print operation already in progress");
@@ -836,6 +960,37 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Ensure exchange rate is loaded
                 await EnsureExchangeRateLoaded();
+
+                // Get all transactions for the selected date range - not just the current page
+                int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
+                var allTransactionsInRange = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
+
+                // Apply category filter if needed
+                if (categoryId.HasValue && categoryId.Value > 0)
+                {
+                    allTransactionsInRange = allTransactionsInRange.Where(t =>
+                        t.Details.Any(d => d.CategoryId == categoryId.Value)).ToList();
+                }
+
+                // Apply search filter if needed
+                var reportTransactions = allTransactionsInRange.AsEnumerable();
+                if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    reportTransactions = reportTransactions.Where(t =>
+                        (t.CustomerName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        t.TransactionId.ToString().Contains(SearchText) ||
+                        (t.Details?.Any(d => d.ProductName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)) ?? false) ||
+                        t.CashierName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Convert to list for reporting
+                var transactionsForReport = reportTransactions.ToList();
+
+                if (!transactionsForReport.Any())
+                {
+                    await ShowErrorMessageAsync("No transactions to print after applying filters");
+                    return;
+                }
 
                 // Get the owner window
                 var ownerWindow = GetOwnerWindow();
@@ -873,6 +1028,43 @@ namespace QuickTechSystems.WPF.ViewModels
                     dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
                     document.Blocks.Add(dateRange);
 
+                    // Filter Information if any filters are applied
+                    if (!string.IsNullOrWhiteSpace(SearchText) || (categoryId.HasValue && categoryId.Value > 0))
+                    {
+                        var filterInfo = new Paragraph
+                        {
+                            Margin = new Thickness(0, 0, 0, 10),
+                            FontSize = 9,
+                            TextAlignment = TextAlignment.Center
+                        };
+
+                        var filterText = "Filters applied: ";
+                        if (!string.IsNullOrWhiteSpace(SearchText))
+                        {
+                            filterText += $"Search: \"{SearchText}\"";
+                        }
+
+                        if (categoryId.HasValue && categoryId.Value > 0)
+                        {
+                            if (filterText.Length > "Filters applied: ".Length)
+                                filterText += ", ";
+                            filterText += $"Category: {SelectedCategory?.Name}";
+                        }
+
+                        filterInfo.Inlines.Add(new Run(filterText));
+                        document.Blocks.Add(filterInfo);
+                    }
+
+                    // Transaction Count
+                    var countInfo = new Paragraph
+                    {
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 9,
+                        TextAlignment = TextAlignment.Center
+                    };
+                    countInfo.Inlines.Add(new Run($"Showing {transactionsForReport.Count} of {TotalTransactions} total transactions"));
+                    document.Blocks.Add(countInfo);
+
                     // Currency Notice
                     var currencyNotice = new Paragraph(new Run("All amounts in Lebanese Pounds (LBP)"))
                     {
@@ -885,26 +1077,40 @@ namespace QuickTechSystems.WPF.ViewModels
                     document.Blocks.Add(currencyNotice);
 
                     // Split transactions into discounted and non-discounted
-                    var discountedTransactions = FilteredTransactions.Where(t =>
+                    var discountedTransactions = transactionsForReport.Where(t =>
                         t.Details?.Any(d => d.Discount > 0) == true).ToList();
 
-                    var nonDiscountedTransactions = FilteredTransactions.Where(t =>
+                    var nonDiscountedTransactions = transactionsForReport.Where(t =>
                         t.Details?.All(d => d.Discount <= 0) == true || t.Details == null).ToList();
 
                     // Calculate totals for different transaction types
                     decimal discountedSalesTotal = discountedTransactions.Sum(t => t.TotalAmount);
                     decimal nonDiscountedSalesTotal = nonDiscountedTransactions.Sum(t => t.TotalAmount);
+                    decimal totalSalesAmount = transactionsForReport.Sum(t => t.TotalAmount);
 
                     // Calculate total discount amount
                     decimal totalDiscountAmount = discountedTransactions
                         .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
                         .Sum(d => d.Discount);
 
+                    // Calculate total profit
+                    decimal totalProfit = transactionsForReport.Sum(t =>
+                    {
+                        if (t.Details == null || !t.Details.Any() || t.TotalAmount == 0)
+                            return 0;
+
+                        decimal purchaseCost = t.Details.Sum(d => d.PurchasePrice * d.Quantity);
+                        return t.TotalAmount - purchaseCost;
+                    });
+
                     // Calculate LBP values
-                    decimal lbpTotalSales = CurrencyHelper.ConvertToLBP(TotalSales);
+                    decimal lbpTotalSales = CurrencyHelper.ConvertToLBP(totalSalesAmount);
+                    decimal lbpTotalProfit = CurrencyHelper.ConvertToLBP(totalProfit);
                     decimal lbpDiscountedSales = CurrencyHelper.ConvertToLBP(discountedSalesTotal);
                     decimal lbpNonDiscountedSales = CurrencyHelper.ConvertToLBP(nonDiscountedSalesTotal);
                     decimal lbpTotalDiscountAmount = CurrencyHelper.ConvertToLBP(totalDiscountAmount);
+
+                    // Rest of the code remains the same, using the proper transaction sets
 
                     // Add a section for non-discounted transactions
                     if (nonDiscountedTransactions.Any())
@@ -1008,6 +1214,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         // Create a table for discounted transactions by product
                         CreateProductTable(discountedSection, discountedTransactions);
 
+                        // Just add the section to the document (without adding the summary again)
                         document.Blocks.Add(discountedSection);
                     }
 
@@ -1041,6 +1248,20 @@ namespace QuickTechSystems.WPF.ViewModels
                         Foreground = Brushes.DarkGreen
                     }));
 
+                    totalSalesParagraph.Inlines.Add(new LineBreak());
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL PROFIT: ")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.Black
+                    }));
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalProfit:N0} LBP")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.DarkBlue
+                    }));
+
                     totalSalesSection.Blocks.Add(totalSalesParagraph);
                     document.Blocks.Add(totalSalesSection);
 
@@ -1069,6 +1290,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+
         private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
             bool isBold = false, Brush? foreground = null)
         {
@@ -1101,11 +1323,10 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         // Helper method to create product summary tables
-        // Helper method to create product summary tables
         private void CreateProductTable(Section section, List<TransactionDTO> transactions)
         {
             // Create a flattened list of transaction details
-            var transactionItems = new List<(string ProductName, decimal Quantity, decimal FinalUnitPrice,
+            var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice,
                 decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
 
             foreach (var transaction in transactions)
@@ -1124,7 +1345,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     transactionItems.Add((
                         detail.ProductName,
-                        detail.Quantity,
+                        (int)detail.Quantity, // Explicit cast here
                         actualUnitPrice,
                         detail.Total,
                         profitPerUnit,
@@ -1148,7 +1369,22 @@ namespace QuickTechSystems.WPF.ViewModels
                 .OrderByDescending(g => g.TotalQuantity)
                 .ToList();
 
-            // Products Table - Using LBP only
+            var topProducts = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
+
+            foreach (var product in groupedProducts)
+            {
+                string productName = product.ProductName;
+                // Use explicit cast from decimal to int for TotalQuantity
+                int totalQuantity = (int)product.TotalQuantity; // Fixed error line 1346
+                decimal avgPrice = product.AverageUnitPrice;
+                decimal total = product.TotalAmount;
+                decimal profitPerUnit = product.TotalProfit / product.TotalQuantity;
+                decimal discountAmount = product.TotalDiscount;
+
+                topProducts.Add((productName, totalQuantity, avgPrice, total, profitPerUnit, discountAmount));
+            }
+
+
             var table = new Table { CellSpacing = 0 };
 
             // Define columns with proportional widths
@@ -1182,7 +1418,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Quantity cell
                 var qtyCell = new TableCell();
                 var qtyParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Center };
-                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString("0.##"))); // Format decimals properly
+                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString()));
                 qtyCell.Blocks.Add(qtyParagraph);
                 row.Cells.Add(qtyCell);
 
@@ -1203,7 +1439,6 @@ namespace QuickTechSystems.WPF.ViewModels
             table.RowGroups.Add(rowGroup);
             section.Blocks.Add(table);
         }
-
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
@@ -1219,12 +1454,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     MessageBoxImage.Error);
             });
 
-           await Task.Run(async () =>
+            await Task.Run(async () =>
             {
-                await Task.Delay(3000); 
+                await Task.Delay(3000);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (ErrorMessage == message) 
+                    if (ErrorMessage == message)
                     {
                         ErrorMessage = string.Empty;
                     }

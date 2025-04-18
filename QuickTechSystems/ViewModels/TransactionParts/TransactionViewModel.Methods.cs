@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -24,23 +23,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 Details = new ObservableCollection<TransactionDetailDTO>()
             };
         }
-        private void SubscribeToAllDetails()
-        {
-            if (CurrentTransaction?.Details == null) return;
 
-            foreach (var detail in CurrentTransaction.Details)
-            {
-                SubscribeToDetailChanges(detail);
-            }
-
-            // Also subscribe to collection changes
-            if (CurrentTransaction.Details is ObservableCollection<TransactionDetailDTO> observableDetails)
-            {
-                // Remove previous handler if exists to avoid duplicates
-                observableDetails.CollectionChanged -= TransactionDetails_CollectionChanged;
-                observableDetails.CollectionChanged += TransactionDetails_CollectionChanged;
-            }
-        }
         private Window GetOwnerWindow()
         {
             try
@@ -63,27 +46,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Debug.WriteLine($"Error getting owner window: {ex.Message}");
                 return null; // Return null instead of failing
-            }
-        }
-        private void SubscribeToDetailChanges(TransactionDetailDTO detail)
-        {
-            if (detail != null)
-            {
-                // Unsubscribe first to avoid duplicate subscriptions
-                detail.PropertyChanged -= TransactionDetail_PropertyChanged;
-                detail.PropertyChanged += TransactionDetail_PropertyChanged;
-            }
-        }
-
-        private void TransactionDetail_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(TransactionDetailDTO.Quantity) ||
-                e.PropertyName == nameof(TransactionDetailDTO.UnitPrice) ||
-                e.PropertyName == nameof(TransactionDetailDTO.Discount) ||
-                e.PropertyName == nameof(TransactionDetailDTO.Total))
-            {
-                // Update totals whenever a relevant property changes
-                UpdateTotals();
             }
         }
         private void OpenNewTransactionWindow()
@@ -206,7 +168,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Update the current transaction with the retrieved data
                 CurrentTransaction = transaction;
                 CurrentTransactionNumber = transaction.TransactionId.ToString();
-                SubscribeToAllDetails();
+
                 // Populate customer information ONLY if available
                 if (transaction.CustomerId.HasValue && transaction.CustomerId.Value > 0)
                 {
@@ -657,152 +619,91 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public void AddProductToTransaction(ProductDTO product)
+        // Unified product addition method that replaces both previous methods
+        public void AddProductToTransaction(ProductDTO product, int quantity = 1)
         {
-            if (product == null) return;
+            // Validate product and quantity
+            if (product == null)
+            {
+                WindowManager.ShowWarning("No product selected. Please select a product first.");
+                return;
+            }
+
+            // Validate quantity is positive
+            if (quantity <= 0)
+            {
+                WindowManager.ShowWarning("Quantity must be a positive number. It has been corrected to 1.");
+                quantity = 1;
+            }
 
             try
             {
-                if (CurrentTransaction == null)
+                // Check if adding this product would result in low stock
+                CheckAndAlertLowStock(product, quantity);
+
+                if (CurrentTransaction?.Details == null)
                 {
-                    StartNewTransaction();
+                    CurrentTransaction = new TransactionDTO
+                    {
+                        Details = new ObservableCollection<TransactionDetailDTO>(),
+                        TransactionDate = DateTime.Now,
+                        Status = TransactionStatus.Pending
+                    };
                 }
 
-                // Check if product is already in the transaction
-                var existingDetail = CurrentTransaction.Details?.FirstOrDefault(d =>
-                    d.ProductId == product.ProductId);
-
-                // Get price from customer-specific pricing if available
-                decimal unitPrice = product.SalePrice;
-                if (CustomerSpecificPrices.TryGetValue(product.ProductId, out decimal specialPrice))
-                {
-                    unitPrice = specialPrice;
-                }
-
+                var existingDetail = CurrentTransaction.Details.FirstOrDefault(d => d.ProductId == product.ProductId);
                 if (existingDetail != null)
                 {
-                    // Update existing detail
-                    decimal oldQuantity = existingDetail.Quantity;
-                    existingDetail.Quantity += 1m; // Add exactly 1 unit
+                    existingDetail.Quantity += quantity;
+                    existingDetail.Total = existingDetail.Quantity * existingDetail.UnitPrice;
 
-                    // Recalculate total with precise decimal arithmetic
-                    existingDetail.Total = decimal.Multiply(existingDetail.Quantity, existingDetail.UnitPrice);
-
-                    StatusMessage = $"Added 1 more {product.Name} (Total: {existingDetail.Quantity})";
+                    // Force UI refresh by removing and re-adding the item
+                    var index = CurrentTransaction.Details.IndexOf(existingDetail);
+                    if (index >= 0)
+                    {
+                        CurrentTransaction.Details.RemoveAt(index);
+                        CurrentTransaction.Details.Insert(index, existingDetail);
+                    }
                 }
                 else
                 {
-                    // Add new detail
+                    // Get customer-specific price if available
+                    decimal unitPrice = product.SalePrice;
+                    if (_customerSpecificPrices.TryGetValue(product.ProductId, out decimal customPrice))
+                    {
+                        unitPrice = customPrice;
+                    }
+
                     var detail = new TransactionDetailDTO
                     {
                         ProductId = product.ProductId,
-                        ProductName = product.Name,
-                        ProductBarcode = product.Barcode,
-                        CategoryId = product.CategoryId,
-                        Quantity = 1m, // Start with exactly 1 unit
+                        ProductName = product.Name ?? "Unknown Product",
+                        ProductBarcode = product.Barcode ?? string.Empty,
+                        Quantity = quantity,
                         UnitPrice = unitPrice,
                         PurchasePrice = product.PurchasePrice,
-                        Total = unitPrice // Total for 1 unit equals unit price
+                        Total = unitPrice * quantity,
+                        TransactionId = CurrentTransaction.TransactionId
                     };
-
                     CurrentTransaction.Details.Add(detail);
-
-                    // Subscribe to property changes for the new detail
-                    SubscribeToDetailChanges(detail);
-
-                    StatusMessage = $"Added {product.Name}";
                 }
 
-                // Update totals
+                // Update totals and UI
                 UpdateTotals();
-
-                // Signal property changes
                 OnPropertyChanged(nameof(CurrentTransaction));
+                OnPropertyChanged(nameof(CurrentTransaction.Details));
+
+                // Update status message
+                StatusMessage = $"Added: {product.Name} (Qty: {quantity})";
                 OnPropertyChanged(nameof(StatusMessage));
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error adding product to transaction: {ex.Message}");
-                StatusMessage = $"Error adding product: {ex.Message}";
-                OnPropertyChanged(nameof(StatusMessage));
+                WindowManager.ShowError($"Error adding product: {ex.Message}");
             }
         }
-        public void AddProductToTransaction(ProductDTO product, decimal quantity)
-        {
-            AddProductToTransactionWithQuantity(product, quantity);
-        }
-        public void AddProductToTransaction(ProductDTO product, int quantity)
-        {
-            // Convert the int quantity to decimal and call our implementation method
-            AddProductToTransactionWithQuantity(product, Convert.ToDecimal(quantity));
-        }
-        // Add this public method to TransactionViewModel class
-        public void AddProductToTransactionWithQuantity(ProductDTO product, decimal quantity)
-        {
-            if (product == null) return;
 
-            try
-            {
-                if (CurrentTransaction == null)
-                {
-                    StartNewTransaction();
-                }
-
-                // Check if product is already in the transaction
-                var existingDetail = CurrentTransaction.Details?.FirstOrDefault(d =>
-                    d.ProductId == product.ProductId);
-
-                // Get price from customer-specific pricing if available
-                decimal unitPrice = product.SalePrice;
-                if (CustomerSpecificPrices.TryGetValue(product.ProductId, out decimal specialPrice))
-                {
-                    unitPrice = specialPrice;
-                }
-
-                if (existingDetail != null)
-                {
-                    // Update existing detail
-                    decimal oldQuantity = existingDetail.Quantity;
-                    existingDetail.Quantity += quantity; // Add specified quantity
-
-                    // Recalculate total with precise decimal arithmetic
-                    existingDetail.Total = decimal.Multiply(existingDetail.Quantity, existingDetail.UnitPrice);
-
-                    StatusMessage = $"Added {quantity} more {product.Name} (Total: {existingDetail.Quantity})";
-                }
-                else
-                {
-                    // Add new detail
-                    var detail = new TransactionDetailDTO
-                    {
-                        ProductId = product.ProductId,
-                        ProductName = product.Name,
-                        ProductBarcode = product.Barcode,
-                        CategoryId = product.CategoryId,
-                        Quantity = quantity, // Use specified quantity
-                        UnitPrice = unitPrice,
-                        PurchasePrice = product.PurchasePrice,
-                        Total = decimal.Multiply(quantity, unitPrice) // Calculate total with precise decimal math
-                    };
-
-                    CurrentTransaction.Details.Add(detail);
-                    StatusMessage = $"Added {quantity} {product.Name}";
-                }
-
-                // Update totals
-                UpdateTotals();
-
-                // Signal property changes
-                OnPropertyChanged(nameof(CurrentTransaction));
-                OnPropertyChanged(nameof(StatusMessage));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error adding product to transaction: {ex.Message}");
-                StatusMessage = $"Error adding product: {ex.Message}";
-                OnPropertyChanged(nameof(StatusMessage));
-            }
-        }
         // File: QuickTechSystems/ViewModels/TransactionParts/TransactionViewModel.Methods.cs
         private async void CheckAndAlertLowStock(ProductDTO product, int quantity)
         {
@@ -1078,33 +979,24 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Check if there's an ongoing transaction
                 if (CurrentTransaction?.Details?.Any() == true)
                 {
-                    var transactionConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    var confirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
                         "You have an ongoing transaction. Closing the drawer will cancel this transaction. Continue?",
                         "Unsaved Transaction",
                         MessageBoxButton.YesNo,
                         MessageBoxImage.Warning));
 
-                    if (transactionConfirmResult != MessageBoxResult.Yes)
+                    if (confirmResult != MessageBoxResult.Yes)
                         return;
                 }
 
-                // Get current drawer balance
-                var drawer = await _drawerService.GetCurrentDrawerAsync();
-                if (drawer == null)
-                {
-                    throw new InvalidOperationException("No active drawer found");
-                }
-
-                decimal currentBalance = drawer.CurrentBalance;
-
-                // Show confirmation with current balance
-                var drawerCloseConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
-                    $"Current cash in drawer: {currentBalance:C2}\n\nAre you sure you want to close the drawer? This will end your current session.",
+                // Add a second confirmation for drawer closing
+                var secondConfirmResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
+                    "Are you sure you want to close the drawer? This will end your current session.",
                     "Confirm Drawer Close",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.Question));
 
-                if (drawerCloseConfirmResult != MessageBoxResult.Yes)
+                if (secondConfirmResult != MessageBoxResult.Yes)
                     return;
 
                 var ownerWindow = GetOwnerWindow();
@@ -1113,28 +1005,44 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("Cannot find a valid window to show the dialog");
                 }
 
-                // Process drawer closing with current balance
-                await _drawerService.CloseDrawerAsync(currentBalance, "Closed by user at end of shift");
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                var dialog = new InputDialog("Close Drawer", "Enter final cash amount:")
                 {
-                    try
-                    {
-                        MessageBox.Show(
-                            ownerWindow,
-                            "Drawer closed successfully. The application will now exit.",
-                            "Success",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error showing close success message: {ex.Message}");
-                    }
-                });
+                    Owner = ownerWindow,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
 
-                // Close the application after showing the success message
-                System.Windows.Application.Current.Shutdown();
+                bool? inputResult = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => dialog.ShowDialog());
+
+                if (inputResult == true)
+                {
+                    if (!decimal.TryParse(dialog.Input, out decimal finalAmount))
+                    {
+                        throw new InvalidOperationException("Please enter a valid amount. Amount has been set to 0.");
+                    }
+
+                    // Process drawer closing
+                    await _drawerService.CloseDrawerAsync(finalAmount, "Closed by user at end of shift");
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        try
+                        {
+                            MessageBox.Show(
+                                ownerWindow,
+                                "Drawer closed successfully. The application will now exit.",
+                                "Success",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error showing close success message: {ex.Message}");
+                        }
+                    });
+
+                    // Close the application after showing the success message
+                    System.Windows.Application.Current.Shutdown();
+                }
             }, "Closing drawer");
         }
 
@@ -1157,6 +1065,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 ProductSearchText = string.Empty;
                 IsProductSearchVisible = false;
 
+                // Create a completely fresh transaction object
                 CurrentTransaction = new TransactionDTO
                 {
                     TransactionDate = DateTime.Now,
@@ -1194,13 +1103,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 OnPropertyChanged(nameof(SelectedCustomer));
                 OnPropertyChanged(nameof(CustomerSearchText));
                 OnPropertyChanged(nameof(IsCustomerSearchVisible));
-                if (CurrentTransaction.Details is ObservableCollection<TransactionDetailDTO> observableDetails)
-                {
-                    observableDetails.CollectionChanged += TransactionDetails_CollectionChanged;
-                }
             }
-
-
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error starting new transaction: {ex.Message}");
@@ -1212,31 +1115,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     Details = new ObservableCollection<TransactionDetailDTO>(),
                 };
             }
-        }
-
-
-        private void TransactionDetails_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            // Handle added items
-            if (e.NewItems != null)
-            {
-                foreach (TransactionDetailDTO detail in e.NewItems)
-                {
-                    SubscribeToDetailChanges(detail);
-                }
-            }
-
-            // Handle removed items
-            if (e.OldItems != null)
-            {
-                foreach (TransactionDetailDTO detail in e.OldItems)
-                {
-                    detail.PropertyChanged -= TransactionDetail_PropertyChanged;
-                }
-            }
-
-            // Update totals whenever the collection changes
-            UpdateTotals();
         }
         private async Task HoldTransaction()
         {

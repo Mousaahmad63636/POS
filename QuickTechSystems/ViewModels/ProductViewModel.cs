@@ -33,6 +33,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isDisposed;
         private FlowDirection _flowDirection = FlowDirection.LeftToRight;
         private ObservableCollection<ProductDTO> _products;
+        private ObservableCollection<ProductDTO> _filteredProducts;
         private ObservableCollection<CategoryDTO> _categories;
         private ObservableCollection<SupplierDTO> _suppliers;
         private ProductDTO? _selectedProduct;
@@ -51,6 +52,15 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isProductPopupOpen;
         private bool _isNewProduct;
         private decimal _totalProfit;
+        private CancellationTokenSource _cts;
+
+        // Pagination properties
+        private int _currentPage = 1;
+        private int _pageSize = 10;
+        private int _totalPages;
+        private ObservableCollection<int> _pageNumbers;
+        private List<int> _visiblePageNumbers = new List<int>();
+        private int _totalProducts;
 
         public decimal TotalProfit
         {
@@ -133,6 +143,12 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _products;
             set => SetProperty(ref _products, value);
+        }
+
+        public ObservableCollection<ProductDTO> FilteredProducts
+        {
+            get => _filteredProducts;
+            set => SetProperty(ref _filteredProducts, value);
         }
 
         public ObservableCollection<CategoryDTO> Categories
@@ -227,8 +243,12 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _searchText;
             set
             {
-                SetProperty(ref _searchText, value);
-                FilterProducts();
+                if (SetProperty(ref _searchText, value))
+                {
+                    _currentPage = 1; // Reset to first page when searching
+                    OnPropertyChanged(nameof(CurrentPage));
+                    FilterProducts();
+                }
             }
         }
 
@@ -262,6 +282,74 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _validationErrors, value);
         }
 
+        // Pagination properties
+        public int CurrentPage
+        {
+            get => _currentPage;
+            set
+            {
+                if (value < 1 || value > TotalPages) return;
+                if (SetProperty(ref _currentPage, value))
+                {
+                    _ = SafeLoadDataAsync();
+                    UpdateVisiblePageNumbers();
+                    OnPropertyChanged(nameof(IsFirstPage));
+                    OnPropertyChanged(nameof(IsLastPage));
+                }
+            }
+        }
+
+        public int PageSize
+        {
+            get => _pageSize;
+            set
+            {
+                if (SetProperty(ref _pageSize, value))
+                {
+                    _currentPage = 1; // Reset to first page when changing page size
+                    OnPropertyChanged(nameof(CurrentPage));
+                    _ = SafeLoadDataAsync();
+                }
+            }
+        }
+
+        public int TotalPages
+        {
+            get => _totalPages;
+            private set
+            {
+                if (SetProperty(ref _totalPages, value))
+                {
+                    UpdateVisiblePageNumbers();
+                    OnPropertyChanged(nameof(IsFirstPage));
+                    OnPropertyChanged(nameof(IsLastPage));
+                }
+            }
+        }
+
+        public int TotalProducts
+        {
+            get => _totalProducts;
+            private set => SetProperty(ref _totalProducts, value);
+        }
+
+        public ObservableCollection<int> PageNumbers
+        {
+            get => _pageNumbers;
+            private set => SetProperty(ref _pageNumbers, value);
+        }
+
+        public List<int> VisiblePageNumbers
+        {
+            get => _visiblePageNumbers;
+            private set => SetProperty(ref _visiblePageNumbers, value);
+        }
+
+        public bool IsFirstPage => CurrentPage <= 1;
+        public bool IsLastPage => CurrentPage >= TotalPages;
+
+        public ObservableCollection<int> AvailablePageSizes { get; } = new ObservableCollection<int> { 10, 25, 50, 100 };
+
         public ICommand BulkAddCommand { get; private set; }
         public ICommand LoadCommand { get; private set; }
         public ICommand AddCommand { get; private set; }
@@ -274,6 +362,12 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand GenerateMissingBarcodesCommand { get; private set; }
         public ICommand UploadImageCommand { get; private set; }
         public ICommand ClearImageCommand { get; private set; }
+
+        // Pagination commands
+        public ICommand NextPageCommand { get; private set; }
+        public ICommand PreviousPageCommand { get; private set; }
+        public ICommand GoToPageCommand { get; private set; }
+        public ICommand ChangePageSizeCommand { get; private set; }
 
         public ProductViewModel(
             IProductService productService,
@@ -289,17 +383,50 @@ namespace QuickTechSystems.WPF.ViewModels
             _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
 
             _products = new ObservableCollection<ProductDTO>();
+            _filteredProducts = new ObservableCollection<ProductDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
             _suppliers = new ObservableCollection<SupplierDTO>();
             _validationErrors = new Dictionary<int, List<string>>();
             _productChangedHandler = HandleProductChanged;
             _categoryChangedHandler = HandleCategoryChanged;
             _supplierChangedHandler = HandleSupplierChanged;
+            _pageNumbers = new ObservableCollection<int>();
+            _cts = new CancellationTokenSource();
 
             SubscribeToEvents();
             InitializeCommands();
             _ = LoadDataAsync();
             Debug.WriteLine("ProductViewModel initialized");
+        }
+
+        private void UpdateVisiblePageNumbers()
+        {
+            var visiblePages = new List<int>();
+            int startPage = Math.Max(1, CurrentPage - 2);
+            int endPage = Math.Min(TotalPages, CurrentPage + 2);
+
+            // Always show first page
+            if (startPage > 1)
+            {
+                visiblePages.Add(1);
+                if (startPage > 2) visiblePages.Add(-1); // -1 represents ellipsis
+            }
+
+            // Add current range
+            for (int i = startPage; i <= endPage; i++)
+            {
+                visiblePages.Add(i);
+            }
+
+            // Always show last page
+            if (endPage < TotalPages)
+            {
+                if (endPage < TotalPages - 1) visiblePages.Add(-1); // -1 represents ellipsis
+                visiblePages.Add(TotalPages);
+            }
+
+            VisiblePageNumbers = visiblePages;
+            OnPropertyChanged(nameof(VisiblePageNumbers));
         }
 
         // Calculate values for the selected product
@@ -402,6 +529,12 @@ namespace QuickTechSystems.WPF.ViewModels
             UploadImageCommand = new RelayCommand(_ => UploadImage());
             ClearImageCommand = new RelayCommand(_ => ClearImage());
             GenerateMissingBarcodesCommand = new AsyncRelayCommand(async _ => await GenerateMissingBarcodeImages(), _ => !IsSaving);
+
+            // Pagination commands
+            NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
+            PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
+            GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
+            ChangePageSizeCommand = new RelayCommand<int>(size => PageSize = size);
         }
 
         protected override void SubscribeToEvents()
@@ -420,13 +553,42 @@ namespace QuickTechSystems.WPF.ViewModels
             _eventAggregator.Unsubscribe<EntityChangedEvent<SupplierDTO>>(_supplierChangedHandler);
         }
 
+        // Update these methods in the ProductViewModel.cs file
+
         public void ShowProductPopup()
         {
-            IsProductPopupOpen = true;
+            try
+            {
+                // Create a new instance of the ProductDetailsWindow
+                var productWindow = new ProductDetailsWindow
+                {
+                    DataContext = this,
+                    Owner = GetOwnerWindow()
+                };
+
+                // Subscribe to save completed event
+                productWindow.SaveCompleted += ProductDetailsWindow_SaveCompleted;
+
+                // Show the window as dialog
+                productWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error showing product window: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error displaying product details: {ex.Message}");
+            }
+        }
+
+        private void ProductDetailsWindow_SaveCompleted(object sender, RoutedEventArgs e)
+        {
+            // When save is completed, close the window
+            // The window itself already handles closing through the DialogResult
         }
 
         public void CloseProductPopup()
         {
+            // This is no longer needed with Window approach, as the window handles its own closing
+            // But we'll keep it for backward compatibility
             IsProductPopupOpen = false;
         }
 
@@ -536,8 +698,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null;
             }
         }
-
-        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
 
         private async Task PrintBarcodeAsync()
         {
@@ -1040,6 +1200,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // Update calculations when products change
                     CalculateAggregatedValues();
+
+                    // Refresh filtered products if we're using search
+                    if (!string.IsNullOrWhiteSpace(SearchText))
+                    {
+                        FilterProducts();
+                    }
                 });
             }
             catch (Exception ex)
@@ -1048,51 +1214,81 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
-
-        protected override async Task LoadDataAsync()
+        private async Task SafeLoadDataAsync()
         {
             if (!await _operationLock.WaitAsync(0))
             {
-                Debug.WriteLine("LoadDataAsync skipped - already in progress");
+                Debug.WriteLine("SafeLoadDataAsync skipped - already in progress");
                 return;
             }
+
+            // Create a new CancellationTokenSource for this operation
+            _cts?.Cancel();
+            _cts = new CancellationTokenSource();
+            var token = _cts.Token;
 
             try
             {
                 IsSaving = true;
                 StatusMessage = "Loading data...";
 
-                var products = await _productService.GetAllAsync();
-                // Change this line to get only active categories
-                var categories = await _categoryService.GetActiveAsync();
-                var suppliers = await _supplierService.GetActiveAsync();
-
-                // NEW CODE: Check each product for barcode image
-                foreach (var product in products)
+                try
                 {
-                    if (!string.IsNullOrWhiteSpace(product.Barcode) && product.BarcodeImage == null)
+                    // Add a timeout for the operation
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+                    // Get categories and suppliers (these are always fetched in full)
+                    var categoriesTask = _categoryService.GetActiveAsync();
+                    var suppliersTask = _supplierService.GetActiveAsync();
+
+                    // Get total count of products
+                    var totalCount = await GetTotalProductCount();
+                    if (linkedCts.Token.IsCancellationRequested) return;
+
+                    // Calculate total pages
+                    int calculatedTotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
+                    TotalPages = calculatedTotalPages;
+                    TotalProducts = totalCount;
+
+                    // Get paginated products
+                    var products = await GetPagedProducts(CurrentPage, PageSize, SearchText);
+                    if (linkedCts.Token.IsCancellationRequested) return;
+
+                    // Wait for categories and suppliers to complete
+                    await Task.WhenAll(categoriesTask, suppliersTask);
+                    if (linkedCts.Token.IsCancellationRequested) return;
+
+                    var categories = await categoriesTask;
+                    var suppliers = await suppliersTask;
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        Debug.WriteLine($"Product {product.Name} ({product.Barcode}) has no barcode image");
-                    }
+                        if (!linkedCts.Token.IsCancellationRequested)
+                        {
+                            Products = new ObservableCollection<ProductDTO>(products);
+                            FilteredProducts = new ObservableCollection<ProductDTO>(products);
+                            Categories = new ObservableCollection<CategoryDTO>(categories);
+                            Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
+
+                            // Calculate values after loading products
+                            CalculateAggregatedValues();
+
+                            if (SelectedProduct != null)
+                            {
+                                CalculateSelectedProductValues();
+                            }
+                        }
+                    });
                 }
-                // END NEW CODE
-
-                Products = new ObservableCollection<ProductDTO>(products);
-                Categories = new ObservableCollection<CategoryDTO>(categories);
-                Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
-
-                // Calculate values after loading products
-                CalculateAggregatedValues();
-
-                if (SelectedProduct != null)
+                catch (OperationCanceledException)
                 {
-                    CalculateSelectedProductValues();
+                    Debug.WriteLine("Operation was canceled");
                 }
-            }
-            catch (Exception ex)
-            {
-                ShowTemporaryErrorMessage($"Error loading data: {ex.Message}");
+                catch (Exception ex)
+                {
+                    ShowTemporaryErrorMessage($"Error loading data: {ex.Message}");
+                }
             }
             finally
             {
@@ -1100,6 +1296,56 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = string.Empty;
                 _operationLock.Release();
             }
+        }
+
+        private async Task<int> GetTotalProductCount()
+        {
+            if (!string.IsNullOrWhiteSpace(SearchText))
+            {
+                // If searching, we need to get all products and count filtered ones
+                var allProducts = await _productService.GetAllAsync();
+                return allProducts.Count(p =>
+                    p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.Barcode.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.CategoryName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.SupplierName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                    (p.Speed?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+            else
+            {
+                // If not searching, we can just get the total count
+                var allProducts = await _productService.GetAllAsync();
+                return allProducts.Count();
+            }
+        }
+
+        private async Task<List<ProductDTO>> GetPagedProducts(int page, int pageSize, string searchText)
+        {
+            // Get all products (in a real implementation, this should be done in the backend)
+            var allProducts = await _productService.GetAllAsync();
+
+            // Filter if needed
+            IEnumerable<ProductDTO> filteredProducts = allProducts;
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                filteredProducts = allProducts.Where(p =>
+                    p.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.Barcode.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.CategoryName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.SupplierName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (p.Speed?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            // Apply pagination
+            return filteredProducts
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+        }
+
+        protected override async Task LoadDataAsync()
+        {
+            await SafeLoadDataAsync();
         }
 
         private void AddNew()
@@ -1116,26 +1362,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void FilterProducts()
         {
-            if (string.IsNullOrWhiteSpace(SearchText))
-            {
-                _ = LoadDataAsync();
-                return;
-            }
-
-            var filteredProducts = Products.Where(p =>
-                p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                p.Barcode.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                p.CategoryName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                p.SupplierName.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
-                (p.Speed?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false)).ToList();
-
-            Products = new ObservableCollection<ProductDTO>(filteredProducts);
-
-            // Recalculate after filtering
-            CalculateAggregatedValues();
+            _ = SafeLoadDataAsync();
         }
 
-        // File: QuickTechSystems/ViewModels/ProductViewModel.cs
         public async Task SaveAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -1280,6 +1509,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // NEW LINE: Explicitly publish the event for the new product to update TransactionViewModel
                     await RefreshTransactionProductLists();
+
+                    // Refresh the data
+                    await SafeLoadDataAsync();
 
                     Debug.WriteLine("Save completed, product refreshed");
                 }
@@ -1548,6 +1780,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         // Clear the selected product
                         SelectedProduct = null;
+
+                        // Refresh the data
+                        await SafeLoadDataAsync();
                     }
                     catch (Exception ex)
                     {
@@ -1696,6 +1931,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     SelectedProduct.PropertyChanged -= SelectedProduct_PropertyChanged;
                 }
 
+                _cts?.Cancel();
+                _cts?.Dispose();
                 _operationLock?.Dispose();
                 UnsubscribeFromEvents();
 

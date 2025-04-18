@@ -48,10 +48,9 @@ namespace QuickTechSystems.WPF.Services
 
             return await taskCompletionSource.Task;
         }
-
-        public static async Task<decimal?> ShowQuantityDialog(Window owner, string productName, decimal initialQuantity = 1)
+        public static async Task<int?> ShowQuantityDialog(Window owner, string productName, int initialQuantity = 1)
         {
-            return await System.Windows.Application.Current.Dispatcher.InvokeAsync<decimal?>(() =>
+            return await System.Windows.Application.Current.Dispatcher.InvokeAsync<int?>(() =>
             {
                 try
                 {
@@ -80,7 +79,6 @@ namespace QuickTechSystems.WPF.Services
                 }
             });
         }
-
         public async Task<(bool Confirmed, string Value)> ShowTextInputDialogAsync(string title, string prompt, Window owner = null)
         {
             var taskCompletionSource = new TaskCompletionSource<(bool Confirmed, string Value)>();

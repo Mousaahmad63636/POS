@@ -158,21 +158,7 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
-        private void ProductDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ProductViewModel viewModel)
-            {
-                viewModel.CloseProductPopup();
-            }
-        }
-
-        private void ProductDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ProductViewModel viewModel)
-            {
-                viewModel.CloseProductPopup();
-            }
-        }
+     
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
