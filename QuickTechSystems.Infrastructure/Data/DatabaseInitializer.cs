@@ -37,6 +37,7 @@ namespace QuickTechSystems.Infrastructure.Data
             return Convert.ToBase64String(hashedBytes);
         }
 
+        // QuickTechSystems.Infrastructure/Data/DatabaseInitializer.cs
         public static void SeedDefaultAdmin(ApplicationDbContext context)
         {
             if (!context.Employees.Any())
@@ -47,9 +48,10 @@ namespace QuickTechSystems.Infrastructure.Data
                     PasswordHash = HashPassword("admin123"), // Default password: admin123
                     FirstName = "System",
                     LastName = "Administrator",
-                    Role = "Manager",
+                    Role = "Admin",
                     IsActive = true,
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.Now,
+                    SecureCode = "123456" // Default secure code for the admin
                 };
 
                 context.Employees.Add(admin);

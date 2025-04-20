@@ -19,7 +19,6 @@ using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Application.Helpers;
 using System.Diagnostics;
 using System.Collections.Concurrent;
-using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -71,17 +70,16 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         public TransactionViewModel(
-     IUnitOfWork unitOfWork,
-     ITransactionService transactionService,
-     ICustomerService customerService,
-     IProductService productService,
-     IDrawerService drawerService,
-     IQuoteService quoteService,
-     ICategoryService categoryService,
-     IBusinessSettingsService businessSettingsService,
-     QuickTechSystems.WPF.Services.ITransactionWindowManager transactionWindowManager, // Fully qualified here
-     ISystemPreferencesService systemPreferencesService,
-     IEventAggregator eventAggregator) : base(eventAggregator)
+            IUnitOfWork unitOfWork,
+            ITransactionService transactionService,
+            ICustomerService customerService,
+            IProductService productService,
+            IDrawerService drawerService,
+            IQuoteService quoteService,
+            ICategoryService categoryService,
+            IBusinessSettingsService businessSettingsService,
+            ISystemPreferencesService systemPreferencesService,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
@@ -93,8 +91,8 @@ namespace QuickTechSystems.WPF.ViewModels
             _systemPreferencesService = systemPreferencesService ?? throw new ArgumentNullException(nameof(systemPreferencesService));
             _transactionChangedHandler = HandleTransactionChanged;
             _businessSettingsService = businessSettingsService;
+            _currentTransactionNumber = $"TRX-{DateTime.Now.ToString("yyyyMMddHHmmss")}-{Guid.NewGuid().ToString().Substring(0, 4)}";
             _productChangedHandler = HandleProductChanged;
-            _transactionWindowManager = transactionWindowManager;
 
             try
             {
@@ -114,42 +112,14 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Error initializing view model";
             }
         }
-
-        // Add this method to TransactionViewModel.cs
-        public async Task InitializeForNewWindowAsync()
+        public void SetTableContext(string tableId)
         {
-            try
-            {
-                // Explicitly initialize everything needed for a new window
-                StatusMessage = "Initializing...";
-                OnPropertyChanged(nameof(StatusMessage));
+            TableReference = tableId;
 
-                // Initialize commands first to ensure they are available
-                InitializeCommands();
-                InitializeCollections();
-                StartNewTransaction();
-
-                // Load data asynchronously
-                await LoadDataAsync();
-                await LoadExchangeRate(_businessSettingsService);
-                await LoadRestaurantModePreference();
-
-                // Setup UI refresh timer for date/time
-                SetupDateTimeRefreshTimer();
-
-                // Update status after successful initialization
-                StatusMessage = "Ready";
-                OnPropertyChanged(nameof(StatusMessage));
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error initializing transaction view model: {ex.Message}");
-                StatusMessage = "Error during initialization";
-                OnPropertyChanged(nameof(StatusMessage));
-                throw; // Re-throw to allow the calling code to handle the error
-            }
+            // Update status message to reflect table context
+            StatusMessage = $"New transaction started for Table {tableId}";
+            OnPropertyChanged(nameof(StatusMessage));
         }
-
         // Proper async initialization to replace direct calls in constructor
         private async Task InitializeAsync(IBusinessSettingsService businessSettingsService)
         {
@@ -179,10 +149,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Error during initialization";
             }
         }
-        public async Task InitializeDataAsync()
-        {
-            await LoadDataAsync();
-        }
+
         // Setup timer with proper disposal management
         private void SetupDateTimeRefreshTimer()
         {

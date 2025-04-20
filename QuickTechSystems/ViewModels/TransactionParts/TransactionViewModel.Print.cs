@@ -80,34 +80,20 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Printing transaction with {transactionSnapshot.Details.Count} items, " +
                     $"Total: {transactionSnapshot.TotalAmount}, Discount: {currentDiscountAmount}");
 
-                // Retrieve all business settings for the receipt
+                // Retrieve company information from business settings
                 string companyName;
-                string address;
                 string phoneNumber;
-                string email;
-                string footerText1;
-                string footerText2;
 
                 try
                 {
-                    // Get all business settings with defaults if not found
-                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "Your Business Name");
-                    address = await _businessSettingsService.GetSettingValueAsync("Address", "Your Business Address");
-                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("Phone", "Your Phone Number");
-                    email = await _businessSettingsService.GetSettingValueAsync("Email", "");
-                    footerText1 = await _businessSettingsService.GetSettingValueAsync("ReceiptFooter1", "Stay caffeinated!!");
-                    footerText2 = await _businessSettingsService.GetSettingValueAsync("ReceiptFooter2", "See you next time");
+                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "اوتوماتيكو كافي");
+                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("PhoneNumber", "71999795 / 03889591");
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error retrieving business settings: {ex.Message}");
-                    // Default values if settings retrieval fails
-                    companyName = "Your Business Name";
-                    address = "Your Business Address";
-                    phoneNumber = "Your Phone Number";
-                    email = "";
-                    footerText1 = "Stay caffeinated!!";
-                    footerText2 = "See you next time";
+                    companyName = "اوتوماتيكو كافي"; // Default value
+                    phoneNumber = "71999795 / 03889591"; // Default value
                 }
 
                 // All UI operations in a dedicated block
@@ -188,16 +174,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        // Pass the business settings to the document creation method
+                        // Pass the discount amount and subtotal as separate parameters
                         var flowDocument = CreateReceiptDocument(
                             printDialog,
                             transactionId,
                             companyName,
-                            address,
                             phoneNumber,
-                            email,
-                            footerText1,
-                            footerText2,
                             transactionSnapshot,
                             currentSubTotal,
                             currentDiscountAmount);
@@ -251,17 +233,13 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         private FlowDocument CreateReceiptDocument(
-            PrintDialog printDialog,
-            int transactionId,
-            string companyName,
-            string address,
-            string phoneNumber,
-            string email,
-            string footerText1,
-            string footerText2,
-            TransactionDTO transaction,
-            decimal subTotal,
-            decimal discountAmount)
+    PrintDialog printDialog,
+    int transactionId,
+    string companyName,
+    string phoneNumber,
+    TransactionDTO transaction,
+    decimal subTotal,
+    decimal discountAmount)
         {
             var flowDocument = new FlowDocument
             {
@@ -290,37 +268,20 @@ namespace QuickTechSystems.WPF.ViewModels
             });
             header.Inlines.Add(new LineBreak());
 
-            // Company Address
-            if (!string.IsNullOrWhiteSpace(address))
+            // Company Address (hardcoded)
+            header.Inlines.Add(new Run("Beirut-Biel")
             {
-                header.Inlines.Add(new Run(address)
-                {
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold
-                });
-                header.Inlines.Add(new LineBreak());
-            }
+                FontSize = 11,
+                FontWeight = FontWeights.Bold
+            });
+            header.Inlines.Add(new LineBreak());
 
             // Phone Number
-            if (!string.IsNullOrWhiteSpace(phoneNumber))
+            header.Inlines.Add(new Run(phoneNumber)
             {
-                header.Inlines.Add(new Run(phoneNumber)
-                {
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold
-                });
-            }
-
-            // Email address
-            if (!string.IsNullOrWhiteSpace(email))
-            {
-                header.Inlines.Add(new LineBreak());
-                header.Inlines.Add(new Run(email)
-                {
-                    FontSize = 10,
-                    FontWeight = FontWeights.Normal
-                });
-            }
+                FontSize = 11,
+                FontWeight = FontWeights.Bold
+            });
 
             flowDocument.Blocks.Add(header);
             flowDocument.Blocks.Add(CreateDivider());
@@ -505,33 +466,27 @@ namespace QuickTechSystems.WPF.ViewModels
             flowDocument.Blocks.Add(totalsTable);
             flowDocument.Blocks.Add(CreateDivider());
 
-            // 5. Footer Section - Now using custom footer text from business settings
+            // 5. Footer Section - New layout with smaller text
             var footer = new Paragraph
             {
                 TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 5, 0, 3)
             };
 
-            // First footer text (primary message)
-            if (!string.IsNullOrWhiteSpace(footerText1))
+            // Stay caffeinated!!
+            footer.Inlines.Add(new Run("Stay caffeinated!!")
             {
-                footer.Inlines.Add(new Run(footerText1)
-                {
-                    FontSize = 12,
-                    FontWeight = FontWeights.Bold
-                });
-                footer.Inlines.Add(new LineBreak());
-            }
+                FontSize = 12,
+                FontWeight = FontWeights.Bold
+            });
+            footer.Inlines.Add(new LineBreak());
 
-            // Second footer text (secondary message)
-            if (!string.IsNullOrWhiteSpace(footerText2))
+            // See you next time
+            footer.Inlines.Add(new Run("See you next time")
             {
-                footer.Inlines.Add(new Run(footerText2)
-                {
-                    FontSize = 10,
-                    FontWeight = FontWeights.Normal
-                });
-            }
+                FontSize = 10,
+                FontWeight = FontWeights.Normal
+            });
 
             flowDocument.Blocks.Add(footer);
 

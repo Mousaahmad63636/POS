@@ -48,27 +48,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null; // Return null instead of failing
             }
         }
-        private void OpenNewTransactionWindow()
-        {
-            try
-            {
-                System.Diagnostics.Debug.WriteLine("Opening new transaction window...");
 
-                if (_transactionWindowManager == null)
-                {
-                    System.Diagnostics.Debug.WriteLine("ERROR: TransactionWindowManager is null");
-                    WindowManager.ShowError("Transaction Window Manager is not available");
-                    return;
-                }
-
-                _transactionWindowManager.OpenNewTransactionWindow();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
-                WindowManager.ShowError($"Failed to open new transaction window: {ex.Message}");
-            }
-        }
         public async Task LoadLatestTransactionIdAsync()
         {
             await ExecuteOperationSafelyAsync(async () =>
@@ -718,8 +698,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Check if the potential new stock is at or below the minimum stock level
                 if (potentialNewStock <= product.MinimumStock)
                 {
-                    // COMMENTED OUT: Display simplified alert to the user
-                    /* 
+                    // Display alert to the user - UNCOMMENTED
                     await WindowManager.InvokeAsync(() =>
                         MessageBox.Show(
                             $"Alert: Product '{product.Name}' is reaching low stock level.",
@@ -727,7 +706,6 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxButton.OK,
                             MessageBoxImage.Warning)
                     );
-                    */
 
                     // Still log the low stock event in the database
                     try
@@ -770,7 +748,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Continue with transaction - don't block the sale
             }
         }
-
         private async Task CacheProductImagesAsync(IEnumerable<ProductDTO> products)
         {
             if (products == null) return;
@@ -1046,26 +1023,13 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Closing drawer");
         }
 
-        public void StartNewTransaction()
+        private void StartNewTransaction()
         {
             try
             {
-                // Get current user information
                 var currentUser = App.Current.Properties["CurrentUser"] as EmployeeDTO;
 
-                // Generate a new unique transaction ID based on current timestamp
                 CurrentTransactionNumber = DateTime.Now.ToString("yyyyMMddHHmmss");
-
-                // Reset customer selection
-                SelectedCustomer = null;
-                CustomerSearchText = string.Empty;
-                IsCustomerSearchVisible = false;
-
-                // Reset product selection
-                ProductSearchText = string.Empty;
-                IsProductSearchVisible = false;
-
-                // Create a completely fresh transaction object
                 CurrentTransaction = new TransactionDTO
                 {
                     TransactionDate = DateTime.Now,
@@ -1080,29 +1044,19 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 // Reset editing state
                 IsEditingTransaction = false;
-
-                // Reset financial values
-                DiscountAmount = 0;
-                ClearTotals();
-
-                // Reset any cached product or customer data
-                CustomerSpecificPrices = new Dictionary<int, decimal>();
-
-                // Update status message
-                StatusMessage = "New transaction started";
-
-                // Notify UI of changes to ensure everything updates properly
                 OnPropertyChanged(nameof(IsEditingTransaction));
                 OnPropertyChanged(nameof(CashPaymentButtonText));
                 OnPropertyChanged(nameof(CustomerBalanceButtonText));
                 OnPropertyChanged(nameof(EditModeIndicatorVisibility));
+
+                ClearTotals();
+
+                // Update status message
+                StatusMessage = "New transaction started";
                 OnPropertyChanged(nameof(StatusMessage));
                 OnPropertyChanged(nameof(CurrentTransaction));
                 OnPropertyChanged(nameof(CurrentTransactionNumber));
                 OnPropertyChanged(nameof(CashierName));
-                OnPropertyChanged(nameof(SelectedCustomer));
-                OnPropertyChanged(nameof(CustomerSearchText));
-                OnPropertyChanged(nameof(IsCustomerSearchVisible));
             }
             catch (Exception ex)
             {
@@ -1116,6 +1070,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 };
             }
         }
+
         private async Task HoldTransaction()
         {
             await ExecuteOperationSafelyAsync(async () =>

@@ -45,6 +45,18 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(e => e.CurrentBalance)
                 .HasPrecision(18, 2)
                 .HasDefaultValue(0);
+            // Configuration for the new SecureCode property
+            builder.Property(e => e.SecureCode)
+                .HasMaxLength(20);
+
+            // Create a unique index for SecureCode
+            builder.HasIndex(e => e.SecureCode)
+                .IsUnique()
+                .HasFilter("[SecureCode] IS NOT NULL"); // SQL Server specific filter for NULL values
+
+            // Unique username constraint
+            builder.HasIndex(e => e.Username)
+                .IsUnique();
         }
     }
 }

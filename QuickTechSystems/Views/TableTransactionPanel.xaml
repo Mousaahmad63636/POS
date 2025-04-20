@@ -1,0 +1,64 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.TableTransactionPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Background="#F8F9FA"
+            BorderThickness="1"
+            BorderBrush="#E5E7EB"
+            CornerRadius="8"
+            Padding="16">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <TextBlock Grid.Row="0" 
+                       Text="Table Transactions" 
+                       FontSize="18" 
+                       FontWeight="Bold" 
+                       Margin="0,0,0,10"/>
+
+            <!-- Open Tables List -->
+            <ListView Grid.Row="1" 
+                      x:Name="TablesListView" 
+                      Margin="0,5" 
+                      SelectionChanged="TablesListView_SelectionChanged">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding}" FontSize="14" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" 
+                                    Content="Open" 
+                                    Padding="8,3" 
+                                    Margin="10,0,0,0"
+                                    Click="OpenTable_Click"
+                                    Tag="{Binding}"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <!-- Add New Button -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                <Button Content="New Table Transaction" 
+                        Click="NewTable_Click" 
+                        Padding="15,8"
+                        Background="#2196F3"
+                        Foreground="White"
+                        BorderThickness="0">
+                    <Button.Resources>
+                        <Style TargetType="Border">
+                            <Setter Property="CornerRadius" Value="4"/>
+                        </Style>
+                    </Button.Resources>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

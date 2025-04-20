@@ -1,4 +1,5 @@
-﻿<Window x:Class="QuickTechSystems.Views.LoginView"
+﻿<!-- QuickTechSystems/Views/LoginView.xaml -->
+<Window x:Class="QuickTechSystems.Views.LoginView"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
@@ -49,24 +50,21 @@
                               HorizontalAlignment="Center" 
                               Margin="0,0,0,32"/>
 
-                    <!-- Username Field -->
-                    <TextBlock Text="{DynamicResource Login_Username}" Style="{StaticResource FormLabel}"/>
-                    <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
-                            Style="{StaticResource FormField}"/>
-
-                    <!-- Password Field -->
-                    <TextBlock Text="{DynamicResource Login_Password}" Style="{StaticResource FormLabel}"/>
-                    <PasswordBox x:Name="PasswordBox" 
-                                Style="{StaticResource ModernPasswordBox}" 
-                                Margin="0,0,0,24"/>
+                    <!-- Numeric Code Field -->
+                    <TextBlock Text="Enter Access Code" Style="{StaticResource FormLabel}"/>
+                    <TextBox Text="{Binding NumericCode, UpdateSourceTrigger=PropertyChanged}" 
+                            Style="{StaticResource FormField}"
+                            MaxLength="20"
+                            PreviewTextInput="NumericOnlyTextBox_PreviewTextInput"/>
 
                     <!-- Login Button -->
-                    <Button Content="{DynamicResource Login_Button}" 
+                    <Button Content="Login" 
                             Command="{Binding LoginCommand}" 
-                            CommandParameter="{Binding ElementName=PasswordBox}"
+                            CommandParameter="{Binding ElementName=NumericCodeBox}"
                             Style="{StaticResource PrimaryButtonStyle}" 
                             HorizontalAlignment="Stretch" 
-                            Height="44"/>
+                            Height="44"
+                            Margin="0,24,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -100,7 +98,7 @@
                                IsIndeterminate="True" 
                                Width="120" 
                                Margin="0,0,0,16"/>
-                    <TextBlock Text="{DynamicResource Login_LoggingIn}" 
+                    <TextBlock Text="Logging in..." 
                              Foreground="White" 
                              FontWeight="SemiBold"
                              FontSize="14"/>

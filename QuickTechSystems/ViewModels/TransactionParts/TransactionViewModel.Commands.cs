@@ -8,6 +8,7 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -21,6 +22,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? VoidTransactionCommand { get; private set; }
         public ICommand? NewCustomerCommand { get; private set; }
         public ICommand? RemoveItemCommand { get; private set; }
+        public ICommand OpenNewTransactionCommand { get; private set; }
         public ICommand? VoidLastItemCommand { get; private set; }
         public ICommand? PriceCheckCommand { get; private set; }
         public ICommand? ChangeQuantityCommand { get; private set; }
@@ -43,6 +45,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             IncrementTransactionIdCommand = new RelayCommand(_ => IncrementTransactionId());
             DecrementTransactionIdCommand = new RelayCommand(_ => DecrementTransactionId());
+            OpenNewTransactionCommand = new RelayCommand(_ => OpenNewTransactionWindow());
             // Existing commands
             ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
 
@@ -66,18 +69,6 @@ namespace QuickTechSystems.WPF.ViewModels
             CancelTransactionCommand = new RelayCommand(
                 _ => CancelTransaction(),
                 _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
-            NewTransactionWindowCommand = new RelayCommand(_ =>
-            {
-                try
-                {
-                    _transactionWindowManager.OpenNewTransactionWindow();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
-                    WindowManager.ShowError("Failed to open new transaction window. Please try again.");
-                }
-            });
 
             LookupTransactionCommand = new AsyncRelayCommand(
                 async _ => await LookupTransactionAsync(),
@@ -184,6 +175,23 @@ namespace QuickTechSystems.WPF.ViewModels
 
             CloseDrawerCommand = new AsyncRelayCommand(async _ => await CloseDrawerAsync());
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
+        }
+
+        private void OpenNewTransactionWindow()
+        {
+            // Show input dialog via dispatcher
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                var dialog = new InputDialog("New Table Transaction", "Enter table number or leave blank for auto-assigned:");
+                var mainWindow = System.Windows.Application.Current.MainWindow;
+                dialog.Owner = mainWindow;
+
+                if (dialog.ShowDialog() == true)
+                {
+                    string tableId = dialog.Input?.Trim();
+                    TransactionWindowManager.Instance.CreateNewTransactionWindow(tableId);
+                }
+            });
         }
         private async Task ProcessAsCustomerDebt()
         {

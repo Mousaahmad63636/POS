@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.WPF.Services;
 using QuickTechSystems.WPF.ViewModels;
 using QuickTechSystems.WPF.Views.Dialogs;
 
@@ -28,7 +29,16 @@ namespace QuickTechSystems.WPF.Views
             this.Loaded += TransactionView_Loaded;
             this.SizeChanged += OnControlSizeChanged;
         }
-
+        private void NewTransactionTable_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new InputDialog("New Table Transaction", "Enter table number or leave blank for auto-assigned:");
+            dialog.Owner = Window.GetWindow(this);
+            if (dialog.ShowDialog() == true)
+            {
+                string tableId = dialog.Input?.Trim();
+                TransactionWindowManager.Instance.CreateNewTransactionWindow(tableId);
+            }
+        }
         private void TransactionView_Loaded(object sender, RoutedEventArgs e)
         {
             // Ensure DataContext is set properly

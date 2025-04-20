@@ -38,6 +38,10 @@
                         <DataGridTextColumn Header="{DynamicResource Employee_Column_Role}" 
                                             Binding="{Binding Role}"
                                             Width="100"/>
+                        <!-- New Secure Code Column -->
+                        <DataGridTextColumn Header="Secure Code" 
+                                            Binding="{Binding SecureCode}"
+                                            Width="100"/>
                         <DataGridTextColumn Header="{DynamicResource Employee_Column_LastLogin}" 
                                             Binding="{Binding LastLogin, StringFormat=g}"
                                             Width="150"/>
@@ -78,6 +82,33 @@
 
                             <TextBlock Text="{DynamicResource Employee_LastName}" Style="{StaticResource FormLabel}"/>
                             <TextBox Text="{Binding CurrentEmployee.LastName}" Style="{StaticResource FormField}"/>
+
+                            <!-- Secure Code Field -->
+                            <TextBlock Text="Secure Login Code" Style="{StaticResource FormLabel}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" 
+             Text="{Binding CurrentEmployee.SecureCode, Mode=TwoWay}" 
+             Style="{StaticResource FormField}"/>
+                                <Button Grid.Column="1" 
+            Content="Generate" 
+            Command="{Binding GenerateSecureCodeCommand}"
+            CommandParameter="{Binding CurrentEmployee}"
+            Style="{StaticResource SecondaryButtonStyle}"
+            Margin="8,0,0,0"
+            Width="80"/>
+                                <Button Grid.Column="2" 
+            Content="Save" 
+            Command="{Binding SaveSecureCodeCommand}"
+            CommandParameter="{Binding CurrentEmployee}"
+            Style="{StaticResource SuccessButtonStyle}"
+            Margin="8,0,0,0"
+            Width="60"/>
+                            </Grid>
 
                             <TextBlock Text="{DynamicResource Employee_Password}" Style="{StaticResource FormLabel}"
                                        Visibility="{Binding IsNewEmployee, Converter={StaticResource BooleanToVisibilityConverter}}"/>

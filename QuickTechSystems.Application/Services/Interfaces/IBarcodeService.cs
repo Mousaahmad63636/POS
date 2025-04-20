@@ -1,9 +1,7 @@
-﻿// QuickTechSystems.Application/Services/Interfaces/IBarcodeService.cs
-namespace QuickTechSystems.Application.Services.Interfaces
+﻿namespace QuickTechSystems.Application.Services.Interfaces
 {
     public interface IBarcodeService
     {
-        byte[] GenerateBarcode(string barcodeData);
-        byte[] GenerateBarcode(string barcodeData, int width, int height);
+        byte[] GenerateBarcode(string content, int width = 300, int height = 100);
     }
 }

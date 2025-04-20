@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Diagnostics;
 using QuickTechSystems.WPF.ViewModels;
+using QuickTechSystems.WPF.Views;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.Views.Transaction.Components
 {
@@ -68,6 +70,23 @@ namespace QuickTechSystems.WPF.Views.Transaction.Components
                             viewModel.ClearCustomerCommand.Execute(null);
                         }
                     }
+                }
+            });
+        }
+
+        private void NewTransactionTable_Click(object sender, RoutedEventArgs e)
+        {
+            SafeExecute(async () => {
+                // Show dialog to enter table number
+                var dialog = new InputDialog("New Table Transaction", "Enter table number or leave blank for auto-assigned:");
+                dialog.Owner = Window.GetWindow(this);
+
+                if (dialog.ShowDialog() == true)
+                {
+                    string tableId = dialog.Input?.Trim();
+
+                    // Create new transaction window with specified or auto-generated ID
+                    TransactionWindowManager.Instance.CreateNewTransactionWindow(tableId);
                 }
             });
         }

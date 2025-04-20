@@ -1,4 +1,7 @@
-﻿using System.Windows;
+﻿// QuickTechSystems/Views/LoginView.xaml.cs
+using System.Text.RegularExpressions;
+using System.Windows;
+using System.Windows.Input;
 using Microsoft.Extensions.DependencyInjection;
 using QuickTechSystems.ViewModels;
 using QuickTechSystems.WPF;
@@ -38,6 +41,13 @@ namespace QuickTechSystems.Views
                 this.Width = 400;
                 this.Height = 600;
             }
+        }
+
+        private void NumericOnlyTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+        {
+            // Only allow numeric input
+            Regex regex = new Regex("[^0-9]+");
+            e.Handled = regex.IsMatch(e.Text);
         }
 
         private void ExitButton_Click(object sender, RoutedEventArgs e)

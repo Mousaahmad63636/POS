@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Helpers;
@@ -11,6 +12,8 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Threading.Tasks;
 using System.Threading;
+using QuickTechSystems.Views;
+using System.IO;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -33,7 +36,25 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private bool _isNavigationEnabled = true;
         private DateTime _lastNavigationTime = DateTime.MinValue;
-        private const int NAVIGATION_COOLDOWN_MS = 500; // Consider making this configurable if needed
+        private const int NAVIGATION_COOLDOWN_MS = 500;
+
+        // Inactivity timer properties
+        private DispatcherTimer _inactivityTimer;
+        private DateTime _lastActivityTime;
+        private int _secondsRemaining = 30;
+        private bool _isCountdownActive = false;
+
+        public int SecondsRemaining
+        {
+            get => _secondsRemaining;
+            set => SetProperty(ref _secondsRemaining, value);
+        }
+
+        public bool IsCountdownActive
+        {
+            get => _isCountdownActive;
+            set => SetProperty(ref _isCountdownActive, value);
+        }
 
         public ViewModelBase? CurrentViewModel
         {
@@ -85,7 +106,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _isRestaurantMode, value))
                 {
                     Debug.WriteLine($"IsRestaurantMode changed to: {value}");
-                    // No need to publish event here - that's handled by the settings view
                 }
             }
         }
@@ -118,7 +138,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _currentUser = (EmployeeDTO)App.Current.Properties["CurrentUser"];
             _currentUserRole = Enum.Parse<UserRole>(_currentUser.Role);
-            Debug.WriteLine($"User logged in as: {_currentUser.Role} (Parsed Role: {_currentUserRole})"); // Debug log for role validation
+            Debug.WriteLine($"User logged in as: {_currentUser.Role} (Parsed Role: {_currentUserRole})");
 
             // Subscribe to restaurant mode changes early
             _eventAggregator.Subscribe<ApplicationModeChangedEvent>(OnApplicationModeChanged);
@@ -152,8 +172,152 @@ namespace QuickTechSystems.WPF.ViewModels
             });
 
             InitializeAsync();
+
+            Debug.WriteLine("Setting up inactivity detection");
+            InitializeInactivityTimer();
+            SetupActivityDetection();
         }
 
+        private void InitializeInactivityTimer()
+        {
+            // Reset these values to ensure countdown doesn't show in UI
+            _lastActivityTime = DateTime.Now;
+            IsCountdownActive = false;
+            SecondsRemaining = 30;
+
+            // Set up the timer but don't start it
+            _inactivityTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _inactivityTimer.Tick += (s, e) =>
+            {
+                // Empty handler - auto-logout disabled
+                // Keep this to avoid null reference exceptions
+            };
+
+            // Don't start the timer
+            // _inactivityTimer.Start(); 
+
+            Debug.WriteLine("Inactivity timer initialized but disabled");
+        }
+        private void ResetInactivityTimer()
+        {
+            _lastActivityTime = DateTime.Now;
+            IsCountdownActive = false;
+            SecondsRemaining = 30;
+            Debug.WriteLine("Activity detected - timer reset");
+        }
+
+        private void SetupActivityDetection()
+        {
+            // Register for application-wide input events
+            EventManager.RegisterClassHandler(typeof(Window),
+                UIElement.MouseMoveEvent,
+                new RoutedEventHandler((s, e) => ResetInactivityTimer()), true);
+
+            EventManager.RegisterClassHandler(typeof(Window),
+                UIElement.MouseDownEvent,
+                new RoutedEventHandler((s, e) => ResetInactivityTimer()), true);
+
+            EventManager.RegisterClassHandler(typeof(Window),
+                UIElement.KeyDownEvent,
+                new RoutedEventHandler((s, e) => ResetInactivityTimer()), true);
+
+            // Also attach to the main window specifically
+            if (System.Windows.Application.Current.MainWindow != null)
+            {
+                var window = System.Windows.Application.Current.MainWindow;
+                window.MouseMove += (s, e) => ResetInactivityTimer();
+                window.MouseDown += (s, e) => ResetInactivityTimer();
+                window.KeyDown += (s, e) => ResetInactivityTimer();
+                window.TouchDown += (s, e) => ResetInactivityTimer();
+                window.TouchUp += (s, e) => ResetInactivityTimer();
+                window.TouchMove += (s, e) => ResetInactivityTimer();
+
+                // Also register for window state changes
+                window.Activated += (s, e) => ResetInactivityTimer();
+
+                Debug.WriteLine("Activity detection registered with main window");
+            }
+            else
+            {
+                Debug.WriteLine("Warning: Main window not available for activity detection");
+            }
+        }
+
+        private void ExecuteAutomaticLogout()
+        {
+            try
+            {
+                Debug.WriteLine("Executing automatic logout");
+
+                // Stop the timer
+                if (_inactivityTimer != null)
+                {
+                    _inactivityTimer.Stop();
+                }
+
+                // Log the auto-logout (fire and forget)
+                Task.Run(async () => {
+                    try
+                    {
+                        await _activityLogger.LogActivityAsync(
+                            _currentUser.Username,
+                            "AutoLogout",
+                            "User automatically logged out due to inactivity"
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error logging auto-logout: {ex.Message}");
+                    }
+                });
+
+                // Show logout message
+                MessageBox.Show(
+                    "You have been automatically logged out due to inactivity. The application will restart.",
+                    "Auto Logout",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
+
+                // Create a file to indicate automatic logout occurred
+                string appDataPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "QuickTechSystems"
+                );
+
+                // Ensure directory exists
+                Directory.CreateDirectory(appDataPath);
+
+                // Save restart flag
+                string restartFlagPath = Path.Combine(appDataPath, "auto_logout_restart.flag");
+                File.WriteAllText(restartFlagPath, DateTime.Now.ToString());
+
+                // Get the application path
+                string appPath = System.Windows.Application.ResourceAssembly.Location;
+
+                // Start a new process to restart the application
+                var startInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = appPath,
+                    UseShellExecute = true
+                };
+
+                System.Diagnostics.Process.Start(startInfo);
+
+                // Shutdown the current application instance
+                System.Windows.Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in automatic logout: {ex.Message}");
+
+                // Last resort for extreme cases
+                Environment.Exit(0);
+            }
+        }
         private void OnApplicationModeChanged(ApplicationModeChangedEvent evt)
         {
             // Ensure we're on the UI thread
@@ -256,6 +420,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     ShowTemporaryErrorMessage(errorMessage);
                     return;
                 }
+
+                // Reset the inactivity timer since navigation is an activity
+                ResetInactivityTimer();
 
                 IsNavigationEnabled = false;
                 IsLoading = true;
@@ -469,6 +636,25 @@ namespace QuickTechSystems.WPF.ViewModels
                 _languageManager.LanguageChanged -= OnLanguageChanged;
                 CurrentViewModel?.Dispose();
                 _operationLock?.Dispose();
+
+                if (_inactivityTimer != null)
+                {
+                    _inactivityTimer.Stop();
+                    _inactivityTimer = null;
+                }
+
+                // Clean up event handlers from main window
+                if (System.Windows.Application.Current?.MainWindow != null)
+                {
+                    var window = System.Windows.Application.Current.MainWindow;
+                    window.MouseMove -= (s, e) => ResetInactivityTimer();
+                    window.MouseDown -= (s, e) => ResetInactivityTimer();
+                    window.KeyDown -= (s, e) => ResetInactivityTimer();
+                    window.TouchDown -= (s, e) => ResetInactivityTimer();
+                    window.TouchUp -= (s, e) => ResetInactivityTimer();
+                    window.TouchMove -= (s, e) => ResetInactivityTimer();
+                    window.Activated -= (s, e) => ResetInactivityTimer();
+                }
             }
             base.Dispose(disposing);
         }

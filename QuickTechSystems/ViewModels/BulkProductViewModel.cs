@@ -395,8 +395,8 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             var document = new FixedDocument();
             var pageSize = new Size(printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight);
-            var labelSize = new Size(96 * 2.5, 96 * 1.2); // Increased from 2x1 to 2.5x1.2 inches for better fit
-            var margin = new Thickness(96 * 0.25); // 0.25 inch margins for efficient space usage
+            var labelSize = new Size(96 * 2, 96); // 2 inches x 1 inch at 96 DPI
+            var margin = new Thickness(96 * 0.25); // 0.25 inch margins for more efficient space usage
 
             // Calculate how many labels can fit on the page
             var labelsPerRow = Math.Max(1, (int)((pageSize.Width - margin.Left - margin.Right) / labelSize.Width));
@@ -407,11 +407,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
             var currentPage = CreateNewPage(pageSize, margin);
             var currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-
-            // Configure WrapPanel for optimal layout
-            currentPanel.ItemWidth = labelSize.Width;
-            currentPanel.ItemHeight = labelSize.Height;
-
             var labelCount = 0;
 
             foreach (var product in products)
@@ -423,8 +418,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         document.Pages.Add(currentPage);
                         currentPage = CreateNewPage(pageSize, margin);
                         currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-                        currentPanel.ItemWidth = labelSize.Width;
-                        currentPanel.ItemHeight = labelSize.Height;
                         labelCount = 0;
                     }
 
@@ -453,9 +446,7 @@ namespace QuickTechSystems.WPF.ViewModels
             var panel = new WrapPanel
             {
                 Margin = margin,
-                Width = pageSize.Width - margin.Left - margin.Right,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Top
+                Width = pageSize.Width - margin.Left - margin.Right
             };
 
             page.Children.Add(panel);
@@ -465,30 +456,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return pageContent;
         }
+
         private UIElement CreateBarcodeLabel(ProductDTO product, Size labelSize)
         {
-            // Create a border for visual separation and padding
-            var border = new Border
-            {
-                Width = labelSize.Width - 8, // Slightly smaller than container for separation
-                Height = labelSize.Height - 8,
-                BorderBrush = new SolidColorBrush(Colors.LightGray),
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(8),
-                Margin = new Thickness(4),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Background = new SolidColorBrush(Colors.White)
-            };
-
             var grid = new Grid
             {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
+                Width = labelSize.Width,
+                Height = labelSize.Height,
+                Margin = new Thickness(2)
             };
 
-            // Improved row definitions with better proportions
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2.5, GridUnitType.Star) }); // Increased height for barcode
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
@@ -505,41 +483,29 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
 
-            // Create barcode image with explicit alignment
             var image = new Image
             {
                 Source = LoadBarcodeImage(product.BarcodeImage),
-                Stretch = Stretch.Uniform,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxHeight = (labelSize.Height - 8) * 0.65, // Constrain height to 65% of label height
-                Margin = new Thickness(0, 0, 0, 5)
+                Stretch = Stretch.Uniform
             };
             Grid.SetRow(image, 0);
 
-            // Improved barcode text
             var barcodeText = new TextBlock
             {
                 Text = product.Barcode,
                 TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                FontSize = 10,
-                FontWeight = FontWeights.Normal,
-                Margin = new Thickness(0, 2, 0, 2)
+                Margin = new Thickness(0, 2, 0, 0),
+                FontSize = 10
             };
             Grid.SetRow(barcodeText, 1);
 
-            // Improved product name text
             var nameText = new TextBlock
             {
                 Text = product.Name,
                 TextAlignment = TextAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center,
                 TextWrapping = TextWrapping.Wrap,
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                MaxWidth = labelSize.Width - 24, // Allow for padding
-                Margin = new Thickness(0, 2, 0, 0)
+                Margin = new Thickness(0, 2, 0, 0),
+                FontSize = 9
             };
             Grid.SetRow(nameText, 2);
 
@@ -547,10 +513,9 @@ namespace QuickTechSystems.WPF.ViewModels
             grid.Children.Add(barcodeText);
             grid.Children.Add(nameText);
 
-            border.Child = grid;
-
-            return border;
+            return grid;
         }
+
         private BitmapImage LoadBarcodeImage(byte[]? imageData)
         {
             if (imageData == null) return null;

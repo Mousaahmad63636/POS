@@ -80,7 +80,20 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+        public async Task<bool> UpdateSecureCodeAsync(int employeeId, string secureCode)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var employee = await _repository.GetByIdAsync(employeeId);
+                if (employee == null)
+                    return false;
 
+                employee.SecureCode = secureCode;
+                await _repository.UpdateAsync(employee);
+                await _unitOfWork.SaveChangesAsync();
+                return true;
+            });
+        }
         public async Task ProcessMonthlySalaryAsync(int employeeId)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
