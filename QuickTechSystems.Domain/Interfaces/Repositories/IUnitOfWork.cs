@@ -21,7 +21,7 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
         IGenericRepository<Employee> Employees { get; }
 
         IGenericRepository<Quote> Quotes { get; }
-     
+        IGenericRepository<RestaurantTable> RestaurantTables { get; }
         IGenericRepository<T> GetRepository<T>() where T : class;
 
         Task<int> SaveChangesAsync();

@@ -1,12 +1,30 @@
-﻿using System.Windows;
+﻿// Path: QuickTechSystems.WPF.Views/CustomerDetailsPopup.xaml.cs
+using System.Windows;
 using System.Windows.Controls;
 
 namespace QuickTechSystems.WPF.Views
 {
     public partial class CustomerDetailsPopup : UserControl
     {
-        public event RoutedEventHandler CloseRequested;
-        public event RoutedEventHandler SaveCompleted;
+        public static readonly RoutedEvent CloseRequestedEvent =
+            EventManager.RegisterRoutedEvent("CloseRequested", RoutingStrategy.Bubble,
+                typeof(RoutedEventHandler), typeof(CustomerDetailsPopup));
+
+        public static readonly RoutedEvent SaveCompletedEvent =
+            EventManager.RegisterRoutedEvent("SaveCompleted", RoutingStrategy.Bubble,
+                typeof(RoutedEventHandler), typeof(CustomerDetailsPopup));
+
+        public event RoutedEventHandler CloseRequested
+        {
+            add { AddHandler(CloseRequestedEvent, value); }
+            remove { RemoveHandler(CloseRequestedEvent, value); }
+        }
+
+        public event RoutedEventHandler SaveCompleted
+        {
+            add { AddHandler(SaveCompletedEvent, value); }
+            remove { RemoveHandler(SaveCompletedEvent, value); }
+        }
 
         public CustomerDetailsPopup()
         {
@@ -15,19 +33,15 @@ namespace QuickTechSystems.WPF.Views
 
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
-            CloseRequested?.Invoke(this, new RoutedEventArgs());
+            RaiseEvent(new RoutedEventArgs(CloseRequestedEvent));
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            // This will be called after the Save command is executed
-            SaveCompleted?.Invoke(this, new RoutedEventArgs());
-        }
+            // Here we'd normally validate inputs
 
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            // This will be called after the Delete command is executed
-            CloseRequested?.Invoke(this, new RoutedEventArgs());
+            // Then raise the save event
+            RaiseEvent(new RoutedEventArgs(SaveCompletedEvent));
         }
     }
 }

@@ -34,6 +34,32 @@ namespace QuickTechSystems.Infrastructure.Services
             _repository = unitOfWork.Drawers;
             _eventAggregator = eventAggregator;
         }
+        public async Task LogDrawerActionAsync(int drawerId, string actionType, string description)
+        {
+            var drawer = await _repository.GetByIdAsync(drawerId);
+            if (drawer == null) throw new InvalidOperationException("Drawer not found");
+
+            var transaction = new DrawerTransaction
+            {
+                DrawerId = drawerId,
+                Type = actionType,
+                ActionType = actionType,
+                Description = description,
+                Timestamp = DateTime.Now,
+                Balance = drawer.CurrentBalance,
+                Amount = 0 // The financial impact was already recorded by AddCashTransactionAsync
+            };
+
+            await _unitOfWork.Context.Set<DrawerTransaction>().AddAsync(transaction);
+            await _unitOfWork.SaveChangesAsync();
+
+            // Publish an event for UI updates
+            _eventAggregator.Publish(new DrawerUpdateEvent(
+                actionType,
+                0,
+                description
+            ));
+        }
 
         #region Transaction Processing Methods
 
@@ -840,7 +866,7 @@ namespace QuickTechSystems.Infrastructure.Services
             }
         }
 
-        public async Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn)
+        public async Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn, string description)
         {
             var drawer = await _repository.Query()
                 .FirstOrDefaultAsync(d => d.Status == "Open");
@@ -867,12 +893,27 @@ namespace QuickTechSystems.Infrastructure.Services
             }
 
             await _repository.UpdateAsync(drawer);
-            await _unitOfWork.SaveChangesAsync();
 
             var actionType = isIn ? "Cash In" : "Cash Out";
-            await LogDrawerActionAsync(actionType, $"{actionType} transaction", amount, drawer.CurrentBalance);
+            // Use the provided description instead of a generic message
+            await LogDrawerActionAsync(actionType, description, isIn ? amount : -amount, drawer.CurrentBalance);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            // Publish an event to notify subscribers
+            _eventAggregator.Publish(new DrawerUpdateEvent(
+                actionType,
+                isIn ? amount : -amount,
+                description
+            ));
 
             return _mapper.Map<DrawerDTO>(drawer);
+        }
+        public async Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn)
+        {
+            // Call the new method with a default description
+            string defaultDescription = isIn ? "Cash added to drawer" : "Cash removed from drawer";
+            return await AddCashTransactionAsync(amount, isIn, defaultDescription);
         }
 
         #endregion

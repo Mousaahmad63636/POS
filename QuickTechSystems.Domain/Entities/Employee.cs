@@ -20,7 +20,6 @@ namespace QuickTechSystems.Domain.Entities
         public DateTime? LastLogin { get; set; }
         public decimal MonthlySalary { get; set; }
         public decimal CurrentBalance { get; set; }
-        public string? SecureCode { get; set; }
         public virtual ICollection<EmployeeSalaryTransaction> SalaryTransactions { get; set; }
             = new List<EmployeeSalaryTransaction>();
     }

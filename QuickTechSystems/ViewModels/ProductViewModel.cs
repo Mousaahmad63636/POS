@@ -14,12 +14,15 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Windows.Documents;
-using System.Windows.Markup;
+using System.Printing;
 using System.Windows.Media;
+using System.Windows.Markup;
 using Microsoft.Win32;
 using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using QuickTechSystems.Application.Services;
+using System.Printing;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -53,7 +56,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isNewProduct;
         private decimal _totalProfit;
         private CancellationTokenSource _cts;
-
+        private readonly IImagePathService _imagePathService;
         // Pagination properties
         private int _currentPage = 1;
         private int _pageSize = 10;
@@ -191,7 +194,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         BarcodeImage = null;
                     }
 
-                    ProductImage = value.Image != null ? LoadImage(value.Image) : null;
+                    // Update to load image from path instead of byte array
+                    ProductImage = value.ImagePath != null ? LoadImageFromPath(value.ImagePath) : null;
 
                     // Calculate selected product values immediately
                     CalculateSelectedProductValues();
@@ -207,7 +211,103 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+        private BitmapImage? LoadImageFromPath(string? imagePath)
+        {
+            if (string.IsNullOrEmpty(imagePath))
+                return null;
 
+            try
+            {
+                string fullPath;
+
+                if (_imagePathService != null)
+                {
+                    fullPath = _imagePathService.GetFullImagePath(imagePath);
+                }
+                else
+                {
+                    // Fallback if service not available
+                    if (Path.IsPathRooted(imagePath))
+                    {
+                        fullPath = imagePath;
+                    }
+                    else
+                    {
+                        fullPath = Path.Combine(
+                            AppDomain.CurrentDomain.BaseDirectory,
+                            "ProductImages",
+                            imagePath
+                        );
+                    }
+                }
+
+                if (!File.Exists(fullPath))
+                {
+                    Debug.WriteLine($"Image file not found: {fullPath}");
+                    return null;
+                }
+
+                // Properly create a file URI
+                BitmapImage image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+
+                // Use the file:// protocol with proper URI creation
+                Uri fileUri = new Uri("file:///" + fullPath.Replace('\\', '/'));
+                image.UriSource = fileUri;
+
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading image from path: {ex.Message}");
+
+                // The fallback method has scope issues - let's fix the implementation:
+                try
+                {
+                    // Get the path again since we lost scope
+                    string retryPath;
+                    if (_imagePathService != null)
+                    {
+                        retryPath = _imagePathService.GetFullImagePath(imagePath);
+                    }
+                    else if (Path.IsPathRooted(imagePath))
+                    {
+                        retryPath = imagePath;
+                    }
+                    else
+                    {
+                        retryPath = Path.Combine(
+                            AppDomain.CurrentDomain.BaseDirectory,
+                            "ProductImages",
+                            imagePath
+                        );
+                    }
+
+                    // Fallback to stream-based loading with correct parameters
+                    BitmapImage fallbackImage = new BitmapImage();
+
+                    // Use using statement with proper FileStream parameters
+                    using (var stream = new FileStream(retryPath, FileMode.Open, FileAccess.Read))
+                    {
+                        fallbackImage.BeginInit();
+                        fallbackImage.CacheOption = BitmapCacheOption.OnLoad;
+                        fallbackImage.StreamSource = stream;
+                        fallbackImage.EndInit();
+                        fallbackImage.Freeze();
+                    }
+
+                    return fallbackImage;
+                }
+                catch (Exception fallbackEx)
+                {
+                    Debug.WriteLine($"Fallback image loading also failed: {fallbackEx.Message}");
+                    return null;
+                }
+            }
+        }
         private void SelectedProduct_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             // When price properties or stock change, recalculate values
@@ -370,17 +470,19 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ChangePageSizeCommand { get; private set; }
 
         public ProductViewModel(
-            IProductService productService,
-            ICategoryService categoryService,
-            IBarcodeService barcodeService,
-            ISupplierService supplierService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
+     IProductService productService,
+     ICategoryService categoryService,
+     IBarcodeService barcodeService,
+     ISupplierService supplierService,
+     IImagePathService imagePathService,
+     IEventAggregator eventAggregator) : base(eventAggregator)
         {
             Debug.WriteLine("Initializing ProductViewModel");
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _barcodeService = barcodeService ?? throw new ArgumentNullException(nameof(barcodeService));
             _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
+            _imagePathService = imagePathService ?? throw new ArgumentNullException(nameof(imagePathService));
 
             _products = new ObservableCollection<ProductDTO>();
             _filteredProducts = new ObservableCollection<ProductDTO>();
@@ -647,9 +749,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     try
                     {
-                        var imageBytes = File.ReadAllBytes(openFileDialog.FileName);
-                        SelectedProduct.Image = imageBytes;
-                        ProductImage = LoadImage(imageBytes);
+                        // Get the source path
+                        string sourcePath = openFileDialog.FileName;
+
+                        // Save the image and get the relative path
+                        string savedPath = _imagePathService.SaveProductImage(sourcePath);
+
+                        // Set the ImagePath property (not the old Image property)
+                        SelectedProduct.ImagePath = savedPath;
+
+                        // Use your local method instead of calling the service
+                        ProductImage = LoadImageFromPath(savedPath);
+
+                        Debug.WriteLine($"Image saved at: {savedPath}");
                     }
                     catch (Exception ex)
                     {
@@ -666,15 +778,21 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
         private void ClearImage()
         {
             if (SelectedProduct != null)
             {
-                SelectedProduct.Image = null;
+                // If there's an existing image, attempt to delete the file
+                if (!string.IsNullOrEmpty(SelectedProduct.ImagePath))
+                {
+                    _imagePathService.DeleteProductImage(SelectedProduct.ImagePath);
+                }
+
+                SelectedProduct.ImagePath = null;
                 ProductImage = null;
             }
         }
+
 
         private BitmapImage? LoadImage(byte[]? imageData)
         {
@@ -698,7 +816,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null;
             }
         }
-
         private async Task PrintBarcodeAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -721,86 +838,130 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // NEW CODE: Auto-generate barcode image if it doesn't exist
+                StatusMessage = "Preparing barcode...";
+                IsSaving = true;
+
+                // Generate barcode image if needed
                 if (SelectedProduct.BarcodeImage == null)
                 {
-                    StatusMessage = "Generating barcode image...";
-                    IsSaving = true;
-
                     try
                     {
-                        // Generate the barcode image
-                        var barcodeData = _barcodeService.GenerateBarcode(SelectedProduct.Barcode);
-                        if (barcodeData != null)
+                        var barcodeData = _barcodeService.GenerateBarcode(SelectedProduct.Barcode, 600, 200);
+                        if (barcodeData == null)
                         {
-                            SelectedProduct.BarcodeImage = barcodeData;
-                            BarcodeImage = LoadBarcodeImage(barcodeData);
-
-                            // Save the product with the new barcode image
-                            var productCopy = new ProductDTO
-                            {
-                                ProductId = SelectedProduct.ProductId,
-                                Name = SelectedProduct.Name,
-                                Barcode = SelectedProduct.Barcode,
-                                CategoryId = SelectedProduct.CategoryId,
-                                CategoryName = SelectedProduct.CategoryName,
-                                SupplierId = SelectedProduct.SupplierId,
-                                SupplierName = SelectedProduct.SupplierName,
-                                Description = SelectedProduct.Description,
-                                PurchasePrice = SelectedProduct.PurchasePrice,
-                                SalePrice = SelectedProduct.SalePrice,
-                                CurrentStock = SelectedProduct.CurrentStock,
-                                MinimumStock = SelectedProduct.MinimumStock,
-                                BarcodeImage = SelectedProduct.BarcodeImage,
-                                Speed = SelectedProduct.Speed,
-                                IsActive = SelectedProduct.IsActive,
-                                Image = SelectedProduct.Image,
-                                CreatedAt = SelectedProduct.CreatedAt,
-                                UpdatedAt = DateTime.Now
-                            };
-
-                            await _productService.UpdateAsync(productCopy);
-                            Debug.WriteLine("Barcode image generated and product updated");
-                        }
-                        else
-                        {
-                            ShowTemporaryErrorMessage("Failed to generate barcode image.");
+                            ShowTemporaryErrorMessage("Failed to generate barcode.");
                             return;
                         }
+
+                        SelectedProduct.BarcodeImage = barcodeData;
+                        BarcodeImage = LoadBarcodeImage(barcodeData);
+
+                        // Save updated product with barcode image
+                        var productCopy = new ProductDTO
+                        {
+                            ProductId = SelectedProduct.ProductId,
+                            Name = SelectedProduct.Name,
+                            Barcode = SelectedProduct.Barcode,
+                            CategoryId = SelectedProduct.CategoryId,
+                            CategoryName = SelectedProduct.CategoryName,
+                            SupplierId = SelectedProduct.SupplierId,
+                            SupplierName = SelectedProduct.SupplierName,
+                            Description = SelectedProduct.Description,
+                            PurchasePrice = SelectedProduct.PurchasePrice,
+                            SalePrice = SelectedProduct.SalePrice,
+                            CurrentStock = SelectedProduct.CurrentStock,
+                            MinimumStock = SelectedProduct.MinimumStock,
+                            BarcodeImage = barcodeData,
+                            Speed = SelectedProduct.Speed,
+                            IsActive = SelectedProduct.IsActive,
+                            ImagePath = SelectedProduct.ImagePath,
+                            CreatedAt = SelectedProduct.CreatedAt,
+                            UpdatedAt = DateTime.Now
+                        };
+
+                        await _productService.UpdateAsync(productCopy);
                     }
                     catch (Exception ex)
                     {
-                        ShowTemporaryErrorMessage($"Error generating barcode image: {ex.Message}");
+                        ShowTemporaryErrorMessage($"Error generating barcode: {ex.Message}");
                         return;
                     }
-                    finally
-                    {
-                        IsSaving = false;
-                    }
                 }
-                // END NEW CODE
 
-                IsSaving = true;
-                StatusMessage = "Preparing barcode for printing...";
-
-                await Task.Run(() =>
+                // Print the labels in a single document
+                bool printerCancelled = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
-                    return System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    try
                     {
+                        StatusMessage = "Preparing barcode labels...";
+
                         var printDialog = new PrintDialog();
-                        if (printDialog.ShowDialog() == true)
+                        if (printDialog.ShowDialog() != true)
                         {
-                            var document = CreateBarcodeDocument(SelectedProduct, LabelsPerProduct);
-                            printDialog.PrintDocument(document.DocumentPaginator, "Product Barcode");
+                            printerCancelled = true;
+                            return;
                         }
-                    });
+
+                        // Configure print ticket for label printing
+                        printDialog.PrintTicket.PageMediaSize = new PageMediaSize(
+                            (int)(5.5 * 39.37), // Width in hundredths of an inch
+                            (int)(4.0 * 39.37)  // Height in hundredths of an inch
+                        );
+                        printDialog.PrintTicket.PageBorderless = PageBorderless.Borderless;
+                        printDialog.PrintTicket.PageMediaType = PageMediaType.Label;
+
+                        // Create a single document with multiple pages (one for each label)
+                        var fixedDocument = new FixedDocument();
+
+                        StatusMessage = $"Creating document with {LabelsPerProduct} labels...";
+
+                        // Add each label as a separate page in the document
+                        for (int i = 0; i < LabelsPerProduct; i++)
+                        {
+                            var pageContent = new PageContent();
+                            var fixedPage = new FixedPage();
+
+                            // Set page dimensions
+                            fixedPage.Width = printDialog.PrintableAreaWidth;
+                            fixedPage.Height = printDialog.PrintableAreaHeight;
+
+                            // Create visual for this label
+                            var labelVisual = CreateBarcodeLabelVisual(SelectedProduct,
+                                printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight);
+
+                            // Add to page
+                            fixedPage.Children.Add(labelVisual);
+
+                            // Add page to document
+                            ((IAddChild)pageContent).AddChild(fixedPage);
+                            fixedDocument.Pages.Add(pageContent);
+                        }
+
+                        // Print the entire document in one operation
+                        StatusMessage = "Sending to printer...";
+                        printDialog.PrintDocument(fixedDocument.DocumentPaginator,
+                            $"Barcode Labels - {SelectedProduct.Name} ({LabelsPerProduct})");
+
+                        StatusMessage = "Barcode labels printed successfully.";
+                        await Task.Delay(2000);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error printing barcodes: {ex.Message}");
+                        ShowTemporaryErrorMessage($"Error printing barcodes: {ex.Message}");
+                    }
                 });
 
-                StatusMessage = "Barcode printed successfully.";
-                await Task.Delay(2000);
+                if (printerCancelled)
+                {
+                    StatusMessage = "Printing cancelled by user.";
+                    await Task.Delay(1000);
+                }
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"Unexpected error in barcode printing: {ex.Message}");
                 ShowTemporaryErrorMessage($"Error printing barcode: {ex.Message}");
             }
             finally
@@ -810,7 +971,378 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+        private UIElement CreateHighQualityBarcodeLabel(ProductDTO product, double width, double height)
+        {
+            // Create a container for the label content
+            var canvas = new Canvas
+            {
+                Width = width,
+                Height = height,
+                Background = Brushes.White
+            };
 
+            // Position the barcode image - use most of the available space
+            double barcodeWidth = Math.Min(width * 0.9, 600); // Limit maximum width for better quality
+            double barcodeHeight = Math.Min(height * 0.5, 200); // Limit maximum height for better quality
+
+            try
+            {
+                // Check if product is null
+                if (product == null)
+                {
+                    throw new ArgumentNullException("product", "Product cannot be null");
+                }
+
+                // Load barcode image with null check
+                BitmapImage bitmapSource = null;
+                if (product.BarcodeImage != null)
+                {
+                    bitmapSource = LoadHighQualityBarcodeImage(product.BarcodeImage);
+                }
+
+                // Handle case where image didn't load
+                if (bitmapSource == null)
+                {
+                    // Create a placeholder for missing barcode image
+                    var placeholder = new Border
+                    {
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Background = Brushes.LightGray,
+                        BorderBrush = Brushes.Gray,
+                        BorderThickness = new Thickness(1)
+                    };
+
+                    // Add text to placeholder
+                    var placeholderText = new TextBlock
+                    {
+                        Text = "Barcode Image\nNot Available",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 10,
+                        TextAlignment = TextAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    };
+
+                    placeholder.Child = placeholderText;
+
+                    // Position placeholder
+                    Canvas.SetLeft(placeholder, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(placeholder, height * 0.15);
+                    canvas.Children.Add(placeholder);
+                }
+                else
+                {
+                    // Create and position barcode image with enhanced quality settings
+                    var barcodeImage = new Image
+                    {
+                        Source = bitmapSource,
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Stretch = Stretch.None, // Change to None to avoid scaling artifacts
+                        SnapsToDevicePixels = true
+                    };
+
+                    // Maximize quality settings
+                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.NearestNeighbor); // Changed to NearestNeighbor for barcodes
+                    RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
+                    RenderOptions.SetCachingHint(barcodeImage, CachingHint.Cache);
+                    RenderOptions.SetClearTypeHint(barcodeImage, ClearTypeHint.Enabled);
+
+                    // For crisp text
+                    TextOptions.SetTextRenderingMode(barcodeImage, TextRenderingMode.Aliased); // Changed to Aliased for barcodes
+                    TextOptions.SetTextFormattingMode(barcodeImage, TextFormattingMode.Ideal);
+                    TextOptions.SetTextHintingMode(barcodeImage, TextHintingMode.Fixed);
+
+                    Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(barcodeImage, height * 0.15);
+                    canvas.Children.Add(barcodeImage);
+                }
+
+                // Add product name with improved text quality
+                var nameText = product.Name ?? "Unknown Product";
+                var nameTextBlock = new TextBlock
+                {
+                    Text = nameText,
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    MaxHeight = height * 0.15
+                };
+
+                // High-quality text rendering
+                TextOptions.SetTextRenderingMode(nameTextBlock, TextRenderingMode.ClearType);
+                TextOptions.SetTextFormattingMode(nameTextBlock, TextFormattingMode.Ideal);
+
+                // Position product name at top
+                Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
+                Canvas.SetTop(nameTextBlock, height * 0.02);
+                canvas.Children.Add(nameTextBlock);
+
+                // Add barcode text with improved text quality
+                var barcodeText = product.Barcode ?? "No Barcode";
+                var barcodeTextBlock = new TextBlock
+                {
+                    Text = barcodeText,
+                    FontFamily = new FontFamily("Consolas, Courier New, Monospace"), // Use monospace font for barcode text
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                    Width = width * 0.9
+                };
+
+                // High-quality text rendering
+                TextOptions.SetTextRenderingMode(barcodeTextBlock, TextRenderingMode.ClearType);
+                TextOptions.SetTextFormattingMode(barcodeTextBlock, TextFormattingMode.Ideal);
+
+                // Position barcode text below where the barcode image would be
+                double barcodeImageBottom = height * 0.15 + barcodeHeight;
+                Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
+                Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
+                canvas.Children.Add(barcodeTextBlock);
+
+                // Add price if needed with improved text quality
+                if (product.SalePrice > 0)
+                {
+                    var priceTextBlock = new TextBlock
+                    {
+                        Text = $"${product.SalePrice:N2}",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 12,
+                        FontWeight = FontWeights.Bold,
+                        TextAlignment = TextAlignment.Center,
+                        Width = width * 0.9
+                    };
+
+                    // High-quality text rendering
+                    TextOptions.SetTextRenderingMode(priceTextBlock, TextRenderingMode.ClearType);
+                    TextOptions.SetTextFormattingMode(priceTextBlock, TextFormattingMode.Ideal);
+
+                    // Position price at bottom
+                    Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
+                    Canvas.SetTop(priceTextBlock, height * 0.8);
+                    canvas.Children.Add(priceTextBlock);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error creating high-quality barcode label: {ex.Message}");
+
+                // Add error message if there's an exception
+                var errorTextBlock = new TextBlock
+                {
+                    Text = $"Error: {ex.Message}",
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 8,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    Foreground = Brushes.Red
+                };
+
+                Canvas.SetLeft(errorTextBlock, (width - errorTextBlock.Width) / 2);
+                Canvas.SetTop(errorTextBlock, height * 0.8);
+                canvas.Children.Add(errorTextBlock);
+            }
+
+            return canvas;
+        }
+
+        private BitmapImage LoadHighQualityBarcodeImage(byte[] imageData)
+        {
+            if (imageData == null) return null;
+
+            var image = new BitmapImage();
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    image.BeginInit();
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.StreamSource = ms;
+
+                    // Maximum quality settings
+                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreColorProfile;
+
+                    // Don't decode at a different resolution - use native resolution
+                    // image.DecodePixelWidth = 1200; // Commented out to use full resolution
+
+                    image.EndInit();
+                    image.Freeze(); // Important for cross-thread usage
+                }
+                return image;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading high-quality barcode image: {ex.Message}");
+                return null;
+            }
+        }
+        private UIElement CreateBarcodeLabelVisual(ProductDTO product, double width, double height)
+        {
+            // Create a container for the label content
+            var canvas = new Canvas
+            {
+                Width = width,
+                Height = height,
+                Background = Brushes.White
+            };
+
+            // Position the barcode image - use most of the available space
+            double barcodeWidth = width * 0.9;
+            double barcodeHeight = height * 0.5;
+
+            try
+            {
+                // Check if product is null
+                if (product == null)
+                {
+                    throw new ArgumentNullException("product", "Product cannot be null");
+                }
+
+                // Load barcode image with null check
+                BitmapImage bitmapSource = null;
+                if (product.BarcodeImage != null)
+                {
+                    bitmapSource = LoadBarcodeImage(product.BarcodeImage);
+                }
+
+                // Handle case where image didn't load
+                if (bitmapSource == null)
+                {
+                    // Create a placeholder for missing barcode image
+                    var placeholder = new Border
+                    {
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Background = Brushes.LightGray,
+                        BorderBrush = Brushes.Gray,
+                        BorderThickness = new Thickness(1)
+                    };
+
+                    // Add text to placeholder
+                    var placeholderText = new TextBlock
+                    {
+                        Text = "Barcode Image\nNot Available",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 10,
+                        TextAlignment = TextAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    };
+
+                    placeholder.Child = placeholderText;
+
+                    // Position placeholder
+                    Canvas.SetLeft(placeholder, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(placeholder, height * 0.15);
+                    canvas.Children.Add(placeholder);
+                }
+                else
+                {
+                    // Create and position barcode image with high-quality rendering
+                    var barcodeImage = new Image
+                    {
+                        Source = bitmapSource,
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Stretch = Stretch.Uniform,
+                        SnapsToDevicePixels = true
+                    };
+
+                    // Set high-quality rendering options
+                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.HighQuality);
+                    RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
+
+                    // For crisp barcode lines
+                    TextOptions.SetTextRenderingMode(barcodeImage, TextRenderingMode.ClearType);
+                    TextOptions.SetTextFormattingMode(barcodeImage, TextFormattingMode.Display);
+
+                    Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(barcodeImage, height * 0.15);
+                    canvas.Children.Add(barcodeImage);
+                }
+
+                // Add product name (with null check)
+                var nameText = product.Name ?? "Unknown Product";
+                var nameTextBlock = new TextBlock
+                {
+                    Text = nameText,
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    MaxHeight = height * 0.15
+                };
+
+                // Position product name at top
+                Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
+                Canvas.SetTop(nameTextBlock, height * 0.02);
+                canvas.Children.Add(nameTextBlock);
+
+                // Add barcode text (with null check)
+                var barcodeText = product.Barcode ?? "No Barcode";
+                var barcodeTextBlock = new TextBlock
+                {
+                    Text = barcodeText,
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                    Width = width * 0.9
+                };
+
+                // Position barcode text below where the barcode image would be
+                double barcodeImageBottom = height * 0.15 + barcodeHeight;
+                Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
+                Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
+                canvas.Children.Add(barcodeTextBlock);
+
+                // Add price if needed
+                if (product.SalePrice > 0)
+                {
+                    var priceTextBlock = new TextBlock
+                    {
+                        Text = $"${product.SalePrice:N2}",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 12,
+                        FontWeight = FontWeights.Bold,
+                        TextAlignment = TextAlignment.Center,
+                        Width = width * 0.9
+                    };
+
+                    // Position price at bottom
+                    Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
+                    Canvas.SetTop(priceTextBlock, height * 0.8);
+                    canvas.Children.Add(priceTextBlock);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error creating barcode visual: {ex.Message}");
+
+                // Add error message if there's an exception
+                var errorTextBlock = new TextBlock
+                {
+                    Text = $"Error: {ex.Message}",
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 8,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    Foreground = Brushes.Red
+                };
+
+                Canvas.SetLeft(errorTextBlock, (width - errorTextBlock.Width) / 2);
+                Canvas.SetTop(errorTextBlock, height * 0.8);
+                canvas.Children.Add(errorTextBlock);
+            }
+
+            return canvas;
+        }
         private FixedDocument CreateBarcodeDocument(ProductDTO product, int numberOfLabels)
         {
             var document = new FixedDocument();
@@ -1468,7 +2000,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     BarcodeImage = productToUpdate.BarcodeImage,
                     Speed = productToUpdate.Speed,
                     IsActive = productToUpdate.IsActive,
-                    Image = productToUpdate.Image,
+                    ImagePath = productToUpdate.ImagePath, // Changed from Image to ImagePath
                     CreatedAt = productToUpdate.CreatedAt,
                     UpdatedAt = DateTime.Now
                 };
@@ -1609,7 +2141,7 @@ namespace QuickTechSystems.WPF.ViewModels
                                     BarcodeImage = product.BarcodeImage,
                                     Speed = product.Speed,
                                     IsActive = product.IsActive,
-                                    Image = product.Image,
+                                    ImagePath = product.ImagePath,
                                     CreatedAt = product.CreatedAt,
                                     UpdatedAt = DateTime.Now
                                 };
@@ -1885,6 +2417,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     image.BeginInit();
                     image.CacheOption = BitmapCacheOption.OnLoad;
                     image.StreamSource = ms;
+
+                    // Add these lines for higher quality
+                    image.DecodePixelWidth = 600; // Higher resolution decoding
+                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
+
                     image.EndInit();
                     image.Freeze(); // Important for cross-thread usage
                 }
@@ -1896,7 +2433,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null;
             }
         }
-
         private void ShowTemporaryErrorMessage(string message)
         {
             StatusMessage = message;

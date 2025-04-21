@@ -1,4 +1,4 @@
-﻿// Create a new file called NullToVisibilityConverter.cs in the Converters folder
+﻿// Path: QuickTechSystems.WPF/Converters/NullToVisibilityConverter.cs
 using System;
 using System.Globalization;
 using System.Windows;
@@ -10,13 +10,7 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            bool invert = parameter as string == "invert";
-            bool isNull = value == null;
-
-            if (invert)
-                return isNull ? Visibility.Visible : Visibility.Collapsed;
-            else
-                return isNull ? Visibility.Collapsed : Visibility.Visible;
+            return value != null ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

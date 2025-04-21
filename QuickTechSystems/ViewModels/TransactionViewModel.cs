@@ -19,6 +19,7 @@ using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Application.Helpers;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -35,6 +36,10 @@ namespace QuickTechSystems.WPF.ViewModels
         private Dictionary<int, decimal> _customerSpecificPrices = new();
         private readonly ICategoryService _categoryService;
         private readonly ISystemPreferencesService _systemPreferencesService;
+        private RestaurantTableDTO _selectedTable;
+        private ObservableCollection<RestaurantTableDTO> _availableTables = new ObservableCollection<RestaurantTableDTO>();
+        private readonly IRestaurantTableService _restaurantTableService;
+        private Dictionary<int, TableTransactionState> _tableTransactions = new Dictionary<int, TableTransactionState>();
         public string CashPaymentButtonText => IsEditingTransaction ? "Update Transaction" : "Cash Payment";
         public string CustomerBalanceButtonText => IsEditingTransaction ? "Update Customer Balance" : "Add to Customer Balance";
         public Visibility EditModeIndicatorVisibility =>
@@ -68,18 +73,45 @@ namespace QuickTechSystems.WPF.ViewModels
                 OnPropertyChanged(nameof(CustomerSpecificPrices));
             }
         }
+        public RestaurantTableDTO SelectedTable
+        {
+            get => _selectedTable;
+            set
+            {
+                SetProperty(ref _selectedTable, value);
+                OnPropertyChanged(nameof(TableHeaderText));
+            }
+        }
+
+        // Add this property
+        public ObservableCollection<RestaurantTableDTO> AvailableTables
+        {
+            get => _availableTables;
+            set => SetProperty(ref _availableTables, value);
+        }
+
+        // Add this property
+        public string TableHeaderText => SelectedTable != null
+            ? $"Table {SelectedTable.TableNumber} - {SelectedTable.Status}"
+            : "No Table Selected";
+
+        public ICommand SelectTableCommand { get; private set; }
+        public ICommand SwitchTableCommand { get; private set; }
 
         public TransactionViewModel(
-            IUnitOfWork unitOfWork,
-            ITransactionService transactionService,
-            ICustomerService customerService,
-            IProductService productService,
-            IDrawerService drawerService,
-            IQuoteService quoteService,
-            ICategoryService categoryService,
-            IBusinessSettingsService businessSettingsService,
-            ISystemPreferencesService systemPreferencesService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
+     IUnitOfWork unitOfWork,
+     IImagePathService imagePathService,
+     ITransactionService transactionService,
+     ICustomerService customerService,
+     IProductService productService,
+     IDrawerService drawerService,
+     IQuoteService quoteService,
+     ICategoryService categoryService,
+     IBusinessSettingsService businessSettingsService,
+     QuickTechSystems.WPF.Services.ITransactionWindowManager transactionWindowManager,
+     ISystemPreferencesService systemPreferencesService,
+     IRestaurantTableService restaurantTableService,
+     IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _quoteService = quoteService ?? throw new ArgumentNullException(nameof(quoteService));
             _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
@@ -90,9 +122,11 @@ namespace QuickTechSystems.WPF.ViewModels
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _systemPreferencesService = systemPreferencesService ?? throw new ArgumentNullException(nameof(systemPreferencesService));
             _transactionChangedHandler = HandleTransactionChanged;
+            _imagePathService = imagePathService ?? throw new ArgumentNullException(nameof(imagePathService));
             _businessSettingsService = businessSettingsService;
-            _currentTransactionNumber = $"TRX-{DateTime.Now.ToString("yyyyMMddHHmmss")}-{Guid.NewGuid().ToString().Substring(0, 4)}";
             _productChangedHandler = HandleProductChanged;
+            _transactionWindowManager = transactionWindowManager;
+            _restaurantTableService = restaurantTableService ?? throw new ArgumentNullException(nameof(restaurantTableService));
 
             try
             {
@@ -112,14 +146,41 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Error initializing view model";
             }
         }
-        public void SetTableContext(string tableId)
+        // Add this method to TransactionViewModel.cs
+        public async Task InitializeForNewWindowAsync()
         {
-            TableReference = tableId;
+            try
+            {
+                // Explicitly initialize everything needed for a new window
+                StatusMessage = "Initializing...";
+                OnPropertyChanged(nameof(StatusMessage));
 
-            // Update status message to reflect table context
-            StatusMessage = $"New transaction started for Table {tableId}";
-            OnPropertyChanged(nameof(StatusMessage));
+                // Initialize commands first to ensure they are available
+                InitializeCommands();
+                InitializeCollections();
+                StartNewTransaction();
+
+                // Load data asynchronously
+                await LoadDataAsync();
+                await LoadExchangeRate(_businessSettingsService);
+                await LoadRestaurantModePreference();
+
+                // Setup UI refresh timer for date/time
+                SetupDateTimeRefreshTimer();
+
+                // Update status after successful initialization
+                StatusMessage = "Ready";
+                OnPropertyChanged(nameof(StatusMessage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error initializing transaction view model: {ex.Message}");
+                StatusMessage = "Error during initialization";
+                OnPropertyChanged(nameof(StatusMessage));
+                throw; // Re-throw to allow the calling code to handle the error
+            }
         }
+
         // Proper async initialization to replace direct calls in constructor
         private async Task InitializeAsync(IBusinessSettingsService businessSettingsService)
         {
@@ -149,7 +210,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Error during initialization";
             }
         }
-
+        public async Task InitializeDataAsync()
+        {
+            await LoadDataAsync();
+        }
         // Setup timer with proper disposal management
         private void SetupDateTimeRefreshTimer()
         {
@@ -238,6 +302,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 try
                 {
                     CleanupImageCache();
+                    _tableTransactions?.Clear();
                     _customerSpecificPrices?.Clear();
                     _validationErrors?.Clear();
 
@@ -478,6 +543,51 @@ namespace QuickTechSystems.WPF.ViewModels
         /// <param name="action">The async operation to execute</param>
         /// <param name="successMessage">Optional success message to show on completion</param>
         /// <returns>Task representing the operation</returns>
+
+
+        // Add this class to TransactionViewModel.cs
+        private class TableTransactionState
+        {
+            // Transaction details
+            public ObservableCollection<TransactionDetailDTO> Details { get; set; } = new ObservableCollection<TransactionDetailDTO>();
+
+            // Customer information
+            public CustomerDTO? SelectedCustomer { get; set; }
+            public string CustomerSearchText { get; set; } = string.Empty;
+
+            // Financial values
+            public decimal DiscountAmount { get; set; }
+            public decimal SubTotal { get; set; }
+            public decimal TaxAmount { get; set; }
+            public decimal TotalAmount { get; set; }
+
+            // Miscellaneous state
+            public bool IsEditingTransaction { get; set; }
+            public decimal ItemCount { get; set; }
+
+            // Deep copy all transaction details
+            public void CopyDetailsFrom(ObservableCollection<TransactionDetailDTO> source)
+            {
+                Details.Clear();
+
+                foreach (var detail in source)
+                {
+                    Details.Add(new TransactionDetailDTO
+                    {
+                        ProductId = detail.ProductId,
+                        ProductName = detail.ProductName,
+                        ProductBarcode = detail.ProductBarcode,
+                        CategoryId = detail.CategoryId,
+                        Quantity = detail.Quantity,
+                        UnitPrice = detail.UnitPrice,
+                        PurchasePrice = detail.PurchasePrice,
+                        Discount = detail.Discount,
+                        Total = detail.Total,
+                        IsSelected = detail.IsSelected
+                    });
+                }
+            }
+        }
         private async Task ShowLoadingAsync(string loadingMessage, Func<Task> action, string successMessage = null)
         {
             try

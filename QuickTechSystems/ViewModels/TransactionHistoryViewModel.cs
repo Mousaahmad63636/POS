@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using QuickTechSystems.WPF.Commands;
+
 using QuickTechSystems.Application.Helpers;
 
 namespace QuickTechSystems.WPF.ViewModels
@@ -32,7 +33,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly ICategoryService _categoryService;
         private readonly IBusinessSettingsService _businessSettingsService;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
-
+        private TransactionDTO _selectedTransaction;
         private bool _isDisposed;
         private CancellationTokenSource _cts;
 
@@ -148,7 +149,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
+        public TransactionDTO SelectedTransaction
+        {
+            get => _selectedTransaction;
+            set => SetProperty(ref _selectedTransaction, value);
+        }
         public bool IsDateRangeValid
         {
             get => _isDateRangeValid;
@@ -300,6 +305,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 async transaction => await DeleteTransactionAsync(transaction),
                 CanDeleteTransaction);
 
+
+            ViewTransactionDetailsCommand = new AsyncRelayCommand<TransactionDTO>(
+    async transaction => await ShowTransactionDetailsAsync(transaction),
+    CanShowTransactionDetails);
             // Pagination commands
             NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
             PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
@@ -383,6 +392,65 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 HandleError("Initialization error", ex);
+            }
+        }
+
+        private async Task ShowTransactionDetailsAsync(TransactionDTO transaction)
+        {
+            if (transaction == null) return;
+
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = string.Empty;
+
+                // Set the selected transaction
+                SelectedTransaction = transaction;
+
+                // Load transaction details if they're not already loaded
+                if (transaction.Details == null || !transaction.Details.Any())
+                {
+                    var loadedTransaction = await _transactionService.GetByIdAsync(transaction.TransactionId);
+                    if (loadedTransaction != null)
+                    {
+                        transaction.Details = loadedTransaction.Details;
+                        // Update the selected transaction with loaded details
+                        SelectedTransaction = transaction;
+                    }
+                }
+
+                // Show the transaction details popup
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var popup = new QuickTechSystems.Views.TransactionDetailsPopup();
+                    popup.DataContext = SelectedTransaction;
+
+                    // Get the owner window
+                    var ownerWindow = GetOwnerWindow();
+
+                    // Create a container for the popup
+                    var overlayWindow = new Window
+                    {
+                        Title = $"Transaction #{transaction.TransactionId} Details",
+                        Content = popup,
+                        Width = 800,
+                        Height = 600,
+                        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                        Owner = ownerWindow,
+                        ResizeMode = ResizeMode.CanResize,
+                        ShowInTaskbar = false
+                    };
+
+                    overlayWindow.ShowDialog();
+                });
+            }
+            catch (Exception ex)
+            {
+                HandleError("Error showing transaction details", ex);
+            }
+            finally
+            {
+                IsLoading = false;
             }
         }
         private bool CanDeleteTransaction(TransactionDTO? transaction)

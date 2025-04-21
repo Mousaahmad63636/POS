@@ -29,7 +29,7 @@
                             <!-- Background Image -->
                             <Border Background="#F9FAFB" 
                                     CornerRadius="8">
-                                <Image Source="{Binding Image, Converter={StaticResource ByteArrayToImageConverter}}"
+                                <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=150}" 
                                        Stretch="UniformToFill"
                                        Height="180"/>
                             </Border>

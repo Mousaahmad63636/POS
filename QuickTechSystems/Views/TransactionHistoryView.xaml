@@ -201,16 +201,23 @@
                                            Width="90" 
                                            SortMemberPath="CashierRole"/>
 
-                        <DataGridTemplateColumn Width="110">
+                        <DataGridTemplateColumn Width="160">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal">
+                                        <Button Content="View Details"
+                        Style="{StaticResource TextButtonStyle}"
+                        Foreground="{StaticResource PrimaryColor}"
+                        Command="{Binding DataContext.ViewTransactionDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}"
+                        Padding="6,2"
+                        Margin="0,0,8,0"/>
                                         <Button Content="{DynamicResource TransactionHistory_DeleteButton}"
-                                                Style="{StaticResource TextButtonStyle}"
-                                                Foreground="{StaticResource DangerColor}"
-                                                Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}"
-                                                Padding="6,2"/>
+                        Style="{StaticResource TextButtonStyle}"
+                        Foreground="{StaticResource DangerColor}"
+                        Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                        CommandParameter="{Binding}"
+                        Padding="6,2"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>

@@ -9,6 +9,7 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageSourceConverter"/>
 
         <!-- Tab Control Styling -->
         <Style x:Key="SettingsTabItem" BasedOn="{StaticResource ModernTabItem}" TargetType="TabItem">
@@ -106,6 +107,7 @@
                         <Grid Margin="0,20,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
@@ -139,8 +141,53 @@
                                 </Grid>
                             </Border>
 
+                            <!-- Company Logo Section -->
+                            <Border Style="{StaticResource EnhancedResponsiveCardContainer}" 
+                                    Grid.Row="1"
+                                    Margin="0,0,0,20">
+                                <StackPanel Style="{StaticResource FormSection}">
+                                    <TextBlock Text="Company Logo" 
+                                               Style="{StaticResource HeadlineSmall}" 
+                                               Foreground="{StaticResource PrimaryColor}" 
+                                               Margin="0,0,0,16"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Logo Preview -->
+                                        <Border Grid.Column="0" 
+                                                BorderBrush="{StaticResource BorderColor}" 
+                                                BorderThickness="1" 
+                                                Padding="10"
+                                                MaxHeight="150"
+                                                MaxWidth="300"
+                                                HorizontalAlignment="Left">
+                                            <Image Source="{Binding LogoImage, Converter={StaticResource ByteArrayToImageSourceConverter}}" 
+                                                   Stretch="Uniform" 
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        </Border>
+
+                                        <!-- Upload Button -->
+                                        <Button Grid.Column="1"
+                                                Content="Upload Logo"
+                                                Command="{Binding UploadLogoCommand}"
+                                                Style="{StaticResource PrimaryButtonStyle}"
+                                                Margin="16,0,0,0"
+                                                VerticalAlignment="Bottom"/>
+                                    </Grid>
+
+                                    <TextBlock Text="Recommended size: 300x150 pixels, PNG format with transparent background"
+                                               Style="{StaticResource BodySmall}"
+                                               Foreground="{StaticResource TextSecondaryColor}"
+                                               Margin="0,16,0,0"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Main Content -->
-                            <Grid Grid.Row="1">
+                            <Grid Grid.Row="2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="320"/>

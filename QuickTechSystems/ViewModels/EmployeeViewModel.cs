@@ -32,11 +32,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _withdrawalAmount;
         private bool _isLoading;
         private string _errorMessage;
-        public ICommand GenerateSecureCodeCommand { get; private set; }
-
-        public ICommand SaveSecureCodeCommand { get; private set; }
-
-        public ICommand ResetSecureCodeCommand { get; private set; }
 
         public bool IsLoading
         {
@@ -126,12 +121,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _errorMessage = string.Empty;
 
             // Initialize commands
-            GenerateSecureCodeCommand = new AsyncRelayCommand<EmployeeDTO>(async emp => await GenerateSecureCodeAsync(emp));
             AddCommand = new RelayCommand(_ => AddNew());
-            SaveSecureCodeCommand = new AsyncRelayCommand<EmployeeDTO>(async emp => await SaveSecureCodeAsync(emp));
-
-            ResetSecureCodeCommand = new AsyncRelayCommand<EmployeeDTO>(async emp => await ResetSecureCodeAsync(emp));
-
             SaveCommand = new AsyncRelayCommand(async param => await SaveAsync(param as PasswordBox));
             ResetPasswordCommand = new AsyncRelayCommand(async _ => await ResetPasswordAsync());
             ProcessSalaryCommand = new AsyncRelayCommand(async _ => await ProcessSalaryAsync());
@@ -139,66 +129,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _ = LoadDataAsync();
         }
-        private async Task GenerateSecureCodeAsync(EmployeeDTO employee)
-        {
-            if (employee == null)
-                return;
 
-            // Generate a random secure code (4-6 digits)
-            var random = new Random();
-            string secureCode = random.Next(1000, 999999).ToString();
-
-            // Update the employee in the view
-            employee.SecureCode = secureCode;
-        }
-        private async Task SaveSecureCodeAsync(EmployeeDTO employee)
-        {
-            if (employee == null)
-                return;
-
-            try
-            {
-                bool success = await _employeeService.UpdateSecureCodeAsync(employee.EmployeeId, employee.SecureCode);
-                if (success)
-                {
-                    await LoadDataAsync(); // Refresh the data
-                    await ShowSuccessMessage($"Secure code for {employee.FirstName} {employee.LastName} updated successfully");
-                }
-                else
-                {
-                    await ShowErrorMessageAsync("Failed to save secure code. Please try again.");
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error saving secure code: {ex.Message}");
-            }
-        }
-        private async Task ResetSecureCodeAsync(EmployeeDTO employee)
-        {
-            if (employee == null)
-                return;
-
-            try
-            {
-                bool success = await _employeeService.UpdateSecureCodeAsync(employee.EmployeeId, null);
-                if (success)
-                {
-                    // Update the employee in the view
-                    employee.SecureCode = null;
-                    await LoadDataAsync(); // Refresh the data
-                    await ShowSuccessMessage($"Secure code for {employee.FirstName} {employee.LastName} has been reset.");
-                }
-                else
-                {
-                    await ShowErrorMessageAsync("Failed to reset secure code. Please try again.");
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error resetting secure code: {ex.Message}");
-            }
-        }
         private async Task ProcessWithdrawalAsync()
         {
             if (!await _operationLock.WaitAsync(0))

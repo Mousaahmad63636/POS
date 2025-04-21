@@ -22,7 +22,7 @@
         <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
         <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-
+        <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
         <!-- Search TextBox Style -->
         <Style x:Key="SearchTextBox" TargetType="TextBox">
             <Setter Property="Height" Value="36"/>
@@ -604,15 +604,16 @@
                                 </DataGrid.Resources>
                                 <DataGrid.Columns>
                                     <!-- Image column with fixed width -->
+                                    <!-- Image column with fixed width -->
                                     <DataGridTemplateColumn Header="{DynamicResource Product_Image}" Width="60">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Border Width="40" Height="40" Background="#F5F5F5" CornerRadius="4" BorderBrush="#E0E0E0" BorderThickness="1">
-                                                    <Image Source="{Binding Image, Converter={StaticResource ByteArrayToImageConverter}, ConverterParameter=40}" 
-                                                           Height="36" 
-                                                           Width="36" 
-                                                           Stretch="Uniform"
-                                                           RenderOptions.BitmapScalingMode="HighQuality"/>
+                                                    <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=40}" 
+                       Height="36" 
+                       Width="36" 
+                       Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
                                                 </Border>
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>

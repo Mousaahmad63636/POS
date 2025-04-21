@@ -1,4 +1,4 @@
-﻿// Converters/InverseBooleanToVisibilityConverter.cs
+﻿// Path: QuickTechSystems.WPF/Converters/InverseBooleanToVisibilityConverter.cs
 using System;
 using System.Globalization;
 using System.Windows;
@@ -10,16 +10,12 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool boolValue)
-            {
-                return !boolValue ? Visibility.Visible : Visibility.Collapsed;
-            }
-            return Visibility.Visible;
+            return value is bool boolValue && !boolValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return Binding.DoNothing;
+            return value is Visibility visibility && visibility == Visibility.Collapsed;
         }
     }
 }

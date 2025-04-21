@@ -22,18 +22,20 @@ namespace QuickTechSystems.Application.DTOs
         private bool _isSelectedForPrinting;
         private string? _speed;
         private bool _isActive;
-        private byte[]? _image;
+        // Change from byte[] to string
+        private string? _imagePath;
 
-        // Add this property
-        public byte[]? Image
+        // Update property to use ImagePath instead of Image
+        public string? ImagePath
         {
-            get => _image;
+            get => _imagePath;
             set
             {
-                _image = value;
+                _imagePath = value;
                 OnPropertyChanged();
             }
         }
+
         public int ProductId
         {
             get => _productId;
@@ -43,7 +45,6 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
-
         public string Barcode
         {
             get => _barcode;

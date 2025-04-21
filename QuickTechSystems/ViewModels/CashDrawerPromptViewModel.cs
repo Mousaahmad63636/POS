@@ -55,9 +55,10 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
-                if (OpeningBalance <= 0)
+                // Change from '<= 0' to '< 0' to allow zero
+                if (OpeningBalance < 0)
                 {
-                    ErrorMessage = "Please enter a valid opening balance";
+                    ErrorMessage = "Opening balance cannot be negative";
                     return;
                 }
 

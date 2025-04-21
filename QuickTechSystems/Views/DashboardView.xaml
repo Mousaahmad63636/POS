@@ -181,7 +181,6 @@
                                 Command="{Binding NavigateCommand}" 
                                 CommandParameter="Expenses"/>
                     </WrapPanel>
-                    
 
                     <!-- Inventory Management Section -->
                     <TextBlock Text="{DynamicResource Dashboard_InventoryManagement}" Style="{StaticResource SectionTitle}"/>

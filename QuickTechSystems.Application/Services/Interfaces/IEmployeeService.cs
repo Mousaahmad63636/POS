@@ -10,7 +10,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task UpdateLastLoginAsync(int employeeId);
 
         // Add these new methods
-        Task<bool> UpdateSecureCodeAsync(int employeeId, string secureCode);
         Task ProcessMonthlySalaryAsync(int employeeId);
         Task<bool> ProcessSalaryWithdrawalAsync(int employeeId, decimal amount, string notes);
         Task<IEnumerable<EmployeeSalaryTransactionDTO>> GetSalaryHistoryAsync(int employeeId);

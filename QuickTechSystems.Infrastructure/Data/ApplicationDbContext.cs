@@ -35,6 +35,7 @@ namespace QuickTechSystems.Infrastructure.Data
         public DbSet<CustomerProductPrice> CustomerProductPrices => Set<CustomerProductPrice>();
         public DbSet<DamagedGoods> DamagedGoods => Set<DamagedGoods>();
         public DbSet<LowStockHistory> LowStockHistories => Set<LowStockHistory>();
+        public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

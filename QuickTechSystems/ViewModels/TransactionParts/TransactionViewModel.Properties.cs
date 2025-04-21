@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Windows.Media.Imaging;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.WPF.Services;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -14,7 +15,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _currentTransactionNumber = string.Empty;
         private TransactionDTO? _currentTransaction;
         private CustomerDTO? _selectedCustomer;
-        private int _itemCount;
+        private decimal _itemCount;
         private decimal _subTotal;
         private decimal _taxAmount;
         private decimal _discountAmount;
@@ -33,10 +34,11 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _dailySales;
         private decimal _dailyReturns;
         private decimal _netSales;
-        private string _tableReference = string.Empty;
         private decimal _supplierPayments;
         private decimal _dailyExpenses;
         private decimal _netCashflow;
+        private QuickTechSystems.WPF.Services.ITransactionWindowManager _transactionWindowManager;
+        public ICommand NewTransactionWindowCommand { get; private set; }
         private ObservableCollection<ProductDTO> _allProducts = new();
         private string _dropdownSearchText = string.Empty;
         private string _totalAmountLBP = "0 LBP";
@@ -65,11 +67,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _searchMessage;
             set => SetProperty(ref _searchMessage, value);
         }
-        public string TableReference
-        {
-            get => _tableReference;
-            set => SetProperty(ref _tableReference, value);
-        }
+
         public bool IsSearchMessageVisible
         {
             get => _isSearchMessageVisible;
@@ -407,12 +405,11 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public int ItemCount
+        public decimal ItemCount
         {
             get => _itemCount;
             set => SetProperty(ref _itemCount, value);
         }
-
         public decimal SubTotal
         {
             get => _subTotal;

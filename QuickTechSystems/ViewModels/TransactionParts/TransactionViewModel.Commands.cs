@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Application.DTOs;
@@ -8,7 +9,7 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
-using QuickTechSystems.WPF.Services;
+using QuickTechSystems.WPF.Views.Dialogs;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -22,7 +23,6 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? VoidTransactionCommand { get; private set; }
         public ICommand? NewCustomerCommand { get; private set; }
         public ICommand? RemoveItemCommand { get; private set; }
-        public ICommand OpenNewTransactionCommand { get; private set; }
         public ICommand? VoidLastItemCommand { get; private set; }
         public ICommand? PriceCheckCommand { get; private set; }
         public ICommand? ChangeQuantityCommand { get; private set; }
@@ -34,18 +34,21 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? PrintReceiptCommand { get; private set; }
         public ICommand AddToCustomerBalanceCommand { get; private set; }
         public ICommand CloseDrawerCommand { get; private set; }
+
+        public ICommand ChangePriceCommand { get; private set; }
         public ICommand SaveAsQuoteCommand { get; private set; }
         public ICommand SelectCategoryCommand { get; private set; }
         public ICommand ClearCustomerCommand { get; private set; }
         public ICommand LookupTransactionCommand { get; private set; }
         public ICommand IncrementTransactionIdCommand { get; private set; }
         public ICommand DecrementTransactionIdCommand { get; private set; }
+
         private void InitializeCommands()
         {
-
+            SelectTableCommand = new AsyncRelayCommand(async _ => await ShowTableSelectionDialog());
+            SwitchTableCommand = new AsyncRelayCommand(async _ => await SwitchTableAsync());
             IncrementTransactionIdCommand = new RelayCommand(_ => IncrementTransactionId());
             DecrementTransactionIdCommand = new RelayCommand(_ => DecrementTransactionId());
-            OpenNewTransactionCommand = new RelayCommand(_ => OpenNewTransactionWindow());
             // Existing commands
             ProcessBarcodeCommand = new AsyncRelayCommand(async _ => await ProcessBarcodeInput());
 
@@ -58,6 +61,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 async _ => await RecallTransaction(),
                 _ => HeldTransactions != null && HeldTransactions.Any());
 
+            ChangePriceCommand = new AsyncRelayCommand(
+    async _ => await ChangePrice(),
+    _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+
             VoidTransactionCommand = new AsyncRelayCommand(
                 async _ => await VoidTransaction(),
                 _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
@@ -69,6 +76,18 @@ namespace QuickTechSystems.WPF.ViewModels
             CancelTransactionCommand = new RelayCommand(
                 _ => CancelTransaction(),
                 _ => CurrentTransaction?.Details != null && CurrentTransaction.Details.Any());
+            NewTransactionWindowCommand = new RelayCommand(_ =>
+            {
+                try
+                {
+                    _transactionWindowManager.OpenNewTransactionWindow();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error opening new transaction window: {ex.Message}");
+                    WindowManager.ShowError("Failed to open new transaction window. Please try again.");
+                }
+            });
 
             LookupTransactionCommand = new AsyncRelayCommand(
                 async _ => await LookupTransactionAsync(),
@@ -177,22 +196,80 @@ namespace QuickTechSystems.WPF.ViewModels
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
 
-        private void OpenNewTransactionWindow()
-        {
-            // Show input dialog via dispatcher
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-            {
-                var dialog = new InputDialog("New Table Transaction", "Enter table number or leave blank for auto-assigned:");
-                var mainWindow = System.Windows.Application.Current.MainWindow;
-                dialog.Owner = mainWindow;
 
-                if (dialog.ShowDialog() == true)
+        private async Task ChangePrice()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
                 {
-                    string tableId = dialog.Input?.Trim();
-                    TransactionWindowManager.Instance.CreateNewTransactionWindow(tableId);
+                    throw new InvalidOperationException("No items in transaction");
                 }
-            });
+
+                // Get the selected item or the last item added if none is selected
+                var selectedDetail = CurrentTransaction.Details.FirstOrDefault(d => d.IsSelected);
+                if (selectedDetail == null)
+                {
+                    // If no item is selected, use the last item
+                    selectedDetail = CurrentTransaction.Details.LastOrDefault();
+                    if (selectedDetail == null)
+                    {
+                        throw new InvalidOperationException("No item selected");
+                    }
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    var dialog = new PriceDialog(selectedDetail.ProductName, selectedDetail.UnitPrice)
+                    {
+                        Owner = System.Windows.Application.Current.MainWindow
+                    };
+
+                    if (dialog.ShowDialog() == true)
+                    {
+                        // Validate new price
+                        if (dialog.NewPrice <= 0)
+                        {
+                            MessageBox.Show(
+                                "Price must be a positive number.",
+                                "Invalid Price",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        // Only allow price increases
+                        if (dialog.NewPrice < selectedDetail.UnitPrice)
+                        {
+                            MessageBox.Show(
+                                "New price cannot be lower than current price.",
+                                "Invalid Price",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            return;
+                        }
+
+                        // Update price and recalculate total
+                        selectedDetail.UnitPrice = dialog.NewPrice;
+                        selectedDetail.Total = selectedDetail.Quantity * selectedDetail.UnitPrice;
+
+                        // Force UI refresh
+                        var index = CurrentTransaction.Details.IndexOf(selectedDetail);
+                        if (index >= 0)
+                        {
+                            CurrentTransaction.Details.RemoveAt(index);
+                            CurrentTransaction.Details.Insert(index, selectedDetail);
+                        }
+
+                        // Update totals and notify UI
+                        UpdateTotals();
+                        OnPropertyChanged(nameof(CurrentTransaction.Details));
+                        OnPropertyChanged(nameof(CurrentTransaction));
+                    }
+                });
+            }, "Changing price");
         }
+
         private async Task ProcessAsCustomerDebt()
         {
             await ExecuteOperationSafelyAsync(async () =>
@@ -209,15 +286,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("No items in transaction to add to customer balance.");
                 }
 
-                // Confirm with user
-                var dialogResult = await WindowManager.InvokeAsync(() => MessageBox.Show(
-                    $"Add {TotalAmount:C2} to {SelectedCustomer.Name}'s balance?\n\nThis will not affect the cash drawer.",
-                    "Confirm Debt Transaction",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question));
-
-                if (dialogResult != MessageBoxResult.Yes)
-                    return;
+                // No confirmation dialog - proceed directly
 
                 IDbContextTransaction dbTransaction = null;
                 TransactionDTO transactionResult = null;
@@ -272,17 +341,32 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     await dbTransaction.CommitAsync();
 
-                    // Show success message
-                    await WindowManager.InvokeAsync(() =>
-                        MessageBox.Show(
-                            $"Transaction #{transactionResult.TransactionId} has been added to {SelectedCustomer.Name}'s balance.",
-                            "Debt Transaction Complete",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information)
-                    );
+                    // Store the current transaction for printing
+                    CurrentTransaction = transactionResult;
 
-                    // Start new transaction
-                    StartNewTransaction();
+                    // Print receipt after successful transaction
+                    try
+                    {
+                        await PrintReceipt();
+                    }
+                    catch (Exception printEx)
+                    {
+                        Debug.WriteLine($"Error printing receipt: {printEx.Message}");
+                        await WindowManager.InvokeAsync(() =>
+                            MessageBox.Show(
+                                "Transaction completed successfully but there was an error printing the receipt.",
+                                "Print Error",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning)
+                        );
+                        // Don't fail the whole transaction for a print error
+                    }
+
+                    // Start new transaction without showing success message
+                    StartNewTransaction(false); // Pass false to prevent table selection dialog
+
+                    // Update the lookup transaction ID with the next transaction number
+                    await UpdateLookupTransactionIdAsync();
                 }
                 catch (Exception ex)
                 {
@@ -304,6 +388,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }, "Processing customer debt transaction");
         }
+
         private void ClearCustomerSelection()
         {
             SelectedCustomer = null;
@@ -351,7 +436,186 @@ namespace QuickTechSystems.WPF.ViewModels
                 WindowManager.ShowError($"Error removing item: {ex.Message}");
             }
         }
+        private async Task LoadRestaurantTablesAsync()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                var tables = await _restaurantTableService.GetActiveTablesAsync();
 
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    AvailableTables.Clear();
+                    foreach (var table in tables)
+                    {
+                        AvailableTables.Add(table);
+                    }
+
+                    OnPropertyChanged(nameof(AvailableTables));
+                });
+            }, "Loading restaurant tables");
+        }
+
+        private async Task ShowTableSelectionDialog()
+        {
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                // First, save the current transaction details if we have a selected table
+                if (SelectedTable != null)
+                {
+                    SaveCurrentTableTransaction();
+                }
+
+                // Load tables if not already loaded
+                if (AvailableTables.Count == 0)
+                {
+                    await LoadRestaurantTablesAsync();
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var dialog = new TableSelectionDialog(AvailableTables);
+                    dialog.Owner = GetOwnerWindow();
+
+                    dialog.TableSelected += (sender, table) =>
+                    {
+                        // If switching to a different table, handle the transaction change
+                        if (SelectedTable == null || SelectedTable.Id != table.Id)
+                        {
+                            // Set the new selected table
+                            SelectedTable = table;
+
+                            // Load transaction for the selected table
+                            LoadTableTransaction(table.Id);
+
+                            // Update totals just in case
+                            UpdateTotals();
+
+                            StatusMessage = $"Switched to Table {table.TableNumber}";
+                        }
+                    };
+
+                    dialog.NewTransactionRequested += (sender, args) =>
+                    {
+                        // Create a new empty transaction without table
+                        SelectedTable = null;
+                        StartNewTransaction(true);
+                    };
+
+                    dialog.ShowDialog();
+                });
+            }, "Showing table selection dialog");
+        }
+
+        // Save the current transaction details for the current table
+        private void SaveCurrentTableTransaction()
+        {
+            // Check if there's a valid table and transaction
+            if (SelectedTable != null && CurrentTransaction?.Details != null)
+            {
+                // Create a new state object to hold all transaction data
+                var state = new TableTransactionState
+                {
+                    SelectedCustomer = SelectedCustomer,
+                    CustomerSearchText = CustomerSearchText,
+                    DiscountAmount = DiscountAmount,
+                    SubTotal = SubTotal,
+                    TaxAmount = TaxAmount,
+                    TotalAmount = TotalAmount,
+                    ItemCount = ItemCount,
+                    IsEditingTransaction = IsEditingTransaction
+                };
+
+                // Copy all transaction details
+                state.CopyDetailsFrom(CurrentTransaction.Details);
+
+                // Store in dictionary using table ID as key
+                _tableTransactions[SelectedTable.Id] = state;
+
+                // Update table status based on whether there are items
+                bool hasItems = state.Details.Count > 0;
+                if (hasItems && SelectedTable.Status != "Occupied")
+                {
+                    SelectedTable.Status = "Occupied";
+                    _ = _restaurantTableService.UpdateTableStatusAsync(SelectedTable.Id, "Occupied");
+
+                    // Update in our local collection
+                    var tableInCollection = AvailableTables.FirstOrDefault(t => t.Id == SelectedTable.Id);
+                    if (tableInCollection != null)
+                    {
+                        tableInCollection.Status = "Occupied";
+                        OnPropertyChanged(nameof(AvailableTables));
+                    }
+                }
+                else if (!hasItems && SelectedTable.Status == "Occupied")
+                {
+                    SelectedTable.Status = "Available";
+                    _ = _restaurantTableService.UpdateTableStatusAsync(SelectedTable.Id, "Available");
+
+                    // Update in our local collection
+                    var tableInCollection = AvailableTables.FirstOrDefault(t => t.Id == SelectedTable.Id);
+                    if (tableInCollection != null)
+                    {
+                        tableInCollection.Status = "Available";
+                        OnPropertyChanged(nameof(AvailableTables));
+                    }
+                }
+            }
+        }
+
+        private async Task SwitchTableAsync()
+        {
+            // Save current transaction for current table
+            SaveCurrentTableTransaction();
+
+            // Show table selection dialog
+            await ShowTableSelectionDialog();
+        }
+
+        // Load transaction details for the specified table
+        private void LoadTableTransaction(int tableId)
+        {
+            // Create an empty transaction first
+            StartNewTransaction(false); // false means don't show table selection dialog
+
+            // If we have saved details for this table, load them
+            if (_tableTransactions.TryGetValue(tableId, out var state))
+            {
+                // Restore transaction details
+                CurrentTransaction.Details.Clear();
+                foreach (var detail in state.Details)
+                {
+                    CurrentTransaction.Details.Add(detail);
+                }
+
+                // Restore customer information
+                SelectedCustomer = state.SelectedCustomer;
+                CustomerSearchText = state.CustomerSearchText;
+
+                // Restore financial values
+                DiscountAmount = state.DiscountAmount;
+                SubTotal = state.SubTotal;
+                TaxAmount = state.TaxAmount;
+                TotalAmount = state.TotalAmount;
+                ItemCount = state.ItemCount;
+
+                // Restore transaction state
+                IsEditingTransaction = state.IsEditingTransaction;
+
+                // Subscribe to property changes for all details
+                SubscribeToAllDetails();
+
+                // Notify UI of all the changes
+                OnPropertyChanged(nameof(SelectedCustomer));
+                OnPropertyChanged(nameof(CustomerSearchText));
+                OnPropertyChanged(nameof(DiscountAmount));
+                OnPropertyChanged(nameof(SubTotal));
+                OnPropertyChanged(nameof(TaxAmount));
+                OnPropertyChanged(nameof(TotalAmount));
+                OnPropertyChanged(nameof(ItemCount));
+                OnPropertyChanged(nameof(IsEditingTransaction));
+                OnPropertyChanged(nameof(CurrentTransaction.Details));
+            }
+        }
         private void VoidLastItem()
         {
             if (CurrentTransaction?.Details == null || !CurrentTransaction.Details.Any())
@@ -411,6 +675,35 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Reset transaction status message
                     StatusMessage = "Transaction cleared - Ready for new items";
 
+                    // If in restaurant mode and we have a selected table, update its state
+                    if (IsRestaurantMode && SelectedTable != null)
+                    {
+                        // Update the table transaction state
+                        if (_tableTransactions.TryGetValue(SelectedTable.Id, out var state))
+                        {
+                            state.Details.Clear();
+                            state.DiscountAmount = 0;
+                            state.SubTotal = 0;
+                            state.TaxAmount = 0;
+                            state.TotalAmount = 0;
+                            state.ItemCount = 0;
+                            state.SelectedCustomer = null;
+                            state.CustomerSearchText = string.Empty;
+                        }
+
+                        // Update table status
+                        SelectedTable.Status = "Available";
+                        _ = _restaurantTableService.UpdateTableStatusAsync(SelectedTable.Id, "Available");
+
+                        // Update in our local collection
+                        var tableInCollection = AvailableTables.FirstOrDefault(t => t.Id == SelectedTable.Id);
+                        if (tableInCollection != null)
+                        {
+                            tableInCollection.Status = "Available";
+                            OnPropertyChanged(nameof(AvailableTables));
+                        }
+                    }
+
                     // Notify UI of changes
                     OnPropertyChanged(nameof(CurrentTransaction));
                     OnPropertyChanged(nameof(CurrentTransaction.Details));
@@ -458,13 +751,13 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            var mainWindow = System.Windows.Application.Current.MainWindow;
-            var dialog = new DiscountDialog(TotalAmount);
-
             WindowManager.InvokeAsync(() =>
             {
                 try
                 {
+                    var mainWindow = System.Windows.Application.Current.MainWindow;
+                    var dialog = new DiscountDialog(TotalAmount);
+
                     dialog.Owner = mainWindow;
                     dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
                     if (dialog.ShowDialog() == true)
@@ -495,6 +788,14 @@ namespace QuickTechSystems.WPF.ViewModels
                         // Apply the validated discount
                         DiscountAmount = discountAmount;
                         UpdateTotals();
+
+                        // If in restaurant mode and we have a selected table, update its state
+                        if (IsRestaurantMode && SelectedTable != null && _tableTransactions.TryGetValue(SelectedTable.Id, out var state))
+                        {
+                            state.DiscountAmount = discountAmount;
+                            state.TotalAmount = TotalAmount;
+                            state.SubTotal = SubTotal;
+                        }
 
                         // Notify UI of changes
                         OnPropertyChanged(nameof(DiscountAmount));

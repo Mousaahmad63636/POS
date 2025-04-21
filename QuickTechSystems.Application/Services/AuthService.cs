@@ -1,5 +1,4 @@
-﻿// QuickTechSystems.Application.Services/AuthService.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,14 +7,12 @@ using QuickTechSystems.Application.Services.Interfaces;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using QuickTechSystems.Application.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace QuickTechSystems.Application.Services
 {
     public interface IAuthService
     {
         Task<EmployeeDTO?> LoginAsync(string username, string password);
-        Task<EmployeeDTO?> LoginByCodeAsync(string secureCode);
         Task<bool> ChangePasswordAsync(int employeeId, string oldPassword, string newPassword);
     }
 
@@ -41,34 +38,6 @@ namespace QuickTechSystems.Application.Services
 
                 var passwordHash = HashPassword(password);
                 if (employee.PasswordHash != passwordHash) return null;
-
-                // Ensure role is properly set
-                if (employee.Username.ToLower() == "admin")
-                {
-                    employee.Role = "Admin";
-                }
-
-                await _employeeService.UpdateLastLoginAsync(employee.EmployeeId);
-                return employee;
-            });
-        }
-
-        public async Task<EmployeeDTO?> LoginByCodeAsync(string secureCode)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                if (string.IsNullOrWhiteSpace(secureCode))
-                    return null;
-
-                // Find employee by secure code
-                var employees = await _employeeService.GetAllAsync();
-                var employee = employees.FirstOrDefault(e => e.SecureCode == secureCode);
-
-                if (employee == null)
-                    return null;
-
-                if (!employee.IsActive)
-                    return null; // Don't allow inactive employees to login
 
                 // Ensure role is properly set
                 if (employee.Username.ToLower() == "admin")

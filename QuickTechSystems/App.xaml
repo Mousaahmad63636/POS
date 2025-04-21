@@ -13,8 +13,9 @@
                 <ResourceDictionary Source="/Resources/Dictionaries/ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- Converters -->
-            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
+            <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
             <converters:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter"/>
             <converters:LessThanZeroConverter x:Key="LessThanZeroConverter"/>
@@ -24,6 +25,8 @@
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
             <!-- QuickTechSystems.WPF/App.xaml -->
+
+            <converters:TableStatusColorConverter x:Key="TableStatusColorConverter"/>
             <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <!-- Common Styles -->
@@ -148,7 +151,9 @@
             <DataTemplate DataType="{x:Type vm:LowStockHistoryViewModel}">
                 <views:LowStockHistoryView/>
             </DataTemplate>
-            
+            <DataTemplate DataType="{x:Type vm:TableManagementViewModel}">
+                <views:TableManagementView/>
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

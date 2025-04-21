@@ -52,6 +52,7 @@ namespace QuickTechSystems.WPF
         private void ConfigureServices(IServiceCollection services)
         {
             // Core Services
+            services.AddSingleton<IConfiguration>(_configuration);
             services.AddSingleton<IEventAggregator, EventAggregator>();
             services.AddAutoMapper(typeof(MappingProfile));
             services.AddSingleton<IWindowService, WindowService>();
@@ -83,8 +84,8 @@ namespace QuickTechSystems.WPF
             // Repositories and Unit of Work
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
-            services.AddTransient<InputDialog>();
-            services.AddTransient<TableTransactionPanel>();
+            // In your startup configuration
+          
             // Application Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
@@ -94,17 +95,22 @@ namespace QuickTechSystems.WPF
             services.AddScoped<IDrawerService, DrawerService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IExpenseService, ExpenseService>();
-            services.Remove(services.FirstOrDefault(d => d.ServiceType == typeof(TransactionViewModel)));
-            services.AddTransient<TransactionViewModel>();
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
+            services.AddScoped<IRestaurantTableService, RestaurantTableService>();
+            services.AddScoped<TableManagementViewModel>();
+            services.AddTransient<TableManagementView>();
 
+            services.AddTransient<TransactionViewModel>();
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
+
+            services.AddSingleton<IImagePathService, ImagePathService>();
             services.AddTransient<SplashScreenView>();
 
             // View Models
@@ -123,7 +129,6 @@ namespace QuickTechSystems.WPF
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
-            services.AddScoped<TransactionViewModel>();
             services.AddTransient<BulkProductViewModel>();
             services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
             services.AddScoped<LowStockHistoryViewModel>();
@@ -154,9 +159,7 @@ namespace QuickTechSystems.WPF
 
             try
             {
-            
-
-                // Normal startup flow with splash screen
+                // Show splash screen
                 var splashViewModel = _serviceProvider.GetRequiredService<SplashScreenViewModel>();
                 var splashView = _serviceProvider.GetRequiredService<SplashScreenView>();
                 splashView.Show();
@@ -310,34 +313,6 @@ namespace QuickTechSystems.WPF
                 }
 
                 Shutdown();
-            }
-        }
-
-        private void CheckForAutoLogoutRestart()
-        {
-            try
-            {
-                string appDataPath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "QuickTechSystems"
-                );
-
-                string restartFlagPath = Path.Combine(appDataPath, "auto_logout_restart.flag");
-
-                if (File.Exists(restartFlagPath))
-                {
-                    // Delete the flag immediately
-                    File.Delete(restartFlagPath);
-
-                    // Skip the splash screen and show the login directly
-                    Properties["SkipSplashScreen"] = true;
-
-                    Debug.WriteLine("Auto logout restart detected, showing login directly");
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error checking auto-logout restart flag: {ex.Message}");
             }
         }
 

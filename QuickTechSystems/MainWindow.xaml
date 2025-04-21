@@ -222,12 +222,11 @@
                         <TextBlock Text="{DynamicResource MainWindow_Finance}"
                                  Style="{StaticResource CategoryHeader}"/>
                         <Button Content="{DynamicResource MainWindow_Customers}"
-                                Tag="👥"
-                                Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Customers"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+        Tag="👥"
+        Style="{StaticResource NavButton}"
+        Command="{Binding NavigateCommand}" 
+        IsEnabled="{Binding IsNavigationEnabled}"
+        CommandParameter="Customers"/>
                         <Button Content="{DynamicResource MainWindow_Drawer}"
                                 Tag="🏦"
                                 Style="{StaticResource NavButton}"
@@ -255,6 +254,13 @@
                                  Style="{StaticResource CategoryHeader}"
                                  Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                        <Button Content="Table Management"
+        Tag="🍽️"
+        Style="{StaticResource NavButton}"
+        Command="{Binding NavigateCommand}" 
+        CommandParameter="TableManagement"
+        IsEnabled="{Binding IsNavigationEnabled}"
+        Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         <Button Content="{DynamicResource MainWindow_Products}"
                                 Tag="📦"
                                 Style="{StaticResource NavButton}"
@@ -524,21 +530,5 @@
                 </ControlTemplate>
             </Button.Template>
         </Button>
-        <Border Background="#FFC107" 
-        BorderBrush="#FF6F00"
-        BorderThickness="1"
-        CornerRadius="8"
-        Padding="16"
-        HorizontalAlignment="Center"
-        VerticalAlignment="Bottom"
-        Margin="0,0,0,80"
-        Visibility="{Binding IsCountdownActive, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="⚠️" FontSize="18" Margin="0,0,8,0"/>
-                <TextBlock Text="{Binding SecondsRemaining, StringFormat='Auto-logout in {0} seconds due to inactivity'}" 
-                  Foreground="#212121" 
-                  FontWeight="Bold"/>
-            </StackPanel>
-        </Border>
     </Grid>
 </Window>

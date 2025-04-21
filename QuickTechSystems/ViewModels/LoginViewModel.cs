@@ -1,5 +1,4 @@
-﻿// QuickTechSystems/ViewModels/LoginViewModel.cs
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +11,6 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF;
 using System.Windows;
 using QuickTechSystems.WPF.Commands;
-using System.Text.RegularExpressions;
 
 namespace QuickTechSystems.ViewModels
 {
@@ -23,14 +21,14 @@ namespace QuickTechSystems.ViewModels
         private readonly IActivityLogger _activityLogger;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private FlowDirection _flowDirection = FlowDirection.LeftToRight;
-        private string _numericCode = string.Empty;
+        private string _username = string.Empty;
         private string _errorMessage = string.Empty;
         private bool _isProcessing;
 
-        public string NumericCode
+        public string Username
         {
-            get => _numericCode;
-            set => SetProperty(ref _numericCode, value);
+            get => _username;
+            set => SetProperty(ref _username, value);
         }
 
         public string ErrorMessage
@@ -44,13 +42,11 @@ namespace QuickTechSystems.ViewModels
             get => _isProcessing;
             set => SetProperty(ref _isProcessing, value);
         }
-
         public FlowDirection FlowDirection
         {
             get => _flowDirection;
             set => SetProperty(ref _flowDirection, value);
         }
-
         public ICommand LoginCommand { get; }
 
         public LoginViewModel(
@@ -68,17 +64,13 @@ namespace QuickTechSystems.ViewModels
 
         private bool CanExecuteLogin(object? parameter)
         {
-            return !IsProcessing && !string.IsNullOrWhiteSpace(NumericCode) && IsNumeric(NumericCode);
-        }
-
-        private bool IsNumeric(string input)
-        {
-            // Check if the input is numeric and between 1-20 digits
-            return Regex.IsMatch(input, @"^\d{1,20}$");
+            return !IsProcessing && !string.IsNullOrWhiteSpace(Username);
         }
 
         private async Task ExecuteLoginAsync(object? parameter)
         {
+            if (parameter is not PasswordBox passwordBox) return;
+
             if (!await _operationLock.WaitAsync(0))
             {
                 ShowTemporaryErrorMessage("Login operation already in progress. Please wait.");
@@ -92,11 +84,11 @@ namespace QuickTechSystems.ViewModels
 
                 try
                 {
-                    var employee = await _authService.LoginByCodeAsync(NumericCode);
+                    var employee = await _authService.LoginAsync(Username, passwordBox.Password);
 
                     if (employee == null)
                     {
-                        ShowTemporaryErrorMessage("Invalid login code");
+                        ShowTemporaryErrorMessage("Invalid username or password");
                         return;
                     }
 
@@ -114,7 +106,7 @@ namespace QuickTechSystems.ViewModels
                     );
 
                     App.Current.Properties["CurrentUser"] = employee;
-                    await CheckDrawerStatusAndProceed(parameter, employee);
+                    await CheckDrawerStatusAndProceed(passwordBox, employee);
                 }
                 catch (Exception ex)
                 {
@@ -128,7 +120,7 @@ namespace QuickTechSystems.ViewModels
             }
         }
 
-        private async Task CheckDrawerStatusAndProceed(object? parameter, EmployeeDTO employee)
+        private async Task CheckDrawerStatusAndProceed(PasswordBox passwordBox, EmployeeDTO employee)
         {
             try
             {
@@ -167,10 +159,7 @@ namespace QuickTechSystems.ViewModels
                 {
                     var mainWindow = new MainWindow();
                     mainWindow.Show();
-                    if (parameter != null && parameter is FrameworkElement element)
-                    {
-                        Window.GetWindow(element)?.Close();
-                    }
+                    Window.GetWindow(passwordBox)?.Close();
                 });
             }
             catch (Exception ex)
@@ -199,7 +188,7 @@ namespace QuickTechSystems.ViewModels
                 ShowTemporaryErrorMessage($"An error occurred during login. Please try again.");
 
                 await _activityLogger.LogActivityAsync(
-                    "System",
+                    Username,
                     "Login Error",
                     ex.Message,
                     false,

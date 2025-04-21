@@ -1,17 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace QuickTechSystems.Views
 {
@@ -23,6 +11,14 @@ namespace QuickTechSystems.Views
         public TransactionDetailsPopup()
         {
             InitializeComponent();
+        }
+
+        // Optional: Add a close button event handler if you decide to add one
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Find the parent window and close it
+            var window = Window.GetWindow(this);
+            window?.Close();
         }
     }
 }

@@ -29,7 +29,7 @@ namespace QuickTechSystems.Domain.Entities
         public int ProductId { get; set; }
         public string ProductName { get; set; } = string.Empty;
         public decimal UnitPrice { get; set; }
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal Total { get; set; }
 
         public virtual Quote Quote { get; set; } = null!;

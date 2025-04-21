@@ -132,19 +132,23 @@
                     Style="{StaticResource BasicButtonStyle}"
                     Margin="4"/>
             <Button Content="{Binding CashPaymentButtonText}"
-                    Command="{Binding CashPaymentCommand}"
-                    Style="{StaticResource BasicButtonStyle}"
-                    Margin="4"/>
+        Command="{Binding CashPaymentCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Margin="4"/>
             <Button Content="{Binding CustomerBalanceButtonText}"
-                    Command="{Binding AddToCustomerBalanceCommand}"
-                    Style="{StaticResource BasicButtonStyle}"
-                    Background="#FFA726"
-                    Foreground="#333333"
-                    Margin="4"/>
+        Command="{Binding AddToCustomerBalanceCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Background="#FFA726"
+        Foreground="#333333"
+        Margin="4"/>
             <Button Content="Clear All (F10)"
                     Command="{Binding ClearTransactionCommand}"
                     Style="{StaticResource BasicButtonStyle}"
                     Margin="4"/>
+            <Button Content="New Transaction"
+        Command="{Binding NewTransactionWindowCommand}"
+        Style="{StaticResource BasicButtonStyle}"
+        Margin="4"/>
         </UniformGrid>
 
         <!-- Minimal Status Bar -->
@@ -176,33 +180,5 @@
                 </StackPanel>
             </Border>
         </Grid>
-
-        <!-- Floating Action Button for New Table Transaction - Moved outside of the LoadingOverlay -->
-        <Button Content="+"
-                FontSize="24"
-                FontWeight="Bold"
-                Width="60"
-                Height="60"
-                BorderThickness="0"
-                Background="#2196F3"
-                Foreground="White"
-                Click="NewTransactionTable_Click"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Bottom"
-                Margin="0,0,30,30"
-                Grid.Row="1"
-                Panel.ZIndex="999">
-            <Button.Resources>
-                <Style TargetType="Border">
-                    <Setter Property="CornerRadius" Value="30"/>
-                </Style>
-            </Button.Resources>
-            <Button.ToolTip>
-                <ToolTip Content="Open New Table Transaction"/>
-            </Button.ToolTip>
-            <Button.Effect>
-                <DropShadowEffect BlurRadius="10" ShadowDepth="3" Opacity="0.3"/>
-            </Button.Effect>
-        </Button>
     </Grid>
 </UserControl>

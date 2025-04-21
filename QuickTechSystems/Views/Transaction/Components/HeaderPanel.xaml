@@ -14,18 +14,14 @@
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <!-- Changed from fixed 240 to 1* with MinWidth -->
-                    <ColumnDefinition Width="1*" MinWidth="160"/>
-                    <!-- Changed from * to 2* with MinWidth -->
-                    <ColumnDefinition Width="2*" MinWidth="160"/>
-                    <!-- Changed from fixed 240 to 1* with MinWidth -->
-                    <ColumnDefinition Width="1*" MinWidth="160"/>
+                    <ColumnDefinition Width="240"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="240"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Rest of your XAML remains unchanged -->
                 <!-- Barcode Search -->
                 <Grid Grid.Column="1">
                     <TextBox x:Name="BarcodeTextBox"
@@ -62,8 +58,30 @@
                     </TextBlock>
                 </Grid>
 
+                <!-- Table Information (only visible in restaurant mode) -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="10,0,10,0"
+                            Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <Border Background="#1E293B" CornerRadius="4" Padding="8,4" Height="35">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🍽️" FontSize="16" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                            <TextBlock Text="{Binding TableHeaderText}" 
+                                     Foreground="White" 
+                                     FontWeight="SemiBold" 
+                                     VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Button Content="Change Table" 
+                            Command="{Binding SwitchTableCommand}"
+                            Margin="8,0,0,0"
+                            Background="#3B82F6"
+                            Foreground="White"
+                            Height="35"
+                            Padding="8,4"
+                            FontSize="12"/>
+                </StackPanel>
+
                 <!-- Product Search -->
-                <Grid Grid.Column="2" Margin="10,0,10,0" 
+                <Grid Grid.Column="3" Margin="10,0,10,0" 
                       Visibility="{Binding IsRestaurantMode, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                     <TextBox x:Name="ProductSearchTextBox"
                              Text="{Binding ProductSearchText, UpdateSourceTrigger=PropertyChanged}"
@@ -96,7 +114,7 @@
                 </Grid>
 
                 <!-- Customer Search with X Button -->
-                <Grid Grid.Column="3">
+                <Grid Grid.Column="4">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -105,14 +123,14 @@
                     <!-- Customer Search Box with Feedback -->
                     <Grid x:Name="CustomerSearchContainer" Grid.Column="0">
                         <TextBox x:Name="CustomerSearchBox"
-                                 Text="{Binding CustomerSearchText, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="#2C3549"
-                                 Foreground="White"
-                                 BorderBrush="#4B5563"
-                                 BorderThickness="1"
-                                 Padding="8,6"
-                                 Height="35"
-                                 VerticalContentAlignment="Center">
+             Text="{Binding CustomerSearchText, UpdateSourceTrigger=PropertyChanged}"
+             Background="#2C3549"
+             Foreground="White"
+             BorderBrush="#4B5563"
+             BorderThickness="1"
+             Padding="8,6"
+             Height="35"
+             VerticalContentAlignment="Center">
                             <TextBox.Style>
                                 <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
                                     <Style.Triggers>
@@ -126,11 +144,11 @@
 
                         <!-- Simplified placeholder logic -->
                         <TextBlock x:Name="CustomerSearchPlaceholder"
-                                   Text="Search customer..."
-                                   Margin="12,0,0,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="#94A3B8"
-                                   IsHitTestVisible="False">
+               Text="Search customer..."
+               Margin="12,0,0,0"
+               VerticalAlignment="Center"
+               Foreground="#94A3B8"
+               IsHitTestVisible="False">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <!-- Default is Hidden -->
@@ -155,70 +173,70 @@
 
                         <!-- Loading indicator -->
                         <ProgressBar Height="2" 
-                                     IsIndeterminate="True" 
-                                     Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                     VerticalAlignment="Bottom"
-                                     Foreground="#2196F3"
-                                     Background="Transparent"
-                                     BorderThickness="0"/>
+                 IsIndeterminate="True" 
+                 Visibility="{Binding IsSearching, Converter={StaticResource BooleanToVisibilityConverter}}"
+                 VerticalAlignment="Bottom"
+                 Foreground="#2196F3"
+                 Background="Transparent"
+                 BorderThickness="0"/>
 
                         <!-- Customer search message (for no results) -->
                         <Popup IsOpen="{Binding IsSearchMessageVisible}"
-                               PlacementTarget="{Binding ElementName=CustomerSearchBox}"
-                               Placement="Bottom"
-                               HorizontalOffset="0"
-                               VerticalOffset="0"
-                               AllowsTransparency="True"
-                               Width="{Binding ActualWidth, ElementName=CustomerSearchBox}">
+           PlacementTarget="{Binding ElementName=CustomerSearchBox}"
+           Placement="Bottom"
+           HorizontalOffset="0"
+           VerticalOffset="0"
+           AllowsTransparency="True"
+           Width="{Binding ActualWidth, ElementName=CustomerSearchBox}">
                             <Border Background="#FFF4F4"
-                                    BorderBrush="#FFB900"
-                                    BorderThickness="1"
-                                    CornerRadius="4"
-                                    Padding="10">
+                BorderBrush="#FFB900"
+                BorderThickness="1"
+                CornerRadius="4"
+                Padding="10">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="⚠️" 
-                                               Margin="0,0,8,0"
-                                               VerticalAlignment="Center"/>
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Center"/>
                                     <TextBlock Grid.Column="1" 
-                                               Text="{Binding SearchMessage}"
-                                               TextWrapping="Wrap"
-                                               Foreground="#D97706"/>
+                           Text="{Binding SearchMessage}"
+                           TextWrapping="Wrap"
+                           Foreground="#D97706"/>
                                 </Grid>
                             </Border>
                         </Popup>
 
                         <!-- Customer search popup -->
                         <Popup IsOpen="{Binding IsCustomerSearchVisible}"
-                               PlacementTarget="{Binding ElementName=CustomerSearchBox}"
-                               Placement="Bottom"
-                               HorizontalOffset="0"
-                               VerticalOffset="0"
-                               StaysOpen="True"
-                               AllowsTransparency="True"
-                               Width="{Binding ActualWidth, ElementName=CustomerSearchBox}">
+           PlacementTarget="{Binding ElementName=CustomerSearchBox}"
+           Placement="Bottom"
+           HorizontalOffset="0"
+           VerticalOffset="0"
+           StaysOpen="True"
+           AllowsTransparency="True"
+           Width="{Binding ActualWidth, ElementName=CustomerSearchBox}">
                             <Border Background="White"
-                                    BorderBrush="#E5E7EB"
-                                    BorderThickness="1"
-                                    CornerRadius="4">
+                BorderBrush="#E5E7EB"
+                BorderThickness="1"
+                CornerRadius="4">
                                 <ListView x:Name="CustomerSearchList" 
-                                         ItemsSource="{Binding FilteredCustomers}"
-                                         SelectedItem="{Binding SelectedCustomerFromSearch}"
-                                         MaxHeight="300"
-                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                         BorderThickness="0">
+                     ItemsSource="{Binding FilteredCustomers}"
+                     SelectedItem="{Binding SelectedCustomerFromSearch}"
+                     MaxHeight="300"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                     BorderThickness="0">
                                     <ListView.ItemTemplate>
                                         <DataTemplate>
                                             <Grid Margin="8,4">
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding Name, FallbackValue='Unknown'}"
-                                                               FontWeight="SemiBold"/>
+                           FontWeight="SemiBold"/>
                                                     <TextBlock Text="{Binding Phone, FallbackValue='No phone'}"
-                                                               Foreground="#6B7280"
-                                                               FontSize="12"/>
+                           Foreground="#6B7280"
+                           FontSize="12"/>
                                                 </StackPanel>
                                             </Grid>
                                         </DataTemplate>
@@ -227,7 +245,6 @@
                             </Border>
                         </Popup>
                     </Grid>
-
                     <!-- X Button (styled as red X) -->
                     <Button Grid.Column="1"
                             Content="✕"
@@ -275,55 +292,12 @@
                 </Grid>
 
                 <!-- New Customer Button -->
-                <Button Grid.Column="4"
+                <Button Grid.Column="5"
                         Content="New Customer"
                         Command="{Binding NewCustomerCommand}"
                         Height="35"
                         Width="120"
                         Margin="10,0,10,0"
-                        Background="#2196F3"
-                        Foreground="White"
-                        FontWeight="SemiBold"
-                        VerticalAlignment="Center">
-                    <Button.Resources>
-                        <Style TargetType="Border">
-                            <Setter Property="CornerRadius" Value="4"/>
-                        </Style>
-                    </Button.Resources>
-                    <Button.Style>
-                        <Style TargetType="Button">
-                            <Setter Property="Template">
-                                <Setter.Value>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"
-                                                CornerRadius="4">
-                                            <ContentPresenter HorizontalAlignment="Center" 
-                                                              VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="Background" Value="#1976D2"/>
-                                            </Trigger>
-                                            <Trigger Property="IsPressed" Value="True">
-                                                <Setter Property="Background" Value="#1565C0"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Setter.Value>
-                            </Setter>
-                        </Style>
-                    </Button.Style>
-                </Button>
-
-                <!-- New Table Button -->
-                <Button Grid.Column="5"
-                        Content="New Table"
-                        Click="NewTransactionTable_Click"
-                        Height="35"
-                        Width="100"
-                        Margin="0,0,10,0"
                         Background="#2196F3"
                         Foreground="White"
                         FontWeight="SemiBold"
@@ -417,7 +391,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- The rest of the XAML code remains unchanged -->
             <!-- Combined Categories and Totals in a single row -->
             <Grid Grid.Row="1" Margin="0,10,0,0">
                 <Grid.ColumnDefinitions>
@@ -427,11 +400,11 @@
 
                 <!-- Category Tabs on the Left - Only visible in restaurant mode -->
                 <Border Grid.Column="0" 
-                        Background="#1A2235" 
-                        Padding="5,5,5,2"
-                        Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+        Background="#1A2235" 
+        Padding="5,5,5,2"
+        Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                                  VerticalScrollBarVisibility="Disabled">
+                  VerticalScrollBarVisibility="Disabled">
                         <ItemsControl ItemsSource="{Binding ProductCategories}">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
@@ -441,13 +414,13 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Button Content="{Binding Name}"
-                                            Command="{Binding DataContext.SelectCategoryCommand, 
-                                                     RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"
-                                            Margin="3,0" Padding="15,5"
-                                            Background="#3B4559"
-                                            Foreground="White"
-                                            BorderThickness="0">
+                            Command="{Binding DataContext.SelectCategoryCommand, 
+                                     RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Margin="3,0" Padding="15,5"
+                            Background="#3B4559"
+                            Foreground="White"
+                            BorderThickness="0">
                                         <Button.Resources>
                                             <Style TargetType="Border">
                                                 <Setter Property="CornerRadius" Value="4"/>
@@ -468,7 +441,6 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Border>
-
                 <!-- Basic Totals Summary on the Right -->
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 

@@ -21,22 +21,23 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(p => p.SalePrice)
                 .HasPrecision(18, 2);
 
-            // Remove any check constraint on CurrentStock if it exists
-            // Either remove this line entirely OR ensure it doesn't have a check constraint:
             builder.Property(p => p.CurrentStock);
-            // No .HasAnnotation("SqlServer:Check", "CurrentStock >= 0") constraint
 
             builder.HasIndex(p => p.Barcode)
                 .IsUnique();
             builder.Property(p => p.Speed)
                 .HasMaxLength(50)
-                .IsRequired(false);  // Makes it optional
+                .IsRequired(false);
+
+            // Update image config to store path
+            builder.Property(p => p.ImagePath)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
             builder.HasOne(p => p.Category)
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
-            builder.Property(p => p.Image)
-                .IsRequired(false);
         }
     }
 }

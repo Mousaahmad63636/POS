@@ -5,8 +5,335 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:QuickTechSystems.Views"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <!-- Style for section headers -->
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+        </Style>
+
+        <!-- Style for info labels -->
+        <Style x:Key="InfoLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Style for info values -->
+        <Style x:Key="InfoValueStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Style for monetary values -->
+        <Style x:Key="MoneyValueStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoValueStyle}">
+            <Setter Property="Foreground" Value="#10B981"/>
+        </Style>
+
+        <!-- Style for negative monetary values -->
+        <Style x:Key="NegativeMoneyValueStyle" TargetType="TextBlock" BasedOn="{StaticResource InfoValueStyle}">
+            <Setter Property="Foreground" Value="#EF4444"/>
+        </Style>
+    </UserControl.Resources>
+
     <Grid>
-            
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <Grid Margin="24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header with Transaction ID and Date -->
+                <Grid Grid.Row="0" Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="Transaction #" FontSize="24" FontWeight="Bold" Foreground="#1E293B"/>
+                        <TextBlock Text="{Binding TransactionId}" FontSize="24" FontWeight="Bold" Foreground="#3B82F6" Margin="4,0,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <TextBlock Text="Date: " FontSize="16" VerticalAlignment="Center" Foreground="#64748B"/>
+                        <TextBlock Text="{Binding TransactionDate, StringFormat='{}{0:g}'}" 
+                                   FontSize="16" 
+                                   VerticalAlignment="Center" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="#1E293B"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Transaction Info Section -->
+                <Border Grid.Row="1" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,24">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Left Column -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Transaction Information" Style="{StaticResource SectionHeaderStyle}"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Customer -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Customer:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding CustomerName, FallbackValue='Walk-in Customer'}" Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Status -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Status:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Status}" Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Type -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Type:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TransactionType}" Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Cashier -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Processed By:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding CashierName}" Style="{StaticResource InfoValueStyle}"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Right Column: Payment Info -->
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Payment Information" Style="{StaticResource SectionHeaderStyle}"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Payment Method -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Payment Method:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding PaymentMethod}" Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Payment Date -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Payment Date:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PaymentDate, StringFormat='{}{0:g}'}" Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Subtotal -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Subtotal:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Subtotal, StringFormat=C2, FallbackValue=$0.00}" Style="{StaticResource MoneyValueStyle}"/>
+
+                                <!-- Total Amount -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Total Amount:" Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding TotalAmount, StringFormat=C2, FallbackValue=$0.00}" Style="{StaticResource MoneyValueStyle}" FontSize="16" FontWeight="Bold"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Transaction Items Section -->
+                <TextBlock Grid.Row="2" Text="Transaction Items" Style="{StaticResource SectionHeaderStyle}" Margin="0,0,0,16"/>
+
+                <DataGrid Grid.Row="3" 
+                          ItemsSource="{Binding Details}" 
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          HeadersVisibility="Column"
+                          Background="Transparent"
+                          BorderBrush="#E2E8F0"
+                          BorderThickness="1"
+                          VerticalScrollBarVisibility="Auto"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="#E2E8F0"
+                          AlternatingRowBackground="#F8FAFC">
+                    <DataGrid.Columns>
+                        <!-- Product Code -->
+                        <DataGridTextColumn Header="Code" 
+                                           Binding="{Binding ProductBarcode}"
+                                           Width="120"/>
+
+                        <!-- Product Name -->
+                        <DataGridTextColumn Header="Description" 
+                                           Binding="{Binding ProductName}"
+                                           Width="*"/>
+
+                        <!-- Category -->
+                        <DataGridTextColumn Header="Category" 
+                                           Binding="{Binding CategoryName}"
+                                           Width="120"/>
+
+                        <!-- Quantity -->
+                        <DataGridTextColumn Header="Quantity" 
+                                           Binding="{Binding Quantity}"
+                                           Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextAlignment" Value="Center"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Unit Price -->
+                        <DataGridTextColumn Header="Unit Price" 
+                                           Binding="{Binding UnitPrice, StringFormat=C2}"
+                                           Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Discount -->
+                        <DataGridTextColumn Header="Discount" 
+                                           Binding="{Binding Discount, StringFormat=C2}"
+                                           Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Setter Property="Foreground" Value="#EF4444"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+
+                        <!-- Total -->
+                        <DataGridTextColumn Header="Total" 
+                                           Binding="{Binding Total, StringFormat=C2}"
+                                           Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="TextAlignment" Value="Right"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Summary Section -->
+                <Border Grid.Row="4" 
+                        Background="#F8FAFC" 
+                        BorderBrush="#E2E8F0" 
+                        BorderThickness="1" 
+                        CornerRadius="8" 
+                        Padding="16" 
+                        Margin="0,24,0,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="300"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Additional Notes (placeholder for future) -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Notes" Style="{StaticResource SectionHeaderStyle}"/>
+                            <TextBlock Text="{Binding Notes, FallbackValue='No notes for this transaction.'}" 
+                                       TextWrapping="Wrap"
+                                       Foreground="#64748B"/>
+                        </StackPanel>
+
+                        <!-- Totals Summary -->
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Summary" Style="{StaticResource SectionHeaderStyle}"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Subtotal -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" 
+                                           Text="Subtotal:" 
+                                           HorizontalAlignment="Left"
+                                           Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="0" Grid.Column="1" 
+                                           Text="{Binding Subtotal, StringFormat=C2, FallbackValue=$0.00}" 
+                                           HorizontalAlignment="Right"
+                                           Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Total Discount -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" 
+                                           Text="Discount:" 
+                                           HorizontalAlignment="Left"
+                                           Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" 
+                                           Text="{Binding DiscountAmount, StringFormat=C2, FallbackValue=$0.00}" 
+                                           HorizontalAlignment="Right"
+                                           Style="{StaticResource NegativeMoneyValueStyle}"/>
+
+                                <!-- Tax -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" 
+                                           Text="Tax:" 
+                                           HorizontalAlignment="Left"
+                                           Style="{StaticResource InfoLabelStyle}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" 
+                                           Text="{Binding TaxAmount, StringFormat=C2, FallbackValue=$0.00}" 
+                                           HorizontalAlignment="Right"
+                                           Style="{StaticResource InfoValueStyle}"/>
+
+                                <!-- Separator line -->
+                                <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" 
+                                        BorderBrush="#E2E8F0" 
+                                        BorderThickness="0,1,0,0" 
+                                        Margin="0,8,0,8"/>
+
+                                <!-- Total -->
+                                <TextBlock Grid.Row="3" Grid.Column="0" 
+                                           Text="Total:" 
+                                           HorizontalAlignment="Left"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Margin="0,16,0,0"
+                                           Foreground="#1E293B"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" 
+                                           Text="{Binding TotalAmount, StringFormat=C2, FallbackValue=$0.00}" 
+                                           HorizontalAlignment="Right"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Margin="0,16,0,0"
+                                           Foreground="#10B981"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

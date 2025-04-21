@@ -29,7 +29,10 @@ namespace QuickTechSystems.Infrastructure.Repositories
  
         private IGenericRepository<Quote>? _quotes;
         private IGenericRepository<LowStockHistory>? _lowStockHistories;
+        private IGenericRepository<RestaurantTable>? _restaurantTables;
 
+        public IGenericRepository<RestaurantTable> RestaurantTables =>
+            _restaurantTables ??= new GenericRepository<RestaurantTable>(_context, _contextFactory);
 
         public UnitOfWork(IDbContextFactory<ApplicationDbContext> contextFactory)
         {
@@ -101,6 +104,7 @@ namespace QuickTechSystems.Infrastructure.Repositories
 
         private void ResetRepositories()
         {
+            _restaurantTables = null;
             _products = null;
             _categories = null;
             _customers = null;

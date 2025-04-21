@@ -1,5 +1,3 @@
-- QuickTechSystems.sln
-
 QuickTechSystems
 - App.config
 - app.ico
@@ -9,6 +7,7 @@ QuickTechSystems
 - AssemblyInfo.cs
 - GlobalUsings.cs
 - MainWindow.xaml
+
 - MainWindow.xaml.cs
 - QuickTechSystems.csproj
 - QuickTechSystems.csproj.user
@@ -22,6 +21,7 @@ QuickTechSystems\Controls
 - AutoCompleteTextBox.xaml.cs
 
 QuickTechSystems\Converters
+- BooleanToGridLengthConverter.cs
 - BooleanToVisibilityConverter.cs
 - BooleanToVisibilityValueConverter.cs
 - BoolToColorConverter.cs
@@ -32,9 +32,14 @@ QuickTechSystems\Converters
 - CurrencyConverter.cs
 - CustomerSpecificPriceConverter.cs
 - DecimalConverter.cs
+- DecimalToBoolConverter.cs
+- EmptyStringToVisibilityConverter.cs
 - EqualityConverter.cs
 - GreaterThanConverter.cs
+- IntToEllipsisConverter.cs
+- InverseBooleanConverter.cs
 - InverseBooleanToVisibilityConverter.cs
+- InverseNullToVisibilityConverter.cs
 - IsResolvedConverter.cs
 - LessThanConverter.cs
 - LessThanValueConverter.cs
@@ -43,14 +48,20 @@ QuickTechSystems\Converters
 - NegativeValueConverter.cs
 - NotEqualToVisibilityConverter.cs
 - NullToBooleanConverter.cs
+- NullToFalseConverter.cs
 - NullToVisibilityConverter.cs
+- PageInfoConverter.cs
+- PaymentButtonVisibilityConverter.cs
+- PositiveIntToBooleanConverter.cs
 - PriceChangeConverter.cs
 - ProductTotalCostConverter.cs
 - ProductTotalProfitConverter.cs
 - ProductTotalValueConverter.cs
 - ProfitColorConverter.cs
+- RestaurantModeColumnWidthConverter.cs
 - StringIsNotEmptyConverter.cs
 - StringToVisibilityConverter.cs
+- TableStatusColorConverter.cs
 - TitleConverter.cs
 - TransactionTypeToColorConverter.cs
 
@@ -70,6 +81,7 @@ QuickTechSystems\Properties\PublishProfiles
 QuickTechSystems\Resources
 
 QuickTechSystems\Resources\Dictionaries
+- ModernStyles.xaml
 - Styles.xaml
 
 QuickTechSystems\Resources\Dictionaries\Languages
@@ -81,14 +93,19 @@ QuickTechSystems\Resources\Images
 - logo.png
 
 QuickTechSystems\Services
+- DialogService.cs
+- InputDialogService.cs
 - IWindowService.cs
+- TransactionWindowManager.cs
 - WindowService.cs
+
+QuickTechSystems\Utilities
+- UIHelpers.cs
 
 QuickTechSystems\ViewModels
 - BulkProductViewModel.cs
 - CashDrawerPromptViewModel.cs
 - CategoryViewModel.cs
-- CustomerDebtViewModel.cs
 - CustomerViewModel.cs
 - DamagedGoodsViewModel.cs
 - DashboardViewModel.cs
@@ -109,8 +126,10 @@ QuickTechSystems\ViewModels
 - ProfitViewModel.cs
 - QuoteViewModel.cs
 - SettingsViewModel.cs
+- SplashScreenViewModel.cs
 - SupplierViewModel.cs
 - SystemPreferencesViewModel.cs
+- TableManagementViewModel.cs
 - TransactionHistoryViewModel.cs
 - TransactionViewModel.cs
 - ViewModelBase.cs
@@ -133,8 +152,6 @@ QuickTechSystems\Views
 - CategoryDetailsPopup.xaml.cs
 - CategoryView.xaml
 - CategoryView.xaml.cs
-- CustomerDebtView.xaml
-- CustomerDebtView.xaml.cs
 - CustomerDetailsPopup.xaml
 - CustomerDetailsPopup.xaml.cs
 - CustomerView.xaml
@@ -163,8 +180,14 @@ QuickTechSystems\Views
 - LoginView.xaml.cs
 - LowStockHistoryView.xaml
 - LowStockHistoryView.xaml.cs
+- MainTransactionView.xaml
+- MainTransactionView.xaml.cs
+- PriceDialog.xaml
+- PriceDialog.xaml.cs
 - ProductDetailsPopup.xaml
 - ProductDetailsPopup.xaml.cs
+- ProductDetailsWindow.xaml
+- ProductDetailsWindow.xaml.cs
 - ProductSearchPopupForDamaged.xaml
 - ProductSearchPopupForDamaged.xaml.cs
 - ProductView.xaml
@@ -173,12 +196,16 @@ QuickTechSystems\Views
 - ProfitView.xaml.cs
 - QuantityDialog.xaml
 - QuantityDialog.xaml.cs
+- QuickCategoryDialogWindow.xaml
+- QuickCategoryDialogWindow.xaml.cs
+- QuickSupplierDialogWindow.xaml
+- QuickSupplierDialogWindow.xaml.cs
 - QuoteView.xaml
 - QuoteView.xaml.cs
-- ReturnItemSelectionDialog.xaml
-- ReturnItemSelectionDialog.xaml.cs
 - SettingsView.xaml
 - SettingsView.xaml.cs
+- SplashScreenView.xaml
+- SplashScreenView.xaml.cs
 - SupplierDetailsPopup.xaml
 - SupplierDetailsPopup.xaml.cs
 - SupplierTransactionPopup.xaml
@@ -189,18 +216,22 @@ QuickTechSystems\Views
 - SupplierView.xaml.cs
 - SystemPreferencesView.xaml
 - SystemPreferencesView.xaml.cs
+- TableManagementView.xaml
+- TableManagementView.xaml.cs
 - TransactionDetailsPopup.xaml
 - TransactionDetailsPopup.xaml.cs
-- TransactionDetailWindow.xaml
-- TransactionDetailWindow.xaml.cs
 - TransactionHistoryView.xaml
 - TransactionHistoryView.xaml.cs
 - TransactionPopup.xaml
 - TransactionPopup.xaml.cs
+- TransactionWindow.xaml
+- TransactionWindow.xaml.cs
 
 QuickTechSystems\Views\Dialogs
 - NumericKeypadDialog.xaml
 - NumericKeypadDialog.xaml.cs
+- TableSelectionDialog.xaml
+- TableSelectionDialog.xaml.cs
 
 QuickTechSystems\Views\Transaction
 - TransactionView.xaml
@@ -239,6 +270,7 @@ QuickTechSystems\Views\Transaction\Styles
 - CommonStyles.xaml
 - DataGridStyles.xaml
 - ProductCardStyles.xaml
+- ReceiptTemplate.xaml
 - TextBoxStyles.xaml
 - TransactionStyles.xaml
 
@@ -253,7 +285,6 @@ QuickTechSystems.Application\DTOs
 - BusinessSettingDTO.cs
 - CategoryDTO.cs
 - CustomerDTO.cs
-- CustomerPaymentDTO.cs
 - CustomerProductPriceDTO.cs
 - CustomerProductPriceViewModel.cs
 - DamagedGoodsDTO.cs
@@ -267,7 +298,7 @@ QuickTechSystems.Application\DTOs
 - ProductDTO.cs
 - ProfitDetailDTO.cs
 - QuoteDTO.cs
-- ReturnItemDTO.cs
+- RestaurantTableDTO.cs
 - SupplierDTO.cs
 - SupplierTransactionDTO.cs
 - SystemPreferenceDTO.cs
@@ -298,7 +329,6 @@ QuickTechSystems.Application\Services
 - BaseService.cs
 - BusinessSettingsService.cs
 - CategoryService.cs
-- CustomerDebtService.cs
 - CustomerService.cs
 - DamagedGoodsService.cs
 - DrawerService.cs
@@ -308,6 +338,7 @@ QuickTechSystems.Application\Services
 - PrinterService.cs
 - ProductService.cs
 - QuoteService.cs
+- RestaurantTableService.cs
 - SupplierService.cs
 - SystemPreferencesService.cs
 - TransactionService.cs
@@ -319,7 +350,6 @@ QuickTechSystems.Application\Services\Interfaces
 - IBaseService.cs
 - IBusinessSettingsService.cs
 - ICategoryService.cs
-- ICustomerDebtService.cs
 - ICustomerService.cs
 - IDrawerService.cs
 - IEmployeeService.cs
@@ -328,19 +358,17 @@ QuickTechSystems.Application\Services\Interfaces
 - IPrinterService.cs
 - IProductService.cs
 - IQuoteService.cs
+- IRestaurantTableService.cs
 - ISupplierService.cs
 - ISystemPreferencesService.cs
 - ITransactionService.cs
-
-QuickTechSystems.Application\Validators
+- ITransactionWindowManager.cs
 
 QuickTechSystems.Domain
 - Class1.cs
 - Class2.cs
 - GlobalUsings.cs
 - QuickTechSystems.Domain.csproj
-
-QuickTechSystems.Domain\Common
 
 QuickTechSystems.Domain\Entities
 - ActivityLog.cs
@@ -359,6 +387,7 @@ QuickTechSystems.Domain\Entities
 - LowStockHistory.cs
 - Product.cs
 - Quote.cs
+- RestaurantTable.cs
 - Supplier.cs
 - SupplierTransaction.cs
 - SystemPreference.cs
@@ -399,6 +428,7 @@ QuickTechSystems.Infrastructure\Data\Configurations
 - EmployeeSalaryTransactionConfiguration.cs
 - LowStockHistoryConfiguration.cs
 - ProductConfiguration.cs
+- RestaurantTableConfiguration.cs
 - SupplierConfiguration.cs
 - SupplierTransactionConfiguration.cs
 - SystemPreferenceConfiguration.cs
@@ -406,8 +436,8 @@ QuickTechSystems.Infrastructure\Data\Configurations
 - TransactionDetailConfiguration.cs
 
 QuickTechSystems.Infrastructure\Migrations
-- 20250306190223_InitialCreate.cs
-- 20250306190223_InitialCreate.Designer.cs
+- 20250321193841_InitialCreate.cs
+- 20250321193841_InitialCreate.Designer.cs
 - ApplicationDbContextModelSnapshot.cs
 
 QuickTechSystems.Infrastructure\Repositories
@@ -421,9 +451,3 @@ QuickTechSystems.Infrastructure\Services
 QuickTechSystems.Shared
 - Class1.cs
 - QuickTechSystems.Shared.csproj
-
-QuickTechSystems.Shared\Constants
-
-QuickTechSystems.Shared\Extensions
-
-QuickTechSystems.Shared\Helpers

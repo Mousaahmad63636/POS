@@ -19,6 +19,5 @@ namespace QuickTechSystems.Application.DTOs
         public string FullName => $"{FirstName} {LastName}";
         public decimal MonthlySalary { get; set; }
         public decimal CurrentBalance { get; set; }
-        public string? SecureCode { get; set; }
     }
 }

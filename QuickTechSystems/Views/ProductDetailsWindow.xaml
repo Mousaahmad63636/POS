@@ -235,6 +235,14 @@
             <Setter Property="Foreground" Value="#333333"/>
             <Setter Property="Margin" Value="0,0,0,5"/>
         </Style>
+
+        <!-- Helper Text Style -->
+        <Style x:Key="HelperTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="Margin" Value="0,3,0,8"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
     </Window.Resources>
 
     <Grid Margin="0,0,0,-2">
@@ -391,8 +399,6 @@
                                     Margin="0,0,0,0"/>
                         </StackPanel>
                     </Border>
-
-                   
                 </StackPanel>
 
                 <!-- Right Column -->
@@ -402,27 +408,55 @@
                         <StackPanel>
                             <TextBlock Text="Barcode Information" Style="{StaticResource SectionTitleStyle}"/>
 
+                            <!-- Option 1: Use Existing Barcode -->
+                            <TextBlock Text="Option 1: Use Existing Barcode" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,5"/>
+                            <TextBlock Text="Enter an existing barcode and generate its image" 
+                                       Style="{StaticResource HelperTextStyle}"/>
+
                             <!-- Barcode Field -->
                             <TextBlock Text="Barcode" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
                                     Style="{StaticResource TextInputStyle}" 
-                                    Margin="0,0,0,15"/>
+                                    Margin="0,0,0,8"/>
 
-                            <!-- Generate Barcode Button -->
-                            <Button Content="Generate Barcode"
-                                    Command="{Binding GenerateAutomaticBarcodeCommand}"
+                            <!-- Generate Barcode from Input Button -->
+                            <Button Content="Generate Image from Barcode"
+                                    Command="{Binding GenerateBarcodeCommand}"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     HorizontalAlignment="Stretch"
                                     Margin="0,0,0,15"/>
 
+                            <!-- Option 2: Auto-Generate Barcode -->
+                            <TextBlock Text="Option 2: Auto-Generate New Barcode" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,5"/>
+                            <TextBlock Text="Create a new unique barcode automatically" 
+                                       Style="{StaticResource HelperTextStyle}"/>
+
+                            <!-- Auto-Generate Barcode Button -->
+                            <Button Content="Auto-Generate New Barcode"
+                                    Command="{Binding GenerateAutomaticBarcodeCommand}"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    HorizontalAlignment="Stretch"
+                                    Margin="0,0,0,15"/>
+
                             <!-- Barcode Image Display -->
-                            <Image Source="{Binding BarcodeImage}"
-                                   Height="60"
-                                   HorizontalAlignment="Left"
-                                   VerticalAlignment="Top"
-                                   Stretch="Uniform"
-                                   RenderOptions.BitmapScalingMode="HighQuality"
-                                   Margin="0,0,0,0"/>
+                            <TextBlock Text="Barcode Image Preview" 
+                                       Style="{StaticResource FieldLabelStyle}"/>
+                            <Border BorderBrush="#DDDDDD"
+                                    BorderThickness="1"
+                                    Padding="10"
+                                    Background="#F8F9FA">
+                                <Image Source="{Binding BarcodeImage}"
+                                       Height="60"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Top"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       Margin="0,0,0,0"/>
+                            </Border>
                         </StackPanel>
                     </Border>
 
@@ -456,9 +490,9 @@
                                     HorizontalAlignment="Stretch"
                                     Background="#F8F9FA">
                                 <Image Source="{Binding ProductImage}"
-                                       Stretch="Uniform"
-                                       RenderOptions.BitmapScalingMode="HighQuality"
-                                       Margin="5"/>
+       Stretch="Uniform"
+       RenderOptions.BitmapScalingMode="HighQuality"
+       Margin="5"/>
                             </Border>
                         </StackPanel>
                     </Border>
