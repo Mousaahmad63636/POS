@@ -3,6 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters">
 
+    <UserControl.Resources>
+        <converters:UsdToLbpConverter x:Key="UsdToLbpConverter"/>
+    </UserControl.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto" 
                   HorizontalScrollBarVisibility="Disabled">
         <ItemsControl ItemsSource="{Binding FilteredProducts}"
@@ -35,7 +39,7 @@
                             </Border>
 
                             <!-- Semi-transparent Gradient Overlay -->
-                            <Border Height="80"
+                            <Border Height="90"
                                     VerticalAlignment="Bottom"
                                     CornerRadius="0,0,8,8">
                                 <Border.Background>
@@ -62,6 +66,12 @@
                                          FontSize="14"
                                          FontWeight="Bold"
                                          Margin="0,4,0,0"/>
+
+                                <TextBlock Text="{Binding SalePrice, Converter={StaticResource UsdToLbpConverter}}"
+                                         Foreground="#E0E0E0"
+                                         FontSize="12"
+                                         FontWeight="SemiBold"
+                                         Margin="0,0,0,0"/>
                             </StackPanel>
                         </Grid>
                     </Border>

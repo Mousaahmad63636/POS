@@ -36,7 +36,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private TransactionDTO _selectedTransaction;
         private bool _isDisposed;
         private CancellationTokenSource _cts;
-
+        private ObservableCollection<EmployeeDTO> _employees;
+        private EmployeeDTO _selectedEmployee;
+        private readonly IEmployeeService _employeeService;
         private ObservableCollection<TransactionDTO> _transactions;
         private ObservableCollection<CategoryDTO> _categories;
         private ObservableCollection<TransactionDTO> _filteredTransactions;
@@ -95,7 +97,25 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+        public ObservableCollection<EmployeeDTO> Employees
+        {
+            get => _employees;
+            private set => SetProperty(ref _employees, value);
+        }
 
+        public EmployeeDTO SelectedEmployee
+        {
+            get => _selectedEmployee;
+            set
+            {
+                if (SetProperty(ref _selectedEmployee, value))
+                {
+                    _currentPage = 1;
+                    OnPropertyChanged(nameof(CurrentPage));
+                    _ = SafeLoadDataAsync();
+                }
+            }
+        }
         public decimal TotalSales
         {
             get => _totalSales;
@@ -279,20 +299,23 @@ namespace QuickTechSystems.WPF.ViewModels
         public ObservableCollection<int> AvailablePageSizes { get; } = new ObservableCollection<int> { 10, 25, 50, 100 };
 
         public TransactionHistoryViewModel(
-     ITransactionService transactionService,
-     ICategoryService categoryService,
-     IBusinessSettingsService businessSettingsService,
-     IDbContextFactory<ApplicationDbContext> dbContextFactory,
-     IEventAggregator eventAggregator) : base(eventAggregator)
+           ITransactionService transactionService,
+           ICategoryService categoryService,
+           IEmployeeService employeeService,
+           IBusinessSettingsService businessSettingsService,
+           IDbContextFactory<ApplicationDbContext> dbContextFactory,
+           IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _instance = this;
             _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
+            _employeeService = employeeService ?? throw new ArgumentNullException(nameof(employeeService));
             _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
             _businessSettingsService = businessSettingsService ?? throw new ArgumentNullException(nameof(businessSettingsService));
             _transactions = new ObservableCollection<TransactionDTO>();
             _filteredTransactions = new ObservableCollection<TransactionDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
+            _employees = new ObservableCollection<EmployeeDTO>();
             _transactionChangedHandler = HandleTransactionChanged;
             _cts = new CancellationTokenSource();
             _pageNumbers = new ObservableCollection<int>();
@@ -305,11 +328,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 async transaction => await DeleteTransactionAsync(transaction),
                 CanDeleteTransaction);
 
-
             ViewTransactionDetailsCommand = new AsyncRelayCommand<TransactionDTO>(
-    async transaction => await ShowTransactionDetailsAsync(transaction),
-    CanShowTransactionDetails);
-            // Pagination commands
+                async transaction => await ShowTransactionDetailsAsync(transaction),
+                CanShowTransactionDetails);
             NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
             PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
             GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
@@ -317,7 +338,44 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _ = InitializeAsync();
         }
+        // Add method to load employees
+        private async Task LoadEmployeesAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadEmployeesAsync skipped - operation in progress");
+                return;
+            }
 
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = string.Empty;
+
+                try
+                {
+                    var employees = await _employeeService.GetAllAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        Employees = new ObservableCollection<EmployeeDTO>(
+                            new[] { new EmployeeDTO { EmployeeId = 0, FirstName = "All", LastName = "Employees" } }
+                            .Concat(employees)
+                        );
+                        SelectedEmployee = Employees.First();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    HandleError("Error loading employees", ex);
+                }
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
         private void UpdateVisiblePageNumbers()
         {
             var visiblePages = new List<int>();
@@ -387,6 +445,7 @@ namespace QuickTechSystems.WPF.ViewModels
             try
             {
                 await LoadCategoriesAsync();
+                await LoadEmployeesAsync();
                 await SafeLoadDataAsync();
             }
             catch (Exception ex)
@@ -613,7 +672,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            // Create a new CancellationTokenSource for this operation
             _cts?.Cancel();
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
@@ -625,32 +683,27 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
-                    // Add a timeout for the operation
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
-                    // Get the category ID filter
                     int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
+                    string cashierId = SelectedEmployee?.EmployeeId > 0 ? SelectedEmployee.EmployeeId.ToString() : null;
 
-                    // Retrieve paginated transactions
                     var (transactions, totalCount) = await _transactionService.GetByDateRangePagedAsync(
-                        StartDate, EndDate, CurrentPage, PageSize, categoryId);
+                        StartDate, EndDate, CurrentPage, PageSize, categoryId, cashierId);
 
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    // Get summary data for the entire date range (not just current page)
                     var summary = await _transactionService.GetTransactionSummaryByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
                     var categorySales = await _transactionService.GetCategorySalesByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    // Calculate profit for the entire date range
                     var totalProfit = await _transactionService.GetTransactionProfitByDateRangeAsync(
                         StartDate, EndDate, categoryId);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    // Calculate total pages
                     int calculatedTotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -699,10 +752,13 @@ namespace QuickTechSystems.WPF.ViewModels
                         t.CashierName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
                 }
 
-                FilteredTransactions = new ObservableCollection<TransactionDTO>(filtered);
+                if (SelectedEmployee?.EmployeeId > 0)
+                {
+                    string employeeId = SelectedEmployee.EmployeeId.ToString();
+                    filtered = filtered.Where(t => t.CashierId == employeeId);
+                }
 
-                // Don't recalculate totals - we're using the full date range totals
-                // CalculateTotals();
+                FilteredTransactions = new ObservableCollection<TransactionDTO>(filtered);
             }
             catch (Exception ex)
             {
@@ -714,6 +770,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SearchText = string.Empty;
             SelectedCategory = Categories.First();
+            SelectedEmployee = Employees.First();
             StartDate = DateTime.Today;
             EndDate = DateTime.Today;
             CurrentPage = 1;
