@@ -22,6 +22,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private ObservableCollection<SupplierInvoiceDTO> _invoices;
         private SupplierInvoiceDTO? _selectedInvoice;
         private ObservableCollection<SupplierDTO> _suppliers;
+        private readonly Action<EntityChangedEvent<SupplierDTO>> _supplierChangedHandler;
         private SupplierDTO? _selectedSupplier;
         private string _invoiceNumber = string.Empty;
         private DateTime _invoiceDate = DateTime.Now;
@@ -232,10 +233,10 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand MakePaymentCommand { get; }
         public ICommand ShowPaymentHistoryCommand { get; }
         public SupplierInvoiceViewModel(
-            ISupplierInvoiceService supplierInvoiceService,
-            ISupplierService supplierService,
-            IProductService productService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
+    ISupplierInvoiceService supplierInvoiceService,
+    ISupplierService supplierService,
+    IProductService productService,
+    IEventAggregator eventAggregator) : base(eventAggregator)
         {
 
             _supplierInvoiceService = supplierInvoiceService;
@@ -245,6 +246,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _suppliers = new ObservableCollection<SupplierDTO>();
             _products = new ObservableCollection<ProductDTO>();
             _filteredProducts = new ObservableCollection<ProductDTO>();
+            _supplierChangedHandler = HandleSupplierChanged;
             _invoiceChangedHandler = HandleInvoiceChanged;
             _cts = new CancellationTokenSource();
             MakePaymentCommand = new AsyncRelayCommand(async _ => await MakePaymentAsync());
@@ -263,16 +265,25 @@ namespace QuickTechSystems.WPF.ViewModels
 
             _ = LoadDataAsync();
         }
-
         protected override void SubscribeToEvents()
         {
+            // Keep existing subscriptions
             _eventAggregator.Subscribe<EntityChangedEvent<SupplierInvoiceDTO>>(_invoiceChangedHandler);
+
+            // Add this new subscription
+            _eventAggregator.Subscribe<EntityChangedEvent<SupplierDTO>>(_supplierChangedHandler);
         }
+
 
         protected override void UnsubscribeFromEvents()
         {
+            // Keep existing unsubscriptions
             _eventAggregator.Unsubscribe<EntityChangedEvent<SupplierInvoiceDTO>>(_invoiceChangedHandler);
+
+            // Add this new unsubscription
+            _eventAggregator.Unsubscribe<EntityChangedEvent<SupplierDTO>>(_supplierChangedHandler);
         }
+
 
         private async void HandleInvoiceChanged(EntityChangedEvent<SupplierInvoiceDTO> evt)
         {
@@ -334,6 +345,74 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private async void HandleSupplierChanged(EntityChangedEvent<SupplierDTO> evt)
+        {
+            try
+            {
+                Debug.WriteLine($"SupplierInvoiceViewModel: Handling supplier change: {evt.Action}");
+
+                // Only handle active suppliers since that's what we display in dropdowns
+                if (evt.Entity.IsActive)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        switch (evt.Action)
+                        {
+                            case "Create":
+                                // Add the new supplier to our collection if it's not already there
+                                if (!Suppliers.Any(s => s.SupplierId == evt.Entity.SupplierId))
+                                {
+                                    Suppliers.Add(evt.Entity);
+                                    Debug.WriteLine($"Added new supplier {evt.Entity.Name} to invoice view");
+                                }
+                                break;
+
+                            case "Update":
+                                var existingIndex = Suppliers.ToList().FindIndex(s => s.SupplierId == evt.Entity.SupplierId);
+                                if (existingIndex != -1)
+                                {
+                                    // Update the existing supplier
+                                    Suppliers[existingIndex] = evt.Entity;
+                                    Debug.WriteLine($"Updated supplier {evt.Entity.Name} in invoice view");
+                                }
+                                else
+                                {
+                                    // This is a supplier that wasn't in our list but is now active
+                                    Suppliers.Add(evt.Entity);
+                                    Debug.WriteLine($"Added updated supplier {evt.Entity.Name} to invoice view");
+                                }
+                                break;
+
+                            case "Delete":
+                                var supplierToRemove = Suppliers.FirstOrDefault(s => s.SupplierId == evt.Entity.SupplierId);
+                                if (supplierToRemove != null)
+                                {
+                                    Suppliers.Remove(supplierToRemove);
+                                    Debug.WriteLine($"Removed supplier {supplierToRemove.Name} from invoice view");
+                                }
+                                break;
+                        }
+                    });
+                }
+                else if (evt.Action == "Update")
+                {
+                    // If supplier was set to inactive, remove it from our list
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        var supplierToRemove = Suppliers.FirstOrDefault(s => s.SupplierId == evt.Entity.SupplierId);
+                        if (supplierToRemove != null)
+                        {
+                            Suppliers.Remove(supplierToRemove);
+                            Debug.WriteLine($"Removed inactive supplier {supplierToRemove.Name} from invoice view");
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SupplierInvoiceViewModel: Error handling supplier change: {ex.Message}");
+            }
+        }
         private bool ShouldDisplayInvoice(SupplierInvoiceDTO invoice)
         {
             if (StatusFilter == "All")
