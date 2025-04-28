@@ -12,6 +12,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<bool> UpdateStockAsync(int mainStockId, decimal quantity);
         Task<IEnumerable<MainStockDTO>> GetLowStockProductsAsync();
         Task<MainStockDTO?> GetByBarcodeAsync(string barcode);
+        Task<MainStockDTO> UpdateAsync(MainStockDTO dto);
         Task<MainStockDTO> FindProductByBarcodeAsync(string barcode, int excludeMainStockId = 0);
         Task<List<MainStockDTO>> CreateBatchAsync(List<MainStockDTO> products, IProgress<string>? progress = null);
         Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string? notes = null);

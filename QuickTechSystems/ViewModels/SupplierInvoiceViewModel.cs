@@ -546,9 +546,32 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void AddInvoice()
         {
-            ResetInvoiceFields();
-            var createWindow = new SupplierInvoiceCreateWindow(this);
-            createWindow.ShowDialog();
+            // Refresh supplier list before opening dialog
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await LoadSuppliersAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        ResetInvoiceFields();
+                        var createWindow = new SupplierInvoiceCreateWindow(this);
+                        createWindow.ShowDialog();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error refreshing suppliers: {ex.Message}");
+                    // Still show the dialog even if refresh fails
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        ResetInvoiceFields();
+                        var createWindow = new SupplierInvoiceCreateWindow(this);
+                        createWindow.ShowDialog();
+                    });
+                }
+            });
         }
         private void ResetInvoiceFields()
         {

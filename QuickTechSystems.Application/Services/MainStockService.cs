@@ -150,6 +150,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // Path: QuickTechSystems.Application.Services/MainStockService.cs
         public async Task<List<MainStockDTO>> CreateBatchAsync(List<MainStockDTO> products, IProgress<string>? progress = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -172,7 +173,34 @@ namespace QuickTechSystems.Application.Services
                         if (entity.CreatedAt == default)
                             entity.CreatedAt = DateTime.Now;
 
-                        var result = await _repository.AddAsync(entity);
+                        // Explicitly check for existing entity to avoid tracking conflicts
+                        MainStock result;
+                        if (entity.MainStockId > 0)
+                        {
+                            // For existing entities, first check if it exists in the database
+                            var existingEntity = await _repository.GetByIdAsync(entity.MainStockId);
+                            if (existingEntity != null)
+                            {
+                                // Detach the existing entity to avoid tracking conflicts
+                                _unitOfWork.DetachEntity(existingEntity);
+
+                                // Update the entity
+                                entity.UpdatedAt = DateTime.Now;
+                                await _repository.UpdateAsync(entity);
+                                result = entity; // Use the entity object directly since UpdateAsync returns void
+                            }
+                            else
+                            {
+                                // If not found (unusual case), treat as new entity
+                                entity.MainStockId = 0; // Reset ID to let database assign a new one
+                                result = await _repository.AddAsync(entity);
+                            }
+                        }
+                        else
+                        {
+                            // New entity, just add it
+                            result = await _repository.AddAsync(entity);
+                        }
 
                         // Map back to DTO without saving changes yet
                         var resultDto = _mapper.Map<MainStockDTO>(result);
@@ -188,7 +216,9 @@ namespace QuickTechSystems.Application.Services
                     // Publish events for all saved products
                     foreach (var savedProduct in savedProducts)
                     {
-                        _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Create", savedProduct));
+                        _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>(
+                            savedProduct.MainStockId > 0 ? "Update" : "Create",
+                            savedProduct));
                     }
 
                     Debug.WriteLine($"Successfully saved {savedProducts.Count} MainStock items in batch");
@@ -307,7 +337,55 @@ namespace QuickTechSystems.Application.Services
             return product?.CurrentStock ?? 0;
         }
 
+        // Path: QuickTechSystems.Application.Services/MainStockService.cs
+        public override async Task<MainStockDTO> UpdateAsync(MainStockDTO dto)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                Debug.WriteLine($"Updating MainStock item {dto.MainStockId}: {dto.Name}");
 
+                try
+                {
+                    // Set updated timestamp
+                    if (dto.UpdatedAt == null)
+                    {
+                        dto.UpdatedAt = DateTime.Now;
+                    }
+
+                    // Find existing entity first
+                    var existingEntity = await _repository.GetByIdAsync(dto.MainStockId);
+                    if (existingEntity != null)
+                    {
+                        // Detach the existing entity to avoid tracking conflicts
+                        _unitOfWork.DetachEntity(existingEntity);
+                    }
+
+                    // Map DTO to entity
+                    var entity = _mapper.Map<MainStock>(dto);
+
+                    // Update the entity and save changes in one operation
+                    await _repository.UpdateAsync(entity);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Map back to DTO for result
+                    var resultDto = _mapper.Map<MainStockDTO>(entity);
+
+                    // Publish the update event
+                    _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", resultDto));
+
+                    return resultDto;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error updating MainStock: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
+                    throw;
+                }
+            });
+        }
         public async Task<IEnumerable<MainStockDTO>> SearchAsync(string searchTerm)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

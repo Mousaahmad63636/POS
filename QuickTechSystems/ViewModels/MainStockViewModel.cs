@@ -1249,8 +1249,28 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Validating item...";
 
-                // Store reference to item before any operations that might clear it
-                var itemToUpdate = SelectedItem;
+                // Create a complete copy of the selected item to avoid tracking issues
+                var itemToUpdate = new MainStockDTO
+                {
+                    MainStockId = SelectedItem.MainStockId,
+                    Name = SelectedItem.Name,
+                    Barcode = SelectedItem.Barcode,
+                    CategoryId = SelectedItem.CategoryId,
+                    CategoryName = SelectedItem.CategoryName,
+                    SupplierId = SelectedItem.SupplierId,
+                    SupplierName = SelectedItem.SupplierName,
+                    Description = SelectedItem.Description,
+                    PurchasePrice = SelectedItem.PurchasePrice,
+                    SalePrice = SelectedItem.SalePrice,
+                    CurrentStock = SelectedItem.CurrentStock,
+                    MinimumStock = SelectedItem.MinimumStock,
+                    BarcodeImage = SelectedItem.BarcodeImage,
+                    Speed = SelectedItem.Speed,
+                    IsActive = SelectedItem.IsActive,
+                    ImagePath = SelectedItem.ImagePath,
+                    CreatedAt = SelectedItem.CreatedAt,
+                    UpdatedAt = DateTime.Now
+                };
 
                 // Check if barcode is empty and generate one if needed
                 if (string.IsNullOrWhiteSpace(itemToUpdate.Barcode))
@@ -1326,20 +1346,18 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         // Create new item
                         savedItem = await _mainStockService.CreateAsync(itemToUpdate);
-
-                        // Update SelectedItem reference
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                            SelectedItem = savedItem;
-                        });
-
-                        // Use the result for updating UI
-                        itemToUpdate = savedItem;
                     }
                     else
                     {
-                        await _mainStockService.UpdateAsync(itemToUpdate);
-                        savedItem = itemToUpdate;
+                        // Update existing item - use the UpdateAsync method
+                        savedItem = await _mainStockService.UpdateAsync(itemToUpdate);
+
                     }
+
+                    // Update SelectedItem reference with the returned values
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        SelectedItem = savedItem;
+                    });
 
                     // Handle supplier invoice association if selected
                     if (SelectedInvoice != null && savedItem != null)

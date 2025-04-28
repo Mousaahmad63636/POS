@@ -27,6 +27,7 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
         IGenericRepository<InventoryHistory> InventoryHistories { get; }
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
+        void DetachEntity<T>(T entity) where T : class;
         DbContext Context { get; }
     }
 }

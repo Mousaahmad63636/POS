@@ -60,7 +60,12 @@ namespace QuickTechSystems.Infrastructure.Repositories
             _contextFactory = contextFactory;
             _context = _contextFactory.CreateDbContext();
         }
+        public void DetachEntity<T>(T entity) where T : class
+        {
+            if (entity == null) return;
 
+            _context.Entry(entity).State = EntityState.Detached;
+        }
         public IGenericRepository<Quote> Quotes =>
             _quotes ??= new GenericRepository<Quote>(_context, _contextFactory);
 
