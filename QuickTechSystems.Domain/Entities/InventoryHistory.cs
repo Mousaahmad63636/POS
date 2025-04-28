@@ -1,19 +1,17 @@
-﻿// Path: QuickTechSystem.Domain/Entities/InventoryHistory.cs
-using QuickTechSystems.Domain.Enums;
-
+﻿// Path: QuickTechSystems.Domain.Entities/InventoryHistory.cs
 namespace QuickTechSystems.Domain.Entities
 {
     public class InventoryHistory
     {
-        public int Id { get; set; }
+        public int InventoryHistoryId { get; set; }
         public int ProductId { get; set; }
-        public decimal QuantityChanged { get; set; } // Changed from int to decimal
-        public TransactionType OperationType { get; set; }
-        public DateTime Date { get; set; }
-        public string Reference { get; set; }
-        public string Notes { get; set; }
+        public decimal QuantityChange { get; set; }
+        public decimal NewQuantity { get; set; }
+        public string Type { get; set; } = string.Empty; // Purchase, Sale, Adjustment, etc.
+        public string? Notes { get; set; }
+        public DateTime Timestamp { get; set; }
 
         // Navigation properties
-        public virtual Product Product { get; set; }
+        public virtual Product? Product { get; set; }
     }
 }

@@ -17,9 +17,6 @@ namespace QuickTechSystems.WPF.Views
         private const int MARGIN_COLUMN_INDEX = 6;
         private const int ITEMS_COLUMN_INDEX = 7;
 
-        // References to XAML elements
-        private Border summaryPopup;
-
         public ProfitView()
         {
             InitializeComponent();
@@ -35,148 +32,7 @@ namespace QuickTechSystems.WPF.Views
                 // Any initialization if needed
             }
 
-            // Find and store references to named XAML elements
-            FindXamlElements();
-
             AdjustLayoutForSize();
-        }
-
-        private void FindXamlElements()
-        {
-            // Find the summary popup in the visual tree
-            summaryPopup = this.FindName("SummaryPopup") as Border;
-
-            // If not found via FindName, try searching the visual tree
-            if (summaryPopup == null)
-            {
-                summaryPopup = FindVisualChild<Border>(this, "SummaryPopup");
-            }
-
-            // If still not found, create it programmatically
-            if (summaryPopup == null)
-            {
-                CreateSummaryPopup();
-            }
-        }
-
-        // Helper method to find a named element in the visual tree
-        private T FindVisualChild<T>(DependencyObject parent, string childName) where T : DependencyObject
-        {
-            // Create a childCount to prevent infinite recursion if visual tree is malformed
-            int childCount = VisualTreeHelper.GetChildrenCount(parent);
-            for (int i = 0; i < childCount; i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-
-                // If this is the child we're looking for, return it
-                if (child is FrameworkElement element && element.Name == childName && child is T typedChild)
-                {
-                    return typedChild;
-                }
-
-                // Otherwise, recurse into its children
-                var result = FindVisualChild<T>(child, childName);
-                if (result != null)
-                {
-                    return result;
-                }
-            }
-            return null;
-        }
-
-        // Create the popup programmatically if it wasn't found in XAML
-        private void CreateSummaryPopup()
-        {
-            summaryPopup = new Border
-            {
-                Name = "SummaryPopup",
-                Background = (Brush)System.Windows.Application.Current.Resources["BackdropColor"],
-                Visibility = Visibility.Collapsed
-            };
-
-            // Create popup content
-            var popupContent = new Border
-            {
-                Background = (Brush)System.Windows.Application.Current.Resources["BackgroundColor"],
-                BorderBrush = (Brush)System.Windows.Application.Current.Resources["BorderColor"],
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                MaxWidth = 900,
-                MaxHeight = 600,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-
-            // Create a layout grid for the popup
-            var popupGrid = new Grid
-            {
-                Margin = new Thickness(24)
-            };
-
-            // Create close button
-            var closeButton = new Button
-            {
-                Content = "Close",
-                Style = (Style)System.Windows.Application.Current.Resources["PrimaryButtonStyle"],
-                HorizontalAlignment = HorizontalAlignment.Center,
-                MinWidth = 120,
-                Margin = new Thickness(0, 24, 0, 0)
-            };
-            closeButton.Click += ClosePopupButton_Click;
-
-            // Add basic content to the popup
-            var titleText = new TextBlock
-            {
-                Text = "Profit Summary",
-                Style = (Style)System.Windows.Application.Current.Resources["HeadlineMedium"],
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-
-            popupGrid.Children.Add(titleText);
-            popupGrid.Children.Add(closeButton);
-
-            // Set up grid rows
-            popupGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            popupGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // Set grid positions
-            Grid.SetRow(titleText, 0);
-            Grid.SetRow(closeButton, 1);
-
-            // Assemble the popup
-            popupContent.Child = popupGrid;
-            summaryPopup.Child = popupContent;
-
-            // Add to the visual tree
-            var grid = this.Content as Grid;
-            if (grid != null)
-            {
-                grid.Children.Add(summaryPopup);
-            }
-            else
-            {
-                // Fix: Create a container and properly handle the Content conversion
-                var container = new Grid();
-
-                // Properly convert the existing content to UIElement or ContentPresenter
-                if (this.Content is UIElement contentElement)
-                {
-                    container.Children.Add(contentElement);
-                }
-                else if (this.Content != null)
-                {
-                    // If content is not a UIElement, wrap it in a ContentPresenter
-                    var contentPresenter = new ContentPresenter
-                    {
-                        Content = this.Content
-                    };
-                    container.Children.Add(contentPresenter);
-                }
-
-                container.Children.Add(summaryPopup);
-                this.Content = container;
-            }
         }
 
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
@@ -222,12 +78,6 @@ namespace QuickTechSystems.WPF.Views
             // Apply column visibility
             SetColumnVisibility(showDateColumn, showTimeColumn, showSalesColumn, showCostColumn,
                                showGrossProfitColumn, showNetProfitColumn, showMarginColumn, showItemsColumn);
-
-            // Set popup size based on screen dimensions
-            if (summaryPopup != null && summaryPopup.Visibility == Visibility.Visible)
-            {
-                AdjustPopupSize(width, height);
-            }
         }
 
         private double CalculateAdaptiveMargin(double screenWidth)
@@ -285,41 +135,37 @@ namespace QuickTechSystems.WPF.Views
 
         private void SummaryButton_Click(object sender, RoutedEventArgs e)
         {
-            if (summaryPopup != null)
+            if (DataContext is ProfitViewModel viewModel)
             {
-                summaryPopup.Visibility = Visibility.Visible;
+                var summaryWindow = new ProfitSummaryWindow(viewModel);
+                summaryWindow.Owner = Window.GetWindow(this);
+                summaryWindow.ShowDialog();
+            }
+        }
 
-                // Adjust popup size based on window dimensions
-                var parentWindow = Window.GetWindow(this);
-                if (parentWindow != null)
+        // Helper method to find a named element in the visual tree
+        private T FindVisualChild<T>(DependencyObject parent, string childName) where T : DependencyObject
+        {
+            // Create a childCount to prevent infinite recursion if visual tree is malformed
+            int childCount = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < childCount; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+
+                // If this is the child we're looking for, return it
+                if (child is FrameworkElement element && element.Name == childName && child is T typedChild)
                 {
-                    AdjustPopupSize(parentWindow.ActualWidth, parentWindow.ActualHeight);
+                    return typedChild;
+                }
+
+                // Otherwise, recurse into its children
+                var result = FindVisualChild<T>(child, childName);
+                if (result != null)
+                {
+                    return result;
                 }
             }
-        }
-
-        private void ClosePopupButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (summaryPopup != null)
-            {
-                summaryPopup.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        private void AdjustPopupSize(double windowWidth, double windowHeight)
-        {
-            if (summaryPopup == null) return;
-
-            // Find the content border of the popup
-            var popupContent = summaryPopup.Child as Border;
-            if (popupContent == null) return;
-
-            // Calculate responsive dimensions
-            double maxWidth = Math.Min(900, windowWidth * 0.9);
-            double maxHeight = Math.Min(600, windowHeight * 0.85);
-
-            popupContent.MaxWidth = maxWidth;
-            popupContent.MaxHeight = maxHeight;
+            return null;
         }
     }
 }

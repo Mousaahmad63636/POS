@@ -3,16 +3,26 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.ViewModels;
+using QuickTechSystems.WPF.ViewModels;
+using QuickTechSystems.WPF;
 
 namespace QuickTechSystems.WPF.Views
 {
     public partial class SupplierView : UserControl
     {
+        private SupplierInvoiceViewModel _supplierInvoiceViewModel;
+
         public SupplierView()
         {
             InitializeComponent();
             this.Loaded += OnControlLoaded;
             this.SizeChanged += OnControlSizeChanged;
+
+            // Get the SupplierInvoiceViewModel from the service provider
+            _supplierInvoiceViewModel = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<SupplierInvoiceViewModel>();
+
+            // Set the DataContext for the SupplierInvoiceView
+            SupplierInvoiceView.DataContext = _supplierInvoiceViewModel;
         }
 
         private void OnControlLoaded(object sender, RoutedEventArgs e)
@@ -64,7 +74,8 @@ namespace QuickTechSystems.WPF.Views
             if (sender is DataGrid grid && grid.SelectedItem is SupplierDTO supplier &&
                 DataContext is SupplierViewModel viewModel)
             {
-                viewModel.EditSupplier(supplier);
+                var window = new SupplierDetailsWindow(viewModel, supplier, false);
+                window.ShowDialog();
             }
         }
 
@@ -74,10 +85,10 @@ namespace QuickTechSystems.WPF.Views
                 button.DataContext is SupplierDTO supplier &&
                 DataContext is SupplierViewModel viewModel)
             {
-                viewModel.EditSupplier(supplier);
+                var window = new SupplierDetailsWindow(viewModel, supplier, false);
+                window.ShowDialog();
             }
         }
-
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button &&
@@ -99,9 +110,11 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is SupplierViewModel viewModel)
             {
                 viewModel.SelectedSupplier = supplier;
-                viewModel.ShowTransactionPopup();
+                var window = new SupplierPaymentWindow(viewModel, supplier);
+                window.ShowDialog();
             }
         }
+
 
         private void ViewHistoryButton_Click(object sender, RoutedEventArgs e)
         {
@@ -110,7 +123,8 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is SupplierViewModel viewModel)
             {
                 viewModel.SelectedSupplier = supplier;
-                viewModel.ShowTransactionsHistoryPopup();
+                var window = new SupplierTransactionsHistoryWindow(viewModel, supplier);
+                window.ShowDialog();
             }
         }
 
@@ -120,7 +134,8 @@ namespace QuickTechSystems.WPF.Views
             if (DataContext is SupplierViewModel viewModel &&
                 viewModel.SelectedSupplier != null)
             {
-                viewModel.EditSupplier(viewModel.SelectedSupplier);
+                var window = new SupplierDetailsWindow(viewModel, viewModel.SelectedSupplier, false);
+                window.ShowDialog();
             }
         }
 
@@ -139,7 +154,8 @@ namespace QuickTechSystems.WPF.Views
             if (DataContext is SupplierViewModel viewModel &&
                 viewModel.SelectedSupplier != null)
             {
-                viewModel.ShowTransactionPopup();
+                var window = new SupplierPaymentWindow(viewModel, viewModel.SelectedSupplier);
+                window.ShowDialog();
             }
         }
 
@@ -148,47 +164,11 @@ namespace QuickTechSystems.WPF.Views
             if (DataContext is SupplierViewModel viewModel &&
                 viewModel.SelectedSupplier != null)
             {
-                viewModel.ShowTransactionsHistoryPopup();
+                var window = new SupplierTransactionsHistoryWindow(viewModel, viewModel.SelectedSupplier);
+                window.ShowDialog();
             }
         }
 
-        // Popup event handlers
-        private void SupplierDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is SupplierViewModel viewModel)
-            {
-                viewModel.CloseSupplierPopup();
-            }
-        }
-
-        private void SupplierDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is SupplierViewModel viewModel)
-            {
-                viewModel.CloseSupplierPopup();
-            }
-        }
-
-        private void SupplierTransactionPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is SupplierViewModel viewModel)
-            {
-                viewModel.CloseTransactionPopup();
-            }
-        }
-
-        private void SupplierTransactionPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            // The transaction will be saved and UI will be handled by the ViewModel
-            // No additional handling needed here as the ViewModel manages popup state
-        }
-
-        private void SupplierTransactionsHistoryPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is SupplierViewModel viewModel)
-            {
-                viewModel.CloseTransactionsHistoryPopup();
-            }
-        }
+        
     }
 }

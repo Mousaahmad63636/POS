@@ -60,6 +60,61 @@ namespace QuickTechSystems.Infrastructure.Services
                 description
             ));
         }
+        // Path: QuickTechSystems.Application.Services/DrawerService.cs
+        // Add this method implementation:
+
+        public async Task<bool> ProcessSupplierInvoiceAsync(decimal amount, string supplierName, string reference)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    var drawer = await GetCurrentDrawerAsync();
+                    if (drawer == null)
+                    {
+                        throw new InvalidOperationException("No active drawer found");
+                    }
+
+                    if (drawer.CurrentBalance < amount)
+                    {
+                        throw new InvalidOperationException("Insufficient funds in drawer");
+                    }
+
+                    // Create a drawer transaction
+                    var transaction = new DrawerTransaction
+                    {
+                        DrawerId = drawer.DrawerId,
+                        Type = "Expense",
+                        ActionType = "SupplierInvoice",
+                        Amount = amount,
+                        Balance = drawer.CurrentBalance - amount,
+                        Description = $"Supplier Invoice Payment: {supplierName}",
+                        Notes = $"Reference: {reference}",
+                        PaymentMethod = "Cash",
+                        TransactionReference = reference,
+                        Timestamp = DateTime.Now
+                    };
+
+                    // Add to the transactions
+                    await _unitOfWork.Context.Set<DrawerTransaction>().AddAsync(transaction);
+
+                    // Update drawer stats
+                    drawer.CurrentBalance -= amount;
+                    drawer.TotalSupplierPayments += amount;
+                    drawer.LastUpdated = DateTime.Now;
+
+                    // Save all changes
+                    await _unitOfWork.SaveChangesAsync();
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error processing supplier invoice payment: {ex.Message}");
+                    throw;
+                }
+            });
+        }
 
         #region Transaction Processing Methods
 

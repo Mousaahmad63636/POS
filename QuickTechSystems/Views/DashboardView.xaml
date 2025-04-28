@@ -4,116 +4,21 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/design/blend/2008"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
-             mc:Ignorable="d"
-             Background="#F3F4F6">
+             mc:Ignorable="d">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-
-        <!-- Enhanced Color Scheme -->
-        <SolidColorBrush x:Key="CardBackground" Color="White"/>
-        <SolidColorBrush x:Key="PrimaryBlue" Color="#1e40af"/>
-        <SolidColorBrush x:Key="SecondaryBlue" Color="#3b82f6"/>
-        <SolidColorBrush x:Key="SecondaryGray" Color="#4b5563"/>
-        <SolidColorBrush x:Key="PositiveGreen" Color="#059669"/>
-        <SolidColorBrush x:Key="NegativeRed" Color="#dc2626"/>
-        <SolidColorBrush x:Key="BorderGray" Color="#e2e8f0"/>
-        <SolidColorBrush x:Key="BackgroundGray" Color="#f8fafc"/>
-        <SolidColorBrush x:Key="IconColor" Color="#6366f1"/>
-
-        <!-- Enhanced Section Title Style -->
-        <Style x:Key="SectionTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="24"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Foreground" Value="{StaticResource PrimaryBlue}"/>
-            <Setter Property="Margin" Value="20,30,20,15"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="15" 
-                                    ShadowDepth="1" 
-                                    Opacity="0.1"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Enhanced Dashboard Button Style -->
-        <Style x:Key="DashboardButton" TargetType="Button">
-            <Setter Property="Height" Value="130"/>
-            <Setter Property="Width" Value="300"/>
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderGray}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Margin" Value="10"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="12"
-                                x:Name="ButtonBorder"
-                                Padding="24">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="15" 
-                                                ShadowDepth="2" 
-                                                Opacity="0.08"/>
-                            </Border.Effect>
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Icon and Title -->
-                                <StackPanel Orientation="Horizontal" 
-                                          Margin="0,0,0,12">
-                                    <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" 
-                                             FontFamily="Segoe MDL2 Assets"
-                                             FontSize="22"
-                                             Foreground="{StaticResource IconColor}"
-                                             Margin="0,0,12,0"/>
-                                    <TextBlock Text="{TemplateBinding Content}"
-                                             FontSize="18"
-                                             FontWeight="SemiBold"
-                                             Foreground="{StaticResource PrimaryBlue}"/>
-                                </StackPanel>
-
-                                <!-- Description -->
-                                <TextBlock Grid.Row="2" 
-                                         Text="{DynamicResource Dashboard_ViewDetails}"
-                                         FontSize="14"
-                                         Foreground="{StaticResource SecondaryGray}"
-                                         VerticalAlignment="Bottom"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource BackgroundGray}"/>
-                                <Setter TargetName="ButtonBorder" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect BlurRadius="20" 
-                                                        ShadowDepth="4" 
-                                                        Opacity="0.15"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
         <!-- Date and Time Header -->
         <DockPanel>
             <Border DockPanel.Dock="Top" 
-                    Background="{StaticResource CardBackground}"
                     Margin="20,10,20,0"
-                    CornerRadius="12"
-                    Padding="24,16">
+                    BorderBrush="Gray"
+                    BorderThickness="1"
+                    Padding="10">
                 <Grid>
                     <StackPanel Orientation="Horizontal" 
                               HorizontalAlignment="Right">
@@ -121,20 +26,14 @@
                                   Margin="0,0,24,0">
                             <TextBlock Text="📅 " 
                                      Margin="0,0,8,0"/>
-                            <TextBlock Text="{DynamicResource Dashboard_Date}" 
-                                     Foreground="{StaticResource SecondaryGray}"/>
-                            <TextBlock x:Name="DateDisplay" 
-                                     Foreground="{StaticResource PrimaryBlue}"
-                                     FontWeight="SemiBold"/>
+                            <TextBlock Text="{DynamicResource Dashboard_Date}"/>
+                            <TextBlock x:Name="DateDisplay"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="⏰ "
                                      Margin="0,0,8,0"/>
-                            <TextBlock Text="{DynamicResource Dashboard_Time}" 
-                                     Foreground="{StaticResource SecondaryGray}"/>
-                            <TextBlock x:Name="TimeDisplay"
-                                     Foreground="{StaticResource PrimaryBlue}"
-                                     FontWeight="SemiBold"/>
+                            <TextBlock Text="{DynamicResource Dashboard_Time}"/>
+                            <TextBlock x:Name="TimeDisplay"/>
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -143,109 +42,186 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="20,30,20,20">
                     <!-- Sales & Revenue Section -->
-                    <TextBlock Text="{DynamicResource Dashboard_SalesRevenue}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{DynamicResource Dashboard_SalesRevenue}" 
+                             FontSize="24"
+                             Margin="0,30,0,15"/>
                     <WrapPanel>
-                        <Button Content="{DynamicResource Dashboard_PointOfSale}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="💰"
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Transactions"/>
-                        <Button Content="{DynamicResource Dashboard_TransactionHistory}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="📊"
+                                CommandParameter="Transactions">
+                            <StackPanel>
+                                <TextBlock Text="📊 Point of Sale" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="TransactionHistory"/>
-                        <Button Content="{DynamicResource Dashboard_Quotes}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="📝"
+                                CommandParameter="TransactionHistory">
+                            <StackPanel>
+                                <TextBlock Text="📊 Transaction History" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Quotes"/>
+                                CommandParameter="Quotes">
+                            <StackPanel>
+                                <TextBlock Text="📝 Quotes" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                     </WrapPanel>
 
                     <!-- Business Operations Section -->
-                    <TextBlock Text="{DynamicResource Dashboard_BusinessOperations}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{DynamicResource Dashboard_BusinessOperations}" 
+                             FontSize="24"
+                             Margin="0,30,0,15"/>
                     <WrapPanel>
-                        <Button Content="{DynamicResource Dashboard_CashFlow}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="🏦"
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Drawer"/>
-                        <Button Content="{DynamicResource Dashboard_AccountsReceivable}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="💳"
+                                CommandParameter="Drawer">
+                            <StackPanel>
+                                <TextBlock Text="🏦 Cash Flow" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="CustomerDebt"/>
-                        <Button Content="{DynamicResource Dashboard_BusinessExpenses}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="💸"
+                                CommandParameter="CustomerDebt">
+                            <StackPanel>
+                                <TextBlock Text="💳 Accounts Receivable" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Expenses"/>
+                                CommandParameter="Expenses">
+                            <StackPanel>
+                                <TextBlock Text="💸 Business Expenses" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                     </WrapPanel>
 
                     <!-- Inventory Management Section -->
-                    <TextBlock Text="{DynamicResource Dashboard_InventoryManagement}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{DynamicResource Dashboard_InventoryManagement}" 
+                             FontSize="24"
+                             Margin="0,30,0,15"/>
                     <WrapPanel>
-                        <Button Content="{DynamicResource Dashboard_Products}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="📦"
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Products"/>
-                        <Button Content="{DynamicResource Dashboard_ProductCategories}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="📂"
+                                CommandParameter="Products">
+                            <StackPanel>
+                                <TextBlock Text="📦 Products" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Categories"/>
-                        <Button Content="{DynamicResource Dashboard_VendorManagement}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="🚚"
+                                CommandParameter="Categories">
+                            <StackPanel>
+                                <TextBlock Text="📂 Product Categories" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Suppliers"/>
+                                CommandParameter="Suppliers">
+                            <StackPanel>
+                                <TextBlock Text="🚚 Vendor Management" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                     </WrapPanel>
 
                     <!-- Business Management Section -->
-                    <TextBlock Text="{DynamicResource Dashboard_BusinessManagement}" Style="{StaticResource SectionTitle}"/>
+                    <TextBlock Text="{DynamicResource Dashboard_BusinessManagement}" 
+                             FontSize="24"
+                             Margin="0,30,0,15"/>
                     <WrapPanel Margin="0,0,0,20">
-                        <Button Content="{DynamicResource Dashboard_WorkforceManagement}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="👥"
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Employees"/>
-                        <Button Content="{DynamicResource Dashboard_BusinessPerformance}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="📈"
+                                CommandParameter="Employees">
+                            <StackPanel>
+                                <TextBlock Text="👥 Workforce Management" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Profit"/>
-                        <Button Content="{DynamicResource Dashboard_SystemPreferences}" 
-                                Style="{StaticResource DashboardButton}"
-                                Tag="⚙️"
+                                CommandParameter="Profit">
+                            <StackPanel>
+                                <TextBlock Text="📈 Business Performance" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Height="130"
+                                Width="300"
+                                Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Settings"/>
+                                CommandParameter="Settings">
+                            <StackPanel>
+                                <TextBlock Text="⚙️ System Preferences" Margin="0,0,0,12"/>
+                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Button>
                     </WrapPanel>
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
 
         <!-- Loading Overlay -->
-        <Border Style="{StaticResource LoadingOverlay}" 
+        <Border Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" 
                        VerticalAlignment="Center">
-                <ProgressBar Style="{StaticResource ModernProgressBar}" 
-                           IsIndeterminate="True" 
+                <ProgressBar IsIndeterminate="True" 
                            Width="120" 
                            Margin="0,0,0,16"/>
                 <TextBlock Text="{DynamicResource Dashboard_Loading}" 
                          Foreground="White" 
-                         FontWeight="SemiBold"
                          FontSize="14"/>
             </StackPanel>
         </Border>
 
         <!-- Error Message -->
-        <Border Background="#FEE2E2"
-                BorderBrush="#EF4444"
+        <Border Background="LightPink"
+                BorderBrush="Red"
                 BorderThickness="1"
-                CornerRadius="8"
                 Padding="16"
                 Margin="20"
                 MaxWidth="400"
@@ -257,7 +233,6 @@
                          FontSize="16"
                          Margin="0,0,8,0"/>
                 <TextBlock Text="{Binding ErrorMessage}"
-                         Foreground="#991B1B"
                          TextWrapping="Wrap"/>
             </StackPanel>
         </Border>

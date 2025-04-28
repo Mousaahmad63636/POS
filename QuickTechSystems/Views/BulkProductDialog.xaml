@@ -4,8 +4,7 @@
        Title="{DynamicResource Product_BulkAdd}" 
        Height="600" 
        Width="1300"
-       WindowStartupLocation="CenterOwner"
-       Background="White">
+       WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
         <CollectionViewSource x:Key="CategoriesViewSource" 
@@ -14,49 +13,6 @@
                            Source="{Binding Suppliers}"/>
 
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-
-        <!-- Button Style -->
-        <Style x:Key="ActionButton" TargetType="Button">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Background" Value="#007BFF"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="15,5"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderBrush="{TemplateBinding BorderBrush}"
-                               BorderThickness="{TemplateBinding BorderThickness}"
-                               CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                           VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#0056b3"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.6"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- DataGrid Cell Style -->
-        <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
-            <Style.Triggers>
-                <Trigger Property="Validation.HasError" Value="True">
-                    <Setter Property="ToolTip"
-                           Value="{Binding RelativeSource={RelativeSource Self},
-                                  Path=(Validation.Errors)[0].ErrorContent}"/>
-                    <Setter Property="Background" Value="#FFF0F0"/>
-                    <Setter Property="BorderBrush" Value="#FFE0E0"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
@@ -72,10 +28,8 @@
         <StackPanel>
             <TextBlock Text="{DynamicResource Product_BulkAdd}"
                     FontSize="24"
-                    FontWeight="Bold"
                     Margin="0,0,0,10"/>
             <TextBlock Text="{DynamicResource Product_BulkAddSubtitle}"
-                    Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"
                     Margin="0,0,0,20"/>
         </StackPanel>
 
@@ -85,31 +39,30 @@
                   Margin="0,0,0,10">
             <Button Content="{DynamicResource Product_BulkAdd_AddOneRow}"
                    Command="{Binding AddOneRowCommand}"
-                   Style="{StaticResource ActionButton}"
                    Width="100"
+                   Height="30"
                    Margin="0,0,10,0"/>
             <Button Content="{DynamicResource Product_BulkAdd_AddFiveRows}"
                    Command="{Binding AddFiveRowsCommand}"
-                   Style="{StaticResource ActionButton}"
                    Width="100"
+                   Height="30"
                    Margin="0,0,10,0"/>
             <Button Content="{DynamicResource Product_BulkAdd_AddTenRows}"
                    Command="{Binding AddTenRowsCommand}"
-                   Style="{StaticResource ActionButton}"
                    Width="100"
+                   Height="30"
                    Margin="0,0,10,0"/>
             <Button Content="{DynamicResource Product_BulkAdd_ClearEmptyRows}"
                    Command="{Binding ClearEmptyRowsCommand}"
-                   Style="{StaticResource ActionButton}"
                    Width="120"
+                   Height="30"
                    Margin="0,0,10,0"/>
             <Button Content="{DynamicResource Expense_Clear}"
                    Command="{Binding ClearAllCommand}"
-                   Style="{StaticResource ActionButton}"
-                   Width="80"/>
+                   Width="80"
+                   Height="30"/>
 
             <Separator Width="1" 
-                     Background="#E0E0E0" 
                      Margin="15,0"/>
 
             <!-- Quick Fill Options -->
@@ -134,14 +87,13 @@
                         Text="{Binding QuickFillValue, UpdateSourceTrigger=PropertyChanged}"/>
                 <Button Content="{DynamicResource Product_BulkAdd_ApplyToSelected}"
                        Command="{Binding ApplyQuickFillCommand}"
-                       Style="{StaticResource ActionButton}"
-                       Width="120"/>
+                       Width="120"
+                       Height="30"/>
             </StackPanel>
         </StackPanel>
 
         <!-- Barcode Print Options -->
         <Border Grid.Row="2" 
-               BorderBrush="#E0E0E0" 
                BorderThickness="1" 
                Margin="0,0,0,10"
                Padding="10">
@@ -172,8 +124,7 @@
                 <Button Grid.Column="1"
                        Content="{DynamicResource Product_BulkAdd_PrintSelectedBarcodes}"
                        Command="{Binding PrintBarcodesCommand}"
-                       Style="{StaticResource ActionButton}"
-                       Background="#6c757d"
+                       Height="30"
                        Margin="0,0,10,0"/>
 
                 <TextBlock Grid.Column="2"
@@ -191,7 +142,6 @@
 
         <!-- DataGrid -->
         <Border Grid.Row="3" 
-               BorderBrush="#E0E0E0" 
                BorderThickness="1" 
                Margin="0,0,0,20">
             <DataGrid ItemsSource="{Binding Products}"
@@ -200,8 +150,6 @@
                     SelectionMode="Extended"
                     SelectionUnit="FullRow"
                     GridLinesVisibility="All"
-                    AlternatingRowBackground="#F5F5F5"
-                    CellStyle="{StaticResource DataGridCellStyle}"
                     RowHeaderWidth="0"
                     CanUserDeleteRows="True"
                     IsEnabled="{Binding IsNotSaving}">
@@ -219,8 +167,6 @@
                                        Command="{Binding DataContext.GenerateBarcodeCommand, 
                                            RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                        CommandParameter="{Binding}"
-                                       Style="{StaticResource ActionButton}"
-                                       Padding="5,2"
                                        Height="25"
                                        Margin="2"/>
                             </DataTemplate>
@@ -271,12 +217,10 @@
                 <TextBlock Text="{DynamicResource Product_BulkAdd_TotalItems}"
                          VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding Products.Count}"
-                         FontWeight="Bold"
                          Margin="5,0,0,0"
                          VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding StatusMessage}"
                          Margin="20,0,0,0"
-                         Foreground="#666666"
                          VerticalAlignment="Center"/>
             </StackPanel>
 
@@ -285,33 +229,26 @@
                       Orientation="Horizontal">
                 <Button Content="{DynamicResource Product_BulkAdd_ImportFromExcel}"
                        Command="{Binding ImportFromExcelCommand}"
-                       Style="{StaticResource ActionButton}"
                        Height="35"
                        Width="120"
                        Margin="0,0,10,0"/>
                 <Button Content="{DynamicResource Product_Save}"
                        Command="{Binding SaveCommand}"
-                       Style="{StaticResource ActionButton}"
                        Height="35"
                        Width="120"
-                       Background="#28A745"
                        IsEnabled="{Binding IsNotSaving}"
                        Margin="0,0,10,0"/>
                 <Button Content="{DynamicResource Transaction_Cancel}"
                        IsCancel="True"
                        Height="35"
-                       Width="80"
-                       Style="{StaticResource ActionButton}"
-                       Background="#DC3545"/>
+                       Width="80"/>
             </StackPanel>
         </DockPanel>
+
         <!-- Progress Overlay -->
         <Grid Grid.RowSpan="5" 
-             Background="#80000000"
              Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <Border Background="White"
-                   CornerRadius="4"
-                   Padding="20"
+            <Border Padding="20"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center">
                 <StackPanel>

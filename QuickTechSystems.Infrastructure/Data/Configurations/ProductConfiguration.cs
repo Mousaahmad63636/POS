@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿// Path: QuickTechSystems.Infrastructure.Data.Configurations/ProductConfiguration.cs
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using QuickTechSystems.Domain.Entities;
 
@@ -29,7 +30,6 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .HasMaxLength(50)
                 .IsRequired(false);
 
-            // Update image config to store path
             builder.Property(p => p.ImagePath)
                 .HasMaxLength(500)
                 .IsRequired(false);
@@ -38,6 +38,12 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .WithMany(c => c.Products)
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Add the new relationship to MainStock
+            builder.HasOne(p => p.MainStock)
+                .WithMany(m => m.Products)
+                .HasForeignKey(p => p.MainStockId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

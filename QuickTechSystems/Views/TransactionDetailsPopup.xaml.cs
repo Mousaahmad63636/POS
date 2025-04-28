@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace QuickTechSystems.Views
 {
@@ -13,7 +14,6 @@ namespace QuickTechSystems.Views
             InitializeComponent();
         }
 
-        // Optional: Add a close button event handler if you decide to add one
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             // Find the parent window and close it

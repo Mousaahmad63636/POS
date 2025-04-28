@@ -8,6 +8,8 @@ namespace QuickTechSystems.WPF.Views
 {
     public partial class ExpenseView : UserControl
     {
+        private ExpenseWindow? _expenseWindow;
+
         public ExpenseView()
         {
             InitializeComponent();
@@ -21,10 +23,43 @@ namespace QuickTechSystems.WPF.Views
             if (DataContext != null)
             {
                 // Any initialization needed
+                if (DataContext is ExpenseViewModel viewModel)
+                {
+                    // Subscribe to the property changed event to handle window opening
+                    viewModel.PropertyChanged += ViewModel_PropertyChanged;
+                }
             }
 
             // Adjust layout based on size
             AdjustLayoutForSize();
+        }
+
+        private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ExpenseViewModel.IsExpensePopupOpen) &&
+                DataContext is ExpenseViewModel viewModel)
+            {
+                if (viewModel.IsExpensePopupOpen)
+                {
+                    OpenExpenseWindow(viewModel);
+                }
+            }
+        }
+
+        private void OpenExpenseWindow(ExpenseViewModel viewModel)
+        {
+            // Close existing window if open
+            _expenseWindow?.Close();
+
+            // Create and show new window
+            _expenseWindow = new ExpenseWindow(viewModel);
+            _expenseWindow.Closed += (s, e) =>
+            {
+                viewModel.IsExpensePopupOpen = false;
+                _expenseWindow = null;
+            };
+
+            _expenseWindow.Show();
         }
 
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
@@ -65,23 +100,6 @@ namespace QuickTechSystems.WPF.Views
             else // Very small screens
             {
                 contentGrid.Margin = new Thickness(8);
-            }
-        }
-
-        // Popup event handlers
-        private void ExpenseDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ExpenseViewModel viewModel)
-            {
-                viewModel.CloseExpensePopup();
-            }
-        }
-
-        private void ExpenseDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ExpenseViewModel viewModel)
-            {
-                viewModel.CloseExpensePopup();
             }
         }
 

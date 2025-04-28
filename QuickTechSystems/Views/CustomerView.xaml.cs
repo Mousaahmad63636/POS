@@ -36,27 +36,22 @@ namespace QuickTechSystems.WPF.Views
 
             double windowWidth = parentWindow.ActualWidth;
 
-            var scrollViewer = MainGrid.Children[0] as ScrollViewer;
-            if (scrollViewer == null) return;
-
-            var contentGrid = scrollViewer.Content as Grid;
-            if (contentGrid == null) return;
-
+            // Adjust margins based on window width
             if (windowWidth >= 1920)
             {
-                contentGrid.Margin = new Thickness(32);
+                ContentGrid.Margin = new Thickness(32);
             }
             else if (windowWidth >= 1366)
             {
-                contentGrid.Margin = new Thickness(24);
+                ContentGrid.Margin = new Thickness(24);
             }
             else if (windowWidth >= 800)
             {
-                contentGrid.Margin = new Thickness(16);
+                ContentGrid.Margin = new Thickness(16);
             }
             else
             {
-                contentGrid.Margin = new Thickness(8);
+                ContentGrid.Margin = new Thickness(8);
             }
         }
 
@@ -109,22 +104,6 @@ namespace QuickTechSystems.WPF.Views
                 viewModel.DeleteCommand.CanExecute(null))
             {
                 viewModel.DeleteCommand.Execute(null);
-            }
-        }
-
-        private void CustomerDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CustomerViewModel viewModel)
-            {
-                viewModel.CloseCustomerPopup();
-            }
-        }
-
-        private void CustomerDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CustomerViewModel viewModel)
-            {
-                viewModel.CloseCustomerPopup();
             }
         }
 

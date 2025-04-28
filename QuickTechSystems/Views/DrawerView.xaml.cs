@@ -57,7 +57,12 @@ namespace QuickTechSystems.WPF.Views
 
         private void SummaryButton_Click(object sender, RoutedEventArgs e)
         {
-            SummaryPopup.IsOpen = true;
+            if (ViewModel != null)
+            {
+                var summaryWindow = new DrawerSummaryWindow(ViewModel);
+                summaryWindow.Owner = Window.GetWindow(this);
+                summaryWindow.ShowDialog();
+            }
         }
 
         private void ActionsButton_Click(object sender, RoutedEventArgs e)
@@ -179,15 +184,14 @@ namespace QuickTechSystems.WPF.Views
                     case "return":
                     case "expense":
                     case "supplier payment":
-                        row.Background = (System.Windows.Media.Brush)FindResource("DangerColor");
+                        // Use a hardcoded color instead of looking for a resource
+                        row.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.LightPink);
                         break;
                 }
             }
         }
-
         private void ClosePopup_Click(object sender, RoutedEventArgs e)
         {
-            SummaryPopup.IsOpen = false;
             ActionsPopup.IsOpen = false;
             OpenDrawerPopup.IsOpen = false;
             AddCashPopup.IsOpen = false;

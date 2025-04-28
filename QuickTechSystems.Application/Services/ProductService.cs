@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿// Path: QuickTechSystems.Application.Services/ProductService.cs
+using System.Diagnostics;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
@@ -32,7 +33,7 @@ namespace QuickTechSystems.Application.Services
                 return _mapper.Map<IEnumerable<ProductDTO>>(products);
             });
         }
-
+       
         // Parameterless method to satisfy the IProductService interface
         public async Task<IEnumerable<ProductDTO>> GetLowStockProductsAsync()
         {
@@ -53,7 +54,55 @@ namespace QuickTechSystems.Application.Services
                 return _mapper.Map<IEnumerable<ProductDTO>>(products);
             });
         }
+        // Path: QuickTechSystems.Application.Services/ProductService.cs
+        // Add this method to the class
 
+        public async Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                Debug.WriteLine($"Notice: CreateBatchAsync called in ProductService, which is deprecated. Use MainStockService instead.");
+
+                var savedProducts = new List<ProductDTO>();
+
+                // Forward to MainStock implementation if appropriate
+                // Otherwise, provide a simple implementation that creates products one by one
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    for (int i = 0; i < products.Count; i++)
+                    {
+                        var product = products[i];
+                        progress?.Report($"Saving product {i + 1} of {products.Count}: {product.Name}");
+
+                        // Ensure the CreatedAt is set
+                        if (product.CreatedAt == default)
+                            product.CreatedAt = DateTime.Now;
+
+                        var entity = _mapper.Map<Product>(product);
+                        var result = await _repository.AddAsync(entity);
+                        var resultDto = _mapper.Map<ProductDTO>(result);
+                        savedProducts.Add(resultDto);
+                    }
+
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    foreach (var savedProduct in savedProducts)
+                    {
+                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", savedProduct));
+                    }
+
+                    return savedProducts;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in batch save: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
+        }
         public async Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -114,31 +163,65 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        public override async Task UpdateAsync(ProductDTO dto)
+        public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
+                var product = await _repository.Query()
+                    .Include(p => p.Category)
+                    .FirstOrDefaultAsync(p => p.Barcode == barcode);
+                return _mapper.Map<ProductDTO>(product);
+            });
+        }
+
+        public async Task<bool> ReceiveInventoryAsync(int productId, decimal quantity, string source, string reference)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    // Get the existing entity from the context
-                    var existingProduct = await _repository.GetByIdAsync(dto.ProductId);
-                    if (existingProduct == null)
+                    // Get the product
+                    var product = await _repository.GetByIdAsync(productId);
+                    if (product == null)
                     {
-                        throw new InvalidOperationException($"Product with ID {dto.ProductId} not found");
+                        Debug.WriteLine($"Product {productId} not found for inventory receipt");
+                        return false;
                     }
 
-                    // Update the existing entity properties
-                    _mapper.Map(dto, existingProduct);
+                    // Update the product stock
+                    decimal oldStock = product.CurrentStock;
+                    product.CurrentStock += quantity;
+                    product.UpdatedAt = DateTime.Now;
 
-                    await _repository.UpdateAsync(existingProduct);
+                    await _repository.UpdateAsync(product);
+
+                    // Create inventory history record
+                    var inventoryHistory = new InventoryHistory
+                    {
+                        ProductId = productId,
+                        QuantityChange = quantity,
+                        NewQuantity = product.CurrentStock,
+                        Type = "Receive",
+                        Notes = $"Received from {source}: {reference}",
+                        Timestamp = DateTime.Now
+                    };
+
+                    await _unitOfWork.InventoryHistories.AddAsync(inventoryHistory);
                     await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
-                    // Publish the update event
-                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", dto));
+                    // Publish update event
+                    var productDto = _mapper.Map<ProductDTO>(product);
+                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+
+                    Debug.WriteLine($"Inventory received for product {productId}: {quantity} units, new stock: {product.CurrentStock}");
+                    return true;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error updating product: {ex}");
+                    await transaction.RollbackAsync();
+                    Debug.WriteLine($"Error receiving inventory: {ex.Message}");
                     throw;
                 }
             });
@@ -153,104 +236,6 @@ namespace QuickTechSystems.Application.Services
                     .Include(p => p.Supplier)
                     .ToListAsync();
                 return _mapper.Map<IEnumerable<ProductDTO>>(products);
-            });
-        }
-
-        public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                var product = await _repository.Query()
-                    .Include(p => p.Category)
-                    .FirstOrDefaultAsync(p => p.Barcode == barcode);
-                return _mapper.Map<ProductDTO>(product);
-            });
-        }
-
-        public override async Task<ProductDTO> CreateAsync(ProductDTO dto)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                Debug.WriteLine("Starting create in service");
-                var entity = _mapper.Map<Product>(dto);
-                var result = await _repository.AddAsync(entity);
-                await _unitOfWork.SaveChangesAsync();
-                var resultDto = _mapper.Map<ProductDTO>(result);
-                Debug.WriteLine("Publishing create event");
-                _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", resultDto));
-                Debug.WriteLine("Create event published");
-                return resultDto;
-            });
-        }
-
-        // New method for batch processing
-        public async Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                Debug.WriteLine($"Starting batch create for {products.Count} products");
-                var savedProducts = new List<ProductDTO>();
-
-                // Start a transaction for the entire batch operation
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    for (int i = 0; i < products.Count; i++)
-                    {
-                        var product = products[i];
-                        progress?.Report($"Saving product {i + 1} of {products.Count}: {product.Name}");
-
-                        var entity = _mapper.Map<Product>(product);
-
-                        // Ensure the CreatedAt is set
-                        if (entity.CreatedAt == default)
-                            entity.CreatedAt = DateTime.Now;
-
-                        var result = await _repository.AddAsync(entity);
-
-                        // Map back to DTO without saving changes yet
-                        var resultDto = _mapper.Map<ProductDTO>(result);
-                        savedProducts.Add(resultDto);
-                    }
-
-                    // Save all changes in a single database operation
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Commit the transaction only after successful save
-                    await transaction.CommitAsync();
-
-                    // Publish events for all saved products
-                    foreach (var savedProduct in savedProducts)
-                    {
-                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", savedProduct));
-                    }
-
-                    Debug.WriteLine($"Successfully saved {savedProducts.Count} products in batch");
-                    return savedProducts;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in batch save: {ex.Message}");
-                    // Log inner exception details for debugging
-                    if (ex.InnerException != null)
-                    {
-                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                    }
-
-                    try
-                    {
-                        // Attempt to rollback on error
-                        await transaction.RollbackAsync();
-                        Debug.WriteLine("Transaction rolled back successfully");
-                    }
-                    catch (Exception rollbackEx)
-                    {
-                        Debug.WriteLine($"Error rolling back transaction: {rollbackEx.Message}");
-                        // Continue with throw, we still want to report the original error
-                    }
-
-                    throw; // Rethrow to let caller handle it
-                }
             });
         }
     }

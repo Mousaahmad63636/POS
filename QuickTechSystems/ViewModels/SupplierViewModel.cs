@@ -248,41 +248,34 @@ namespace QuickTechSystems.WPF.ViewModels
         #region Popup Management
         public void ShowSupplierPopup()
         {
-            IsSupplierPopupOpen = true;
+            // This method is now deprecated
         }
 
         public void CloseSupplierPopup()
         {
-            IsSupplierPopupOpen = false;
+            // This method is now deprecated
         }
 
         public void ShowTransactionPopup()
         {
-            if (SelectedSupplier == null) return;
-
-            // Reset transaction values
-            PaymentAmount = 0;
-            Notes = string.Empty;
-
-            IsTransactionPopupOpen = true;
+            // This is now replaced with the window approach in the view
+            var window = new SupplierPaymentWindow(this, SelectedSupplier);
+            window.ShowDialog();
         }
 
         public void CloseTransactionPopup()
         {
-            IsTransactionPopupOpen = false;
+            // This method is now deprecated
         }
-
         public void ShowTransactionsHistoryPopup()
         {
-            if (SelectedSupplier == null) return;
-
-            _ = LoadSupplierTransactionsAsync();
-            IsTransactionsHistoryPopupOpen = true;
+            // This is now replaced with the window approach in the view
+            var window = new SupplierTransactionsHistoryWindow(this, SelectedSupplier);
+            window.ShowDialog();
         }
-
         public void CloseTransactionsHistoryPopup()
         {
-            IsTransactionsHistoryPopupOpen = false;
+            // This method is now deprecated
         }
 
         public void EditSupplier(SupplierDTO supplier)
@@ -291,7 +284,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
             SelectedSupplier = supplier;
             IsNewSupplier = false;
-            ShowSupplierPopup();
+
+            // Replace ShowSupplierPopup() with the new window approach
+            var window = new SupplierDetailsWindow(this, SelectedSupplier, false);
+            window.ShowDialog();
         }
         #endregion
 
@@ -348,7 +344,7 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
 
-        private async Task LoadSupplierTransactionsAsync()
+        public async Task LoadSupplierTransactionsAsync()
         {
             if (SelectedSupplier == null) return;
 
@@ -403,9 +399,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 CreatedAt = DateTime.Now
             };
             IsNewSupplier = true;
-            ShowSupplierPopup();
-        }
 
+            // Replace ShowSupplierPopup() with the new window approach
+            var window = new SupplierDetailsWindow(this, SelectedSupplier, true);
+            window.ShowDialog();
+        }
         private async Task SaveAsync()
         {
             if (!await _operationLock.WaitAsync(0))

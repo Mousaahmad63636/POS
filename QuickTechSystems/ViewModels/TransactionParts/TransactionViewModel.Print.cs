@@ -490,15 +490,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 foreach (var item in transaction.Details)
                 {
                     var row = new TableRow();
-
-                    // Convert USD to LBP
-                    decimal unitPriceLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(item.UnitPrice));
-                    decimal totalLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(item.Total));
-
                     row.Cells.Add(CreateCell(item.ProductName, FontWeights.Normal, TextAlignment.Left));
                     row.Cells.Add(CreateCell(item.Quantity.ToString(), FontWeights.Normal, TextAlignment.Center));
-                    row.Cells.Add(CreateCell($"{unitPriceLBP:N0} LBP", FontWeights.Normal, TextAlignment.Right));
-                    row.Cells.Add(CreateCell($"{totalLBP:N0} LBP", FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"${item.UnitPrice:N2}", FontWeights.Normal, TextAlignment.Right));
+                    row.Cells.Add(CreateCell($"${item.Total:N2}", FontWeights.Normal, TextAlignment.Right));
                     itemsTable.RowGroups[0].Rows.Add(row);
                 }
             }
@@ -520,29 +515,29 @@ namespace QuickTechSystems.WPF.ViewModels
             totalsTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
             totalsTable.RowGroups.Add(new TableRowGroup());
 
-            // Convert subtotal to LBP and round
-            decimal subTotalLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(subTotal));
-            AddTotalRow(totalsTable, "المجموع الفرعي:", $"{subTotalLBP:N0} LBP");
+            AddTotalRow(totalsTable, "المجموع الفرعي:", $"${subTotal:N2}");
 
             if (discountAmount > 0)
             {
-                // Convert discount to LBP and round
-                decimal discountLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(discountAmount));
-                AddTotalRow(totalsTable, "الخصم:", $"-{discountLBP:N0} LBP");
+                AddTotalRow(totalsTable, "الخصم:", $"-${discountAmount:N2}");
             }
 
             decimal total = Math.Max(0, subTotal - discountAmount);
 
-            // Calculate and round total in LBP
-            decimal transactionTotalLBP;
+            // Calculate total in LBP
+            decimal totalLBP = 0;
             try
             {
-                transactionTotalLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(total));
+                totalLBP = CurrencyHelper.ConvertToLBP(total);
+                if (totalLBP == 0 && total > 0)
+                {
+                    totalLBP = total * 90000m;
+                }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error converting total to LBP: {ex.Message}");
-                transactionTotalLBP = CurrencyHelper.RoundLBP(total * 100000m);
+                totalLBP = total * 90000m;
             }
 
             var totalRow = new TableRow();
@@ -561,9 +556,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 FontWeight = FontWeights.Bold
             };
 
-            totalParagraph.Inlines.Add(new Run($"{transactionTotalLBP:N0} LBP")
+            totalParagraph.Inlines.Add(new Run($"${total:N2}")
             {
                 Foreground = Brushes.Black
+            });
+            totalParagraph.Inlines.Add(new LineBreak());
+            totalParagraph.Inlines.Add(new Run($"{totalLBP:N0} LBP")
+            {
+                FontSize = 11,
+                Foreground = Brushes.DarkBlue
             });
 
             totalCell.Blocks.Add(totalParagraph);
@@ -593,13 +594,23 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 decimal newBalance = previousCustomerBalance + total;
 
-                // Convert balances to LBP and round
-                decimal previousBalanceLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(previousCustomerBalance));
-                decimal currentPurchaseLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(total));
-                decimal newBalanceLBP = CurrencyHelper.RoundLBP(CurrencyHelper.ConvertToLBP(newBalance));
+                decimal lbpNewBalance;
+                try
+                {
+                    lbpNewBalance = CurrencyHelper.ConvertToLBP(newBalance);
+                    if (lbpNewBalance == 0 && newBalance > 0)
+                    {
+                        lbpNewBalance = newBalance * 90000m;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error converting new balance to LBP: {ex.Message}");
+                    lbpNewBalance = newBalance * 90000m;
+                }
 
-                AddTotalRow(balanceTable, "الرصيد السابق:", $"{previousBalanceLBP:N0} LBP");
-                AddTotalRow(balanceTable, "المشتريات الحالية:", $"{currentPurchaseLBP:N0} LBP");
+                AddTotalRow(balanceTable, "الرصيد السابق:", $"${previousCustomerBalance:N2}");
+                AddTotalRow(balanceTable, "المشتريات الحالية:", $"${total:N2}");
 
                 var totalBalanceRow = new TableRow();
                 totalBalanceRow.Cells.Add(new TableCell(new Paragraph(new Run("الرصيد الإجمالي الجديد:"))
@@ -617,8 +628,15 @@ namespace QuickTechSystems.WPF.ViewModels
                     FontWeight = FontWeights.Bold
                 };
 
-                balanceParagraph.Inlines.Add(new Run($"{newBalanceLBP:N0} LBP")
+                balanceParagraph.Inlines.Add(new Run($"${newBalance:N2}")
                 {
+                    Foreground = Brushes.DarkRed
+                });
+                balanceParagraph.Inlines.Add(new LineBreak());
+
+                balanceParagraph.Inlines.Add(new Run($"{lbpNewBalance:N0} LBP ما يعادله")
+                {
+                    FontSize = 11,
                     Foreground = Brushes.DarkRed
                 });
 

@@ -1,4 +1,5 @@
-﻿using QuickTechSystems.Domain.Entities;
+﻿// Path: QuickTechSystems.Domain.Entities/Product.cs
+using QuickTechSystems.Domain.Entities;
 
 public class Product
 {
@@ -16,11 +17,17 @@ public class Product
     public DateTime CreatedAt { get; set; }
     public string? Speed { get; set; }
     public DateTime? UpdatedAt { get; set; }
-    // Change from byte[] to string
     public string? ImagePath { get; set; }
+
+    // New property to reference MainStock
+    public int? MainStockId { get; set; }
+
     // Navigation properties
     public virtual Category? Category { get; set; }
     public virtual ICollection<TransactionDetail> TransactionDetails { get; set; } = new List<TransactionDetail>();
     public virtual ICollection<InventoryHistory> InventoryHistories { get; set; } = new List<InventoryHistory>();
     public virtual Supplier? Supplier { get; set; }
+
+    // New navigation property to reference MainStock
+    public virtual MainStock? MainStock { get; set; }
 }

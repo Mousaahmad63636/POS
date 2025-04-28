@@ -10,51 +10,17 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageSourceConverter"/>
-
-        <!-- Tab Control Styling -->
-        <Style x:Key="SettingsTabItem" BasedOn="{StaticResource ModernTabItem}" TargetType="TabItem">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="mainBorder" 
-                                Background="{TemplateBinding Background}"
-                                Margin="0,0,20,0">
-                            <Grid>
-                                <ContentPresenter x:Name="contentPresenter"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                ContentSource="Header"/>
-                                <Border x:Name="selectedBorder" 
-                                        Height="2" 
-                                        Background="{StaticResource PrimaryColor}" 
-                                        VerticalAlignment="Bottom" 
-                                        Visibility="Collapsed"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
-                                <Setter TargetName="selectedBorder" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Padding" Value="12,8"/>
-        </Style>
     </UserControl.Resources>
 
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Style="{StaticResource ResponsivePageLayout}">
-                <TabControl Style="{StaticResource ModernTabControl}">
-
+            <Grid x:Name="RootGrid" Margin="20">
+                <TabControl>
                     <!-- Backup Tab -->
-                    <TabItem Header="{DynamicResource Settings_Backup}" Style="{StaticResource SettingsTabItem}">
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock Text="{DynamicResource Settings_Backup}"/>
+                        </TabItem.Header>
                         <Grid Margin="0,20,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -64,46 +30,52 @@
                             </Grid.RowDefinitions>
 
                             <!-- Manual Backup Section -->
-                            <Border Grid.Row="0" Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                <StackPanel Style="{StaticResource FormSection}">
+                            <Border Grid.Row="0" 
+                                    BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    Background="White"
+                                    Padding="20"
+                                    Margin="0,0,0,20">
+                                <StackPanel>
                                     <TextBlock Text="{DynamicResource Settings_ManualBackup}" 
-                                               Style="{StaticResource HeadlineSmall}" 
-                                               Foreground="{StaticResource PrimaryColor}" 
                                                Margin="0,0,0,16"/>
 
                                     <TextBlock Text="{Binding LastBackupStatus}"
-                                               Style="{StaticResource BodyMedium}"
                                                Margin="0,0,0,16"/>
 
-                                    <Button Content="{DynamicResource Settings_BackupNow}"
-                                            Command="{Binding BackupNowCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}"
+                                    <Button Command="{Binding BackupNowCommand}"
                                             Width="150"
-                                            HorizontalAlignment="Left"/>
+                                            HorizontalAlignment="Left">
+                                        <TextBlock Text="{DynamicResource Settings_BackupNow}"/>
+                                    </Button>
                                 </StackPanel>
                             </Border>
 
-
                             <!-- Restore Section -->
-                            <Border Grid.Row="2" Style="{StaticResource EnhancedResponsiveCardContainer}">
-                                <StackPanel Style="{StaticResource FormSection}">
+                            <Border Grid.Row="2" 
+                                    BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    Background="White"
+                                    Padding="20">
+                                <StackPanel>
                                     <TextBlock Text="{DynamicResource Settings_RestoreBackup}" 
-                                               Style="{StaticResource HeadlineSmall}" 
-                                               Foreground="{StaticResource PrimaryColor}" 
                                                Margin="0,0,0,16"/>
 
-                                    <Button Content="{DynamicResource Settings_RestoreFromBackup}"
-                                            Command="{Binding RestoreCommand}"
-                                            Style="{StaticResource PrimaryButtonStyle}"
+                                    <Button Command="{Binding RestoreCommand}"
                                             Width="180"
-                                            HorizontalAlignment="Left"/>
+                                            HorizontalAlignment="Left">
+                                        <TextBlock Text="{DynamicResource Settings_RestoreFromBackup}"/>
+                                    </Button>
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </TabItem>
 
                     <!-- Business Settings Tab -->
-                    <TabItem Header="{DynamicResource Settings_BusinessSettings}" Style="{StaticResource SettingsTabItem}">
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock Text="{DynamicResource Settings_BusinessSettings}"/>
+                        </TabItem.Header>
                         <Grid Margin="0,20,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -112,7 +84,10 @@
                             </Grid.RowDefinitions>
 
                             <!-- Header -->
-                            <Border Style="{StaticResource EnhancedResponsiveCardContainer}" 
+                            <Border BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    Background="White"
+                                    Padding="20"
                                     Grid.Row="0"
                                     Margin="0,0,0,20">
                                 <Grid>
@@ -124,31 +99,30 @@
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Text="{DynamicResource Settings_FilterByGroup}" 
-                                               Style="{StaticResource LabelLarge}"
                                                VerticalAlignment="Center"/>
 
                                     <ComboBox Grid.Column="1"
-                                              Style="{StaticResource ModernComboBox}"
                                               Margin="16,0"
                                               ItemsSource="{Binding Groups}"
                                               SelectedItem="{Binding SelectedGroup}"
                                               VerticalAlignment="Center"/>
 
                                     <Button Grid.Column="3"
-                                            Content="{DynamicResource Settings_InitializeDefault}"
-                                            Command="{Binding InitializeBusinessSettingsCommand}"
-                                            Style="{StaticResource SecondaryButtonStyle}"/>
+                                            Command="{Binding InitializeBusinessSettingsCommand}">
+                                        <TextBlock Text="{DynamicResource Settings_InitializeDefault}"/>
+                                    </Button>
                                 </Grid>
                             </Border>
 
                             <!-- Company Logo Section -->
-                            <Border Style="{StaticResource EnhancedResponsiveCardContainer}" 
+                            <Border BorderBrush="Gray"
+                                    BorderThickness="1"
+                                    Background="White"
+                                    Padding="20"
                                     Grid.Row="1"
                                     Margin="0,0,0,20">
-                                <StackPanel Style="{StaticResource FormSection}">
+                                <StackPanel>
                                     <TextBlock Text="Company Logo" 
-                                               Style="{StaticResource HeadlineSmall}" 
-                                               Foreground="{StaticResource PrimaryColor}" 
                                                Margin="0,0,0,16"/>
 
                                     <Grid>
@@ -159,7 +133,7 @@
 
                                         <!-- Logo Preview -->
                                         <Border Grid.Column="0" 
-                                                BorderBrush="{StaticResource BorderColor}" 
+                                                BorderBrush="Gray" 
                                                 BorderThickness="1" 
                                                 Padding="10"
                                                 MaxHeight="150"
@@ -172,16 +146,14 @@
 
                                         <!-- Upload Button -->
                                         <Button Grid.Column="1"
-                                                Content="Upload Logo"
                                                 Command="{Binding UploadLogoCommand}"
-                                                Style="{StaticResource PrimaryButtonStyle}"
                                                 Margin="16,0,0,0"
-                                                VerticalAlignment="Bottom"/>
+                                                VerticalAlignment="Bottom">
+                                            <TextBlock Text="Upload Logo"/>
+                                        </Button>
                                     </Grid>
 
                                     <TextBlock Text="Recommended size: 300x150 pixels, PNG format with transparent background"
-                                               Style="{StaticResource BodySmall}"
-                                               Foreground="{StaticResource TextSecondaryColor}"
                                                Margin="0,16,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -194,13 +166,12 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Settings List -->
-                                <Border Style="{StaticResource DataTableContainer}" 
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
                                         Margin="0,0,20,0">
                                     <DataGrid ItemsSource="{Binding BusinessSettings}"
                                               SelectedItem="{Binding SelectedBusinessSetting}"
-                                              Style="{StaticResource ResponsiveDataGrid}"
-                                              ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                              CellStyle="{StaticResource ModernDataGridCell}"
                                               AutoGenerateColumns="False"
                                               IsReadOnly="True"
                                               BorderThickness="0">
@@ -219,46 +190,50 @@
                                 </Border>
 
                                 <!-- Setting Details -->
-                                <Border Grid.Column="1" Style="{StaticResource EnhancedResponsiveCardContainer}">
-                                    <StackPanel Style="{StaticResource FormSection}" IsEnabled="{Binding IsEditing}">
+                                <Border Grid.Column="1" 
+                                        BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20">
+                                    <StackPanel IsEnabled="{Binding IsEditing}">
                                         <TextBlock Text="{DynamicResource Settings_SettingDetails}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
                                                    Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Key}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Key}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Key}"
-                                                 Style="{StaticResource FormField}"
+                                                 Margin="0,0,0,10"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Value}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Value}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Value}"
-                                                 Style="{StaticResource FormField}"/>
+                                                 Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Description}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Description}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Description}"
-                                                 Style="{StaticResource FormTextArea}"
+                                                 Margin="0,0,0,10"
+                                                 Height="60"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Group}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Group}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Group}"
-                                                 Style="{StaticResource FormField}"
+                                                 Margin="0,0,0,10"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_ExchangeRate}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_ExchangeRate}"/>
                                         <TextBox Text="{Binding ExchangeRate}"
-                                                 Style="{StaticResource FormField}"/>
+                                                 Margin="0,0,0,10"/>
 
-                                        <Button Content="{DynamicResource Settings_SaveChanges}"
-                                                Command="{Binding SaveBusinessSettingCommand}"
-                                                Style="{StaticResource SuccessButtonStyle}"
+                                        <Button Command="{Binding SaveBusinessSettingCommand}"
                                                 HorizontalAlignment="Right"
-                                                Margin="0,16,0,0"/>
+                                                Margin="0,16,0,0">
+                                            <TextBlock Text="{DynamicResource Settings_SaveChanges}"/>
+                                        </Button>
 
-                                        <Button Content="{DynamicResource Settings_SaveExchangeRate}"
-                                                Command="{Binding SaveExchangeRateCommand}"
-                                                Style="{StaticResource PrimaryButtonStyle}"
+                                        <Button Command="{Binding SaveExchangeRateCommand}"
                                                 HorizontalAlignment="Right"
-                                                Margin="0,8,0,0"/>
+                                                Margin="0,8,0,0">
+                                            <TextBlock Text="{DynamicResource Settings_SaveExchangeRate}"/>
+                                        </Button>
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -266,20 +241,24 @@
                     </TabItem>
 
                     <!-- System Preferences Tab -->
-                    <TabItem Header="{DynamicResource Settings_SystemPreferences}" Style="{StaticResource SettingsTabItem}">
+                    <TabItem>
+                        <TabItem.Header>
+                            <TextBlock Text="{DynamicResource Settings_SystemPreferences}"/>
+                        </TabItem.Header>
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,20,0,0">
                             <StackPanel>
                                 <!-- Language Settings -->
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                    <StackPanel Style="{StaticResource FormSection}">
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20"
+                                        Margin="0,0,0,20">
+                                    <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Language}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
-                                                   Foreground="{StaticResource PrimaryColor}" 
                                                    Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_SelectLanguage}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_SelectLanguage}"/>
                                         <ComboBox ItemsSource="{Binding AvailableLanguages}"
-                                                  Style="{StaticResource ModernComboBox}"
                                                   SelectedValue="{Binding SelectedLanguage}"
                                                   SelectedValuePath="Code"
                                                   Margin="0,0,0,16">
@@ -287,10 +266,8 @@
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Name}" 
-                                                                   Margin="0,0,8,0"
-                                                                   FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding NativeName}" 
-                                                                   Foreground="{StaticResource TextSecondaryColor}"/>
+                                                                   Margin="0,0,8,0"/>
+                                                        <TextBlock Text="{Binding NativeName}"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
@@ -299,67 +276,70 @@
                                 </Border>
 
                                 <!-- Theme Settings -->
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                    <StackPanel Style="{StaticResource FormSection}">
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20"
+                                        Margin="0,0,0,20">
+                                    <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Theme}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
-                                                   Foreground="{StaticResource PrimaryColor}" 
                                                    Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_ApplicationTheme}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_ApplicationTheme}"/>
                                         <ComboBox ItemsSource="{Binding AvailableThemes}"
-                                                  Style="{StaticResource ModernComboBox}"
                                                   SelectedItem="{Binding CurrentTheme}"
                                                   Margin="0,0,0,16"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Restaurant Mode Settings -->
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                    <StackPanel Style="{StaticResource FormSection}">
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20"
+                                        Margin="0,0,0,20">
+                                    <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_TransactionMode}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
-                                                   Foreground="{StaticResource PrimaryColor}" 
                                                    Margin="0,0,0,16"/>
 
                                         <CheckBox Content="{DynamicResource Settings_EnableRestaurantMode}" 
                                                  IsChecked="{Binding IsRestaurantMode}"
                                                  Margin="0,0,0,8"/>
                                         <TextBlock Text="{DynamicResource Settings_RestaurantModeDescription}" 
-                                                  Style="{StaticResource BodySmall}"
-                                                  TextWrapping="Wrap" 
-                                                  Foreground="{StaticResource TextSecondaryColor}"/>
+                                                  TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Date & Time -->
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                    <StackPanel Style="{StaticResource FormSection}">
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20"
+                                        Margin="0,0,0,20">
+                                    <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_DateAndTime}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
-                                                   Foreground="{StaticResource PrimaryColor}" 
                                                    Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_DateFormat}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_DateFormat}"/>
                                         <ComboBox ItemsSource="{Binding DateFormats}"
-                                                  Style="{StaticResource ModernComboBox}"
                                                   SelectedItem="{Binding DateFormat}"
                                                   Margin="0,0,0,16"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_TimeFormat}" Style="{StaticResource FormLabel}"/>
+                                        <TextBlock Text="{DynamicResource Settings_TimeFormat}"/>
                                         <ComboBox ItemsSource="{Binding TimeFormats}"
-                                                  Style="{StaticResource ModernComboBox}"
                                                   SelectedItem="{Binding TimeFormat}"
                                                   Margin="0,0,0,16"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Notifications -->
-                                <Border Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,0,20">
-                                    <StackPanel Style="{StaticResource FormSection}">
+                                <Border BorderBrush="Gray"
+                                        BorderThickness="1"
+                                        Background="White"
+                                        Padding="20"
+                                        Margin="0,0,0,20">
+                                    <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Notifications}" 
-                                                   Style="{StaticResource HeadlineSmall}" 
-                                                   Foreground="{StaticResource PrimaryColor}" 
                                                    Margin="0,0,0,16"/>
 
                                         <CheckBox Content="{DynamicResource Settings_EnableNotifications}"
@@ -373,11 +353,11 @@
                                 </Border>
 
                                 <!-- Reset Button -->
-                                <Button Content="{DynamicResource Settings_ResetToDefault}"
-                                        Command="{Binding ResetPreferencesCommand}"
-                                        Style="{StaticResource SecondaryButtonStyle}"
+                                <Button Command="{Binding ResetPreferencesCommand}"
                                         HorizontalAlignment="Right"
-                                        Margin="0,0,0,20"/>
+                                        Margin="0,0,0,20">
+                                    <TextBlock Text="{DynamicResource Settings_ResetToDefault}"/>
+                                </Button>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>

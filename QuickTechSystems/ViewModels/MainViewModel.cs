@@ -216,6 +216,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 "Dashboard" => IsManager,
                 "Transactions" => true,
                 "Products" => IsManager,
+                "MainStock" => IsManager,
                 "Categories" => IsManager,
                 "Suppliers" => IsManager,
                 "Expenses" => IsManager,
@@ -286,6 +287,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         "Dashboard" => _serviceProvider.GetRequiredService<DashboardViewModel>(),
                         "Products" => _serviceProvider.GetRequiredService<ProductViewModel>(),
+                        "MainStock" => _serviceProvider.GetRequiredService<MainStockViewModel>(),
                         "Categories" => _serviceProvider.GetRequiredService<CategoryViewModel>(),
                         "Customers" => _serviceProvider.GetRequiredService<CustomerViewModel>(),
                         "Transactions" => _serviceProvider.GetRequiredService<TransactionViewModel>(),

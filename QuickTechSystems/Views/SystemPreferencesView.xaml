@@ -15,11 +15,8 @@
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="0,0,0,20">
             <TextBlock Text="{DynamicResource SystemPreferences_Title}"
-                     FontSize="24"
-                     FontWeight="Bold"
                      Margin="0,0,0,10"/>
-            <TextBlock Text="{DynamicResource SystemPreferences_Subtitle}"
-                     Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+            <TextBlock Text="{DynamicResource SystemPreferences_Subtitle}"/>
         </StackPanel>
         <!-- Preferences Content -->
         <ScrollViewer Grid.Row="1">
@@ -66,10 +63,11 @@
                     Orientation="Horizontal" 
                     HorizontalAlignment="Right" 
                     Margin="0,15,0,0">
-            <Button Content="{DynamicResource SystemPreferences_ResetToDefault}"
-                    Command="{Binding ResetCommand}"
+            <Button Command="{Binding ResetCommand}"
                     Width="120"
-                    Margin="0,0,10,0"/>
+                    Margin="0,0,10,0">
+                <TextBlock Text="{DynamicResource SystemPreferences_ResetToDefault}"/>
+            </Button>
         </StackPanel>
     </Grid>
 </UserControl>

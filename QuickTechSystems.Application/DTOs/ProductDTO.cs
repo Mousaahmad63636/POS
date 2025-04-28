@@ -24,7 +24,8 @@ namespace QuickTechSystems.Application.DTOs
         private bool _isActive;
         // Change from byte[] to string
         private string? _imagePath;
-
+        private int? _mainStockId;
+        public int? SupplierInvoiceId { get; set; }
         // Update property to use ImagePath instead of Image
         public string? ImagePath
         {
@@ -35,7 +36,15 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
-
+        public int? MainStockId
+        {
+            get => _mainStockId;
+            set
+            {
+                _mainStockId = value;
+                OnPropertyChanged();
+            }
+        }
         public int ProductId
         {
             get => _productId;

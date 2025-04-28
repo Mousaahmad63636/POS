@@ -5,458 +5,54 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              mc:Ignorable="d"
-             x:Name="DrawerViewRoot"
-             RenderOptions.BitmapScalingMode="HighQuality"
-             UseLayoutRounding="True">
+             x:Name="DrawerViewRoot">
 
     <UserControl.Resources>
-        <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-
-        <!-- Colors -->
-        <SolidColorBrush x:Key="PrimaryBackground" Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="SecondaryBackground" Color="#F8F9FA"/>
-        <SolidColorBrush x:Key="PrimaryText" Color="#343A40"/>
-        <SolidColorBrush x:Key="SecondaryText" Color="#6C757D"/>
-        <SolidColorBrush x:Key="AccentColor" Color="#4285F4"/>
-        <SolidColorBrush x:Key="SuccessColor" Color="#4CAF50"/>
-        <SolidColorBrush x:Key="InfoColor" Color="#17A2B8"/>
-        <SolidColorBrush x:Key="WarningColor" Color="#DC3545"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="DangerColor" Color="#DC3545"/>
-
-        <!-- Modern TextBox Style -->
-        <Style x:Key="ModernTextBox" TargetType="TextBox">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="#DDDDDD"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="border" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
-                                Background="{TemplateBinding Background}" 
-                                CornerRadius="4">
-                            <ScrollViewer x:Name="PART_ContentHost" 
-                                         Focusable="False" 
-                                         HorizontalScrollBarVisibility="Hidden" 
-                                         VerticalScrollBarVisibility="Hidden"
-                                         Padding="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" TargetName="border" Value="#4285F4"/>
-                                <Setter Property="BorderThickness" TargetName="border" Value="2"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Modern DatePicker Style -->
-        <Style x:Key="ModernDatePicker" TargetType="DatePicker">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="BorderBrush" Value="#DDDDDD"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
-
-        <!-- Button Styles -->
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Background" Value="#4285F4"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderThickness="0"
-                               CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#3367D6"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#2A56C6"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Background" Value="#F2F2F2"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#DDDDDD"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderBrush="{TemplateBinding BorderBrush}"
-                               BorderThickness="{TemplateBinding BorderThickness}"
-                               CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E0E0E0"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#CCCCCC"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="SuccessButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Background" Value="#4CAF50"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderThickness="0"
-                               CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#388E3C"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#2E7D32"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="DangerButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Background" Value="#DC3545"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderThickness="0"
-                               CornerRadius="4">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"
-                                            Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#C82333"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#BD2130"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Action Menu Item Style -->
-        <Style x:Key="ActionMenuItem" TargetType="Button">
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Padding" Value="16,0"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#212529"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#F8F9FA"/>
-                    <Setter Property="Foreground" Value="#4285F4"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- DataGrid Styles -->
-        <Style x:Key="ResponsiveDataGrid" TargetType="DataGrid">
-            <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="#EEEEEE"/>
-            <Setter Property="RowHeight" Value="50"/>
-            <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="CanUserResizeRows" Value="False"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="SelectionUnit" Value="FullRow"/>
-            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
-            <Setter Property="AlternatingRowBackground" Value="#F9F9F9"/>
-            <Setter Property="RowBackground" Value="White"/>
-            <Setter Property="EnableRowVirtualization" Value="True"/>
-            <Setter Property="EnableColumnVirtualization" Value="True"/>
-        </Style>
-
-        <Style x:Key="ModernDataGridColumnHeader" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#F5F7FA"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="BorderThickness" Value="0,0,0,1"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="DataGridColumnHeader">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
-                            <Grid>
-                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                                 VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                                 Margin="{TemplateBinding Padding}"/>
-                                <Path x:Name="SortArrow" 
-                                     Visibility="Collapsed" 
-                                     Data="M0,0 L5,5 L10,0" 
-                                     Fill="{TemplateBinding Foreground}" 
-                                     HorizontalAlignment="Right" 
-                                     VerticalAlignment="Center" 
-                                     Margin="0,0,8,0"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="SortDirection" Value="Ascending">
-                                <Setter Property="Visibility" TargetName="SortArrow" Value="Visible"/>
-                                <Setter Property="RenderTransform" TargetName="SortArrow">
-                                    <Setter.Value>
-                                        <RotateTransform Angle="180" CenterX="5" CenterY="2.5"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="SortDirection" Value="Descending">
-                                <Setter Property="Visibility" TargetName="SortArrow" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="ModernDataGridCell" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="8"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="DataGridCell">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#E8F0FE"/>
-                    <Setter Property="Foreground" Value="#202124"/>
-                    <Setter Property="BorderBrush" Value="#D2E3FC"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Text Styles -->
-        <Style x:Key="BodyMedium" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="#333333"/>
-        </Style>
-
-        <!-- Form Label Style -->
-        <Style x:Key="FormLabel" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="Margin" Value="0,0,0,8"/>
-        </Style>
-
-        <!-- Form Title Style -->
-        <Style x:Key="FormTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="20"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#212529"/>
-            <Setter Property="Margin" Value="0,0,0,16"/>
-        </Style>
-
-        <!-- Inline Tab Style -->
-        <Style x:Key="InlineTabButton" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#333333"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,0"/>
-            <Setter Property="Height" Value="36"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Foreground" Value="#4285F4"/>
-                </Trigger>
-                <Trigger Property="Tag" Value="Selected">
-                    <Setter Property="Foreground" Value="#4285F4"/>
-                    <Setter Property="FontWeight" Value="SemiBold"/>
-                    <Setter Property="BorderThickness" Value="0,0,0,2"/>
-                    <Setter Property="BorderBrush" Value="#4285F4"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Container Styles -->
-        <Style x:Key="DataTableContainer" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E0E0E0"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="UseLayoutRounding" Value="True"/>
-        </Style>
-
-        <!-- Loading Overlay -->
-        <Style x:Key="LoadingOverlay" TargetType="Border">
-            <Setter Property="Background" Value="#80000000"/>
-            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-            <Setter Property="VerticalAlignment" Value="Stretch"/>
-        </Style>
-
-        <!-- Popup Styles -->
-        <Style x:Key="PopupStyle" TargetType="Popup">
-            <Setter Property="AllowsTransparency" Value="True"/>
-            <Setter Property="PopupAnimation" Value="Fade"/>
-            <Setter Property="StaysOpen" Value="False"/>
-        </Style>
-
-        <Style x:Key="PopupContentStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="20"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect ShadowDepth="2" BlurRadius="10" Opacity="0.3"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style x:Key="MenuPopupStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect ShadowDepth="2" BlurRadius="6" Opacity="0.2"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
-    <!-- Main Grid -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Single Header Row -->
             <RowDefinition Height="*"/>
-            <!-- Content Area -->
         </Grid.RowDefinitions>
 
         <!-- Single Header Row with All Controls -->
-        <Grid Grid.Row="0" Margin="16,16,16,16">
+        <Grid Grid.Row="0" Margin="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
-                <!-- Summary Button -->
                 <ColumnDefinition Width="Auto"/>
-                <!-- Tabs -->
                 <ColumnDefinition Width="Auto"/>
-                <!-- Date Range -->
                 <ColumnDefinition Width="*"/>
-                <!-- Flexible Space -->
                 <ColumnDefinition Width="Auto"/>
-                <!-- Action Button -->
             </Grid.ColumnDefinitions>
 
             <!-- Summary Button -->
             <Button Grid.Column="0" 
-                    Content="Summary"
                     Name="SummaryButton"
                     Click="SummaryButton_Click"
-                    Style="{StaticResource PrimaryButtonStyle}"
                     Margin="0,0,16,0"
-                    Width="100"/>
+                    Width="100">
+                <TextBlock Text="Summary"/>
+            </Button>
 
             <!-- Inline Tabs -->
             <StackPanel Grid.Column="1" Orientation="Horizontal">
                 <Button x:Name="TabCurrentDrawer" 
-                        Content="Current Drawer" 
-                        Style="{StaticResource InlineTabButton}" 
                         Tag="Selected" 
-                        Click="TabButton_Click"/>
+                        Click="TabButton_Click">
+                    <TextBlock Text="Current Drawer"/>
+                </Button>
 
                 <Button x:Name="TabTransactionHistory" 
-                        Content="Transaction History" 
-                        Style="{StaticResource InlineTabButton}" 
-                        Click="TabButton_Click"/>
+                        Click="TabButton_Click">
+                    <TextBlock Text="Transaction History"/>
+                </Button>
 
                 <Button x:Name="TabProfitAnalysis" 
-                        Content="Profit Analysis" 
-                        Style="{StaticResource InlineTabButton}" 
-                        Click="TabButton_Click"/>
+                        Click="TabButton_Click">
+                    <TextBlock Text="Profit Analysis"/>
+                </Button>
             </StackPanel>
 
             <!-- Date Range Controls -->
@@ -464,34 +60,32 @@
                 <TextBlock Text="Date Range" 
                           VerticalAlignment="Center" 
                           Margin="0,0,8,0"/>
-                <DatePicker Style="{StaticResource ModernDatePicker}"
-                           SelectedDate="{Binding StartDate}"
+                <DatePicker SelectedDate="{Binding StartDate}"
                            Width="120"
                            Margin="0,0,4,0"/>
                 <TextBlock Text="to" 
                           VerticalAlignment="Center" 
                           Margin="0,0,4,0"/>
-                <DatePicker Style="{StaticResource ModernDatePicker}"
-                           SelectedDate="{Binding EndDate}"
+                <DatePicker SelectedDate="{Binding EndDate}"
                            Width="120"
                            Margin="0,0,8,0"/>
-                <Button Content="Apply Filter"
-                        Command="{Binding ApplyDateFilterCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Width="120"/>
+                <Button Command="{Binding ApplyDateFilterCommand}"
+                        Width="120">
+                    <TextBlock Text="Apply Filter"/>
+                </Button>
             </StackPanel>
 
             <!-- Action Button -->
             <Button Grid.Column="4" 
-                    Content="Actions"
                     Name="ActionsButton"
                     Click="ActionsButton_Click"
-                    Style="{StaticResource SecondaryButtonStyle}"
-                    Width="100"/>
+                    Width="100">
+                <TextBlock Text="Actions"/>
+            </Button>
         </Grid>
 
         <!-- Main Content Area -->
-        <Border Grid.Row="1" Margin="16,0,16,16" Style="{StaticResource DataTableContainer}">
+        <Border Grid.Row="1" Margin="10" BorderThickness="1" BorderBrush="Gray">
             <!-- Content Views (only one visible at a time based on selected tab) -->
             <Grid>
                 <!-- Current Drawer View -->
@@ -499,15 +93,12 @@
                              VerticalScrollBarVisibility="Auto" 
                              HorizontalScrollBarVisibility="Auto"
                              Visibility="Visible">
-                    <DataGrid Style="{StaticResource ResponsiveDataGrid}"
-                             ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                             CellStyle="{StaticResource ModernDataGridCell}"
-                             ItemsSource="{Binding DrawerHistory}"
+                    <DataGrid ItemsSource="{Binding DrawerHistory}"
                              AutoGenerateColumns="False"
                              IsReadOnly="True"
                              LoadingRow="DataGrid_LoadingRow"
                              MinHeight="400"
-                             Margin="16">
+                             Margin="10">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Date &amp; Time" 
                                               Binding="{Binding Timestamp, StringFormat=g}"
@@ -544,207 +135,58 @@
 
         <!-- Actions Popup (Menu Style) -->
         <Popup x:Name="ActionsPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="200" 
                StaysOpen="False">
-            <Border Style="{StaticResource MenuPopupStyle}">
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
                 <StackPanel>
-                    <Button Content="Open Drawer"
-                            Style="{StaticResource ActionMenuItem}"
-                            IsEnabled="{Binding CanOpenDrawer}"
-                            Click="OpenDrawerCommand_Execute"/>
+                    <Button IsEnabled="{Binding CanOpenDrawer}"
+                            Click="OpenDrawerCommand_Execute">
+                        <TextBlock Text="Open Drawer"/>
+                    </Button>
 
                     <Separator/>
 
-                    <Button Content="Add Cash"
-                            Style="{StaticResource ActionMenuItem}"
-                            IsEnabled="{Binding IsDrawerOpen}"
-                            Click="AddCashCommand_Execute"/>
+                    <Button IsEnabled="{Binding IsDrawerOpen}"
+                            Click="AddCashCommand_Execute">
+                        <TextBlock Text="Add Cash"/>
+                    </Button>
 
-                    <Button Content="Remove Cash"
-                            Style="{StaticResource ActionMenuItem}"
-                            IsEnabled="{Binding IsDrawerOpen}"
-                            Click="RemoveCashCommand_Execute"/>
-
-                    <Separator/>
-
-                    <Button Content="Close Drawer"
-                            Style="{StaticResource ActionMenuItem}"
-                            IsEnabled="{Binding IsDrawerOpen}"
-                            Click="CloseDrawerCommand_Execute"/>
+                    <Button IsEnabled="{Binding IsDrawerOpen}"
+                            Click="RemoveCashCommand_Execute">
+                        <TextBlock Text="Remove Cash"/>
+                    </Button>
 
                     <Separator/>
 
-                    <Button Content="Print Report"
-                            Style="{StaticResource ActionMenuItem}"
-                            IsEnabled="{Binding IsDrawerOpen}"
-                            Click="PrintReportCommand_Execute"/>
+                    <Button IsEnabled="{Binding IsDrawerOpen}"
+                            Click="CloseDrawerCommand_Execute">
+                        <TextBlock Text="Close Drawer"/>
+                    </Button>
 
-                    <Button Content="Refresh Data"
-                            Style="{StaticResource ActionMenuItem}"
-                            Click="RefreshDataCommand_Execute"/>
+                    <Separator/>
+
+                    <Button IsEnabled="{Binding IsDrawerOpen}"
+                            Click="PrintReportCommand_Execute">
+                        <TextBlock Text="Print Report"/>
+                    </Button>
+
+                    <Button Click="RefreshDataCommand_Execute">
+                        <TextBlock Text="Refresh Data"/>
+                    </Button>
                 </StackPanel>
-            </Border>
-        </Popup>
-
-        <!-- Summary Popup -->
-        <Popup x:Name="SummaryPopup" 
-               Style="{StaticResource PopupStyle}"
-               PlacementTarget="{Binding ElementName=SummaryButton}"
-               Placement="Bottom"
-               Width="700" 
-               StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Balance Information -->
-                    <Grid Grid.Row="0" Margin="0,0,0,16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Current Balance -->
-                        <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,16,0">
-                            <StackPanel>
-                                <TextBlock Text="Current Balance" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding CurrentDrawer.CurrentBalance, StringFormat=C2}" 
-                                          Foreground="{StaticResource SuccessColor}" 
-                                          FontSize="20" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Expected Balance -->
-                        <Border Grid.Column="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,16,0">
-                            <StackPanel>
-                                <TextBlock Text="Expected Balance" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}" 
-                                          Foreground="{StaticResource AccentColor}" 
-                                          FontSize="20" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Difference -->
-                        <Border Grid.Column="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16">
-                            <StackPanel>
-                                <TextBlock Text="Difference" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="DifferenceTextBlock" 
-                                          Text="{Binding CurrentDrawer.Difference, StringFormat=C2}" 
-                                          FontSize="20" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding CurrentDrawer.Difference}" Value="0">
-                                                    <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Financial Metrics -->
-                    <UniformGrid Grid.Row="1" Columns="3" Rows="2" Margin="0,0,0,16">
-                        <!-- Sales Card -->
-                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,8,8">
-                            <StackPanel>
-                                <TextBlock Text="Sales" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding TotalSales, StringFormat=C2}" 
-                                          Foreground="{StaticResource SuccessColor}" 
-                                          FontSize="18" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-
-                        <!-- Net Sales Card -->
-                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,0,8">
-                            <StackPanel>
-                                <TextBlock Text="Net Sales" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding NetSales, StringFormat=C2}" 
-                                          Foreground="{StaticResource AccentColor}" 
-                                          FontSize="18" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                    
-
-                        <!-- Expenses Card -->
-                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,0,8,0">
-                            <StackPanel>
-                                <TextBlock Text="Expenses" FontWeight="SemiBold"/>
-                                <TextBlock Text="{Binding TotalExpenses, StringFormat=C2}" 
-                                          Foreground="{StaticResource WarningColor}" 
-                                          FontSize="18" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Net Cash Flow Card -->
-                        <Border BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0">
-                            <StackPanel>
-                                <TextBlock Text="Net Cash Flow" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="NetCashFlowTextBlock"
-                                          Text="{Binding NetCashflow, StringFormat=C2}" 
-                                          FontSize="18" 
-                                          FontWeight="Bold" 
-                                          Margin="0,8,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding NetCashflow}" Value="0">
-                                                    <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-                    </UniformGrid>
-
-                    <!-- Close Button -->
-                    <Button Grid.Row="2" 
-                            Content="Close" 
-                            HorizontalAlignment="Right"
-                            Click="ClosePopup_Click"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Width="100"/>
-                </Grid>
             </Border>
         </Popup>
 
         <!-- Add Cash Form -->
         <Popup x:Name="AddCashPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="400" 
                StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid>
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
+                <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -754,34 +196,32 @@
 
                     <TextBlock Grid.Row="0" 
                                Text="Add Cash" 
-                               Style="{StaticResource FormTitle}"/>
+                               Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Amount:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Amount:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,0,0,20">
-                        <TextBlock Text="Description:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Description:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" 
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
-                        <Button Content="Cancel" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ClosePopup_Click"/>
-                        <Button Content="Add Cash" 
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Margin="8,0,0,0"
+                        <Button Click="ClosePopup_Click">
+                            <TextBlock Text="Cancel"/>
+                        </Button>
+                        <Button Margin="8,0,0,0"
                                 Width="100"
                                 Command="{Binding AddCashCommand}"
-                                Click="AddCashConfirm_Click"/>
+                                Click="AddCashConfirm_Click">
+                            <TextBlock Text="Add Cash"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -789,13 +229,12 @@
 
         <!-- Remove Cash Form -->
         <Popup x:Name="RemoveCashPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="400" 
                StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid>
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
+                <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -805,34 +244,32 @@
 
                     <TextBlock Grid.Row="0" 
                                Text="Remove Cash" 
-                               Style="{StaticResource FormTitle}"/>
+                               Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Amount:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Amount:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,0,0,20">
-                        <TextBlock Text="Reason:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Reason:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" 
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
-                        <Button Content="Cancel" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ClosePopup_Click"/>
-                        <Button Content="Remove Cash" 
-                                Style="{StaticResource DangerButtonStyle}"
-                                Margin="8,0,0,0"
+                        <Button Click="ClosePopup_Click">
+                            <TextBlock Text="Cancel"/>
+                        </Button>
+                        <Button Margin="8,0,0,0"
                                 Width="120"
                                 Command="{Binding RemoveCashCommand}"
-                                Click="RemoveCashConfirm_Click"/>
+                                Click="RemoveCashConfirm_Click">
+                            <TextBlock Text="Remove Cash"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -840,13 +277,12 @@
 
         <!-- Open Drawer Form -->
         <Popup x:Name="OpenDrawerPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="400" 
                StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid>
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
+                <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -855,27 +291,26 @@
 
                     <TextBlock Grid.Row="0" 
                                Text="Open Drawer" 
-                               Style="{StaticResource FormTitle}"/>
+                               Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
-                        <TextBlock Text="Initial Cash Amount:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Initial Cash Amount:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding InitialCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" 
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
-                        <Button Content="Cancel" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ClosePopup_Click"/>
-                        <Button Content="Open Drawer" 
-                                Style="{StaticResource SuccessButtonStyle}"
-                                Margin="8,0,0,0"
+                        <Button Click="ClosePopup_Click">
+                            <TextBlock Text="Cancel"/>
+                        </Button>
+                        <Button Margin="8,0,0,0"
                                 Width="120"
                                 Command="{Binding OpenDrawerCommand}"
-                                Click="OpenDrawerConfirm_Click"/>
+                                Click="OpenDrawerConfirm_Click">
+                            <TextBlock Text="Open Drawer"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -883,13 +318,12 @@
 
         <!-- Close Drawer Form -->
         <Popup x:Name="CloseDrawerPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="400" 
                StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid>
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
+                <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -898,46 +332,32 @@
 
                     <TextBlock Grid.Row="0" 
                                Text="Close Drawer" 
-                               Style="{StaticResource FormTitle}"/>
+                               Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
-                        <TextBlock Text="Actual Cash Count:" Style="{StaticResource FormLabel}"/>
-                        <TextBox Style="{StaticResource ModernTextBox}" 
-                                 Width="Auto" 
+                        <TextBlock Text="Actual Cash Count:" Margin="0,0,0,8"/>
+                        <TextBox Width="Auto" 
                                  Text="{Binding FinalCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TextBlock Text="Expected Amount:" Margin="0,16,0,4"/>
-                        <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}" 
-                                  FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}"/>
 
                         <TextBlock Text="Difference:" Margin="0,16,0,4"/>
-                        <TextBlock Text="{Binding DrawerClosingDifference, StringFormat=C2}" 
-                                  FontWeight="SemiBold">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{StaticResource SecondaryText}"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding DrawerClosingDifference}" Value="0">
-                                            <Setter Property="Foreground" Value="{StaticResource SuccessColor}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
+                        <TextBlock Text="{Binding DrawerClosingDifference, StringFormat=C2}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" 
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
-                        <Button Content="Cancel" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ClosePopup_Click"/>
-                        <Button Content="Close Drawer" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="8,0,0,0"
+                        <Button Click="ClosePopup_Click">
+                            <TextBlock Text="Cancel"/>
+                        </Button>
+                        <Button Margin="8,0,0,0"
                                 Width="120"
                                 Command="{Binding CloseDrawerCommand}"
-                                Click="CloseDrawerConfirm_Click"/>
+                                Click="CloseDrawerConfirm_Click">
+                            <TextBlock Text="Close Drawer"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -945,13 +365,12 @@
 
         <!-- Print Report Form -->
         <Popup x:Name="PrintReportPopup" 
-               Style="{StaticResource PopupStyle}"
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
                Width="400" 
                StaysOpen="False">
-            <Border Style="{StaticResource PopupContentStyle}">
-                <Grid>
+            <Border BorderThickness="1" BorderBrush="Gray" Background="White">
+                <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -960,7 +379,7 @@
 
                     <TextBlock Grid.Row="0" 
                                Text="Print Report" 
-                               Style="{StaticResource FormTitle}"/>
+                               Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
                         <CheckBox Content="Include Transaction Details" 
@@ -976,26 +395,27 @@
                     <StackPanel Grid.Row="2" 
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
-                        <Button Content="Cancel" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ClosePopup_Click"/>
-                        <Button Content="Print" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="8,0,0,0"
+                        <Button Click="ClosePopup_Click">
+                            <TextBlock Text="Cancel"/>
+                        </Button>
+                        <Button Margin="8,0,0,0"
                                 Width="100"
                                 Command="{Binding PrintReportCommand}"
-                                Click="PrintReportConfirm_Click"/>
+                                Click="PrintReportConfirm_Click">
+                            <TextBlock Text="Print"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
         </Popup>
 
         <!-- Loading Overlay -->
-        <Border Style="{StaticResource LoadingOverlay}" 
+        <Border Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}"
                 Grid.RowSpan="2"
-                Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}">
+                Background="#80000000">
             <Border Background="White"
-                    CornerRadius="4"
+                    BorderBrush="Gray"
+                    BorderThickness="1"
                     Padding="20"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center">
@@ -1005,7 +425,6 @@
                                 Height="2"
                                 Margin="0,0,0,10"/>
                     <TextBlock Text="Processing"
-                              Style="{StaticResource BodyMedium}"
                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>
@@ -1013,7 +432,6 @@
 
         <!-- Error Message -->
         <TextBlock Text="{Binding ErrorMessage}"
-                  Foreground="{StaticResource WarningColor}"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Top"
                   Margin="0,10"

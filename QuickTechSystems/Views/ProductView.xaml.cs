@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Path: QuickTechSystems.WPF.Views/ProductView.xaml.cs
+using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -114,51 +115,11 @@ namespace QuickTechSystems.WPF.Views
                     showSupplierColumn ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // Preserve all existing event handlers
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button &&
-                button.DataContext is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.SelectedProduct = product;
-                if (viewModel.DeleteCommand.CanExecute(null))
-                {
-                    viewModel.DeleteCommand.Execute(null);
-                }
-            }
-        }
-
         private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is DataGrid grid &&
-                grid.SelectedItem is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.EditProduct(product);
-            }
+            // No edit action on double-click in the view-only mode
+            // If you want to show a read-only product details window, implement it here
         }
-
-        private void EditButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button &&
-                button.DataContext is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.EditProduct(product);
-            }
-        }
-
-        private void EditMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ProductViewModel viewModel &&
-                viewModel.SelectedProduct != null)
-            {
-                viewModel.EditProduct(viewModel.SelectedProduct);
-            }
-        }
-
-     
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {

@@ -71,6 +71,83 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
+
+        public async Task<bool> UpdatePaymentTransactionAsync(int transactionId, decimal newAmount, string reason)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    // Get the transaction
+                    var paymentTransaction = await _unitOfWork.Transactions.GetByIdAsync(transactionId);
+                    if (paymentTransaction == null)
+                        return false;
+
+                    // Get the original amount
+                    decimal originalAmount = paymentTransaction.PaidAmount;
+
+                    // Calculate difference (positive if payment decreased, negative if increased)
+                    decimal amountDifference = originalAmount - newAmount;
+
+                    // Handle nullable CustomerId
+                    if (!paymentTransaction.CustomerId.HasValue)
+                        return false;
+
+                    // Get the customer using the non-nullable value
+                    var customer = await _repository.GetByIdAsync(paymentTransaction.CustomerId.Value);
+                    if (customer == null)
+                        return false;
+
+                    // Update customer balance (add the difference back to balance)
+                    // If payment decreased (e.g. $10 → $5), balance increases by $5
+                    // If payment increased (e.g. $5 → $10), balance decreases by $5
+                    customer.Balance += amountDifference;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    Debug.WriteLine($"Updating customer {customer.CustomerId} balance from {customer.Balance - amountDifference} to {customer.Balance}");
+                    await _repository.UpdateAsync(customer);
+
+                    // Update transaction amount
+                    paymentTransaction.PaidAmount = newAmount;
+                    paymentTransaction.TotalAmount = newAmount;
+
+                    // Since there's no Notes property, store update info in CashierName
+                    // Format: "Original Cashier Name | Updated: [date] - Original: $X, New: $Y, Reason: [reason]"
+                    string updateInfo = $"Updated: {DateTime.Now:MM/dd/yyyy} - Original: {originalAmount:C2}, New: {newAmount:C2}";
+
+                    // Append to CashierName if there's space, or use CashierRole for overflow
+                    if (paymentTransaction.CashierName.Length + updateInfo.Length <= 100) // Assuming reasonable limit
+                    {
+                        paymentTransaction.CashierName = $"{paymentTransaction.CashierName} | {updateInfo}";
+                    }
+                    else
+                    {
+                        // Use CashierRole as overflow for update history
+                        paymentTransaction.CashierRole = $"Reason: {reason} | {updateInfo}";
+                    }
+
+                    await _unitOfWork.Transactions.UpdateAsync(paymentTransaction);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    // Publish customer updated event
+                    var customerDto = _mapper.Map<CustomerDTO>(customer);
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", customerDto));
+
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error updating payment transaction: {ex.Message}");
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            });
+        }
+
         public new async Task<CustomerDTO?> GetByIdAsync(int id)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

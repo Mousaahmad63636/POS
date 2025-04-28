@@ -10,100 +10,80 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-        <!-- Add missing BackdropColor resource -->
-        <SolidColorBrush x:Key="BackdropColor" Color="#80000000"/>
     </UserControl.Resources>
 
-    <!-- Main Grid with shared size scope for consistent proportions -->
-    <Grid Grid.IsSharedSizeScope="True">
+    <!-- Main Grid -->
+    <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Style="{StaticResource ResponsivePageLayout}" x:Name="ContentGrid">
+            <Grid x:Name="ContentGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- RESPONSIVE FILTER ROW - Using shared size groups and proportional sizing -->
+                <!-- FILTER ROW -->
                 <Grid Grid.Row="0" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
-                        <!-- Use proportional sizing with SharedSizeGroup for consistency -->
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="DateRange"/>
-                        <ColumnDefinition Width="*" MinWidth="100" SharedSizeGroup="Spacer"/>
-                        <ColumnDefinition Width="Auto" SharedSizeGroup="ActionButtons"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Date Range - DockPanel for better space utilization -->
-                    <DockPanel Grid.Column="0" LastChildFill="True" Margin="0,0,8,0" VerticalAlignment="Center">
-                        <TextBlock Text="{DynamicResource Profit_DateRange}" 
-                                  Style="{StaticResource LabelLarge}"
+                    <!-- Date Range -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,0" VerticalAlignment="Center">
+                        <TextBlock Text="Date Range:" 
                                   VerticalAlignment="Center" 
-                                  Margin="0,0,16,0"
-                                  DockPanel.Dock="Left"/>
+                                  Margin="0,0,16,0"/>
                         <DatePicker SelectedDate="{Binding StartDate}" 
-                                  Style="{StaticResource ModernDatePicker}" 
-                                  MinWidth="90" MaxWidth="120" Width="Auto"
-                                  DockPanel.Dock="Left"/>
-                        <TextBlock Text="{DynamicResource Profit_DateTo}" 
+                                  MinWidth="90" MaxWidth="120" Width="Auto"/>
+                        <TextBlock Text="to" 
                                   VerticalAlignment="Center" 
                                   Margin="4,0" 
-                                  Foreground="{StaticResource TextSecondaryColor}"
                                   DockPanel.Dock="Left"/>
                         <DatePicker SelectedDate="{Binding EndDate}" 
-                                  Style="{StaticResource ModernDatePicker}" 
-                                  MinWidth="90" MaxWidth="120" Width="Auto"
-                                  DockPanel.Dock="Left"/>
-                    </DockPanel>
+                                  MinWidth="90" MaxWidth="120" Width="Auto"/>
+                    </StackPanel>
 
-                    <!-- Financial Summary - Uses TextBlock wrapping for smaller screens -->
+                    <!-- Financial Summary -->
                     <StackPanel Grid.Column="1" 
                               Orientation="Horizontal"
                               Margin="8,0"
                               HorizontalAlignment="Right"
                               VerticalAlignment="Center">
-                        <TextBlock Text="Total Sales: " Foreground="{StaticResource TextSecondaryColor}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Total Sales: " VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding TotalSales, StringFormat={}{0:C2}, Mode=OneWay}" 
-                                  Foreground="{StaticResource PrimaryColor}" 
-                                  FontWeight="SemiBold" 
                                   VerticalAlignment="Center"
                                   Margin="0,0,16,0"/>
-                        <TextBlock Text="Total Profit: " Foreground="{StaticResource TextSecondaryColor}" VerticalAlignment="Center"/>
+                        <TextBlock Text="Total Profit: " VerticalAlignment="Center"/>
                         <TextBlock Text="{Binding NetProfit, StringFormat={}{0:C2}, Mode=OneWay}" 
-                                  Foreground="{StaticResource SuccessColor}" 
-                                  FontWeight="SemiBold" 
                                   VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Action Buttons - WrapPanel for responsive wrapping -->
-                    <WrapPanel Grid.Column="2" 
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Column="2" 
                               Orientation="Horizontal" 
                               VerticalAlignment="Center"
                               Margin="8,0,0,0">
                         <Button Content="Summary"
-                                Style="{StaticResource AccentButtonStyle}"
                                 Click="SummaryButton_Click"
                                 Margin="0,0,8,0"
-                                Padding="12,6"
-                                Height="32"/>
+                                Height="32"
+                                Padding="12,6"/>
                         <Button Content="Refresh"
-                                Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding RefreshCommand}"
                                 Margin="0,0,8,0"
-                                Padding="12,6"
-                                Height="32"/>
+                                Height="32"
+                                Padding="12,6"/>
                         <Button Content="Export"
-                                Style="{StaticResource PrimaryButtonStyle}"
                                 Command="{Binding ExportCommand}"
-                                Padding="12,6"
-                                Height="32"/>
-                    </WrapPanel>
+                                Height="32"
+                                Padding="12,6"/>
+                    </StackPanel>
                 </Grid>
 
-                <!-- DataGrid with proportional column sizing -->
+                <!-- DataGrid -->
                 <DataGrid Grid.Row="1"
-                          Style="{StaticResource ResponsiveDataGrid}"
-                          ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                          CellStyle="{StaticResource ModernDataGridCell}"
                           ItemsSource="{Binding ProfitDetails}"
                           Margin="0,0,0,16"
                           MinHeight="350"
@@ -111,360 +91,64 @@
                           AutoGenerateColumns="False"
                           IsReadOnly="True">
                     <DataGrid.Columns>
-                        <!-- Using proportional widths and star sizing for responsive columns -->
                         <DataGridTextColumn Header="Date" 
                                            Binding="{Binding Date, StringFormat=d}"
                                            Width="100" 
                                            SortMemberPath="Date"/>
-
                         <DataGridTextColumn Header="Time" 
                                            Binding="{Binding Date, StringFormat=t}"
                                            Width="90" 
                                            SortMemberPath="Date"/>
-
                         <DataGridTextColumn Header="Sales" 
                                            Binding="{Binding Sales, StringFormat=C2}"
                                            Width="120" 
-                                           SortMemberPath="Sales">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="0,0,16,0"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
+                                           SortMemberPath="Sales"/>
                         <DataGridTextColumn Header="Cost" 
                                            Binding="{Binding Cost, StringFormat=C2}"
                                            Width="120" 
-                                           SortMemberPath="Cost">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="0,0,16,0"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
+                                           SortMemberPath="Cost"/>
                         <DataGridTextColumn Header="Gross Profit" 
                                            Binding="{Binding GrossProfit, StringFormat=C2}"
                                            Width="120" 
-                                           SortMemberPath="GrossProfit">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="0,0,16,0"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="Foreground" Value="{StaticResource InfoColor}"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
+                                           SortMemberPath="GrossProfit"/>
                         <DataGridTextColumn Header="Net Profit" 
                                            Binding="{Binding NetProfit, StringFormat=C2}"
                                            Width="120" 
-                                           SortMemberPath="NetProfit">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="0,0,16,0"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="Foreground" Value="{StaticResource PrimaryColor}"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
+                                           SortMemberPath="NetProfit"/>
                         <DataGridTextColumn Header="Margin" 
                                            Binding="{Binding ProfitMargin, StringFormat=P1}"
                                            Width="*" 
-                                           SortMemberPath="ProfitMargin">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                    <Setter Property="Padding" Value="0,0,16,0"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-
+                                           SortMemberPath="ProfitMargin"/>
                         <DataGridTextColumn Header="Items" 
                                            Binding="{Binding ItemsCount}"
                                            Width="80" 
-                                           SortMemberPath="ItemsCount">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-                                    <Setter Property="HorizontalAlignment" Value="Center"/>
-                                    <Setter Property="VerticalAlignment" Value="Center"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
+                                           SortMemberPath="ItemsCount"/>
                     </DataGrid.Columns>
                 </DataGrid>
 
                 <!-- Error Message Box -->
-                <Border Grid.Row="2"
-                       Background="{StaticResource BorderColor}"
-                       BorderBrush="{StaticResource DangerColor}"
-                       BorderThickness="1"
-                       CornerRadius="4"
-                       Padding="12,8"
-                       Margin="0,0,0,8"
-                       Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
+                <Border Grid.Row="2" Margin="0,0,0,8">
                     <TextBlock Text="{Binding ErrorMessage}" 
-                              Foreground="{StaticResource DangerColor}" 
-                              Style="{StaticResource BodySmall}"
-                              VerticalAlignment="Center"/>
+                              Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                              Margin="12,8"/>
                 </Border>
 
                 <!-- Loading Overlay -->
                 <Border Grid.Row="0" 
                        Grid.RowSpan="3" 
-                       Style="{StaticResource LoadingOverlay}" 
+                       Background="#80000000" 
                        Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel HorizontalAlignment="Center" 
                                VerticalAlignment="Center">
-                        <ProgressBar Style="{StaticResource ModernProgressBar}" 
-                                    IsIndeterminate="True" 
+                        <ProgressBar IsIndeterminate="True" 
                                     Width="100" 
                                     Margin="0,0,0,12"/>
-                        <TextBlock Text="{DynamicResource Profit_Loading}" 
+                        <TextBlock Text="Loading..." 
                                   Foreground="White" 
-                                  FontSize="14" 
-                                  FontWeight="SemiBold"
                                   HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
             </Grid>
         </ScrollViewer>
-
-        <!-- Summary Popup - Fixed XML syntax -->
-        <Border x:Name="SummaryPopup" 
-                Background="{StaticResource BackdropColor}"
-                Visibility="Collapsed">
-            <Border Background="{StaticResource BackgroundColor}" 
-                    BorderBrush="{StaticResource BorderColor}" 
-                    BorderThickness="1" 
-                    CornerRadius="8" 
-                    MaxWidth="900" 
-                    MaxHeight="600"
-                    VerticalAlignment="Center" 
-                    HorizontalAlignment="Center">
-                <Grid Margin="24">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <!-- Popup Header -->
-                    <Grid Grid.Row="0" Margin="0,0,0,20">
-                        <TextBlock Text="Profit Summary" 
-                                   Style="{StaticResource HeadlineMedium}" 
-                                   HorizontalAlignment="Left"/>
-                        <Button Content="✕" 
-                                Style="{StaticResource IconButtonStyle}" 
-                                HorizontalAlignment="Right" 
-                                VerticalAlignment="Top"
-                                Click="ClosePopupButton_Click"/>
-                    </Grid>
-
-                    <!-- Metric Cards -->
-                    <Grid Grid.Row="1" Margin="0,0,0,24">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Total Sales Card -->
-                        <Border Grid.Column="0" Style="{StaticResource MetricCard}" Margin="0,0,8,0">
-                            <StackPanel>
-                                <TextBlock Text="Total Sales" Style="{StaticResource MetricLabel}"/>
-                                <TextBlock Text="{Binding TotalSales, StringFormat=C2}" 
-                                          Foreground="{StaticResource SuccessColor}" 
-                                          Style="{StaticResource MetricValue}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Gross Profit Card -->
-                        <Border Grid.Column="1" Style="{StaticResource MetricCard}" Margin="8,0,8,0">
-                            <StackPanel>
-                                <TextBlock Text="Gross Profit" Style="{StaticResource MetricLabel}"/>
-                                <TextBlock Text="{Binding GrossProfit, StringFormat=C2}" 
-                                          Foreground="{StaticResource InfoColor}" 
-                                          Style="{StaticResource MetricValue}"/>
-                                <TextBlock Text="{Binding GrossProfitPercentage, StringFormat={}{0:N1}%}" 
-                                          Style="{StaticResource MetricChangeNeutral}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Net Profit Card -->
-                        <Border Grid.Column="2" Style="{StaticResource MetricCard}" Margin="8,0,8,0">
-                            <StackPanel>
-                                <TextBlock Text="Net Profit" Style="{StaticResource MetricLabel}"/>
-                                <TextBlock Text="{Binding NetProfit, StringFormat=C2}" 
-                                          Foreground="{StaticResource PrimaryColor}" 
-                                          Style="{StaticResource MetricValue}"/>
-                                <TextBlock Text="{Binding NetProfitPercentage, StringFormat={}{0:N1}%}" 
-                                          Style="{StaticResource MetricChangeNeutral}"/>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Transactions Card -->
-                        <Border Grid.Column="3" Style="{StaticResource MetricCard}" Margin="8,0,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Transactions" Style="{StaticResource MetricLabel}"/>
-                                <TextBlock Text="{Binding TotalTransactions}" 
-                                          Foreground="{StaticResource TextSecondaryColor}" 
-                                          Style="{StaticResource MetricValue}"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
-                    <!-- Profit Calculations -->
-                    <Grid Grid.Row="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Gross Profit Calculation -->
-                        <Border Grid.Column="0" Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="0,0,8,0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Header -->
-                                <TextBlock Grid.Row="0" 
-                                          Text="Gross Profit Calculation" 
-                                          Style="{StaticResource HeadlineSmall}"
-                                          FontSize="16"/>
-
-                                <!-- Divider -->
-                                <Border Grid.Row="1" Style="{StaticResource PageDivider}"/>
-
-                                <!-- Content -->
-                                <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                                    <!-- Total Sales -->
-                                    <Grid Margin="0,4,0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Total Sales:" Style="{StaticResource BodyMedium}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding TotalSales, StringFormat=C2}" Style="{StaticResource BodyMedium}" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Cost of Goods -->
-                                    <Grid Margin="0,4,0,8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Cost of Goods:" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding CostOfGoodsSold, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <Border Style="{StaticResource PageDivider}" Margin="0,0,0,8"/>
-
-                                    <!-- Gross Profit -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Gross Profit:" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource InfoColor}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding GrossProfit, StringFormat=C2}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource InfoColor}" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-
-                        <!-- Net Profit Calculation -->
-                        <Border Grid.Column="1" Style="{StaticResource EnhancedResponsiveCardContainer}" Margin="8,0,0,0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Header -->
-                                <TextBlock Grid.Row="0" 
-                                          Text="Net Profit Calculation" 
-                                          Style="{StaticResource HeadlineSmall}"
-                                          FontSize="16"/>
-
-                                <!-- Divider -->
-                                <Border Grid.Row="1" Style="{StaticResource PageDivider}"/>
-
-                                <!-- Content -->
-                                <StackPanel Grid.Row="2" Margin="0,12,0,0">
-                                    <!-- Gross Profit Value -->
-                                    <Grid Margin="0,4,0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Gross Profit:" Style="{StaticResource BodyMedium}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding GrossProfit, StringFormat=C2}" Style="{StaticResource BodyMedium}" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Expenses -->
-                                    <Grid Margin="0,4,0,4">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Expenses:" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding TotalExpenses, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <!-- Other Deductions -->
-                                    <Grid Margin="0,4,0,8">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Other Deductions:" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding OtherDeductions, StringFormat=C2}" Style="{StaticResource BodyMedium}" Foreground="{StaticResource DangerColor}" HorizontalAlignment="Right"/>
-                                    </Grid>
-
-                                    <Border Style="{StaticResource PageDivider}" Margin="0,0,0,8"/>
-
-                                    <!-- Net Profit -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="Net Profit:" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource PrimaryColor}" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding NetProfit, StringFormat=C2}" Style="{StaticResource HeadlineSmall}" FontSize="15" Foreground="{StaticResource PrimaryColor}" HorizontalAlignment="Right"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-
-                    <!-- Close Button -->
-                    <Button Grid.Row="3" 
-                            Content="Close" 
-                            Style="{StaticResource PrimaryButtonStyle}" 
-                            HorizontalAlignment="Center" 
-                            MinWidth="120"
-                            Margin="0,24,0,0"
-                            Click="ClosePopupButton_Click"/>
-                </Grid>
-            </Border>
-        </Border>
     </Grid>
 </UserControl>

@@ -11,40 +11,26 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-
-        <!-- Update button style -->
-        <Style x:Key="UpdateButtonStyle" TargetType="Button" BasedOn="{StaticResource TextButtonStyle}">
-            <Setter Property="Foreground" Value="#1976D2"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Foreground" Value="#2196F3"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
     </UserControl.Resources>
 
     <Grid>
         <!-- Loading Overlay -->
-        <Border Style="{StaticResource LoadingOverlay}"
+        <Border Background="#80000000"
                 Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
                 Panel.ZIndex="1000">
             <StackPanel HorizontalAlignment="Center" 
                         VerticalAlignment="Center">
-                <ProgressBar Style="{StaticResource ModernProgressBar}" 
-                           IsIndeterminate="True" 
+                <ProgressBar IsIndeterminate="True" 
                            Width="120" 
                            Margin="0,0,0,16"/>
                 <TextBlock Text="{Binding LoadingMessage}" 
-                         Foreground="White" 
-                         FontWeight="SemiBold"
-                         FontSize="14"/>
+                         Foreground="White"/>
             </StackPanel>
         </Border>
 
         <!-- Main Content -->
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Style="{StaticResource ResponsivePageLayout}">
+            <Grid Margin="20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" MinWidth="400"/>
                     <ColumnDefinition Width="*" MinWidth="400"/>
@@ -59,12 +45,11 @@
 
                     <TextBlock Grid.Row="0" 
                               Text="{DynamicResource Category_ProductCategories}"
-                              Style="{StaticResource DisplaySmall}" 
-                              Foreground="{StaticResource PrimaryColor}"
+                              FontSize="24"
                               Margin="0,0,0,16"/>
 
                     <!-- Product Categories List -->
-                    <Border Grid.Row="1" Style="{StaticResource DataTableContainer}">
+                    <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
                         <DockPanel>
                             <Grid DockPanel.Dock="Top" Margin="16">
                                 <Grid.ColumnDefinitions>
@@ -75,21 +60,16 @@
 
                                 <Button Content="{DynamicResource Category_AddNew}"
                                         Command="{Binding AddProductCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}"
                                         HorizontalAlignment="Left"/>
 
                                 <Button Grid.Column="2" 
                                         Content="{DynamicResource General_Refresh}"
                                         Command="{Binding RefreshCommand}"
-                                        Style="{StaticResource SecondaryButtonStyle}"
                                         HorizontalAlignment="Right"/>
                             </Grid>
 
                             <DataGrid ItemsSource="{Binding ProductCategories}"
                                      SelectedItem="{Binding SelectedProductCategory}"
-                                     Style="{StaticResource ResponsiveDataGrid}"
-                                     ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                     CellStyle="{StaticResource ModernDataGridCell}"
                                      AutoGenerateColumns="False"
                                      IsReadOnly="True"
                                      BorderThickness="0"
@@ -110,7 +90,6 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <Button Content="{DynamicResource General_Edit}" 
                                                             Click="EditProductButton_Click"
-                                                            Style="{StaticResource UpdateButtonStyle}"
                                                             Margin="0,0,8,0"/>
                                                 </StackPanel>
                                             </DataTemplate>
@@ -131,12 +110,11 @@
 
                     <TextBlock Grid.Row="0" 
                               Text="{DynamicResource Category_ExpenseCategories}"
-                              Style="{StaticResource DisplaySmall}" 
-                              Foreground="{StaticResource PrimaryColor}"
+                              FontSize="24"
                               Margin="0,0,0,16"/>
 
                     <!-- Expense Categories List -->
-                    <Border Grid.Row="1" Style="{StaticResource DataTableContainer}">
+                    <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1">
                         <DockPanel>
                             <Grid DockPanel.Dock="Top" Margin="16">
                                 <Grid.ColumnDefinitions>
@@ -147,15 +125,11 @@
 
                                 <Button Content="{DynamicResource Category_AddNew}"
                                         Command="{Binding AddExpenseCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}"
                                         HorizontalAlignment="Left"/>
                             </Grid>
 
                             <DataGrid ItemsSource="{Binding ExpenseCategories}"
                                      SelectedItem="{Binding SelectedExpenseCategory}"
-                                     Style="{StaticResource ResponsiveDataGrid}"
-                                     ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                     CellStyle="{StaticResource ModernDataGridCell}"
                                      AutoGenerateColumns="False"
                                      IsReadOnly="True"
                                      BorderThickness="0"
@@ -173,7 +147,6 @@
                                                 <StackPanel Orientation="Horizontal">
                                                     <Button Content="{DynamicResource General_Edit}" 
                                                             Click="EditExpenseButton_Click"
-                                                            Style="{StaticResource UpdateButtonStyle}"
                                                             Margin="0,0,8,0"/>
                                                 </StackPanel>
                                             </DataTemplate>
@@ -186,39 +159,5 @@
                 </Grid>
             </Grid>
         </ScrollViewer>
-
-        <!-- Product Category Popup -->
-        <Popup IsOpen="{Binding IsProductCategoryPopupOpen, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CategoryViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CategoryViewRoot}" 
-                 Height="{Binding ActualHeight, ElementName=CategoryViewRoot}">
-                <local:CategoryDetailsPopup x:Name="ProductCategoryPopup"
-                                          DataContext="{Binding SelectedProductCategory}"
-                                          CloseRequested="ProductCategoryPopup_CloseRequested"
-                                          SaveCompleted="ProductCategoryPopup_SaveCompleted"/>
-            </Grid>
-        </Popup>
-
-        <!-- Expense Category Popup -->
-        <Popup IsOpen="{Binding IsExpenseCategoryPopupOpen, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CategoryViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CategoryViewRoot}" 
-                 Height="{Binding ActualHeight, ElementName=CategoryViewRoot}">
-                <local:CategoryDetailsPopup x:Name="ExpenseCategoryPopup"
-                                          DataContext="{Binding SelectedExpenseCategory}"
-                                          CloseRequested="ExpenseCategoryPopup_CloseRequested"
-                                          SaveCompleted="ExpenseCategoryPopup_SaveCompleted"/>
-            </Grid>
-        </Popup>
     </Grid>
 </UserControl>
