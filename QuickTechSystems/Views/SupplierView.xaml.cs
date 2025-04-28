@@ -11,12 +11,14 @@ namespace QuickTechSystems.WPF.Views
     public partial class SupplierView : UserControl
     {
         private SupplierInvoiceViewModel _supplierInvoiceViewModel;
+        private SupplierViewModel _supplierViewModel => DataContext as SupplierViewModel;
 
         public SupplierView()
         {
             InitializeComponent();
             this.Loaded += OnControlLoaded;
             this.SizeChanged += OnControlSizeChanged;
+            this.Unloaded += OnControlUnloaded;
 
             // Get the SupplierInvoiceViewModel from the service provider
             _supplierInvoiceViewModel = ((App)System.Windows.Application.Current).ServiceProvider.GetRequiredService<SupplierInvoiceViewModel>();
@@ -25,9 +27,24 @@ namespace QuickTechSystems.WPF.Views
             SupplierInvoiceView.DataContext = _supplierInvoiceViewModel;
         }
 
-        private void OnControlLoaded(object sender, RoutedEventArgs e)
+        private async void OnControlLoaded(object sender, RoutedEventArgs e)
         {
             AdjustLayoutForSize();
+
+            // Initialize data when the view is loaded
+            if (_supplierViewModel != null)
+            {
+                await _supplierViewModel.InitializeAsync();
+            }
+        }
+
+        private void OnControlUnloaded(object sender, RoutedEventArgs e)
+        {
+            // Clean up resources when the view is unloaded
+            if (_supplierViewModel != null && _supplierViewModel is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
 
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
@@ -115,7 +132,6 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
-
         private void ViewHistoryButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button &&
@@ -123,8 +139,16 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is SupplierViewModel viewModel)
             {
                 viewModel.SelectedSupplier = supplier;
-                var window = new SupplierTransactionsHistoryWindow(viewModel, supplier);
-                window.ShowDialog();
+
+                // Load transactions first, then show history window
+                Task.Run(async () => {
+                    await viewModel.LoadSupplierTransactionsAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        var window = new SupplierTransactionsHistoryWindow(viewModel, supplier);
+                        window.ShowDialog();
+                    });
+                });
             }
         }
 
@@ -164,11 +188,16 @@ namespace QuickTechSystems.WPF.Views
             if (DataContext is SupplierViewModel viewModel &&
                 viewModel.SelectedSupplier != null)
             {
-                var window = new SupplierTransactionsHistoryWindow(viewModel, viewModel.SelectedSupplier);
-                window.ShowDialog();
+                // Load transactions first, then show history window
+                Task.Run(async () => {
+                    await viewModel.LoadSupplierTransactionsAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                        var window = new SupplierTransactionsHistoryWindow(viewModel, viewModel.SelectedSupplier);
+                        window.ShowDialog();
+                    });
+                });
             }
         }
-
-        
     }
 }
