@@ -149,9 +149,10 @@ namespace QuickTechSystems.Application.Services
 
                     Debug.WriteLine($"Stock updated for product {productId}: {oldStock} → {product.CurrentStock}");
 
-                    // Publish update event
+                    // Publish update events - BOTH general and specific stock update
                     var productDto = _mapper.Map<ProductDTO>(product);
                     _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, product.CurrentStock));
 
                     return true;
                 }
@@ -162,7 +163,6 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
         public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -211,9 +211,10 @@ namespace QuickTechSystems.Application.Services
                     await _unitOfWork.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    // Publish update event
+                    // Publish BOTH events to ensure all views update
                     var productDto = _mapper.Map<ProductDTO>(product);
                     _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, product.CurrentStock));
 
                     Debug.WriteLine($"Inventory received for product {productId}: {quantity} units, new stock: {product.CurrentStock}");
                     return true;

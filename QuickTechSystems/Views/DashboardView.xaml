@@ -50,28 +50,6 @@
                                 Width="300"
                                 Margin="10"
                                 Command="{Binding NavigateCommand}" 
-                                CommandParameter="Transactions">
-                            <StackPanel>
-                                <TextBlock Text="📊 Point of Sale" Margin="0,0,0,12"/>
-                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
-                                         FontSize="12"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Height="130"
-                                Width="300"
-                                Margin="10"
-                                Command="{Binding NavigateCommand}" 
-                                CommandParameter="TransactionHistory">
-                            <StackPanel>
-                                <TextBlock Text="📊 Transaction History" Margin="0,0,0,12"/>
-                                <TextBlock Text="{DynamicResource Dashboard_ViewDetails}" 
-                                         FontSize="12"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Height="130"
-                                Width="300"
-                                Margin="10"
-                                Command="{Binding NavigateCommand}" 
                                 CommandParameter="Quotes">
                             <StackPanel>
                                 <TextBlock Text="📝 Quotes" Margin="0,0,0,12"/>

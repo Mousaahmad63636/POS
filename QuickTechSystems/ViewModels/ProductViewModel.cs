@@ -367,7 +367,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _eventAggregator.Unsubscribe<ProductStockUpdatedEvent>(_productStockUpdatedHandler);
         }
 
-        // Add this handler method
+        // In ProductViewModel.cs
         private async void HandleProductStockUpdated(ProductStockUpdatedEvent evt)
         {
             Debug.WriteLine($"ProductViewModel: Product stock updated - ID: {evt.ProductId}, New Stock: {evt.NewStock}");
@@ -380,27 +380,25 @@ namespace QuickTechSystems.WPF.ViewModels
                     var product = Products.FirstOrDefault(p => p.ProductId == evt.ProductId);
                     if (product != null)
                     {
-                        // Convert decimal to int with proper rounding
-                        product.CurrentStock = (int)Math.Round(evt.NewStock);  // Fix line 383
+                        // Update the stock value
+                        product.CurrentStock = (int)Math.Round(evt.NewStock);
+                        Debug.WriteLine($"ProductViewModel: Updated product {product.Name} stock to {product.CurrentStock}");
 
                         // If this is the selected product, update calculations
                         if (SelectedProduct != null && SelectedProduct.ProductId == evt.ProductId)
                         {
-                            // Convert decimal to int with proper rounding
-                            SelectedProduct.CurrentStock = (int)Math.Round(evt.NewStock);  // Fix line 388
+                            SelectedProduct.CurrentStock = (int)Math.Round(evt.NewStock);
                             CalculateSelectedProductValues();
                         }
 
                         // Recalculate all aggregated values
                         CalculateAggregatedValues();
-
-                        Debug.WriteLine($"ProductViewModel: Updated product {product.Name} stock to {evt.NewStock}");
                     }
                     else
                     {
-                        // If product isn't in the current page, force a full reload
-                        _ = SafeLoadDataAsync();
+                        // Product not in current view - force a reload
                         Debug.WriteLine("ProductViewModel: Product not found in current page, forcing reload");
+                        Task.Run(async () => await SafeLoadDataAsync());
                     }
                 });
             }
@@ -409,7 +407,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"ProductViewModel: Error handling product stock update: {ex.Message}");
             }
         }
-
         private void SelectedProduct_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             // When price properties or stock change, recalculate values
@@ -484,7 +481,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"ProductViewModel: Error handling category change: {ex.Message}");
             }
         }
-
         private async void HandleProductChanged(EntityChangedEvent<ProductDTO> evt)
         {
             try
@@ -511,6 +507,20 @@ namespace QuickTechSystems.WPF.ViewModels
                                 var index = Products.IndexOf(existingProduct);
                                 Products[index] = evt.Entity;
                                 Debug.WriteLine("Product updated in collection");
+                            }
+                            else
+                            {
+                                // ADDED: Force reload if product not in current page but is relevant
+                                // to current filter/search criteria
+                                if (string.IsNullOrWhiteSpace(SearchText) ||
+                                    evt.Entity.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                                    evt.Entity.Barcode.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
+                                    evt.Entity.CategoryName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Schedule a reload without blocking the UI thread
+                                    Task.Run(async () => await SafeLoadDataAsync());
+                                    Debug.WriteLine("Scheduled reload for updated product not in current view");
+                                }
                             }
                             break;
 
@@ -540,7 +550,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Product refresh error: {ex.Message}");
             }
         }
-
         private void UpdateVisiblePageNumbers()
         {
             var visiblePages = new List<int>();

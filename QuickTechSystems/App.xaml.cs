@@ -108,8 +108,7 @@ namespace QuickTechSystems.WPF
             services.AddScoped<TableManagementViewModel>();
             services.AddTransient<TableManagementView>();
             services.AddScoped<ISupplierInvoiceService, SupplierInvoiceService>();
-            services.AddTransient<TransactionViewModel>();
-            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
+
             services.AddScoped<IGenericRepository<SupplierInvoice>>(provider =>
        provider.GetRequiredService<IUnitOfWork>().SupplierInvoices);
             services.AddScoped<IGenericRepository<SupplierInvoiceDetail>>(provider =>
@@ -155,7 +154,7 @@ namespace QuickTechSystems.WPF
             services.AddTransient<SupplierView>();
             services.AddTransient<SystemPreferencesView>();
             services.AddTransient<TransactionHistoryView>();
-            services.AddTransient<TransactionView>();
+
             services.AddTransient<QuantityDialog>();
             services.AddScoped<DamagedGoodsViewModel>();
         }

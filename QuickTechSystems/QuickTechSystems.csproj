@@ -86,9 +86,6 @@
 			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
 		</None>
 	</ItemGroup>
-	<ItemGroup>
-	  <Folder Include="ViewModels\TransactionParts\" />
-	</ItemGroup>
 
 	<!-- Add Target to ensure files are copied -->
 	<Target Name="CopyCustomContent" AfterTargets="PublishBuildAllRefs">

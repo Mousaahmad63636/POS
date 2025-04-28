@@ -14,16 +14,19 @@ namespace QuickTechSystems.Application.Services
     public class MainStockService : BaseService<MainStock, MainStockDTO>, IMainStockService
     {
         private readonly IInventoryTransferService _inventoryTransferService;
+        private readonly IProductService _productService; // Add missing ProductService
 
         public MainStockService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             IEventAggregator eventAggregator,
             IDbContextScopeService dbContextScopeService,
-            IInventoryTransferService inventoryTransferService)
+            IInventoryTransferService inventoryTransferService,
+            IProductService productService) // Add parameter
             : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
             _inventoryTransferService = inventoryTransferService;
+            _productService = productService; // Store reference
         }
 
         public async Task<IEnumerable<MainStockDTO>> GetByCategoryAsync(int categoryId)
@@ -216,126 +219,94 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-        public async Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string? notes = null)
+        public async Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string notes)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    Debug.WriteLine($"Starting transfer from MainStock {mainStockId} to Product {productId}, quantity: {quantity}");
-
-                    // Get the MainStock item
-                    var mainStock = await _repository.GetByIdAsync(mainStockId);
-                    if (mainStock == null)
+                    // Step 1: Get the MainStock item
+                    var mainStockItem = await _repository.GetByIdAsync(mainStockId);
+                    if (mainStockItem == null)
                     {
-                        Debug.WriteLine($"MainStock with id {mainStockId} not found");
+                        Debug.WriteLine($"MainStock item {mainStockId} not found for transfer");
                         return false;
                     }
 
-                    // Check if we have enough stock to transfer
-                    if (mainStock.CurrentStock < quantity)
+                    // Validate we have enough stock
+                    if (mainStockItem.CurrentStock < quantity)
                     {
-                        Debug.WriteLine($"Insufficient stock in MainStock {mainStock.Name}: {mainStock.CurrentStock} < {quantity}");
+                        Debug.WriteLine($"Insufficient stock in MainStock item {mainStockId}. Available: {mainStockItem.CurrentStock}, Requested: {quantity}");
                         return false;
                     }
 
-                    // Get the Product
-                    var product = await _unitOfWork.Products.GetByIdAsync(productId);
-                    if (product == null)
-                    {
-                        Debug.WriteLine($"Product with id {productId} not found");
-                        return false;
-                    }
+                    // Step 2: Reduce the MainStock quantity
+                    decimal oldMainStockQty = mainStockItem.CurrentStock;
+                    mainStockItem.CurrentStock -= quantity;
+                    mainStockItem.UpdatedAt = DateTime.Now;
 
-                    // Ensure no circular reference by temporarily clearing MainStockId if needed
-                    if (product.MainStockId.HasValue && product.MainStockId.Value == mainStockId)
-                    {
-                        Debug.WriteLine("Clearing circular reference to MainStock from Product");
-                        product.MainStockId = null;
-                        await _unitOfWork.Products.UpdateAsync(product);
-                        await _unitOfWork.SaveChangesAsync();
-                    }
+                    await _repository.UpdateAsync(mainStockItem);
 
-                    // Generate a reference number for the transfer
-                    string referenceNumber = $"TRF-{DateTime.Now:yyyyMMddHHmmss}";
-
-                    // Create transfer record
-                    var transfer = new InventoryTransfer
+                    // Step 3: Use InventoryTransferService to create transfer record
+                    var transferDto = new InventoryTransferDTO
                     {
                         MainStockId = mainStockId,
                         ProductId = productId,
                         Quantity = quantity,
-                        TransferDate = DateTime.Now,
+                        TransferredBy = transferredBy,
                         Notes = notes,
-                        ReferenceNumber = referenceNumber,
-                        TransferredBy = transferredBy
+                        TransferDate = DateTime.Now,
+                        ReferenceNumber = $"TRF-{DateTime.Now:yyyyMMddHHmmss}-{mainStockId}-{productId}"
                     };
 
-                    // Add the transfer record
+                    // Note: We're not using the full CreateAsync from InventoryTransferService
+                    // since it would duplicate the stock adjustments we're already doing here
+                    var transfer = _mapper.Map<InventoryTransfer>(transferDto);
                     await _unitOfWork.InventoryTransfers.AddAsync(transfer);
 
-                    // Update MainStock quantity (deduct)
-                    mainStock.CurrentStock -= quantity;
-                    mainStock.UpdatedAt = DateTime.Now;
-                    await _repository.UpdateAsync(mainStock);
+                    // Step 4: Transfer the inventory to the store product
+                    bool transferSuccess = await _productService.ReceiveInventoryAsync(
+                        productId,
+                        quantity,
+                        "MainStock",
+                        $"Transfer from MainStock ID: {mainStockId}"
+                    );
 
-                    // Update Product quantity (add)
-                    product.CurrentStock += (int)quantity;
-                    product.UpdatedAt = DateTime.Now;
-                    await _unitOfWork.Products.UpdateAsync(product);
-
-                    // IMPORTANT FIX: Only create inventory history record for the Product (not for MainStock)
-                    // because InventoryHistories can only reference ProductId values
-
-                    // Add inventory history for the product only
-                    var productHistory = new InventoryHistory
+                    if (!transferSuccess)
                     {
-                        ProductId = productId, // This is a valid ProductId
-                        QuantityChange = quantity,
-                        NewQuantity = product.CurrentStock,
-                        Type = "Transfer-In",
-                        Notes = $"Transfer from main stock: {referenceNumber} (MainStock ID: {mainStockId}, {mainStock.Name})",
-                        Timestamp = DateTime.Now
-                    };
+                        throw new Exception($"Failed to transfer inventory to product ID {productId}");
+                    }
 
-                    await _unitOfWork.InventoryHistories.AddAsync(productHistory);
-
-                    // Save all changes
-                    Debug.WriteLine("Saving all transfer changes");
                     await _unitOfWork.SaveChangesAsync();
-                    Debug.WriteLine("All changes saved successfully");
                     await transaction.CommitAsync();
-                    Debug.WriteLine("Transaction committed");
 
-                    // Explicitly force a refresh of both ViewModels
-                    var mainStockDto = _mapper.Map<MainStockDTO>(mainStock);
+                    // Step 5: Publish events - CRITICAL FOR REAL-TIME UPDATES
+                    var mainStockDto = _mapper.Map<MainStockDTO>(mainStockItem);
                     _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", mainStockDto));
 
-                    var productDto = _mapper.Map<ProductDTO>(product);
-                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                    // Manually publish product stock update event to ensure real-time updates in Product view
+                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, await GetCurrentProductStock(productId)));
 
-                    Debug.WriteLine($"Transfer completed: {quantity} units from MainStock {mainStock.Name} to Product {product.Name}");
-
-                    // Force a reload of the product view data
-                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, product.CurrentStock));
-
+                    Debug.WriteLine($"Successfully transferred {quantity} units from MainStock {mainStockId} to Product {productId}");
                     return true;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Transfer error: {ex.Message}");
-                    if (ex.InnerException != null)
-                    {
-                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                    }
-
                     await transaction.RollbackAsync();
-                    Debug.WriteLine("Transaction rolled back");
+                    Debug.WriteLine($"Error in MainStock transfer: {ex.Message}");
                     throw;
                 }
             });
         }
+
+        // Helper method to get the current product stock
+        private async Task<decimal> GetCurrentProductStock(int productId)
+        {
+            var product = await _unitOfWork.Products.GetByIdAsync(productId);
+            return product?.CurrentStock ?? 0;
+        }
+
 
         public async Task<IEnumerable<MainStockDTO>> SearchAsync(string searchTerm)
         {

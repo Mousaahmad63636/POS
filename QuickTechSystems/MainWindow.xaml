@@ -111,16 +111,6 @@
                             </StackPanel>
                         </Button>
 
-                        <Button Margin="8,2"
-                                Height="46"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Transactions">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="💰" Margin="0,0,12,0"/>
-                                <TextBlock Text="Transactions"/>
-                            </StackPanel>
-                        </Button>
 
                         <!-- Finance Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Finance}"

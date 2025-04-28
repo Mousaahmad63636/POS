@@ -290,7 +290,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         "MainStock" => _serviceProvider.GetRequiredService<MainStockViewModel>(),
                         "Categories" => _serviceProvider.GetRequiredService<CategoryViewModel>(),
                         "Customers" => _serviceProvider.GetRequiredService<CustomerViewModel>(),
-                        "Transactions" => _serviceProvider.GetRequiredService<TransactionViewModel>(),
+                        // "Transactions" => _serviceProvider.GetRequiredService<TransactionViewModel>(), // Remove this line
                         "Settings" => _serviceProvider.GetRequiredService<SettingsViewModel>(),
                         "Suppliers" => _serviceProvider.GetRequiredService<SupplierViewModel>(),
                         "TransactionHistory" => _serviceProvider.GetRequiredService<TransactionHistoryViewModel>(),
@@ -301,6 +301,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         "Quotes" => _serviceProvider.GetRequiredService<QuoteViewModel>(),
                         "LowStockHistory" => _serviceProvider.GetRequiredService<LowStockHistoryViewModel>(),
                         "TableManagement" => _serviceProvider.GetRequiredService<TableManagementViewModel>(),
+                        "Transactions" => _serviceProvider.GetRequiredService<DashboardViewModel>(), // Redirect to Dashboard
                         _ => throw new ArgumentException($"Unknown destination: {destination}")
                     };
 

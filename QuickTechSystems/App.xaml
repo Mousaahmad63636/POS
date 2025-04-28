@@ -117,9 +117,6 @@
             <DataTemplate DataType="{x:Type vm:CustomerViewModel}">
                 <views:CustomerView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:TransactionViewModel}">
-                <views:TransactionView/>
-            </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsView/>
             </DataTemplate>
