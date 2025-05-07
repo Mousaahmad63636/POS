@@ -23,7 +23,20 @@ namespace QuickTechSystems.WPF.Views
         {
             AdjustLayoutForSize();
         }
+        private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                var viewModel = DataContext as SettingsViewModel;
+                var setting = e.Row.Item as BusinessSettingDTO;
 
+                if (viewModel != null && setting != null)
+                {
+                    // Update the setting directly
+                    viewModel.UpdateBusinessSettingDirectEdit(setting);
+                }
+            }
+        }
         private void AdjustLayoutForSize()
         {
             var parentWindow = Window.GetWindow(this);

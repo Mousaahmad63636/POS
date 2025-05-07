@@ -20,6 +20,8 @@
         <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
+        <converters:StockToBoxesConverter x:Key="StockToBoxesConverter"/>
+        <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -79,7 +81,7 @@
                                         Padding="8,0"/>
                             </StackPanel>
 
-                            <!-- Barcode Controls -->
+                            <!-- Print Barcode Controls -->
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center">
                                 <TextBlock Text="Number of Labels:" 
                                            VerticalAlignment="Center"
@@ -94,34 +96,34 @@
                                         Padding="8,0"/>
                             </StackPanel>
 
+                            <!-- Sync with MainStock Button -->
+                            <Button Grid.Column="3"
+                                    Content="Sync with MainStock"
+                                    Command="{Binding SyncWithMainStockCommand}"
+                                    HorizontalAlignment="Right"
+                                    Padding="12,0"
+                                    Margin="0,0,10,0"/>
+
                             <!-- Financial Metrics -->
                             <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
-                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                                    <TextBlock Text="Purchase: " 
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,4,0"/>
-                                    <TextBlock Text="{Binding TotalPurchaseValue, StringFormat=C2}"
-                                              VerticalAlignment="Center"/>
-                                </StackPanel>
+                                <TextBlock Text="Purchase: " 
+                                          VerticalAlignment="Center"
+                                          Margin="0,0,4,0"/>
+                                <TextBlock Text="{Binding TotalPurchaseValue, StringFormat=C2}"
+                                          VerticalAlignment="Center"/>
 
-                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
-                                    <TextBlock Text="Sales: " 
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,4,0"/>
-                                    <TextBlock Text="{Binding TotalSaleValue, StringFormat=C2}"
-                                              VerticalAlignment="Center"/>
-                                </StackPanel>
+                                <TextBlock Text="   Sales: " 
+                                          VerticalAlignment="Center"
+                                          Margin="10,0,4,0"/>
+                                <TextBlock Text="{Binding TotalSaleValue, StringFormat=C2}"
+                                          VerticalAlignment="Center"/>
 
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="Profit: " 
-                                              VerticalAlignment="Center"
-                                              Margin="0,0,4,0"/>
-                                    <TextBlock Text="{Binding TotalProfit, StringFormat=C2}"
-                                              VerticalAlignment="Center"/>
-                                </StackPanel>
+                                <TextBlock Text="   Profit: " 
+                                          VerticalAlignment="Center"
+                                          Margin="10,0,4,0"/>
+                                <TextBlock Text="{Binding TotalProfit, StringFormat=C2}"
+                                          VerticalAlignment="Center"/>
                             </StackPanel>
-
-                          
                         </Grid>
 
                         <!-- Product DataGrid -->
@@ -133,7 +135,10 @@
                                 IsReadOnly="True"
                                 IsEnabled="{Binding IsNotSaving}"
                                 BorderThickness="1"
-                                MouseDoubleClick="DataGrid_MouseDoubleClick">
+                                MouseDoubleClick="DataGrid_MouseDoubleClick"
+                                HorizontalScrollBarVisibility="Auto"
+                                LoadingRow="ProductsDataGrid_LoadingRow">
+                            <!-- DataGrid Columns for ProductView.xaml -->
                             <DataGrid.Columns>
                                 <!-- Image column -->
                                 <DataGridTemplateColumn Header="Image" Width="60">
@@ -141,84 +146,86 @@
                                         <DataTemplate>
                                             <Border Width="40" Height="40" BorderThickness="1">
                                                 <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=40}" 
-                                                       Height="36" 
-                                                       Width="36" 
-                                                       Stretch="Uniform"/>
+                            Height="36" 
+                            Width="36" 
+                            Stretch="Uniform"/>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
 
-                                <!-- Main product information columns -->
-                                <DataGridTextColumn Header="Barcode" 
-                                                    Binding="{Binding Barcode}"
-                                                    Width="110"/>
+                                <!-- Item Barcode column -->
+                                <DataGridTextColumn Header="Item Barcode" 
+                        Binding="{Binding Barcode}"
+                        Width="110"/>
+
+                                <!-- Box Barcode column -->
+                                <DataGridTextColumn Header="Box Barcode" 
+                        Binding="{Binding BoxBarcode}"
+                        Width="110"/>
+
+                                <!-- Main information columns -->
                                 <DataGridTextColumn Header="Name" 
-                                                    Binding="{Binding Name}"
-                                                    Width="*"
-                                                    MinWidth="180"/>
+                        Binding="{Binding Name}"
+                        Width="*"
+                        MinWidth="180"/>
                                 <DataGridTextColumn Header="Category" 
-                                                    Binding="{Binding CategoryName}"
-                                                    Width="120"/>
+                        Binding="{Binding CategoryName}"
+                        Width="120"/>
 
-                                <DataGridTextColumn Header="Stock" 
-                                                    Binding="{Binding CurrentStock}"
-                                                    Width="85"/>
+                                <!-- Stock information -->
+                                <DataGridTextColumn Header="Items/Box" 
+                        Binding="{Binding ItemsPerBox}"
+                        Width="70"/>
 
-                                <DataGridTextColumn Header="Purchase Price" 
-                                                    Binding="{Binding PurchasePrice, StringFormat=C2}"
-                                                    Width="100"/>
+                                <DataGridTextColumn Header="Current Stock" 
+                        Binding="{Binding CurrentStock}"
+                        Width="85"/>
 
-                                <DataGridTextColumn Header="Sale Price" 
-                                                    Binding="{Binding SalePrice, StringFormat=C2}"
-                                                    Width="100"/>
+                                <!-- Pricing information -->
+                                <DataGridTextColumn Header="Purchase" 
+                        Binding="{Binding PurchasePrice, StringFormat=C2}"
+                        Width="80"/>
 
-                                <DataGridTemplateColumn Header="Total Cost" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={StaticResource ProductTotalCostConverter}, StringFormat=C2}"
-                                                       TextAlignment="Right"
-                                                       Margin="0,0,8,0"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <!-- Wholesale Price Column (NEW) -->
+                                <DataGridTextColumn Header="Wholesale" 
+                        Binding="{Binding WholesalePrice, StringFormat=C2}"
+                        Width="80"/>
 
-                                <DataGridTemplateColumn Header="Total Value" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={StaticResource ProductTotalValueConverter}, StringFormat=C2}"
-                                                       TextAlignment="Right"
-                                                       Margin="0,0,8,0"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Sale" 
+                        Binding="{Binding SalePrice, StringFormat=C2}"
+                        Width="80"/>
 
-                                <DataGridTemplateColumn Header="Total Profit" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Converter={StaticResource ProductTotalProfitConverter}, StringFormat=C2}"
-                                                       TextAlignment="Right"
-                                                       Margin="0,0,8,0"/>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
+                                <!-- Box Purchase Price -->
+                                <DataGridTextColumn Header="Box Purchase" 
+                        Binding="{Binding BoxPurchasePrice, StringFormat=C2}"
+                        Width="100"/>
 
-                                <DataGridTextColumn Header="Speed" 
-                                                    Binding="{Binding Speed}"
-                                                    Width="70"/>
+                                <!-- Box Wholesale Price (NEW) -->
+                                <DataGridTextColumn Header="Box Wholesale" 
+                        Binding="{Binding BoxWholesalePrice, StringFormat=C2}"
+                        Width="100"/>
 
+                                <DataGridTextColumn Header="Box Sale" 
+                        Binding="{Binding BoxSalePrice, StringFormat=C2}"
+                        Width="100"/>
+
+                                <!-- Supplier information -->
                                 <DataGridTextColumn Header="Supplier" 
-                                                    Binding="{Binding SupplierName}"
-                                                    Width="120"/>
+                        Binding="{Binding SupplierName}"
+                        Width="120"/>
 
+                                <!-- Status -->
                                 <DataGridTemplateColumn Header="Active" Width="75">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <TextBlock Text="{Binding IsActive, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Active|Inactive'}" 
-                                                       HorizontalAlignment="Center"/>
+                            HorizontalAlignment="Center"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
+
+                            
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -281,11 +288,10 @@
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <ProgressBar IsIndeterminate="True" Width="100" Margin="0,0,0,10"/>
                                 <TextBlock Text="{Binding StatusMessage}"
-                                          HorizontalAlignment="Center"/>
+                                          HorizontalAlignment="Center"
+                                          Foreground="White"/>
                             </StackPanel>
                         </Border>
-
-                       
                     </Grid>
                 </TabItem>
 

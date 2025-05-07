@@ -18,6 +18,9 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(m => m.Barcode)
                 .HasMaxLength(50);
 
+            builder.Property(m => m.BoxBarcode)
+                .HasMaxLength(50);
+
             builder.Property(m => m.Description)
                 .HasMaxLength(500);
 
@@ -30,8 +33,16 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(m => m.CurrentStock)
                 .HasPrecision(18, 2);
 
+            builder.Property(m => m.BoxPurchasePrice)
+                .HasPrecision(18, 2);
+
+            builder.Property(m => m.BoxSalePrice)
+                .HasPrecision(18, 2);
+
             builder.HasIndex(m => m.Barcode)
                 .IsUnique();
+
+            builder.HasIndex(m => m.BoxBarcode);
 
             builder.Property(m => m.Speed)
                 .HasMaxLength(50)
@@ -50,6 +61,11 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .WithMany()
                 .HasForeignKey(m => m.SupplierId)
                 .OnDelete(DeleteBehavior.SetNull);
+            builder.Property(m => m.WholesalePrice)
+            .HasPrecision(18, 2);
+
+            builder.Property(m => m.BoxWholesalePrice)
+                .HasPrecision(18, 2);
         }
     }
 }

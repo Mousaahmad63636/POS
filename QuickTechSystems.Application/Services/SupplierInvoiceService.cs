@@ -410,27 +410,37 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // Path: QuickTechSystems.Application.Services/SupplierInvoiceService.cs
+
+        // Update the AddProductToInvoiceAsync method to use direct SQL
         public async Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 try
                 {
-                    // Check if the invoice exists and is in draft status
-                    var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(detailDto.SupplierInvoiceId);
-                    if (invoice == null)
+                    // First check if the invoice exists and is in draft status
+                    var invoiceStatus = await _unitOfWork.Context.Set<SupplierInvoice>()
+                        .Where(i => i.SupplierInvoiceId == detailDto.SupplierInvoiceId)
+                        .Select(i => new { i.Status })
+                        .FirstOrDefaultAsync();
+
+                    if (invoiceStatus == null)
                     {
                         throw new InvalidOperationException($"Invoice with ID {detailDto.SupplierInvoiceId} not found");
                     }
 
-                    if (invoice.Status != "Draft")
+                    if (invoiceStatus.Status != "Draft")
                     {
-                        throw new InvalidOperationException($"Cannot add products to invoice in {invoice.Status} status");
+                        throw new InvalidOperationException($"Cannot add products to invoice in {invoiceStatus.Status} status");
                     }
 
-                    // Check if the product exists
-                    var product = await _unitOfWork.Products.GetByIdAsync(detailDto.ProductId);
-                    if (product == null)
+                    // Verify product exists without tracking
+                    bool productExists = await _unitOfWork.Context.Set<Product>()
+                        .AsNoTracking()
+                        .AnyAsync(p => p.ProductId == detailDto.ProductId);
+
+                    if (!productExists)
                     {
                         throw new InvalidOperationException($"Product with ID {detailDto.ProductId} not found");
                     }
@@ -438,33 +448,38 @@ namespace QuickTechSystems.Application.Services
                     // Calculate total price
                     detailDto.TotalPrice = detailDto.Quantity * detailDto.PurchasePrice;
 
-                    // Add the detail
-                    var detail = _mapper.Map<SupplierInvoiceDetail>(detailDto);
-                    await _unitOfWork.SupplierInvoiceDetails.AddAsync(detail);
-                    await _unitOfWork.SaveChangesAsync();
+                    // Use direct SQL to add the invoice detail, avoiding entity tracking issues
+                    string sql = @"
+                INSERT INTO SupplierInvoiceDetails (
+                    SupplierInvoiceId, ProductId, Quantity, PurchasePrice, TotalPrice, 
+                    BoxBarcode, NumberOfBoxes, ItemsPerBox, BoxPurchasePrice, BoxSalePrice
+                ) VALUES (
+                    @supplierId, @productId, @quantity, @purchasePrice, @totalPrice,
+                    @boxBarcode, @numberOfBoxes, @itemsPerBox, @boxPurchasePrice, @boxSalePrice
+                )";
 
-                    // Update the product's purchase price if different
-                    if (product.PurchasePrice != detailDto.PurchasePrice)
+                    var parameters = new[]
                     {
-                        product.PurchasePrice = detailDto.PurchasePrice;
-                        product.UpdatedAt = DateTime.Now;
-                        await _unitOfWork.Products.UpdateAsync(product);
-                        await _unitOfWork.SaveChangesAsync();
+                new Microsoft.Data.SqlClient.SqlParameter("@supplierId", detailDto.SupplierInvoiceId),
+                new Microsoft.Data.SqlClient.SqlParameter("@productId", detailDto.ProductId),
+                new Microsoft.Data.SqlClient.SqlParameter("@quantity", detailDto.Quantity),
+                new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", detailDto.PurchasePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@totalPrice", detailDto.TotalPrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxBarcode", (object)detailDto.BoxBarcode ?? DBNull.Value),
+                new Microsoft.Data.SqlClient.SqlParameter("@numberOfBoxes", detailDto.NumberOfBoxes),
+                new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", detailDto.ItemsPerBox),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", detailDto.BoxPurchasePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", detailDto.BoxSalePrice)
+            };
 
-                        // Publish product update event
-                        var productDto = _mapper.Map<ProductDTO>(product);
-                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
-                    }
-
-                    // REMOVED: The code that would update the product's stock
-                    // This ensures Products start with 0 stock until explicitly transferred
+                    await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
 
                     // Update the calculated amount on the invoice
                     await UpdateCalculatedAmountAsync(detailDto.SupplierInvoiceId);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error adding product to invoice: {ex.Message}");
+                    Debug.WriteLine($"Error adding product to invoice: {ex}");
                     throw;
                 }
             });

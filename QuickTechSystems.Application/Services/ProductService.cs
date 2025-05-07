@@ -228,15 +228,152 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // Path: QuickTechSystems.Application.Services/ProductService.cs
+
         public override async Task<IEnumerable<ProductDTO>> GetAllAsync()
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var products = await _repository.Query()
-                    .Include(p => p.Category)
-                    .Include(p => p.Supplier)
-                    .ToListAsync();
-                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+                try
+                {
+                    Debug.WriteLine("ProductService: Performing complete refresh from database");
+
+                    // Use AsNoTracking to avoid entity tracking conflicts
+                    var products = await _repository.Query()
+                        .AsNoTracking()
+                        .Include(p => p.Category)
+                        .Include(p => p.Supplier)
+                        .Include(p => p.MainStock)
+                        .ToListAsync();
+
+                    var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
+
+                    // Handle MainStock price synchronization
+                    foreach (var productDto in productDtos)
+                    {
+                        if (productDto.MainStockId.HasValue)
+                        {
+                            // Try to get the MainStock data to ensure prices are synchronized
+                            var mainStock = await _unitOfWork.MainStocks
+                                .Query()
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(m => m.MainStockId == productDto.MainStockId.Value);
+
+                            if (mainStock != null)
+                            {
+                                // Update prices from MainStock if they don't match
+                                if (Math.Abs(productDto.PurchasePrice - mainStock.PurchasePrice) > 0.001m)
+                                {
+                                    productDto.PurchasePrice = mainStock.PurchasePrice;
+                                }
+
+                                if (Math.Abs(productDto.SalePrice - mainStock.SalePrice) > 0.001m)
+                                {
+                                    productDto.SalePrice = mainStock.SalePrice;
+                                }
+
+                                productDto.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+                                productDto.BoxSalePrice = mainStock.BoxSalePrice;
+                                productDto.ItemsPerBox = mainStock.ItemsPerBox;
+                            }
+                        }
+                    }
+
+                    return productDtos;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in ProductService.GetAllAsync: {ex}");
+                    throw;
+                }
+            });
+        }
+        // Path: QuickTechSystems.Application.Services/ProductService.cs
+        // Update the SynchronizeWithMainStockAsync method
+
+        public async Task SynchronizeWithMainStockAsync(int productId)
+        {
+            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    var product = await _repository.GetByIdAsync(productId);
+                    if (product == null || !product.MainStockId.HasValue)
+                    {
+                        return; // Nothing to synchronize
+                    }
+
+                    var mainStock = await _unitOfWork.MainStocks.GetByIdAsync(product.MainStockId.Value);
+                    if (mainStock == null)
+                    {
+                        return; // MainStock doesn't exist
+                    }
+
+                    // Update product with MainStock prices
+                    bool updated = false;
+
+                    if (Math.Abs(product.PurchasePrice - mainStock.PurchasePrice) > 0.001m)
+                    {
+                        product.PurchasePrice = mainStock.PurchasePrice;
+                        updated = true;
+                    }
+
+                    // NEW: Sync wholesale price
+                    if (Math.Abs(product.WholesalePrice - mainStock.WholesalePrice) > 0.001m)
+                    {
+                        product.WholesalePrice = mainStock.WholesalePrice;
+                        updated = true;
+                    }
+
+                    if (Math.Abs(product.SalePrice - mainStock.SalePrice) > 0.001m)
+                    {
+                        product.SalePrice = mainStock.SalePrice;
+                        updated = true;
+                    }
+
+                    if (Math.Abs(product.BoxPurchasePrice - mainStock.BoxPurchasePrice) > 0.001m)
+                    {
+                        product.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+                        updated = true;
+                    }
+
+                    // NEW: Sync box wholesale price
+                    if (Math.Abs(product.BoxWholesalePrice - mainStock.BoxWholesalePrice) > 0.001m)
+                    {
+                        product.BoxWholesalePrice = mainStock.BoxWholesalePrice;
+                        updated = true;
+                    }
+
+                    if (Math.Abs(product.BoxSalePrice - mainStock.BoxSalePrice) > 0.001m)
+                    {
+                        product.BoxSalePrice = mainStock.BoxSalePrice;
+                        updated = true;
+                    }
+
+                    if (product.ItemsPerBox != mainStock.ItemsPerBox)
+                    {
+                        product.ItemsPerBox = mainStock.ItemsPerBox;
+                        updated = true;
+                    }
+
+                    if (updated)
+                    {
+                        product.UpdatedAt = DateTime.Now;
+                        await _repository.UpdateAsync(product);
+                        await _unitOfWork.SaveChangesAsync();
+
+                        // Publish update event
+                        var productDto = _mapper.Map<ProductDTO>(product);
+                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+
+                        Debug.WriteLine($"ProductService: Synchronized product {productId} with MainStock {mainStock.MainStockId}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in SynchronizeWithMainStockAsync: {ex}");
+                    // Don't throw - just log the error
+                }
             });
         }
     }

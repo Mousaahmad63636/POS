@@ -31,7 +31,15 @@ namespace QuickTechSystems.WPF.Views
             // Ensure DataContext is set properly
             if (DataContext != null)
             {
-                // Any initialization needed
+                // Trigger an initial data load to ensure fresh data
+                if (DataContext is ProductViewModel viewModel)
+                {
+                    // Force refresh after a short delay to ensure UI is ready
+                    Dispatcher.BeginInvoke(new Action(async () =>
+                    {
+                        await viewModel.ForceRefreshDataAsync();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
             }
 
             // Adjust layout based on size
@@ -143,6 +151,37 @@ namespace QuickTechSystems.WPF.Views
                         {
                             Debug.WriteLine($"Error loading DamagedGoodsView: {ex.Message}");
                         }
+                    }
+                }
+            }
+        }
+
+        // Fixed method to refresh calculated fields
+        private void ProductsDataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is ProductDTO product)
+            {
+                // Instead of directly calling the event, use a trick to trigger a refresh
+                // by updating the DataGrid's item container visual appearance
+
+                // Get the current values
+                int currentStock = product.CurrentStock;
+                decimal purchasePrice = product.PurchasePrice;
+                decimal salePrice = product.SalePrice;
+
+                // Access the calculated fields to ensure they're evaluated
+                var dataGridRow = e.Row;
+
+                // Force a refresh of the DataGrid row
+                dataGridRow.InvalidateVisual();
+
+                // If we have a view model, we can ask it to recalculate values for this product
+                if (DataContext is ProductViewModel viewModel)
+                {
+                    if (viewModel.SelectedProduct == product)
+                    {
+                        // This will trigger recalculation for the selected product
+                        viewModel.SelectedProduct = product;
                     }
                 }
             }

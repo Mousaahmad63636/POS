@@ -9,6 +9,66 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+
+        <!-- Modern Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#4A6FBF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" 
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3A5FA9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                                <Setter Property="Foreground" Value="#888888"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Data Grid Styling -->
+        <Style TargetType="DataGrid">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#EEEEEE"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="48"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9FAFC"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        </Style>
+
+        <Style TargetType="DataGridRow">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#E3EAFF"/>
+                    <Setter Property="BorderBrush" Value="#BBC8F3"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F0F4FF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -27,13 +87,14 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Employees" FontSize="24" Margin="0,0,0,8"/>
-                        <TextBlock Text="Manage your staff and salary information" Margin="0,0,0,16"/>
+                        <TextBlock Text="Employees" FontSize="24" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <TextBlock Text="Manage your staff and salary information" Opacity="0.8" Margin="0,0,0,16"/>
                     </StackPanel>
 
                     <Button Grid.Column="1" 
                             Content="Add New Employee" 
                             Click="AddNewEmployee_Click"
+                            Style="{StaticResource ModernButton}"
                             VerticalAlignment="Top"
                             Margin="0,8,0,0"
                             Width="180"/>
@@ -44,60 +105,61 @@
             <!-- Employee List -->
             <Border Grid.Row="1" 
                     BorderThickness="1" 
+                    BorderBrush="#DDDDDD"
+                    CornerRadius="4"
                     Margin="32,0,32,32">
                 <DataGrid ItemsSource="{Binding Employees}"
                           SelectedItem="{Binding SelectedEmployee}"
                           AutoGenerateColumns="False"
-                          IsReadOnly="True"
+                          IsReadOnly="False"
+                          CanUserAddRows="False"
+                          CellEditEnding="DataGrid_CellEditEnding"
                           BorderThickness="0"
                           MouseDoubleClick="DataGrid_MouseDoubleClick">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Username" 
-                                            Binding="{Binding Username}"
+                                            Binding="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
                                             Width="*"/>
                         <DataGridTextColumn Header="Name" 
                                             Binding="{Binding FullName, Mode=OneWay}"
+                                            IsReadOnly="True"
                                             Width="*"/>
                         <DataGridTextColumn Header="Role" 
-                                            Binding="{Binding Role}"
+                                            Binding="{Binding Role, UpdateSourceTrigger=PropertyChanged}"
                                             Width="100"/>
                         <DataGridTextColumn Header="Monthly Salary" 
                                             Binding="{Binding MonthlySalary, StringFormat=C2}"
+                                            IsReadOnly="True"
                                             Width="130"/>
                         <DataGridTextColumn Header="Current Balance" 
                                             Binding="{Binding CurrentBalance, StringFormat=C2}"
+                                            IsReadOnly="True"
                                             Width="130"/>
                         <DataGridCheckBoxColumn Header="Active"
-                                                Binding="{Binding IsActive}"
+                                                Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}"
                                                 Width="60"/>
-                        <DataGridTemplateColumn Width="240">
+                        <DataGridTemplateColumn Width="Auto">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Grid VerticalAlignment="Center">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <Button Grid.Column="0"
-                                                Content="Edit"
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Edit"
                                                 Click="EditButton_Click"
                                                 CommandParameter="{Binding}"
-                                                Margin="4"/>
+                                                Style="{StaticResource ModernButton}"
+                                                Margin="4" Width="70"/>
 
-                                        <Button Grid.Column="1"
-                                                Content="Salary"
+                                        <Button Content="Salary"
                                                 Click="SalaryButton_Click"
                                                 CommandParameter="{Binding}"
-                                                Margin="4"/>
+                                                Style="{StaticResource ModernButton}"
+                                                Margin="4" Width="70"/>
 
-                                        <Button Grid.Column="2"
-                                                Content="Reset PWD"
+                                        <Button Content="Reset PWD"
                                                 Click="ResetPasswordButton_Click"
                                                 CommandParameter="{Binding}"
-                                                Margin="4"/>
-                                    </Grid>
+                                                Style="{StaticResource ModernButton}"
+                                                Margin="4" Width="90"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
@@ -119,7 +181,7 @@
                 <StackPanel HorizontalAlignment="Center" 
                            VerticalAlignment="Center">
                     <ProgressBar IsIndeterminate="True" 
-                               Width="120" 
+                               Width="120" Height="4"
                                Margin="0,0,0,16"/>
                     <TextBlock Text="Processing" 
                              Foreground="White"/>

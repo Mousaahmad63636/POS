@@ -15,6 +15,7 @@
         <converters:DecimalComparisonConverter x:Key="DecimalComparisonConverter"/>
         <converters:InvoiceStatusToBrushConverter x:Key="InvoiceStatusToBrushConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:StockToBoxesConverter x:Key="StockToBoxesConverter"/>
 
         <Style x:Key="HeaderStyle" TargetType="Border">
             <Setter Property="Background" Value="#333333"/>
@@ -178,18 +179,31 @@
                               AlternatingRowBackground="#F9F9F9"
                               MinHeight="200"
                               MaxHeight="500"
-                              VerticalScrollBarVisibility="Auto">
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Auto">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Product" 
                                                Binding="{Binding ProductName}"
                                                Width="*"/>
-                            <DataGridTextColumn Header="Barcode" 
+                            <DataGridTextColumn Header="Item Barcode" 
                                                Binding="{Binding ProductBarcode}"
-                                               Width="150"/>
-                            <DataGridTextColumn Header="Quantity" 
+                                               Width="120"/>
+                            <DataGridTextColumn Header="Box Barcode" 
+                                               Binding="{Binding BoxBarcode}"
+                                               Width="120"/>
+                            <DataGridTextColumn Header="Items/Box" 
+                                               Binding="{Binding ItemsPerBox}"
+                                               Width="70"/>
+                            <DataGridTextColumn Header="# of Boxes" 
+                                               Binding="{Binding NumberOfBoxes}"
+                                               Width="70"/>
+                            <DataGridTextColumn Header="Total Items" 
                                                Binding="{Binding Quantity}"
+                                               Width="80"/>
+                            <DataGridTextColumn Header="Box Purchase" 
+                                               Binding="{Binding BoxPurchasePrice, StringFormat=C}"
                                                Width="100"/>
-                            <DataGridTextColumn Header="Unit Price" 
+                            <DataGridTextColumn Header="Item Purchase" 
                                                Binding="{Binding PurchasePrice, StringFormat=C}"
                                                Width="100"/>
                             <DataGridTextColumn Header="Total" 

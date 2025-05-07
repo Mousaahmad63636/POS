@@ -360,6 +360,47 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
+        public async Task UpdateCustomerDirectEdit(CustomerDTO customer)
+        {
+            try
+            {
+                if (customer == null) return;
+
+                // Don't set IsSaving to true for direct edits to avoid UI flickering
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                // Create a copy to avoid issues during async operation
+                var customerToSave = new CustomerDTO
+                {
+                    CustomerId = customer.CustomerId,
+                    Name = customer.Name,
+                    Phone = customer.Phone,
+                    Email = customer.Email,
+                    Address = customer.Address,
+                    IsActive = customer.IsActive,
+                    CreatedAt = customer.CreatedAt,
+                    UpdatedAt = DateTime.Now,
+                    Balance = customer.Balance,
+                    TransactionCount = customer.TransactionCount
+                };
+
+                await ExecuteDbOperationSafelyAsync(async () =>
+                {
+                    await _customerService.UpdateAsync(customerToSave);
+                }, "Updating customer");
+
+                // No need to refresh the UI as the binding already updated the displayed values
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating customer: {ex.Message}");
+                await ShowErrorMessageAsync($"Error updating customer: {ex.Message}");
+
+                // Refresh to revert changes if there was an error
+                await LoadDataAsync();
+            }
+        }
         public async void EditPayment(TransactionDTO transaction)
         {
             if (transaction == null)

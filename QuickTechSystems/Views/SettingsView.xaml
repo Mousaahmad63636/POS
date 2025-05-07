@@ -10,41 +10,153 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageSourceConverter"/>
+
+        <!-- Modern Button Style -->
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#4A6FBF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" 
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3A5FA9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                                <Setter Property="Foreground" Value="#888888"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Panel Style -->
+        <Style x:Key="SettingsPanel" TargetType="Border">
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect ShadowDepth="1" Direction="270" Color="Black" Opacity="0.1" BlurRadius="4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Section Title Style -->
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,16"/>
+        </Style>
+
+        <!-- Input Label Style -->
+        <Style x:Key="InputLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+            <Setter Property="Opacity" Value="0.8"/>
+        </Style>
+
+        <!-- Input Style -->
+        <Style x:Key="Input" TargetType="Control">
+            <Setter Property="Margin" Value="0,0,0,16"/>
+            <Setter Property="MinHeight" Value="32"/>
+        </Style>
+
+        <!-- TabControl Style -->
+        <Style TargetType="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Border" 
+                                BorderThickness="0,0,0,2" 
+                                BorderBrush="Transparent"
+                                Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter ContentSource="Header" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4A6FBF" />
+                                <Setter TargetName="Border" Property="TextBlock.Foreground" Value="#4A6FBF" />
+                                <Setter TargetName="Border" Property="TextBlock.FontWeight" Value="SemiBold" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F0F4FF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- DataGrid Styling -->
+        <Style TargetType="DataGrid">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#EEEEEE"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="36"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9FAFC"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid x:Name="RootGrid" Margin="20">
+            <Grid x:Name="RootGrid" Margin="24">
                 <TabControl>
                     <!-- Backup Tab -->
                     <TabItem>
                         <TabItem.Header>
-                            <TextBlock Text="{DynamicResource Settings_Backup}"/>
+                            <TextBlock Text="{DynamicResource Settings_Backup}" FontSize="14"/>
                         </TabItem.Header>
-                        <Grid Margin="0,20,0,0">
+                        <Grid Margin="0,24,0,0">
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
                             <!-- Manual Backup Section -->
-                            <Border Grid.Row="0" 
-                                    BorderBrush="Gray"
-                                    BorderThickness="1"
-                                    Background="White"
-                                    Padding="20"
-                                    Margin="0,0,0,20">
+                            <Border Grid.Row="0" Style="{StaticResource SettingsPanel}">
                                 <StackPanel>
                                     <TextBlock Text="{DynamicResource Settings_ManualBackup}" 
-                                               Margin="0,0,0,16"/>
+                                               Style="{StaticResource SectionTitle}"/>
 
                                     <TextBlock Text="{Binding LastBackupStatus}"
                                                Margin="0,0,0,16"/>
 
                                     <Button Command="{Binding BackupNowCommand}"
-                                            Width="150"
+                                            Style="{StaticResource ModernButton}"
                                             HorizontalAlignment="Left">
                                         <TextBlock Text="{DynamicResource Settings_BackupNow}"/>
                                     </Button>
@@ -52,17 +164,13 @@
                             </Border>
 
                             <!-- Restore Section -->
-                            <Border Grid.Row="2" 
-                                    BorderBrush="Gray"
-                                    BorderThickness="1"
-                                    Background="White"
-                                    Padding="20">
+                            <Border Grid.Row="1" Style="{StaticResource SettingsPanel}">
                                 <StackPanel>
                                     <TextBlock Text="{DynamicResource Settings_RestoreBackup}" 
-                                               Margin="0,0,0,16"/>
+                                               Style="{StaticResource SectionTitle}"/>
 
                                     <Button Command="{Binding RestoreCommand}"
-                                            Width="180"
+                                            Style="{StaticResource ModernButton}"
                                             HorizontalAlignment="Left">
                                         <TextBlock Text="{DynamicResource Settings_RestoreFromBackup}"/>
                                     </Button>
@@ -74,9 +182,9 @@
                     <!-- Business Settings Tab -->
                     <TabItem>
                         <TabItem.Header>
-                            <TextBlock Text="{DynamicResource Settings_BusinessSettings}"/>
+                            <TextBlock Text="{DynamicResource Settings_BusinessSettings}" FontSize="14"/>
                         </TabItem.Header>
-                        <Grid Margin="0,20,0,0">
+                        <Grid Margin="0,24,0,0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
@@ -84,46 +192,39 @@
                             </Grid.RowDefinitions>
 
                             <!-- Header -->
-                            <Border BorderBrush="Gray"
-                                    BorderThickness="1"
-                                    Background="White"
-                                    Padding="20"
-                                    Grid.Row="0"
-                                    Margin="0,0,0,20">
+                            <Border Style="{StaticResource SettingsPanel}" Grid.Row="0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="240"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
                                     <TextBlock Text="{DynamicResource Settings_FilterByGroup}" 
+                                               Style="{StaticResource InputLabel}"
                                                VerticalAlignment="Center"/>
 
                                     <ComboBox Grid.Column="1"
                                               Margin="16,0"
                                               ItemsSource="{Binding Groups}"
                                               SelectedItem="{Binding SelectedGroup}"
+                                              Style="{StaticResource Input}"
                                               VerticalAlignment="Center"/>
 
                                     <Button Grid.Column="3"
-                                            Command="{Binding InitializeBusinessSettingsCommand}">
+                                            Command="{Binding InitializeBusinessSettingsCommand}"
+                                            Style="{StaticResource ModernButton}">
                                         <TextBlock Text="{DynamicResource Settings_InitializeDefault}"/>
                                     </Button>
                                 </Grid>
                             </Border>
 
                             <!-- Company Logo Section -->
-                            <Border BorderBrush="Gray"
-                                    BorderThickness="1"
-                                    Background="White"
-                                    Padding="20"
-                                    Grid.Row="1"
-                                    Margin="0,0,0,20">
+                            <Border Style="{StaticResource SettingsPanel}" Grid.Row="1">
                                 <StackPanel>
                                     <TextBlock Text="Company Logo" 
-                                               Margin="0,0,0,16"/>
+                                               Style="{StaticResource SectionTitle}"/>
 
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -133,11 +234,13 @@
 
                                         <!-- Logo Preview -->
                                         <Border Grid.Column="0" 
-                                                BorderBrush="Gray" 
+                                                BorderBrush="#DDDDDD" 
                                                 BorderThickness="1" 
-                                                Padding="10"
+                                                CornerRadius="4"
+                                                Padding="16"
                                                 MaxHeight="150"
                                                 MaxWidth="300"
+                                                Background="#FAFAFA"
                                                 HorizontalAlignment="Left">
                                             <Image Source="{Binding LogoImage, Converter={StaticResource ByteArrayToImageSourceConverter}}" 
                                                    Stretch="Uniform" 
@@ -147,6 +250,7 @@
                                         <!-- Upload Button -->
                                         <Button Grid.Column="1"
                                                 Command="{Binding UploadLogoCommand}"
+                                                Style="{StaticResource ModernButton}"
                                                 Margin="16,0,0,0"
                                                 VerticalAlignment="Bottom">
                                             <TextBlock Text="Upload Logo"/>
@@ -154,6 +258,7 @@
                                     </Grid>
 
                                     <TextBlock Text="Recommended size: 300x150 pixels, PNG format with transparent background"
+                                               Opacity="0.7"
                                                Margin="0,16,0,0"/>
                                 </StackPanel>
                             </Border>
@@ -162,78 +267,77 @@
                             <Grid Grid.Row="2">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="320"/>
+                                    <ColumnDefinition Width="340"/>
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Settings List -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Margin="0,0,20,0">
+                                <Border Style="{StaticResource SettingsPanel}" Margin="0,0,16,0">
                                     <DataGrid ItemsSource="{Binding BusinessSettings}"
                                               SelectedItem="{Binding SelectedBusinessSetting}"
                                               AutoGenerateColumns="False"
-                                              IsReadOnly="True"
+                                              IsReadOnly="False"
+                                              CanUserAddRows="False"
+                                              CellEditEnding="DataGrid_CellEditEnding"
                                               BorderThickness="0">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="{DynamicResource Settings_Key}" 
-                                                               Binding="{Binding Key}"
+                                                               Binding="{Binding Key, UpdateSourceTrigger=PropertyChanged}"
+                                                               IsReadOnly="True"
                                                                Width="150"/>
                                             <DataGridTextColumn Header="{DynamicResource Settings_Value}" 
-                                                               Binding="{Binding Value}"
+                                                               Binding="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
                                                                Width="*"/>
                                             <DataGridTextColumn Header="{DynamicResource Settings_Group}" 
-                                                               Binding="{Binding Group}"
+                                                               Binding="{Binding Group, UpdateSourceTrigger=PropertyChanged}"
+                                                               IsReadOnly="True"
                                                                Width="100"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
                                 </Border>
 
                                 <!-- Setting Details -->
-                                <Border Grid.Column="1" 
-                                        BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20">
+                                <Border Grid.Column="1" Style="{StaticResource SettingsPanel}">
                                     <StackPanel IsEnabled="{Binding IsEditing}">
                                         <TextBlock Text="{DynamicResource Settings_SettingDetails}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Key}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Key}" Style="{StaticResource InputLabel}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Key}"
-                                                 Margin="0,0,0,10"
+                                                 Style="{StaticResource Input}"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Value}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Value}" Style="{StaticResource InputLabel}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Value}"
-                                                 Margin="0,0,0,10"/>
+                                                 Style="{StaticResource Input}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Description}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Description}" Style="{StaticResource InputLabel}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Description}"
-                                                 Margin="0,0,0,10"
                                                  Height="60"
+                                                 Style="{StaticResource Input}"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_Group}"/>
+                                        <TextBlock Text="{DynamicResource Settings_Group}" Style="{StaticResource InputLabel}"/>
                                         <TextBox Text="{Binding SelectedBusinessSetting.Group}"
-                                                 Margin="0,0,0,10"
+                                                 Style="{StaticResource Input}"
                                                  IsEnabled="False"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_ExchangeRate}"/>
+                                        <TextBlock Text="{DynamicResource Settings_ExchangeRate}" Style="{StaticResource InputLabel}"/>
                                         <TextBox Text="{Binding ExchangeRate}"
-                                                 Margin="0,0,0,10"/>
+                                                 Style="{StaticResource Input}"/>
 
-                                        <Button Command="{Binding SaveBusinessSettingCommand}"
-                                                HorizontalAlignment="Right"
-                                                Margin="0,16,0,0">
-                                            <TextBlock Text="{DynamicResource Settings_SaveChanges}"/>
-                                        </Button>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Command="{Binding SaveBusinessSettingCommand}"
+                                                    Style="{StaticResource ModernButton}"
+                                                    Margin="0,8,8,0">
+                                                <TextBlock Text="{DynamicResource Settings_SaveChanges}"/>
+                                            </Button>
 
-                                        <Button Command="{Binding SaveExchangeRateCommand}"
-                                                HorizontalAlignment="Right"
-                                                Margin="0,8,0,0">
-                                            <TextBlock Text="{DynamicResource Settings_SaveExchangeRate}"/>
-                                        </Button>
+                                            <Button Command="{Binding SaveExchangeRateCommand}"
+                                                    Style="{StaticResource ModernButton}"
+                                                    Margin="0,8,0,0">
+                                                <TextBlock Text="{DynamicResource Settings_SaveExchangeRate}"/>
+                                            </Button>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
                             </Grid>
@@ -243,31 +347,28 @@
                     <!-- System Preferences Tab -->
                     <TabItem>
                         <TabItem.Header>
-                            <TextBlock Text="{DynamicResource Settings_SystemPreferences}"/>
+                            <TextBlock Text="{DynamicResource Settings_SystemPreferences}" FontSize="14"/>
                         </TabItem.Header>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,20,0,0">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,24,0,0">
                             <StackPanel>
                                 <!-- Language Settings -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20"
-                                        Margin="0,0,0,20">
+                                <Border Style="{StaticResource SettingsPanel}">
                                     <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Language}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_SelectLanguage}"/>
+                                        <TextBlock Text="{DynamicResource Settings_SelectLanguage}" Style="{StaticResource InputLabel}"/>
                                         <ComboBox ItemsSource="{Binding AvailableLanguages}"
                                                   SelectedValue="{Binding SelectedLanguage}"
                                                   SelectedValuePath="Code"
-                                                  Margin="0,0,0,16">
+                                                  Style="{StaticResource Input}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate>
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Name}" 
-                                                                   Margin="0,0,8,0"/>
-                                                        <TextBlock Text="{Binding NativeName}"/>
+                                                                   Margin="0,0,8,0"
+                                                                   FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding NativeName}" Opacity="0.7"/>
                                                     </StackPanel>
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
@@ -276,75 +377,60 @@
                                 </Border>
 
                                 <!-- Theme Settings -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20"
-                                        Margin="0,0,0,20">
+                                <Border Style="{StaticResource SettingsPanel}">
                                     <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Theme}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_ApplicationTheme}"/>
+                                        <TextBlock Text="{DynamicResource Settings_ApplicationTheme}" Style="{StaticResource InputLabel}"/>
                                         <ComboBox ItemsSource="{Binding AvailableThemes}"
                                                   SelectedItem="{Binding CurrentTheme}"
-                                                  Margin="0,0,0,16"/>
+                                                  Style="{StaticResource Input}"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Restaurant Mode Settings -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20"
-                                        Margin="0,0,0,20">
+                                <Border Style="{StaticResource SettingsPanel}">
                                     <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_TransactionMode}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
                                         <CheckBox Content="{DynamicResource Settings_EnableRestaurantMode}" 
                                                  IsChecked="{Binding IsRestaurantMode}"
                                                  Margin="0,0,0,8"/>
                                         <TextBlock Text="{DynamicResource Settings_RestaurantModeDescription}" 
-                                                  TextWrapping="Wrap"/>
+                                                  TextWrapping="Wrap"
+                                                  Opacity="0.7"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Date & Time -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20"
-                                        Margin="0,0,0,20">
+                                <Border Style="{StaticResource SettingsPanel}">
                                     <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_DateAndTime}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_DateFormat}"/>
+                                        <TextBlock Text="{DynamicResource Settings_DateFormat}" Style="{StaticResource InputLabel}"/>
                                         <ComboBox ItemsSource="{Binding DateFormats}"
                                                   SelectedItem="{Binding DateFormat}"
-                                                  Margin="0,0,0,16"/>
+                                                  Style="{StaticResource Input}"/>
 
-                                        <TextBlock Text="{DynamicResource Settings_TimeFormat}"/>
+                                        <TextBlock Text="{DynamicResource Settings_TimeFormat}" Style="{StaticResource InputLabel}"/>
                                         <ComboBox ItemsSource="{Binding TimeFormats}"
                                                   SelectedItem="{Binding TimeFormat}"
-                                                  Margin="0,0,0,16"/>
+                                                  Style="{StaticResource Input}"/>
                                     </StackPanel>
                                 </Border>
 
                                 <!-- Notifications -->
-                                <Border BorderBrush="Gray"
-                                        BorderThickness="1"
-                                        Background="White"
-                                        Padding="20"
-                                        Margin="0,0,0,20">
+                                <Border Style="{StaticResource SettingsPanel}">
                                     <StackPanel>
                                         <TextBlock Text="{DynamicResource Settings_Notifications}" 
-                                                   Margin="0,0,0,16"/>
+                                                   Style="{StaticResource SectionTitle}"/>
 
                                         <CheckBox Content="{DynamicResource Settings_EnableNotifications}"
                                                  IsChecked="{Binding NotificationsEnabled}"
-                                                 Margin="0,0,0,8"/>
+                                                 Margin="0,0,0,12"/>
 
                                         <CheckBox Content="{DynamicResource Settings_EnableSoundEffects}"
                                                  IsChecked="{Binding SoundEffectsEnabled}"
@@ -354,8 +440,9 @@
 
                                 <!-- Reset Button -->
                                 <Button Command="{Binding ResetPreferencesCommand}"
+                                        Style="{StaticResource ModernButton}"
                                         HorizontalAlignment="Right"
-                                        Margin="0,0,0,20">
+                                        Margin="0,0,0,24">
                                     <TextBlock Text="{DynamicResource Settings_ResetToDefault}"/>
                                 </Button>
                             </StackPanel>

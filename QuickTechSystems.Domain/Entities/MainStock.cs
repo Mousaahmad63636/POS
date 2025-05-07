@@ -23,6 +23,19 @@ namespace QuickTechSystems.Domain.Entities
         public string? ImagePath { get; set; }
         public byte[]? BarcodeImage { get; set; }
 
+        // Box-related properties
+        public string BoxBarcode { get; set; } = string.Empty;
+        public int NumberOfBoxes { get; set; }
+        public int ItemsPerBox { get; set; } = 1;
+        public decimal BoxPurchasePrice { get; set; }
+        public decimal BoxSalePrice { get; set; }
+        public int MinimumBoxStock { get; set; }
+
+        // Path: QuickTechSystems.Domain.Entities/MainStock.cs
+
+        // Add these properties
+        public decimal WholesalePrice { get; set; }
+        public decimal BoxWholesalePrice { get; set; }
         // Navigation properties
         public virtual Category? Category { get; set; }
         public virtual Supplier? Supplier { get; set; }

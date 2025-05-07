@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿// Path: QuickTechSystems.Application.DTOs/ProductDTO.cs
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace QuickTechSystems.Application.DTOs
@@ -25,8 +26,43 @@ namespace QuickTechSystems.Application.DTOs
         // Change from byte[] to string
         private string? _imagePath;
         private int? _mainStockId;
+
+        // Box-related fields
+        private string _boxBarcode = string.Empty;
+        private decimal _boxPurchasePrice;
+        private decimal _boxSalePrice;
+        private int _numberOfBoxes;
+        private int _itemsPerBox = 1;
+        private int _minimumBoxStock;
+
         public int? SupplierInvoiceId { get; set; }
         // Update property to use ImagePath instead of Image
+        // Path: QuickTechSystems.Application.DTOs/ProductDTO.cs
+
+        // Add these private fields
+        private decimal _wholesalePrice;
+        private decimal _boxWholesalePrice;
+
+        // Add these public properties
+        public decimal WholesalePrice
+        {
+            get => _wholesalePrice;
+            set
+            {
+                _wholesalePrice = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public decimal BoxWholesalePrice
+        {
+            get => _boxWholesalePrice;
+            set
+            {
+                _boxWholesalePrice = value;
+                OnPropertyChanged();
+            }
+        }
         public string? ImagePath
         {
             get => _imagePath;
@@ -81,6 +117,14 @@ namespace QuickTechSystems.Application.DTOs
             {
                 _speed = value;
                 OnPropertyChanged();
+            }
+        }
+        public decimal ItemWholesalePrice
+        {
+            get
+            {
+                if (ItemsPerBox <= 0) return 0;
+                return BoxWholesalePrice / ItemsPerBox;
             }
         }
 
@@ -211,6 +255,94 @@ namespace QuickTechSystems.Application.DTOs
             {
                 _isActive = value;
                 OnPropertyChanged();
+            }
+        }
+
+        // Box-related properties
+        public string BoxBarcode
+        {
+            get => _boxBarcode;
+            set
+            {
+                _boxBarcode = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int NumberOfBoxes
+        {
+            get => _numberOfBoxes;
+            set
+            {
+                _numberOfBoxes = value;
+                OnPropertyChanged();
+                // Recalculate total stock when number of boxes changes
+                OnPropertyChanged(nameof(TotalStock));
+            }
+        }
+
+        public int ItemsPerBox
+        {
+            get => _itemsPerBox;
+            set
+            {
+                if (value <= 0) value = 1; // Ensure at least 1 item per box
+                _itemsPerBox = value;
+                OnPropertyChanged();
+                // Recalculate item purchase price and total stock
+                OnPropertyChanged(nameof(ItemPurchasePrice));
+                OnPropertyChanged(nameof(TotalStock));
+            }
+        }
+
+        public decimal BoxPurchasePrice
+        {
+            get => _boxPurchasePrice;
+            set
+            {
+                _boxPurchasePrice = value;
+                OnPropertyChanged();
+                // Recalculate item purchase price
+                OnPropertyChanged(nameof(ItemPurchasePrice));
+            }
+        }
+
+        public decimal BoxSalePrice
+        {
+            get => _boxSalePrice;
+            set
+            {
+                _boxSalePrice = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int MinimumBoxStock
+        {
+            get => _minimumBoxStock;
+            set
+            {
+                _minimumBoxStock = value;
+                OnPropertyChanged();
+            }
+        }
+
+        // Calculated property - Item Purchase Price
+        public decimal ItemPurchasePrice
+        {
+            get
+            {
+                if (ItemsPerBox <= 0) return 0;
+                return BoxPurchasePrice / ItemsPerBox;
+            }
+        }
+
+        // Calculated property - Total Stock
+        public decimal TotalStock
+        {
+            get
+            {
+                return NumberOfBoxes * ItemsPerBox;
             }
         }
 

@@ -20,6 +20,15 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(sid => sid.TotalPrice)
                 .HasPrecision(18, 2);
 
+            builder.Property(sid => sid.BoxBarcode)
+                .HasMaxLength(50);
+
+            builder.Property(sid => sid.BoxPurchasePrice)
+                .HasPrecision(18, 2);
+
+            builder.Property(sid => sid.BoxSalePrice)
+                .HasPrecision(18, 2);
+
             builder.HasOne(sid => sid.SupplierInvoice)
                 .WithMany(si => si.Details)
                 .HasForeignKey(sid => sid.SupplierInvoiceId)

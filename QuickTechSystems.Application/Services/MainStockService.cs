@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Interfaces;
@@ -14,7 +15,7 @@ namespace QuickTechSystems.Application.Services
     public class MainStockService : BaseService<MainStock, MainStockDTO>, IMainStockService
     {
         private readonly IInventoryTransferService _inventoryTransferService;
-        private readonly IProductService _productService; // Add missing ProductService
+        private readonly IProductService _productService;
 
         public MainStockService(
             IUnitOfWork unitOfWork,
@@ -22,11 +23,11 @@ namespace QuickTechSystems.Application.Services
             IEventAggregator eventAggregator,
             IDbContextScopeService dbContextScopeService,
             IInventoryTransferService inventoryTransferService,
-            IProductService productService) // Add parameter
+            IProductService productService)
             : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
             _inventoryTransferService = inventoryTransferService;
-            _productService = productService; // Store reference
+            _productService = productService;
         }
 
         public async Task<IEnumerable<MainStockDTO>> GetByCategoryAsync(int categoryId)
@@ -70,6 +71,18 @@ namespace QuickTechSystems.Application.Services
                 }
 
                 var product = await query.FirstOrDefaultAsync();
+                return _mapper.Map<MainStockDTO>(product);
+            });
+        }
+
+        public async Task<MainStockDTO?> GetByBoxBarcodeAsync(string boxBarcode)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var product = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .FirstOrDefaultAsync(p => p.BoxBarcode == boxBarcode);
                 return _mapper.Map<MainStockDTO>(product);
             });
         }
@@ -127,12 +140,26 @@ namespace QuickTechSystems.Application.Services
                     dto.CreatedAt = DateTime.Now;
                 }
 
+                // Ensure box barcode is set if barcode exists
+                if (string.IsNullOrWhiteSpace(dto.BoxBarcode) && !string.IsNullOrWhiteSpace(dto.Barcode))
+                {
+                    dto.BoxBarcode = $"BX{dto.Barcode}";
+                }
+
                 var entity = _mapper.Map<MainStock>(dto);
                 var result = await _repository.AddAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
+
+                // Verify that the ID was properly assigned
+                if (result.MainStockId <= 0)
+                {
+                    Debug.WriteLine($"WARNING: MainStockId was not properly assigned for {dto.Name}");
+                    throw new InvalidOperationException($"Database did not assign a valid ID to MainStock item: {dto.Name}");
+                }
+
                 var resultDto = _mapper.Map<MainStockDTO>(result);
 
-                Debug.WriteLine("Publishing create event for MainStock");
+                Debug.WriteLine($"Successfully created MainStock item with ID: {resultDto.MainStockId}");
                 _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Create", resultDto));
 
                 return resultDto;
@@ -145,12 +172,13 @@ namespace QuickTechSystems.Application.Services
             {
                 var product = await _repository.Query()
                     .Include(p => p.Category)
+                    .Include(p => p.Supplier)
                     .FirstOrDefaultAsync(p => p.Barcode == barcode);
                 return _mapper.Map<MainStockDTO>(product);
             });
         }
 
-        // Path: QuickTechSystems.Application.Services/MainStockService.cs
+        // UPDATED METHOD: Improved CreateBatchAsync with better error handling and individual item processing
         public async Task<List<MainStockDTO>> CreateBatchAsync(List<MainStockDTO> products, IProgress<string>? progress = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -158,97 +186,224 @@ namespace QuickTechSystems.Application.Services
                 Debug.WriteLine($"Starting batch create for {products.Count} MainStock items");
                 var savedProducts = new List<MainStockDTO>();
 
-                // Start a transaction for the entire batch operation
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                // Process each item individually for better error isolation
+                for (int i = 0; i < products.Count; i++)
                 {
-                    for (int i = 0; i < products.Count; i++)
+                    var product = products[i];
+                    try
                     {
-                        var product = products[i];
-                        progress?.Report($"Saving product {i + 1} of {products.Count}: {product.Name}");
+                        progress?.Report($"Processing item {i + 1} of {products.Count}: {product.Name}");
 
-                        var entity = _mapper.Map<MainStock>(product);
+                        // Check if this is an update or create
+                        var existingProduct = !string.IsNullOrEmpty(product.Barcode)
+                            ? await _repository.Query().FirstOrDefaultAsync(p => p.Barcode == product.Barcode)
+                            : null;
 
-                        // Ensure the CreatedAt is set
-                        if (entity.CreatedAt == default)
-                            entity.CreatedAt = DateTime.Now;
-
-                        // Explicitly check for existing entity to avoid tracking conflicts
-                        MainStock result;
-                        if (entity.MainStockId > 0)
+                        if (existingProduct != null)
                         {
-                            // For existing entities, first check if it exists in the database
-                            var existingEntity = await _repository.GetByIdAsync(entity.MainStockId);
-                            if (existingEntity != null)
-                            {
-                                // Detach the existing entity to avoid tracking conflicts
-                                _unitOfWork.DetachEntity(existingEntity);
+                            // This is an update - use the existing ID and update record
+                            Debug.WriteLine($"Updating existing MainStock with barcode {product.Barcode}: {existingProduct.MainStockId}");
 
-                                // Update the entity
-                                entity.UpdatedAt = DateTime.Now;
-                                await _repository.UpdateAsync(entity);
-                                result = entity; // Use the entity object directly since UpdateAsync returns void
-                            }
-                            else
-                            {
-                                // If not found (unusual case), treat as new entity
-                                entity.MainStockId = 0; // Reset ID to let database assign a new one
-                                result = await _repository.AddAsync(entity);
-                            }
+                            // Set the MainStockId from the existing record
+                            product.MainStockId = existingProduct.MainStockId;
+
+                            // Create a new entity to avoid tracking issues
+                            var entity = _mapper.Map<MainStock>(product);
+                            entity.CreatedAt = existingProduct.CreatedAt; // Preserve original creation date
+                            entity.UpdatedAt = DateTime.Now;
+
+                            // Detach the existing entity from tracking
+                            _unitOfWork.DetachEntity(existingProduct);
+
+                            // Update using repository
+                            await _repository.UpdateAsync(entity);
+                            await _unitOfWork.SaveChangesAsync();
+
+                            // Refresh entity from database to get any computed properties
+                            await _unitOfWork.Context.Entry(entity).ReloadAsync();
+
+                            // Map back to DTO
+                            var updatedDto = _mapper.Map<MainStockDTO>(entity);
+                            savedProducts.Add(updatedDto);
+
+                            // Publish event
+                            _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", updatedDto));
+
+                            Debug.WriteLine($"Successfully updated MainStock: {entity.Name} (ID: {entity.MainStockId})");
                         }
                         else
                         {
-                            // New entity, just add it
-                            result = await _repository.AddAsync(entity);
+                            // This is a new item - create it
+                            Debug.WriteLine($"Creating new MainStock: {product.Name}");
+
+                            // Ensure CreatedAt is set
+                            if (product.CreatedAt == default)
+                                product.CreatedAt = DateTime.Now;
+
+                            // Ensure box barcode is set if barcode exists
+                            if (string.IsNullOrWhiteSpace(product.BoxBarcode) && !string.IsNullOrWhiteSpace(product.Barcode))
+                                product.BoxBarcode = $"BX{product.Barcode}";
+
+                            // Create a new entity
+                            var entity = _mapper.Map<MainStock>(product);
+
+                            // Add using repository
+                            var addedEntity = await _repository.AddAsync(entity);
+                            await _unitOfWork.SaveChangesAsync();
+
+                            // Validate ID assignment
+                            if (addedEntity.MainStockId <= 0)
+                            {
+                                Debug.WriteLine($"Warning: MainStockId was not assigned for {product.Name}");
+                                throw new InvalidOperationException($"Database did not assign a valid ID to new MainStock: {product.Name}");
+                            }
+
+                            Debug.WriteLine($"Added new MainStock item {addedEntity.Name} with ID: {addedEntity.MainStockId}");
+
+                            // Map back to DTO
+                            var newDto = _mapper.Map<MainStockDTO>(addedEntity);
+                            savedProducts.Add(newDto);
+
+                            // Publish event
+                            _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Create", newDto));
                         }
 
-                        // Map back to DTO without saving changes yet
-                        var resultDto = _mapper.Map<MainStockDTO>(result);
-                        savedProducts.Add(resultDto);
+                        // Sync linked products if this is an update and MainStockId is valid
+                        if (product.MainStockId > 0)
+                        {
+                            await SyncLinkedProductsForMainStock(product.MainStockId, product);
+                        }
+
+                        // Clear tracking every few items to avoid memory issues
+                        if (i % 5 == 0)
+                        {
+                            _unitOfWork.Context.ChangeTracker.Clear();
+                        }
                     }
-
-                    // Save all changes in a single database operation
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Commit the transaction only after successful save
-                    await transaction.CommitAsync();
-
-                    // Publish events for all saved products
-                    foreach (var savedProduct in savedProducts)
+                    catch (Exception ex)
                     {
-                        _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>(
-                            savedProduct.MainStockId > 0 ? "Update" : "Create",
-                            savedProduct));
+                        Debug.WriteLine($"Error processing item {i + 1} ({product.Name}): {ex.Message}");
+                        // Continue processing other items despite this error
                     }
-
-                    Debug.WriteLine($"Successfully saved {savedProducts.Count} MainStock items in batch");
-                    return savedProducts;
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in batch save: {ex.Message}");
-                    // Log inner exception details for debugging
-                    if (ex.InnerException != null)
-                    {
-                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
-                    }
 
-                    try
-                    {
-                        // Attempt to rollback on error
-                        await transaction.RollbackAsync();
-                        Debug.WriteLine("Transaction rolled back successfully");
-                    }
-                    catch (Exception rollbackEx)
-                    {
-                        Debug.WriteLine($"Error rolling back transaction: {rollbackEx.Message}");
-                        // Continue with throw, we still want to report the original error
-                    }
+                Debug.WriteLine($"Batch processing complete. Successfully processed {savedProducts.Count} of {products.Count} items.");
 
-                    throw; // Rethrow to let caller handle it
-                }
+                // Return the list of successfully saved products
+                return savedProducts;
             });
         }
+
+        // Private helper methods for direct database operations
+        private async Task UpdateMainStockDirectly(MainStock item)
+        {
+            string sql = @"
+        UPDATE MainStocks
+        SET Name = @name,
+            Barcode = @barcode,
+            BoxBarcode = @boxBarcode,
+            CategoryId = @categoryId,
+            SupplierId = @supplierId,
+            Description = @description,
+            PurchasePrice = @purchasePrice,
+            SalePrice = @salePrice,
+            CurrentStock = @currentStock,
+            MinimumStock = @minimumStock,
+            Speed = @speed,
+            BoxPurchasePrice = @boxPurchasePrice,
+            BoxSalePrice = @boxSalePrice,
+            ItemsPerBox = @itemsPerBox,
+            MinimumBoxStock = @minimumBoxStock,
+            IsActive = @isActive,
+            UpdatedAt = @updatedAt
+        WHERE MainStockId = @mainStockId";
+
+            var parameters = new[]
+            {
+        new Microsoft.Data.SqlClient.SqlParameter("@mainStockId", item.MainStockId),
+        new Microsoft.Data.SqlClient.SqlParameter("@name", item.Name),
+        new Microsoft.Data.SqlClient.SqlParameter("@barcode", item.Barcode),
+        new Microsoft.Data.SqlClient.SqlParameter("@boxBarcode", (object)item.BoxBarcode ?? DBNull.Value),
+        new Microsoft.Data.SqlClient.SqlParameter("@categoryId", item.CategoryId),
+        new Microsoft.Data.SqlClient.SqlParameter("@supplierId", (object)item.SupplierId ?? DBNull.Value),
+        new Microsoft.Data.SqlClient.SqlParameter("@description", (object)item.Description ?? DBNull.Value),
+        new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", item.PurchasePrice),
+        new Microsoft.Data.SqlClient.SqlParameter("@salePrice", item.SalePrice),
+        new Microsoft.Data.SqlClient.SqlParameter("@currentStock", item.CurrentStock),
+        new Microsoft.Data.SqlClient.SqlParameter("@minimumStock", item.MinimumStock),
+        new Microsoft.Data.SqlClient.SqlParameter("@speed", (object)item.Speed ?? DBNull.Value),
+        new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", item.BoxPurchasePrice),
+        new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", item.BoxSalePrice),
+        new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", item.ItemsPerBox),
+        new Microsoft.Data.SqlClient.SqlParameter("@minimumBoxStock", item.MinimumBoxStock),
+        new Microsoft.Data.SqlClient.SqlParameter("@isActive", item.IsActive),
+        new Microsoft.Data.SqlClient.SqlParameter("@updatedAt", DateTime.Now)
+    };
+
+            await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
+        }
+
+        private async Task SyncLinkedProductsForMainStock(int mainStockId, MainStockDTO mainStockData)
+        {
+            try
+            {
+                // Use SQL to find linked products
+                string findSql = "SELECT ProductId FROM Products WHERE MainStockId = @mainStockId";
+                var findParam = new Microsoft.Data.SqlClient.SqlParameter("@mainStockId", mainStockId);
+
+                var productIds = await _unitOfWork.Context.Set<Product>()
+                    .FromSqlRaw(findSql, findParam)
+                    .Select(p => p.ProductId)
+                    .ToListAsync();
+
+                if (productIds.Any())
+                {
+                    Debug.WriteLine($"Syncing {productIds.Count} products linked to MainStock {mainStockId}");
+
+                    // Use direct SQL update to update all linked products at once
+                    string updateSql = @"
+                UPDATE Products
+                SET PurchasePrice = @purchasePrice,
+                    WholesalePrice = @wholesalePrice,
+                    SalePrice = @salePrice,
+                    BoxPurchasePrice = @boxPurchasePrice,
+                    BoxWholesalePrice = @boxWholesalePrice,                  
+                    BoxSalePrice = @boxSalePrice,
+                    ItemsPerBox = @itemsPerBox,
+                    UpdatedAt = @updatedAt
+                WHERE MainStockId = @mainStockId";
+
+                    var updateParams = new[]
+                    {
+                new Microsoft.Data.SqlClient.SqlParameter("@mainStockId", mainStockId),
+                new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", mainStockData.PurchasePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@wholesalePrice", mainStockData.WholesalePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@salePrice", mainStockData.SalePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", mainStockData.BoxPurchasePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxWholesalePrice", mainStockData.BoxWholesalePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", mainStockData.BoxSalePrice),
+                new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", mainStockData.ItemsPerBox),
+                new Microsoft.Data.SqlClient.SqlParameter("@updatedAt", DateTime.Now)
+            };
+
+                    await _unitOfWork.Context.Database.ExecuteSqlRawAsync(updateSql, updateParams);
+
+                    // Publish product update events
+                    foreach (var productId in productIds)
+                    {
+                        // Use SparseProdutDTO to avoid tracking issues
+                        var updateEvent = new ProductStockUpdatedEvent(productId, mainStockData.CurrentStock);
+                        _eventAggregator.Publish(updateEvent);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error syncing linked products: {ex.Message}");
+                // Log but don't throw to allow the rest of the batch to continue
+            }
+        }
+
         public async Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string notes)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -256,78 +411,389 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    // Step 1: Get the MainStock item
-                    var mainStockItem = await _repository.GetByIdAsync(mainStockId);
-                    if (mainStockItem == null)
+                    Debug.WriteLine($"Transfer details: MainStock ID: {mainStockId}, Product ID: {productId}, Quantity: {quantity}");
+
+                    // NEW: First, get MainStock and Product data to ensure price synchronization
+                    var mainStock = await _unitOfWork.MainStocks
+                        .Query()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(m => m.MainStockId == mainStockId);
+
+                    if (mainStock == null)
                     {
-                        Debug.WriteLine($"MainStock item {mainStockId} not found for transfer");
+                        Debug.WriteLine($"MainStock with ID {mainStockId} not found");
                         return false;
                     }
 
-                    // Validate we have enough stock
-                    if (mainStockItem.CurrentStock < quantity)
+                    var product = await _unitOfWork.Products
+                        .Query()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.ProductId == productId);
+
+                    if (product == null)
                     {
-                        Debug.WriteLine($"Insufficient stock in MainStock item {mainStockId}. Available: {mainStockItem.CurrentStock}, Requested: {quantity}");
+                        Debug.WriteLine($"Product with ID {productId} not found");
                         return false;
                     }
 
-                    // Step 2: Reduce the MainStock quantity
-                    decimal oldMainStockQty = mainStockItem.CurrentStock;
-                    mainStockItem.CurrentStock -= quantity;
-                    mainStockItem.UpdatedAt = DateTime.Now;
-
-                    await _repository.UpdateAsync(mainStockItem);
-
-                    // Step 3: Use InventoryTransferService to create transfer record
-                    var transferDto = new InventoryTransferDTO
+                    // NEW: Ensure prices are in sync before transferring
+                    bool pricesSynchronized = false;
+                    if (Math.Abs(product.WholesalePrice - mainStock.WholesalePrice) > 0.001m ||
+                        Math.Abs(product.BoxWholesalePrice - mainStock.BoxWholesalePrice) > 0.001m ||
+                        Math.Abs(product.PurchasePrice - mainStock.PurchasePrice) > 0.001m ||
+                        Math.Abs(product.SalePrice - mainStock.SalePrice) > 0.001m ||
+                        Math.Abs(product.BoxPurchasePrice - mainStock.BoxPurchasePrice) > 0.001m ||
+                        Math.Abs(product.BoxSalePrice - mainStock.BoxSalePrice) > 0.001m ||
+                        product.ItemsPerBox != mainStock.ItemsPerBox)
                     {
-                        MainStockId = mainStockId,
-                        ProductId = productId,
-                        Quantity = quantity,
-                        TransferredBy = transferredBy,
-                        Notes = notes,
-                        TransferDate = DateTime.Now,
-                        ReferenceNumber = $"TRF-{DateTime.Now:yyyyMMddHHmmss}-{mainStockId}-{productId}"
-                    };
+                        // Prices need synchronization - update product with MainStock prices
+                        Debug.WriteLine("Synchronizing prices before transfer...");
 
-                    // Note: We're not using the full CreateAsync from InventoryTransferService
-                    // since it would duplicate the stock adjustments we're already doing here
-                    var transfer = _mapper.Map<InventoryTransfer>(transferDto);
-                    await _unitOfWork.InventoryTransfers.AddAsync(transfer);
+                        // Create a detached copy to avoid tracking conflicts
+                        var productToUpdate = new Product
+                        {
+                            ProductId = product.ProductId,
+                            PurchasePrice = mainStock.PurchasePrice,
+                            WholesalePrice = mainStock.WholesalePrice,
+                            SalePrice = mainStock.SalePrice,
+                            BoxPurchasePrice = mainStock.BoxPurchasePrice,
+                            BoxWholesalePrice = mainStock.BoxWholesalePrice,
+                            BoxSalePrice = mainStock.BoxSalePrice,
+                            ItemsPerBox = mainStock.ItemsPerBox,
+                            UpdatedAt = DateTime.Now
+                        };
 
-                    // Step 4: Transfer the inventory to the store product
-                    bool transferSuccess = await _productService.ReceiveInventoryAsync(
-                        productId,
-                        quantity,
-                        "MainStock",
-                        $"Transfer from MainStock ID: {mainStockId}"
-                    );
+                        // Use raw SQL to update just the price fields to avoid conflicts
+                        string sql = @"
+                    UPDATE Products 
+                    SET PurchasePrice = @purchasePrice,
+                        WholesalePrice = @wholesalePrice,
+                        SalePrice = @salePrice,
+                        BoxPurchasePrice = @boxPurchasePrice,
+                        BoxWholesalePrice = @boxWholesalePrice,
+                        BoxSalePrice = @boxSalePrice,
+                        ItemsPerBox = @itemsPerBox,
+                        UpdatedAt = @updatedAt
+                    WHERE ProductId = @productId";
 
-                    if (!transferSuccess)
-                    {
-                        throw new Exception($"Failed to transfer inventory to product ID {productId}");
+                        var parameters = new[]
+                        {
+                    new Microsoft.Data.SqlClient.SqlParameter("@productId", productToUpdate.ProductId),
+                    new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", productToUpdate.PurchasePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@wholesalePrice", productToUpdate.WholesalePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@salePrice", productToUpdate.SalePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", productToUpdate.BoxPurchasePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@boxWholesalePrice", productToUpdate.BoxWholesalePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", productToUpdate.BoxSalePrice),
+                    new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", productToUpdate.ItemsPerBox),
+                    new Microsoft.Data.SqlClient.SqlParameter("@updatedAt", productToUpdate.UpdatedAt)
+                };
+
+                        await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
+                        pricesSynchronized = true;
                     }
 
-                    await _unitOfWork.SaveChangesAsync();
+                    // Use database connection directly to avoid EF Core tracking completely
+                    var connection = _unitOfWork.Context.Database.GetDbConnection();
+                    if (connection.State != System.Data.ConnectionState.Open)
+                        await connection.OpenAsync();
+
+                    // Step 1: Verify MainStock exists and has sufficient inventory
+                    decimal mainStockCurrentStock = 0;
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction.GetDbTransaction();
+                        command.CommandText = @"
+                SELECT CurrentStock FROM MainStocks 
+                WHERE MainStockId = @mainStockId";
+
+                        var param = command.CreateParameter();
+                        param.ParameterName = "@mainStockId";
+                        param.Value = mainStockId;
+                        command.Parameters.Add(param);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                mainStockCurrentStock = reader.GetDecimal(0);
+                            }
+                            else
+                            {
+                                // MainStock not found
+                                return false;
+                            }
+                        }
+                    }
+
+                    // Check if there's enough stock
+                    if (mainStockCurrentStock < quantity)
+                    {
+                        Debug.WriteLine($"Insufficient stock in MainStock {mainStockId}: {mainStockCurrentStock} < {quantity}");
+                        return false;
+                    }
+
+                    // Step 2: Update MainStock - deduct inventory
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction.GetDbTransaction();
+                        command.CommandText = @"
+                UPDATE MainStocks 
+                SET CurrentStock = CurrentStock - @quantity, 
+                    UpdatedAt = @updatedAt
+                WHERE MainStockId = @mainStockId";
+
+                        var idParam = command.CreateParameter();
+                        idParam.ParameterName = "@mainStockId";
+                        idParam.Value = mainStockId;
+                        command.Parameters.Add(idParam);
+
+                        var quantityParam = command.CreateParameter();
+                        quantityParam.ParameterName = "@quantity";
+                        quantityParam.Value = quantity;
+                        command.Parameters.Add(quantityParam);
+
+                        var dateParam = command.CreateParameter();
+                        dateParam.ParameterName = "@updatedAt";
+                        dateParam.Value = DateTime.Now;
+                        command.Parameters.Add(dateParam);
+
+                        await command.ExecuteNonQueryAsync();
+                    }
+
+                    // Step 3: Create transfer record
+                    string referenceNumber = $"TRF-{DateTime.Now:yyyyMMddHHmmss}-{mainStockId}-{productId}";
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction.GetDbTransaction();
+                        command.CommandText = @"
+                INSERT INTO InventoryTransfers (
+                    MainStockId, ProductId, Quantity, TransferDate, Notes, ReferenceNumber, TransferredBy
+                ) VALUES (
+                    @mainStockId, @productId, @quantity, @transferDate, @notes, @referenceNumber, @transferredBy
+                )";
+
+                        var mainStockIdParam = command.CreateParameter();
+                        mainStockIdParam.ParameterName = "@mainStockId";
+                        mainStockIdParam.Value = mainStockId;
+                        command.Parameters.Add(mainStockIdParam);
+
+                        var productIdParam = command.CreateParameter();
+                        productIdParam.ParameterName = "@productId";
+                        productIdParam.Value = productId;
+                        command.Parameters.Add(productIdParam);
+
+                        var quantityParam = command.CreateParameter();
+                        quantityParam.ParameterName = "@quantity";
+                        quantityParam.Value = quantity;
+                        command.Parameters.Add(quantityParam);
+
+                        var dateParam = command.CreateParameter();
+                        dateParam.ParameterName = "@transferDate";
+                        dateParam.Value = DateTime.Now;
+                        command.Parameters.Add(dateParam);
+
+                        var notesParam = command.CreateParameter();
+                        notesParam.ParameterName = "@notes";
+                        notesParam.Value = notes ?? "";
+                        command.Parameters.Add(notesParam);
+
+                        var refParam = command.CreateParameter();
+                        refParam.ParameterName = "@referenceNumber";
+                        refParam.Value = referenceNumber;
+                        command.Parameters.Add(refParam);
+
+                        var byParam = command.CreateParameter();
+                        byParam.ParameterName = "@transferredBy";
+                        byParam.Value = transferredBy;
+                        command.Parameters.Add(byParam);
+
+                        await command.ExecuteNonQueryAsync();
+                    }
+
+                    // Step 4: Update product stock and get new level
+                    decimal newProductStock = 0;
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction.GetDbTransaction();
+                        command.CommandText = @"
+                UPDATE Products 
+                SET CurrentStock = CurrentStock + @quantity, 
+                    UpdatedAt = @updatedAt
+                WHERE ProductId = @productId;
+                
+                SELECT CurrentStock FROM Products WHERE ProductId = @productId;";
+
+                        var idParam = command.CreateParameter();
+                        idParam.ParameterName = "@productId";
+                        idParam.Value = productId;
+                        command.Parameters.Add(idParam);
+
+                        var quantityParam = command.CreateParameter();
+                        quantityParam.ParameterName = "@quantity";
+                        quantityParam.Value = quantity;
+                        command.Parameters.Add(quantityParam);
+
+                        var dateParam = command.CreateParameter();
+                        dateParam.ParameterName = "@updatedAt";
+                        dateParam.Value = DateTime.Now;
+                        command.Parameters.Add(dateParam);
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                newProductStock = reader.GetDecimal(0);
+                            }
+                        }
+                    }
+
+                    // Step 5: Create inventory history record
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.Transaction = transaction.GetDbTransaction();
+                        command.CommandText = @"
+                INSERT INTO InventoryHistories (
+                    ProductId, QuantityChange, NewQuantity, Type, Notes, Timestamp
+                ) VALUES (
+                    @productId, @quantityChange, @newQuantity, @type, @notes, @timestamp
+                )";
+
+                        var productIdParam = command.CreateParameter();
+                        productIdParam.ParameterName = "@productId";
+                        productIdParam.Value = productId;
+                        command.Parameters.Add(productIdParam);
+
+                        var quantityChangeParam = command.CreateParameter();
+                        quantityChangeParam.ParameterName = "@quantityChange";
+                        quantityChangeParam.Value = quantity;
+                        command.Parameters.Add(quantityChangeParam);
+
+                        var newQuantityParam = command.CreateParameter();
+                        newQuantityParam.ParameterName = "@newQuantity";
+                        newQuantityParam.Value = newProductStock;
+                        command.Parameters.Add(newQuantityParam);
+
+                        var typeParam = command.CreateParameter();
+                        typeParam.ParameterName = "@type";
+                        typeParam.Value = "Transfer-In";
+                        command.Parameters.Add(typeParam);
+
+                        var notesParam = command.CreateParameter();
+                        notesParam.ParameterName = "@notes";
+                        notesParam.Value = $"Transfer from MainStock ID: {mainStockId}";
+                        command.Parameters.Add(notesParam);
+
+                        var timestampParam = command.CreateParameter();
+                        timestampParam.ParameterName = "@timestamp";
+                        timestampParam.Value = DateTime.Now;
+                        command.Parameters.Add(timestampParam);
+
+                        await command.ExecuteNonQueryAsync();
+                    }
+
+                    // Commit the transaction
                     await transaction.CommitAsync();
 
-                    // Step 5: Publish events - CRITICAL FOR REAL-TIME UPDATES
-                    var mainStockDto = _mapper.Map<MainStockDTO>(mainStockItem);
-                    _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", mainStockDto));
+                    // Publish events after transaction completes
+                    // Get fresh data without tracking for the event payloads
+                    var mainStockDto = await GetMainStockDtoForEvent(mainStockId);
+                    if (mainStockDto != null)
+                    {
+                        _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", mainStockDto));
+                    }
 
-                    // Manually publish product stock update event to ensure real-time updates in Product view
-                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, await GetCurrentProductStock(productId)));
+                    // Publish product stock update event
+                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, newProductStock));
+
+                    // NEW: If prices were synchronized, publish a product update event too
+                    if (pricesSynchronized)
+                    {
+                        var updatedProduct = await _unitOfWork.Products
+                            .Query()
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.ProductId == productId);
+
+                        if (updatedProduct != null)
+                        {
+                            var productDto = _mapper.Map<ProductDTO>(updatedProduct);
+                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                        }
+                    }
 
                     Debug.WriteLine($"Successfully transferred {quantity} units from MainStock {mainStockId} to Product {productId}");
                     return true;
                 }
                 catch (Exception ex)
                 {
+                    // Ensure transaction is rolled back
                     await transaction.RollbackAsync();
-                    Debug.WriteLine($"Error in MainStock transfer: {ex.Message}");
-                    throw;
+
+                    // Log the detailed error
+                    Debug.WriteLine($"Error in inventory transfer: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
+
+                    // Re-throw with appropriate message
+                    throw new InvalidOperationException($"Transfer failed: {ex.Message}", ex);
                 }
             });
+        }
+
+
+        // Helper method to get MainStock data for event publishing
+        private async Task<MainStockDTO> GetMainStockDtoForEvent(int mainStockId)
+        {
+            var mainStock = await _unitOfWork.Context.Set<MainStock>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.MainStockId == mainStockId);
+
+            return mainStock != null ? _mapper.Map<MainStockDTO>(mainStock) : null;
+        }
+        // New helper method for direct stock updates to avoid tracking conflicts
+        private async Task<bool> UpdateProductStockDirectly(int productId, decimal quantityToAdd, string notes)
+        {
+            try
+            {
+                // Use a direct SQL update to avoid entity tracking issues
+                // This is a simplified example - adjust based on your actual database schema
+                string sql = @"
+            UPDATE Products 
+            SET CurrentStock = CurrentStock + @quantity, 
+                UpdatedAt = @updatedAt
+            WHERE ProductId = @productId;
+            
+            INSERT INTO InventoryHistories (
+                ProductId, QuantityChange, NewQuantity, Type, Notes, Timestamp
+            )
+            SELECT 
+                @productId, 
+                @quantity, 
+                (SELECT CurrentStock FROM Products WHERE ProductId = @productId), 
+                'Transfer-In', 
+                @notes, 
+                @timestamp;";
+
+                var parameters = new[]
+                {
+            new Microsoft.Data.SqlClient.SqlParameter("@productId", productId),
+            new Microsoft.Data.SqlClient.SqlParameter("@quantity", quantityToAdd),
+            new Microsoft.Data.SqlClient.SqlParameter("@updatedAt", DateTime.Now),
+            new Microsoft.Data.SqlClient.SqlParameter("@notes", notes),
+            new Microsoft.Data.SqlClient.SqlParameter("@timestamp", DateTime.Now)
+        };
+
+                await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error directly updating product stock: {ex.Message}");
+                return false;
+            }
         }
 
         // Helper method to get the current product stock
@@ -337,7 +803,7 @@ namespace QuickTechSystems.Application.Services
             return product?.CurrentStock ?? 0;
         }
 
-        // Path: QuickTechSystems.Application.Services/MainStockService.cs
+        // Update the UpdateAsync method to trigger product synchronization
         public override async Task<MainStockDTO> UpdateAsync(MainStockDTO dto)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -373,6 +839,38 @@ namespace QuickTechSystems.Application.Services
                     // Publish the update event
                     _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", resultDto));
 
+                    // Find linked products and update them - this improves synchronization
+                    var linkedProducts = await _unitOfWork.Products
+                        .Query()
+                        .Where(p => p.MainStockId == dto.MainStockId)
+                        .ToListAsync();
+
+                    if (linkedProducts.Any())
+                    {
+                        foreach (var product in linkedProducts)
+                        {
+                            // Update prices
+                            product.PurchasePrice = dto.PurchasePrice;
+                            product.SalePrice = dto.SalePrice;
+                            product.BoxPurchasePrice = dto.BoxPurchasePrice;
+                            product.BoxSalePrice = dto.BoxSalePrice;
+                            product.ItemsPerBox = dto.ItemsPerBox;
+                            product.UpdatedAt = DateTime.Now;
+                            product.WholesalePrice = dto.WholesalePrice;
+                            product.BoxWholesalePrice = dto.BoxWholesalePrice;
+
+
+                            await _unitOfWork.Products.UpdateAsync(product);
+
+                            // Publish product update event
+                            var productDto = _mapper.Map<ProductDTO>(product);
+                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                        }
+
+                        await _unitOfWork.SaveChangesAsync();
+                        Debug.WriteLine($"Updated {linkedProducts.Count} linked products with MainStock data");
+                    }
+
                     return resultDto;
                 }
                 catch (Exception ex)
@@ -401,6 +899,7 @@ namespace QuickTechSystems.Application.Services
                     query = query.Where(p =>
                         p.Name.ToLower().Contains(searchTerm) ||
                         p.Barcode.ToLower().Contains(searchTerm) ||
+                        p.BoxBarcode.ToLower().Contains(searchTerm) ||
                         (p.Category != null && p.Category.Name.ToLower().Contains(searchTerm)) ||
                         (p.Supplier != null && p.Supplier.Name.ToLower().Contains(searchTerm)) ||
                         (p.Description != null && p.Description.ToLower().Contains(searchTerm))

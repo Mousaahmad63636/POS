@@ -24,11 +24,25 @@ namespace QuickTechSystems.WPF.Views
             AdjustLayoutForSize();
         }
 
+
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
         {
             AdjustLayoutForSize();
         }
+        private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                var viewModel = DataContext as CustomerViewModel;
+                var customer = e.Row.Item as CustomerDTO;
 
+                if (viewModel != null && customer != null)
+                {
+                    // Start the update process without awaiting to avoid UI freezing
+                    _ = viewModel.UpdateCustomerDirectEdit(customer);
+                }
+            }
+        }
         private void AdjustLayoutForSize()
         {
             var parentWindow = Window.GetWindow(this);

@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Data;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.WPF.ViewModels;
 
@@ -75,6 +76,24 @@ namespace QuickTechSystems.WPF.Views
             else // Very small screens
             {
                 rootGrid.Margin = new Thickness(8);
+            }
+        }
+
+        /// <summary>
+        /// Handles direct cell editing in the DataGrid
+        /// </summary>
+        private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                var viewModel = DataContext as EmployeeViewModel;
+                var employee = e.Row.Item as EmployeeDTO;
+
+                if (viewModel != null && employee != null)
+                {
+                    // Update the employee directly in-grid
+                    _ = viewModel.UpdateEmployeeDirectEdit(employee);
+                }
             }
         }
 
@@ -189,6 +208,12 @@ namespace QuickTechSystems.WPF.Views
                 _employeeWindow.Closed += (s, e) =>
                 {
                     _employeeWindow = null;
+
+                    // Refresh the employee list after the window is closed
+                    System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await viewModel.RefreshData();
+                    });
                 };
 
                 _employeeWindow.Show();
@@ -210,6 +235,12 @@ namespace QuickTechSystems.WPF.Views
                 _employeeWindow.Closed += (s, e) =>
                 {
                     _employeeWindow = null;
+
+                    // Refresh the employee list after the window is closed
+                    System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await viewModel.RefreshData();
+                    });
                 };
 
                 _employeeWindow.Show();
@@ -233,6 +264,12 @@ namespace QuickTechSystems.WPF.Views
                 _salaryWindow.Closed += (s, e) =>
                 {
                     _salaryWindow = null;
+
+                    // Refresh the employee list after the window is closed
+                    System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        await viewModel.RefreshData();
+                    });
                 };
 
                 _salaryWindow.Show();

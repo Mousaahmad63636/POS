@@ -15,6 +15,7 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Threading;
 using System.Text;
+using QuickTechSystems.Application.Interfaces;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -23,6 +24,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly IProductService _productService;
         private readonly ICategoryService _categoryService;
         private readonly IMainStockService _mainStockService;
+        private readonly IDbContextScopeService _dbContextScopeService;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _isDisposed;
         private FlowDirection _flowDirection = FlowDirection.LeftToRight;
@@ -79,7 +81,24 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _totalPurchaseValue;
             set => SetProperty(ref _totalPurchaseValue, value);
         }
+        // Add to ProductViewModel.cs
+        public void RefreshProductCalculations(ProductDTO product)
+        {
+            if (product == null) return;
 
+            // Recalculate totals for the specific product
+            decimal totalCost = product.PurchasePrice * product.CurrentStock;
+            decimal totalValue = product.SalePrice * product.CurrentStock;
+
+            // If this is the selected product, update the calculations
+            if (SelectedProduct != null && SelectedProduct.ProductId == product.ProductId)
+            {
+                CalculateSelectedProductValues();
+            }
+
+            // Update the global calculations
+            CalculateAggregatedValues();
+        }
         public decimal TotalSaleValue
         {
             get => _totalSaleValue;
@@ -174,11 +193,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
-     
-        
-
-     
 
         public string SearchText
         {
@@ -295,18 +309,20 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand LoadCommand { get; private set; }
         public ICommand UpdateStockCommand { get; private set; }
         public ICommand PrintBarcodeCommand { get; private set; }
-       
+        public ICommand SyncWithMainStockCommand { get; private set; }
+
         // Pagination commands
         public ICommand NextPageCommand { get; private set; }
         public ICommand PreviousPageCommand { get; private set; }
         public ICommand GoToPageCommand { get; private set; }
         public ICommand ChangePageSizeCommand { get; private set; }
-         public ProductViewModel(
-            IProductService productService,
 
-    ISupplierService supplierService,
+        public ProductViewModel(
+            IProductService productService,
+            ISupplierService supplierService,
             ICategoryService categoryService,
             IMainStockService mainStockService,
+            IDbContextScopeService dbContextScopeService,
             IEventAggregator eventAggregator) : base(eventAggregator)
         {
             Debug.WriteLine("Initializing ProductViewModel");
@@ -314,6 +330,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _mainStockService = mainStockService ?? throw new ArgumentNullException(nameof(mainStockService));
             _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
+            _dbContextScopeService = dbContextScopeService ?? throw new ArgumentNullException(nameof(dbContextScopeService));
 
             _productStockUpdatedHandler = HandleProductStockUpdated;
             _suppliers = new ObservableCollection<SupplierDTO>();
@@ -334,20 +351,7 @@ namespace QuickTechSystems.WPF.ViewModels
             Debug.WriteLine("ProductViewModel initialized");
         }
 
-        private void InitializeCommands()
-        {
-            LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
-            UpdateStockCommand = new AsyncRelayCommand(async _ => await UpdateStockAsync(), _ => !IsSaving);
-            PrintBarcodeCommand = new AsyncRelayCommand(async _ => await PrintBarcodeAsync(), _ => !IsSaving);
-         
-            // Pagination commands
-            NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
-            PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
-            GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
-            ChangePageSizeCommand = new RelayCommand<int>(size => PageSize = size);
-        }
-
-        // In SubscribeToEvents method
+        // In the SubscribeToEvents method
         protected override void SubscribeToEvents()
         {
             Debug.WriteLine("ProductViewModel: Subscribing to events");
@@ -355,16 +359,48 @@ namespace QuickTechSystems.WPF.ViewModels
             _eventAggregator.Subscribe<EntityChangedEvent<CategoryDTO>>(_categoryChangedHandler);
             _eventAggregator.Subscribe<EntityChangedEvent<MainStockDTO>>(_mainStockChangedHandler);
             _eventAggregator.Subscribe<ProductStockUpdatedEvent>(_productStockUpdatedHandler);
+            _eventAggregator.Subscribe<GlobalDataRefreshEvent>(HandleGlobalRefresh);
             Debug.WriteLine("ProductViewModel: Subscribed to all events");
         }
 
-        // In UnsubscribeFromEvents method
+        // In the UnsubscribeFromEvents method
         protected override void UnsubscribeFromEvents()
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<ProductDTO>>(_productChangedHandler);
             _eventAggregator.Unsubscribe<EntityChangedEvent<CategoryDTO>>(_categoryChangedHandler);
             _eventAggregator.Unsubscribe<EntityChangedEvent<MainStockDTO>>(_mainStockChangedHandler);
             _eventAggregator.Unsubscribe<ProductStockUpdatedEvent>(_productStockUpdatedHandler);
+            _eventAggregator.Unsubscribe<GlobalDataRefreshEvent>(HandleGlobalRefresh);
+        }
+
+        private async void HandleGlobalRefresh(GlobalDataRefreshEvent evt)
+        {
+            Debug.WriteLine($"ProductViewModel: Received global refresh event at {evt.Timestamp}");
+
+            // Add a delay to ensure database operations complete
+            await Task.Delay(800);
+
+            // Reset to page 1 for consistency
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                _currentPage = 1;
+                OnPropertyChanged(nameof(CurrentPage));
+            });
+
+            await ForceRefreshDataAsync();
+        }
+        private void InitializeCommands()
+        {
+            LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync(), _ => !IsSaving);
+            UpdateStockCommand = new AsyncRelayCommand(async _ => await UpdateStockAsync(), _ => !IsSaving);
+            PrintBarcodeCommand = new AsyncRelayCommand(async _ => await PrintBarcodeAsync(), _ => !IsSaving);
+            SyncWithMainStockCommand = new AsyncRelayCommand(async _ => await SyncWithMainStockAsync(), _ => !IsSaving);
+
+            // Pagination commands
+            NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
+            PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
+            GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
+            ChangePageSizeCommand = new RelayCommand<int>(size => PageSize = size);
         }
 
         // In ProductViewModel.cs
@@ -398,7 +434,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         // Product not in current view - force a reload
                         Debug.WriteLine("ProductViewModel: Product not found in current page, forcing reload");
-                        Task.Run(async () => await SafeLoadDataAsync());
+                        Task.Run(async () => await ForceRefreshDataAsync());
                     }
                 });
             }
@@ -407,6 +443,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"ProductViewModel: Error handling product stock update: {ex.Message}");
             }
         }
+
         private void SelectedProduct_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             // When price properties or stock change, recalculate values
@@ -418,10 +455,85 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private void HandleMainStockChanged(EntityChangedEvent<MainStockDTO> evt)
+        // Path: QuickTechSystems.WPF.ViewModels/ProductViewModel.cs
+
+        private async void HandleMainStockChanged(EntityChangedEvent<MainStockDTO> evt)
         {
-            // Refresh MainStock items when they change
-            _ = LoadMainStockItemsAsync();
+            try
+            {
+                Debug.WriteLine($"ProductViewModel: Handling MainStock change {evt.Action} for ID {evt.Entity.MainStockId}");
+
+                // Get all linked products in the current view
+                var linkedProducts = Products.Where(p => p.MainStockId.HasValue && p.MainStockId.Value == evt.Entity.MainStockId).ToList();
+
+                // If we found linked products in the current view
+                if (linkedProducts.Any())
+                {
+                    bool valuesChanged = false;
+
+                    // Update each linked product
+                    foreach (var product in linkedProducts)
+                    {
+                        // Update critical fields
+                        if (Math.Abs(product.PurchasePrice - evt.Entity.PurchasePrice) > 0.001m)
+                        {
+                            product.PurchasePrice = evt.Entity.PurchasePrice;
+                            valuesChanged = true;
+                        }
+
+                        if (Math.Abs(product.SalePrice - evt.Entity.SalePrice) > 0.001m)
+                        {
+                            product.SalePrice = evt.Entity.SalePrice;
+                            valuesChanged = true;
+                        }
+
+                        if (Math.Abs(product.BoxPurchasePrice - evt.Entity.BoxPurchasePrice) > 0.001m)
+                        {
+                            product.BoxPurchasePrice = evt.Entity.BoxPurchasePrice;
+                            valuesChanged = true;
+                        }
+
+                        if (Math.Abs(product.BoxSalePrice - evt.Entity.BoxSalePrice) > 0.001m)
+                        {
+                            product.BoxSalePrice = evt.Entity.BoxSalePrice;
+                            valuesChanged = true;
+                        }
+
+                        if (product.ItemsPerBox != evt.Entity.ItemsPerBox)
+                        {
+                            product.ItemsPerBox = evt.Entity.ItemsPerBox;
+                            valuesChanged = true;
+                        }
+                    }
+
+                    // Recalculate values if needed
+                    if (valuesChanged)
+                    {
+                        // Update all calculations
+                        CalculateAggregatedValues();
+
+                        // Update selected product if it was affected
+                        if (SelectedProduct != null && linkedProducts.Any(p => p.ProductId == SelectedProduct.ProductId))
+                        {
+                            CalculateSelectedProductValues();
+                        }
+
+                        // Schedule a refresh to ensure database consistency
+                        await Task.Delay(500);
+                        await ForceRefreshDataAsync();
+                    }
+                }
+                else
+                {
+                    // No affected products in current view, but refresh anyway to pick up linked products
+                    // that might not be in current page or filtered view
+                    await ForceRefreshDataAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"ProductViewModel: Error handling MainStock change: {ex.Message}");
+            }
         }
 
         private async void HandleCategoryChanged(EntityChangedEvent<CategoryDTO> evt)
@@ -481,11 +593,12 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"ProductViewModel: Error handling category change: {ex.Message}");
             }
         }
+
         private async void HandleProductChanged(EntityChangedEvent<ProductDTO> evt)
         {
             try
             {
-                Debug.WriteLine($"Handling {evt.Action} event for product");
+                Debug.WriteLine($"Handling {evt.Action} event for product {evt.Entity.Name} (ID: {evt.Entity.ProductId})");
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     switch (evt.Action)
@@ -505,20 +618,26 @@ namespace QuickTechSystems.WPF.ViewModels
                             if (existingProduct != null)
                             {
                                 var index = Products.IndexOf(existingProduct);
+
+                                // Preserve current stock if it's valid
+                                if (existingProduct.CurrentStock > 0 && evt.Entity.CurrentStock == 0)
+                                {
+                                    evt.Entity.CurrentStock = existingProduct.CurrentStock;
+                                }
+
                                 Products[index] = evt.Entity;
                                 Debug.WriteLine("Product updated in collection");
                             }
                             else
                             {
-                                // ADDED: Force reload if product not in current page but is relevant
-                                // to current filter/search criteria
+                                // Force reload if product not in current page but is relevant
                                 if (string.IsNullOrWhiteSpace(SearchText) ||
                                     evt.Entity.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                                     evt.Entity.Barcode.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                                     evt.Entity.CategoryName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                                 {
                                     // Schedule a reload without blocking the UI thread
-                                    Task.Run(async () => await SafeLoadDataAsync());
+                                    Task.Run(async () => await ForceRefreshDataAsync());
                                     Debug.WriteLine("Scheduled reload for updated product not in current view");
                                 }
                             }
@@ -550,6 +669,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Product refresh error: {ex.Message}");
             }
         }
+
         private void UpdateVisiblePageNumbers()
         {
             var visiblePages = new List<int>();
@@ -666,6 +786,108 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Path: QuickTechSystems.WPF.ViewModels/ProductViewModel.cs
+
+        public async Task ForceRefreshDataAsync()
+        {
+            // Use SemaphoreSlim to prevent concurrent executions
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("ProductViewModel: ForceRefreshDataAsync - another refresh operation is in progress");
+                return;
+            }
+
+            try
+            {
+                Debug.WriteLine("ProductViewModel: Forcing complete data refresh");
+
+                // Clear any existing lock
+                _cts?.Cancel();
+                _cts = new CancellationTokenSource();
+
+                // Keep track of retry attempts
+                bool success = false;
+                int maxRetries = 3;
+
+                for (int attempt = 0; attempt < maxRetries && !success; attempt++)
+                {
+                    try
+                    {
+                        Debug.WriteLine($"ForceRefreshDataAsync attempt {attempt + 1}");
+                        await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                        {
+                            IsSaving = true;
+                            StatusMessage = "Refreshing data...";
+
+                            // Always use AsNoTracking for these queries to avoid tracking conflicts
+                            var products = await _productService.GetAllAsync();
+                            var categories = await _categoryService.GetActiveAsync();
+                            var suppliers = await _supplierService.GetActiveAsync();
+                            var mainStocks = await _mainStockService.GetAllAsync();
+
+                            // Add a brief delay to ensure all database operations are complete
+                            await Task.Delay(100);
+
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                var pagedProducts = products
+                                    .Skip((CurrentPage - 1) * PageSize)
+                                    .Take(PageSize)
+                                    .ToList();
+
+                                Products = new ObservableCollection<ProductDTO>(pagedProducts);
+                                Categories = new ObservableCollection<CategoryDTO>(categories);
+                                Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
+                                MainStockItems = new ObservableCollection<MainStockDTO>(mainStocks);
+
+                                TotalProducts = products.Count();
+                                TotalPages = (int)Math.Ceiling(TotalProducts / (double)PageSize);
+                                UpdateVisiblePageNumbers();
+
+                                // Recalculate values
+                                CalculateAggregatedValues();
+                                if (SelectedProduct != null)
+                                {
+                                    CalculateSelectedProductValues();
+                                }
+
+                                Debug.WriteLine($"ProductViewModel: Data refresh complete. {Products.Count} products loaded.");
+                            });
+
+                            return true;
+                        });
+
+                        success = true; // If we get here, the operation succeeded
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"ProductViewModel: Error during forced refresh (attempt {attempt + 1}): {ex.Message}");
+
+                        // Wait with increasing delay before retrying
+                        await Task.Delay(500 * (attempt + 1));
+                    }
+                }
+
+                if (!success)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show(
+                            "Unable to refresh product data after multiple attempts. Please try again later.",
+                            "Refresh Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    });
+                }
+            }
+            finally
+            {
+                IsSaving = false;
+                StatusMessage = string.Empty;
+                _operationLock.Release();
+            }
+        }
+
         private async Task SafeLoadDataAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -706,8 +928,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     TotalPages = calculatedTotalPages;
                     TotalProducts = totalCount;
 
-                    // Get paginated products
-                    var products = await GetPagedProducts(CurrentPage, PageSize, SearchText);
+                    // Get paginated products with explicit sync from MainStock
+                    var products = await GetPagedProductsWithMainStockSync(CurrentPage, PageSize, SearchText);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
                     // Wait for categories, suppliers, and MainStock to complete
@@ -759,7 +981,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                // If searching, we need to get all products and count filtered ones
+                // If searching, get all products and count filtered ones
                 var allProducts = await _productService.GetAllAsync();
                 return allProducts.Count(p =>
                     p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
@@ -770,16 +992,36 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             else
             {
-                // If not searching, we can just get the total count
+                // If not searching, just get the total count
                 var allProducts = await _productService.GetAllAsync();
                 return allProducts.Count();
             }
         }
 
-        private async Task<List<ProductDTO>> GetPagedProducts(int page, int pageSize, string searchText)
+        private async Task<List<ProductDTO>> GetPagedProductsWithMainStockSync(int page, int pageSize, string searchText)
         {
-            // Get all products (in a real implementation, this should be done in the backend)
+            // Get all products
             var allProducts = await _productService.GetAllAsync();
+
+            // Get all MainStock items for syncing
+            var mainStockItems = await _mainStockService.GetAllAsync();
+
+            // Create a lookup for faster access
+            var mainStockLookup = mainStockItems.ToDictionary(m => m.MainStockId);
+
+            // Sync MainStock prices to Products
+            foreach (var product in allProducts.Where(p => p.MainStockId.HasValue))
+            {
+                if (mainStockLookup.TryGetValue(product.MainStockId.Value, out var mainStock))
+                {
+                    // Update prices from MainStock
+                    product.PurchasePrice = mainStock.PurchasePrice;
+                    product.SalePrice = mainStock.SalePrice;
+                    product.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+                    product.BoxSalePrice = mainStock.BoxSalePrice;
+                    product.ItemsPerBox = mainStock.ItemsPerBox;
+                }
+            }
 
             // Filter if needed
             IEnumerable<ProductDTO> filteredProducts = allProducts;
@@ -799,24 +1041,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 .Take(pageSize)
                 .ToList();
         }
-     
-
-       
-        private async Task LoadMainStockItemsAsync()
-        {
-            try
-            {
-                var items = await _mainStockService.GetAllAsync();
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    MainStockItems = new ObservableCollection<MainStockDTO>(items);
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error loading MainStock items: {ex.Message}");
-            }
-        }
 
         protected override async Task LoadDataAsync()
         {
@@ -828,8 +1052,6 @@ namespace QuickTechSystems.WPF.ViewModels
             _ = SafeLoadDataAsync();
         }
 
-     
-    
         private async Task UpdateStockAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -927,6 +1149,191 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Path: QuickTechSystems.WPF.ViewModels/ProductViewModel.cs
+
+        private async Task SyncWithMainStockAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Another operation is in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                IsSaving = true;
+                StatusMessage = "Synchronizing with MainStock...";
+
+                // Get all products with MainStock links
+                var productsWithMainStock = Products.Where(p => p.MainStockId.HasValue).ToList();
+
+                if (!productsWithMainStock.Any())
+                {
+                    StatusMessage = "No products linked to MainStock found.";
+                    await Task.Delay(2000);
+                    return;
+                }
+
+                int syncCount = 0;
+                int errorCount = 0;
+
+                // Get fresh MainStock data
+                var mainStockItems = await _mainStockService.GetAllAsync();
+                var mainStockLookup = mainStockItems.ToDictionary(m => m.MainStockId);
+
+                // Update each linked product
+                foreach (var product in productsWithMainStock)
+                {
+                    try
+                    {
+                        StatusMessage = $"Synchronizing product {product.Name}...";
+
+                        if (mainStockLookup.TryGetValue(product.MainStockId.Value, out var mainStock))
+                        {
+                            // Track if any changes were made to minimize unnecessary updates
+                            bool changes = false;
+
+                            // Compare and update values if different
+                            if (Math.Abs(product.PurchasePrice - mainStock.PurchasePrice) > 0.001m)
+                            {
+                                product.PurchasePrice = mainStock.PurchasePrice;
+                                changes = true;
+                            }
+
+                            if (Math.Abs(product.SalePrice - mainStock.SalePrice) > 0.001m)
+                            {
+                                product.SalePrice = mainStock.SalePrice;
+                                changes = true;
+                            }
+
+                            if (Math.Abs(product.BoxPurchasePrice - mainStock.BoxPurchasePrice) > 0.001m)
+                            {
+                                product.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+                                changes = true;
+                            }
+
+                            if (Math.Abs(product.BoxSalePrice - mainStock.BoxSalePrice) > 0.001m)
+                            {
+                                product.BoxSalePrice = mainStock.BoxSalePrice;
+                                changes = true;
+                            }
+
+                            if (product.ItemsPerBox != mainStock.ItemsPerBox)
+                            {
+                                product.ItemsPerBox = mainStock.ItemsPerBox;
+                                changes = true;
+                            }
+
+                            if (changes)
+                            {
+                                // Create a new DTO to avoid tracking issues
+                                var updatedProduct = new ProductDTO
+                                {
+                                    ProductId = product.ProductId,
+                                    Name = product.Name,
+                                    Barcode = product.Barcode,
+                                    BoxBarcode = product.BoxBarcode,
+                                    CategoryId = product.CategoryId,
+                                    CategoryName = product.CategoryName,
+                                    SupplierId = product.SupplierId,
+                                    SupplierName = product.SupplierName,
+                                    Description = product.Description,
+                                    MainStockId = product.MainStockId,
+                                    CurrentStock = product.CurrentStock,
+                                    MinimumStock = product.MinimumStock,
+                                    ImagePath = product.ImagePath,
+                                    Speed = product.Speed,
+                                    IsActive = product.IsActive,
+                                    CreatedAt = product.CreatedAt,
+                                    UpdatedAt = DateTime.Now,
+
+                                    // Synchronized values from MainStock
+                                    PurchasePrice = mainStock.PurchasePrice,
+                                    SalePrice = mainStock.SalePrice,
+                                    BoxPurchasePrice = mainStock.BoxPurchasePrice,
+                                    BoxSalePrice = mainStock.BoxSalePrice,
+                                    ItemsPerBox = mainStock.ItemsPerBox,
+                                    MinimumBoxStock = mainStock.MinimumBoxStock
+                                };
+
+                                // Update via service
+                                await _productService.UpdateAsync(updatedProduct);
+
+                                // Update the local object too for immediate UI update
+                                product.PurchasePrice = mainStock.PurchasePrice;
+                                product.SalePrice = mainStock.SalePrice;
+                                product.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+                                product.BoxSalePrice = mainStock.BoxSalePrice;
+                                product.ItemsPerBox = mainStock.ItemsPerBox;
+                                product.UpdatedAt = DateTime.Now;
+
+                                syncCount++;
+
+                                // Update status periodically
+                                if (syncCount % 5 == 0)
+                                {
+                                    StatusMessage = $"Synchronized {syncCount} products...";
+                                    await Task.Delay(10); // Allow UI to update
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Log warning for MainStock that couldn't be found
+                            Debug.WriteLine($"Warning: Referenced MainStock ID {product.MainStockId} not found for product {product.ProductId}");
+                            errorCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error syncing product {product.ProductId}: {ex.Message}");
+                        errorCount++;
+                    }
+                }
+
+                // Recalculate totals with updated prices
+                CalculateAggregatedValues();
+                if (SelectedProduct != null)
+                {
+                    CalculateSelectedProductValues();
+                }
+
+                // Final status update
+                StatusMessage = $"Synchronized {syncCount} products with MainStock data.";
+
+                // Show success message with errors if any
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (errorCount > 0)
+                    {
+                        MessageBox.Show($"Successfully synchronized {syncCount} products with MainStock data.\n\n{errorCount} product(s) had errors during synchronization. See application logs for details.",
+                            "Sync Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Successfully synchronized {syncCount} products with MainStock data.",
+                            "Sync Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error synchronizing with MainStock: {ex.Message}";
+                Debug.WriteLine($"Error in SyncWithMainStockAsync: {ex}");
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show($"Error during synchronization: {ex.Message}",
+                        "Synchronization Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                IsSaving = false;
+                _operationLock.Release();
+            }
+        }
+
         private Window GetOwnerWindow()
         {
             // Try to get the active window first
@@ -982,7 +1389,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _cts?.Dispose();
                 _operationLock?.Dispose();
                 UnsubscribeFromEvents();
-
+                _eventAggregator.Unsubscribe<GlobalDataRefreshEvent>(HandleGlobalRefresh);
                 _isDisposed = true;
             }
 

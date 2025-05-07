@@ -135,7 +135,6 @@ namespace QuickTechSystems.WPF
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
-            services.AddTransient<BulkProductViewModel>();
             services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
             services.AddScoped<LowStockHistoryViewModel>();
             services.AddTransient<SupplierInvoiceViewModel>();

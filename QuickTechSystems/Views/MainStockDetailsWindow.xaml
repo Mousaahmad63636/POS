@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
         mc:Ignorable="d"
         Title="Main Stock Details"
-        Height="650" Width="1100"
+        Height="720" Width="1100"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -55,7 +55,7 @@
                     <!-- Basic Information -->
                     <Border Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="Basic Information" Margin="0,0,0,15"/>
+                            <TextBlock Text="Basic Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
 
                             <!-- Name Field -->
                             <TextBlock Text="Name *" Margin="0,0,0,5"/>
@@ -146,6 +146,67 @@
                                     VerticalContentAlignment="Center"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Box Information -->
+                    <Border Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Box Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
+
+                            <!-- Box Barcode Field -->
+                            <TextBlock Text="Box Barcode" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                                    Height="36" 
+                                    Margin="0,0,0,15"/>
+
+                            <!-- Items per Box Field -->
+                            <TextBlock Text="Items per Box" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
+                                    Tag="integer"
+                                    PreviewTextInput="IntegerTextBox_PreviewTextInput"
+                                    DataObject.Pasting="NumericTextBox_Pasting"
+                                    Height="36" 
+                                    Margin="0,0,0,15"/>
+
+                            <!-- Box Purchase Price Field -->
+                            <TextBlock Text="Box Purchase Price" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.BoxPurchasePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
+                                    Tag="decimal"
+                                    PreviewTextInput="DecimalTextBox_PreviewTextInput"
+                                    DataObject.Pasting="NumericTextBox_Pasting"
+                                    GotFocus="PriceTextBox_GotFocus"
+                                    LostFocus="PriceTextBox_LostFocus"
+                                    Height="36" 
+                                    Margin="0,0,0,15"/>
+
+                            <!-- Box Sale Price Field -->
+                            <TextBlock Text="Box Sale Price" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.BoxSalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
+                                    Tag="decimal"
+                                    PreviewTextInput="DecimalTextBox_PreviewTextInput"
+                                    DataObject.Pasting="NumericTextBox_Pasting"
+                                    GotFocus="PriceTextBox_GotFocus"
+                                    LostFocus="PriceTextBox_LostFocus"
+                                    Height="36" 
+                                    Margin="0,0,0,15"/>
+
+                            <!-- Item Purchase Price (Calculated) -->
+                            <TextBlock Text="Item Purchase Price (Calculated)" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.ItemPurchasePrice, StringFormat=N2, Mode=OneWay}" 
+                                    IsReadOnly="True"
+                                    Background="#F5F5F5"
+                                    Height="36" 
+                                    Margin="0,0,0,15"/>
+
+                            <!-- Minimum Box Stock Field -->
+                            <TextBlock Text="Minimum Box Stock" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.MinimumBoxStock, UpdateSourceTrigger=PropertyChanged}" 
+                                    Tag="integer"
+                                    PreviewTextInput="IntegerTextBox_PreviewTextInput"
+                                    DataObject.Pasting="NumericTextBox_Pasting"
+                                    Height="36" 
+                                    Margin="0,0,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Middle Column -->
@@ -153,7 +214,7 @@
                     <!-- Stock Information -->
                     <Border Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="Stock Information" Margin="0,0,0,15"/>
+                            <TextBlock Text="Stock Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
 
                             <!-- Current Stock Field -->
                             <TextBlock Text="Current Stock" Margin="0,0,0,5"/>
@@ -178,7 +239,7 @@
                     <!-- Price Information -->
                     <Border Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="Price Information" Margin="0,0,0,15"/>
+                            <TextBlock Text="Price Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
 
                             <!-- Purchase Price Field -->
                             <TextBlock Text="Purchase Price" Margin="0,0,0,5"/>
@@ -203,6 +264,28 @@
                                     Margin="0,0,0,0"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- Additional Information -->
+                    <Border Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Additional Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
+
+                            <!-- Speed Field -->
+                            <TextBlock Text="Speed" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.Speed, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="36"
+                                     Margin="0,0,0,15"/>
+
+                            <!-- Description Field -->
+                            <TextBlock Text="Description" Margin="0,0,0,5"/>
+                            <TextBox Text="{Binding SelectedItem.Description, UpdateSourceTrigger=PropertyChanged}"
+                                     TextWrapping="Wrap"
+                                     AcceptsReturn="True"
+                                     Height="100"
+                                     VerticalScrollBarVisibility="Auto"
+                                     Margin="0,0,0,0"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- Right Column -->
@@ -210,7 +293,7 @@
                     <!-- Barcode Information -->
                     <Border Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="Barcode Information" Margin="0,0,0,15"/>
+                            <TextBlock Text="Barcode Information" Margin="0,0,0,15" FontWeight="SemiBold"/>
 
                             <!-- Option 1: Use Existing Barcode -->
                             <TextBlock Text="Option 1: Use Existing Barcode" 
@@ -261,7 +344,7 @@
                     <!-- Product Image -->
                     <Border Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="Image" Margin="0,0,0,15"/>
+                            <TextBlock Text="Image" Margin="0,0,0,15" FontWeight="SemiBold"/>
 
                             <!-- Image Upload/Clear Buttons -->
                             <Grid Margin="0,0,0,15">

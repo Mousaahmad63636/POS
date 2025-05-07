@@ -11,7 +11,7 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Threading.Tasks;
 using System.Threading;
-
+using QuickTechSystems.Application.Services;
 namespace QuickTechSystems.WPF.ViewModels
 {
     public class MainViewModel : ViewModelBase
