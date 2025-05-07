@@ -24,6 +24,7 @@ namespace QuickTechSystems.WPF.ViewModels
             IsTransferPopupOpen = true;
         }
 
+        // in QuickTechSystems.WPF.ViewModels/MainStockViewModel.TransferOperations.cs
         private async Task TransferToStoreAsync()
         {
             if (!await _operationLock.WaitAsync(DEFAULT_LOCK_TIMEOUT_MS))
@@ -91,7 +92,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         productId,
                         actualQuantity,
                         transferredBy,
-                        $"Manual transfer from MainStock to Store"
+                        $"Manual transfer from MainStock to Store",
+                        TransferByBoxes // Pass the flag indicating if this is a box transfer
                     );
                 }
                 catch (Exception ex)
@@ -157,8 +159,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
+                    string unitType = TransferByBoxes ? "boxes" : "units";
                     MessageBox.Show(
-                        $"Successfully transferred {actualQuantity} units of {itemName} from MainStock to Store inventory.",
+                        $"Successfully transferred {TransferQuantity} {unitType} of {itemName} from MainStock to Store inventory.",
                         "Transfer Successful",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information
@@ -179,7 +182,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         private async Task<MainStockDTO> GetUpdatedMainStockItemAsync(int mainStockId)
         {
             try

@@ -45,7 +45,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _totalProfit;
         private CancellationTokenSource _cts;
         private readonly Action<ProductStockUpdatedEvent> _productStockUpdatedHandler;
-
+        private int _totalBoxes;
         private readonly ISupplierService _supplierService;
         private ObservableCollection<SupplierDTO> _suppliers;
         // Pagination properties
@@ -110,6 +110,11 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _selectedProductTotalCost;
             set => SetProperty(ref _selectedProductTotalCost, value);
         }
+        public int TotalBoxes
+        {
+            get => _totalBoxes;
+            set => SetProperty(ref _totalBoxes, value);
+        }
 
         public decimal SelectedProductTotalValue
         {
@@ -139,6 +144,8 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _labelsPerProduct, Math.Max(1, value));
         }
 
+
+     
         public ObservableCollection<ProductDTO> Products
         {
             get => _products;
@@ -744,6 +751,9 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         // Method to calculate aggregated values for all products
+        // Path: QuickTechSystems.WPF.ViewModels/ProductViewModel.cs
+
+        // Replace all instances of CalculateAggregatedValues with this single implementation
         private void CalculateAggregatedValues()
         {
             try
@@ -753,11 +763,13 @@ namespace QuickTechSystems.WPF.ViewModels
                     TotalPurchaseValue = 0;
                     TotalSaleValue = 0;
                     TotalProfit = 0;
+                    TotalBoxes = 0;
                     return;
                 }
 
                 decimal totalPurchase = 0;
                 decimal totalSale = 0;
+                int totalBoxes = 0;
 
                 foreach (var product in Products)
                 {
@@ -765,6 +777,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         totalPurchase += Math.Round(product.PurchasePrice * product.CurrentStock, 2);
                         totalSale += Math.Round(product.SalePrice * product.CurrentStock, 2);
+                        totalBoxes += product.NumberOfBoxes;
                     }
                     catch (Exception ex)
                     {
@@ -776,6 +789,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 TotalPurchaseValue = totalPurchase;
                 TotalSaleValue = totalSale;
                 TotalProfit = totalSale - totalPurchase;
+                TotalBoxes = totalBoxes;
             }
             catch (Exception ex)
             {
@@ -783,6 +797,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 TotalPurchaseValue = 0;
                 TotalSaleValue = 0;
                 TotalProfit = 0;
+                TotalBoxes = 0;
             }
         }
 

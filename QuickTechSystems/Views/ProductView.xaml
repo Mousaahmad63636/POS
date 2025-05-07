@@ -10,6 +10,7 @@
              x:Name="ProductViewRoot">
 
     <UserControl.Resources>
+        <converters:IsBoxCountInconsistentConverter x:Key="IsBoxCountInconsistentConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageConverter"/>
         <converters:ProductTotalCostConverter x:Key="ProductTotalCostConverter"/>
@@ -177,6 +178,11 @@
                                 <DataGridTextColumn Header="Items/Box" 
                         Binding="{Binding ItemsPerBox}"
                         Width="70"/>
+
+                                <!-- Number of Boxes column -->
+                                <DataGridTextColumn Header="Boxes" 
+                   Binding="{Binding NumberOfBoxes}"
+                   Width="70"/>
 
                                 <DataGridTextColumn Header="Current Stock" 
                         Binding="{Binding CurrentStock}"

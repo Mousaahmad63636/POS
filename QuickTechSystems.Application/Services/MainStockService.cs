@@ -404,16 +404,17 @@ namespace QuickTechSystems.Application.Services
             }
         }
 
-        public async Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string notes)
+        // in QuickTechSystems.Application.Services/MainStockService.cs
+        public async Task<bool> TransferToStoreAsync(int mainStockId, int productId, decimal quantity, string transferredBy, string notes, bool isByBoxes = false)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    Debug.WriteLine($"Transfer details: MainStock ID: {mainStockId}, Product ID: {productId}, Quantity: {quantity}");
+                    Debug.WriteLine($"Transfer details: MainStock ID: {mainStockId}, Product ID: {productId}, Quantity: {quantity}, By Boxes: {isByBoxes}");
 
-                    // NEW: First, get MainStock and Product data to ensure price synchronization
+                    // Get MainStock and Product data to ensure price synchronization
                     var mainStock = await _unitOfWork.MainStocks
                         .Query()
                         .AsNoTracking()
@@ -436,7 +437,7 @@ namespace QuickTechSystems.Application.Services
                         return false;
                     }
 
-                    // NEW: Ensure prices are in sync before transferring
+                    // Ensure prices are in sync before transferring
                     bool pricesSynchronized = false;
                     if (Math.Abs(product.WholesalePrice - mainStock.WholesalePrice) > 0.001m ||
                         Math.Abs(product.BoxWholesalePrice - mainStock.BoxWholesalePrice) > 0.001m ||
@@ -611,18 +612,21 @@ namespace QuickTechSystems.Application.Services
                         await command.ExecuteNonQueryAsync();
                     }
 
-                    // Step 4: Update product stock and get new level
+                    // Step 4: Update product stock and NumberOfBoxes if transferring by boxes
                     decimal newProductStock = 0;
                     using (var command = connection.CreateCommand())
                     {
+                        string boxUpdateClause = isByBoxes ? ", NumberOfBoxes = NumberOfBoxes + @boxQuantity" : "";
+
                         command.Transaction = transaction.GetDbTransaction();
-                        command.CommandText = @"
+                        command.CommandText = $@"
                 UPDATE Products 
-                SET CurrentStock = CurrentStock + @quantity, 
+                SET CurrentStock = CurrentStock + @quantity 
+                    {boxUpdateClause}, 
                     UpdatedAt = @updatedAt
                 WHERE ProductId = @productId;
                 
-                SELECT CurrentStock FROM Products WHERE ProductId = @productId;";
+                SELECT CurrentStock, NumberOfBoxes FROM Products WHERE ProductId = @productId;";
 
                         var idParam = command.CreateParameter();
                         idParam.ParameterName = "@productId";
@@ -634,16 +638,27 @@ namespace QuickTechSystems.Application.Services
                         quantityParam.Value = quantity;
                         command.Parameters.Add(quantityParam);
 
+                        if (isByBoxes)
+                        {
+                            var boxQuantityParam = command.CreateParameter();
+                            boxQuantityParam.ParameterName = "@boxQuantity";
+                            boxQuantityParam.Value = (int)quantity / mainStock.ItemsPerBox;
+                            command.Parameters.Add(boxQuantityParam);
+                        }
+
                         var dateParam = command.CreateParameter();
                         dateParam.ParameterName = "@updatedAt";
                         dateParam.Value = DateTime.Now;
                         command.Parameters.Add(dateParam);
 
+                        int numberOfBoxes = 0;
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
                                 newProductStock = reader.GetDecimal(0);
+                                numberOfBoxes = reader.GetInt32(1);
+                                Debug.WriteLine($"Updated product stock to {newProductStock} and boxes to {numberOfBoxes}");
                             }
                         }
                     }
@@ -676,12 +691,16 @@ namespace QuickTechSystems.Application.Services
 
                         var typeParam = command.CreateParameter();
                         typeParam.ParameterName = "@type";
-                        typeParam.Value = "Transfer-In";
+                        typeParam.Value = isByBoxes ? "Transfer-Box" : "Transfer-In";
                         command.Parameters.Add(typeParam);
 
                         var notesParam = command.CreateParameter();
                         notesParam.ParameterName = "@notes";
                         notesParam.Value = $"Transfer from MainStock ID: {mainStockId}";
+                        if (isByBoxes)
+                        {
+                            notesParam.Value = $"Box Transfer from MainStock ID: {mainStockId}";
+                        }
                         command.Parameters.Add(notesParam);
 
                         var timestampParam = command.CreateParameter();
@@ -706,7 +725,7 @@ namespace QuickTechSystems.Application.Services
                     // Publish product stock update event
                     _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, newProductStock));
 
-                    // NEW: If prices were synchronized, publish a product update event too
+                    // If prices were synchronized, publish a product update event too
                     if (pricesSynchronized)
                     {
                         var updatedProduct = await _unitOfWork.Products
