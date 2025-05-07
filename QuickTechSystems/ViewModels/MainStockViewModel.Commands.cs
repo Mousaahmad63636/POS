@@ -4,20 +4,17 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using QuickTechSystems.WPF.Commands;
 using QuickTechSystems.Application.Services;
+
 namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class MainStockViewModel
     {
-        /// <summary>
-        /// Initializes all commands used by the MainStockViewModel
-        /// </summary>
         private void InitializeCommands()
         {
             try
             {
                 Debug.WriteLine("Initializing MainStockViewModel commands");
 
-                // Basic CRUD operations
                 LoadCommand = new AsyncRelayCommand(
                     async _ => await LoadDataAsync(),
                     _ => !IsSaving);
@@ -34,7 +31,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     async _ => await DeleteAsync(),
                     _ => !IsSaving && SelectedItem != null);
 
-                // Barcode operations
                 GenerateBarcodeCommand = new RelayCommand(
                     _ => GenerateBarcode(),
                     _ => !IsSaving && SelectedItem != null && !string.IsNullOrEmpty(SelectedItem.Barcode));
@@ -47,17 +43,14 @@ namespace QuickTechSystems.WPF.ViewModels
                     async _ => await GenerateMissingBarcodeImages(),
                     _ => !IsSaving);
 
-                // Stock operations
                 UpdateStockCommand = new AsyncRelayCommand(
                     async _ => await UpdateStockAsync(),
                     _ => !IsSaving && SelectedItem != null && StockIncrement > 0);
 
-                // Printing operations
                 PrintBarcodeCommand = new AsyncRelayCommand(
                     async _ => await PrintBarcodeAsync(),
                     _ => !IsSaving && SelectedItem != null && SelectedItem.BarcodeImage != null);
 
-                // Image operations
                 UploadImageCommand = new RelayCommand(
                     _ => UploadImage(),
                     _ => !IsSaving && SelectedItem != null);
@@ -66,41 +59,20 @@ namespace QuickTechSystems.WPF.ViewModels
                     _ => ClearImage(),
                     _ => !IsSaving && SelectedItem != null && !string.IsNullOrEmpty(SelectedItem.ImagePath));
 
-                // Bulk operations
                 BulkAddCommand = new AsyncRelayCommand(
                     async _ => {
                         bool success = await ShowBulkAddDialogAndRefresh();
                     },
                     _ => !IsSaving);
 
-                // Transfer operations
                 TransferToStoreCommand = new RelayCommand(
                     _ => ShowTransferDialog(),
                     _ => !IsSaving && SelectedItem != null && SelectedItem.CurrentStock > 0);
 
                 SaveTransferCommand = new AsyncRelayCommand(
-                    async _ => {
-                        try
-                        {
-                            await TransferToStoreAsync();
-                            IsTransferPopupOpen = false;
-                            await SafeLoadDataAsync();
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error in transfer: {ex.Message}");
-                            string errorMessage = ex.Message;
-                            // Fix any incorrect "Payment failed" error messages
-                            if (errorMessage.Contains("Payment failed:"))
-                            {
-                                errorMessage = errorMessage.Replace("Payment failed:", "Transfer failed:");
-                            }
-                            ShowTemporaryErrorMessage(errorMessage);
-                        }
-                    },
+                    async _ => await TransferToStoreAsync(),
                     _ => !IsSaving && SelectedItem != null && SelectedStoreProduct != null && TransferQuantity > 0);
 
-                // Pagination commands
                 NextPageCommand = new RelayCommand(
                     _ => CurrentPage++,
                     _ => !IsLastPage && !IsSaving);

@@ -552,6 +552,14 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.cs
+        // Add this method to the class
+
+        /// <summary>
+        /// Directly refreshes data from the database, bypassing caching
+        /// </summary>
+    
+
         /// <summary>
         /// Clean up resources and unsubscribe from events
         /// </summary>

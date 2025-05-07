@@ -261,7 +261,19 @@ namespace QuickTechSystems.WPF.ViewModels
             // Load reference data
             _ = LoadDataAsync();
         }
-
+        // Add this method to MainStockViewModel.cs
+        private async Task<MainStockDTO> GetUpdatedMainStockItemAsync(int mainStockId)
+        {
+            try
+            {
+                return await _mainStockService.GetByIdAsync(mainStockId);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error fetching updated MainStock item: {ex.Message}");
+                return null;
+            }
+        }
         /// <summary>
         /// Initializes all commands used by the view model.
         /// </summary>
@@ -286,6 +298,7 @@ namespace QuickTechSystems.WPF.ViewModels
             AddNewCategoryCommand = new AsyncRelayCommand(async _ => await AddNewCategoryAsync());
             AddNewSupplierCommand = new AsyncRelayCommand(async _ => await AddNewSupplierAsync());
             AddNewInvoiceCommand = new AsyncRelayCommand(async _ => await AddNewInvoiceAsync());
+
 
             // Image commands
             UploadItemImageCommand = new RelayCommand<MainStockDTO>(UploadItemImage);

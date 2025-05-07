@@ -1,16 +1,14 @@
 ﻿// Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.TransferOperations.cs
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using QuickTechSystems.Application.Services;
+
 namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class MainStockViewModel
     {
-        /// <summary>
-        /// Show the transfer dialog for the selected item
-        /// </summary>
         private void ShowTransferDialog()
         {
             if (SelectedItem == null)
@@ -19,28 +17,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            // Reset transfer quantity
             TransferQuantity = 1;
-
-            // Default to item transfer instead of box transfer
             TransferByBoxes = false;
-
-            // Refresh store products list
             _ = LoadStoreProductsAsync();
-
-            // Explicitly refresh SelectedItemBoxCount before showing dialog
             OnPropertyChanged(nameof(SelectedItemBoxCount));
-
-            // Show transfer dialog
             IsTransferPopupOpen = true;
         }
 
-        /// <summary>
-        /// Transfer the selected item to store inventory
-        /// </summary>
         private async Task TransferToStoreAsync()
         {
-            // Use reasonable timeout instead of 0
             if (!await _operationLock.WaitAsync(DEFAULT_LOCK_TIMEOUT_MS))
             {
                 ShowTemporaryErrorMessage("Transfer operation already in progress. Please wait.");
@@ -67,10 +52,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Calculate actual quantity to transfer based on transfer type
                 decimal actualQuantity = TransferQuantity;
 
-                // If transferring boxes, multiply by items per box
                 if (TransferByBoxes)
                 {
                     if (SelectedItem.ItemsPerBox <= 0)
@@ -82,101 +65,131 @@ namespace QuickTechSystems.WPF.ViewModels
                     actualQuantity = TransferQuantity * SelectedItem.ItemsPerBox;
                 }
 
-                // Now check if we have enough stock
                 if (actualQuantity > SelectedItem.CurrentStock)
                 {
                     ShowTemporaryErrorMessage($"Transfer quantity ({actualQuantity}) exceeds available stock ({SelectedItem.CurrentStock}).");
                     return;
                 }
 
+                // Store item details before the transfer
+                int mainStockId = SelectedItem.MainStockId;
+                int productId = SelectedStoreProduct.ProductId;
+                string itemName = SelectedItem.Name;
+                decimal oldStock = SelectedItem.CurrentStock;
+
                 IsSaving = true;
                 StatusMessage = "Processing transfer...";
 
-                // Get the current user for the transfer record
-                string transferredBy = "System User"; // You might want to get the actual user name from your app
+                string transferredBy = "System User";
+
+                bool transferSuccessful = false;
 
                 try
                 {
-                    // Make sure SelectedItem and SelectedStoreProduct still have their IDs
-                    Debug.WriteLine($"Transfer details: MainStock ID: {SelectedItem.MainStockId}, Product ID: {SelectedStoreProduct.ProductId}, Quantity: {actualQuantity}");
+                    transferSuccessful = await _mainStockService.TransferToStoreAsync(
+                        mainStockId,
+                        productId,
+                        actualQuantity,
+                        transferredBy,
+                        $"Manual transfer from MainStock to Store"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Transfer service error: {ex.Message}");
+                    throw new InvalidOperationException($"Transfer failed: {ex.Message}", ex);
+                }
 
-                    // Create a transaction with timeouts and retries
-                    int retries = 0;
-                    bool transferSuccessful = false;
-                    Exception lastException = null;
+                if (!transferSuccessful)
+                {
+                    throw new InvalidOperationException("Transfer failed. Please try again.");
+                }
 
-                    while (retries < 3 && !transferSuccessful)
+                // Update item in the collection
+                var itemInCollection = Items.FirstOrDefault(i => i.MainStockId == mainStockId);
+                if (itemInCollection != null)
+                {
+                    itemInCollection.CurrentStock -= actualQuantity;
+                }
+
+                // Update SelectedItem if it's still valid
+                if (SelectedItem != null && SelectedItem.MainStockId == mainStockId)
+                {
+                    SelectedItem.CurrentStock -= actualQuantity;
+                    OnPropertyChanged(nameof(SelectedItemBoxCount));
+                }
+
+                // Close the transfer popup
+                IsTransferPopupOpen = false;
+
+                // Force a full UI refresh after small delay to ensure transaction is complete
+                await Task.Delay(300);
+
+                try
+                {
+                    // Get updated item data
+                    var updatedItem = await _mainStockService.GetByIdAsync(mainStockId);
+
+                    // Update collection item if it exists and the updated item is valid
+                    if (updatedItem != null)
                     {
-                        try
+                        if (itemInCollection != null)
                         {
-                            // Create a cancellation token with timeout
-                            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
-
-                            transferSuccessful = await _mainStockService.TransferToStoreAsync(
-                                SelectedItem.MainStockId,
-                                SelectedStoreProduct.ProductId,
-                                actualQuantity,  // Use the calculated actual quantity
-                                transferredBy,
-                                $"Manual transfer from MainStock to Store"
-                            );
-
-                            if (!transferSuccessful)
-                            {
-                                throw new InvalidOperationException("Transfer returned false but did not throw an exception.");
-                            }
+                            itemInCollection.CurrentStock = updatedItem.CurrentStock;
                         }
-                        catch (Exception ex)
-                        {
-                            lastException = ex;
-                            retries++;
 
-                            if (retries < 3)
-                            {
-                                Debug.WriteLine($"Transfer attempt {retries} failed: {ex.Message}. Retrying...");
-                                await Task.Delay(500 * retries); // Increasing delay between retries
-                            }
+                        // Update SelectedItem if it's still valid
+                        if (SelectedItem != null && SelectedItem.MainStockId == mainStockId)
+                        {
+                            SelectedItem.CurrentStock = updatedItem.CurrentStock;
+                            OnPropertyChanged(nameof(SelectedItemBoxCount));
                         }
-                    }
-
-                    if (transferSuccessful)
-                    {
-                        // No need to close the popup here, it will be closed by the command handler
-
-                        await SafeDispatcherOperation(() =>
-                        {
-                            MessageBox.Show(
-                                $"Successfully transferred {actualQuantity} units from MainStock to Store inventory.",
-                                "Transfer Successful",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information
-                            );
-                        });
-                    }
-                    else if (lastException != null)
-                    {
-                        // Format the error message
-                        string errorDetail = lastException.InnerException != null ? lastException.InnerException.Message : lastException.Message;
-                        string properErrorMessage = errorDetail.Replace("Payment failed:", "Transfer failed:");
-                        throw new InvalidOperationException(properErrorMessage, lastException);
-                    }
-                    else
-                    {
-                        throw new InvalidOperationException("Transfer failed after multiple attempts. Please try again.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    // Extract the real error message - fix the incorrect "Payment failed" message
-                    string errorDetail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                    string properErrorMessage = errorDetail.Replace("Payment failed:", "Transfer failed:");
-                    throw new InvalidOperationException(properErrorMessage, ex);
+                    Debug.WriteLine($"Error refreshing item data: {ex.Message}");
+                    // Continue despite this error - the transfer was successful
                 }
+
+                // Complete refresh of all data
+                await SafeLoadDataAsync();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show(
+                        $"Successfully transferred {actualQuantity} units of {itemName} from MainStock to Store inventory.",
+                        "Transfer Successful",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Transfer error: {ex.Message}");
+                string errorDetail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                string properErrorMessage = errorDetail.Replace("Payment failed:", "Transfer failed:");
+                throw new InvalidOperationException(properErrorMessage, ex);
             }
             finally
             {
                 IsSaving = false;
                 StatusMessage = string.Empty;
                 _operationLock.Release();
+            }
+        }
+
+        private async Task<MainStockDTO> GetUpdatedMainStockItemAsync(int mainStockId)
+        {
+            try
+            {
+                return await _mainStockService.GetByIdAsync(mainStockId);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error fetching updated MainStock item: {ex.Message}");
+                return null;
             }
         }
     }
