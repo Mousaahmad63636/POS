@@ -7,12 +7,43 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="/Resources/Dictionaries/Styles.xaml"/>
                 <ResourceDictionary Source="/Resources/Dictionaries/Languages/en-US.xaml"/>
-                <ResourceDictionary Source="/Views/Transaction/Styles/TransactionStyles.xaml"/>
-                <ResourceDictionary Source="/Resources/Dictionaries/ModernStyles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
+            <!-- System Colors -->
+            <Color x:Key="PrimaryBackgroundColor">#F7F9FC</Color>
+            <Color x:Key="SurfaceColor">#FCFCFF</Color>
+            <Color x:Key="BorderColor">#E8ECF2</Color>
+            <Color x:Key="AccentColor">#6787D8</Color>
+            <Color x:Key="AccentDarkColor">#4A6FBF</Color>
+            <Color x:Key="TextPrimaryColor">#2C3E50</Color>
+            <Color x:Key="TextSecondaryColor">#3F526E</Color>
+            <Color x:Key="TextTertiaryColor">#6B7C93</Color>
+            <Color x:Key="HoverColor">#F2F6FF</Color>
+            <Color x:Key="ShadowColor">#B0B8C9</Color>
+            <Color x:Key="ErrorLightColor">#FFF5F8</Color>
+            <Color x:Key="ErrorBorderColor">#F3D4DA</Color>
+            <Color x:Key="ErrorTextColor">#9A4355</Color>
+            <Color x:Key="SuccessColor">#48BB78</Color>
+
+            <!-- Brushes -->
+            <SolidColorBrush x:Key="PrimaryBackgroundBrush" Color="{StaticResource PrimaryBackgroundColor}"/>
+            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
+            <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}"/>
+            <SolidColorBrush x:Key="AccentDarkBrush" Color="{StaticResource AccentDarkColor}"/>
+            <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}"/>
+            <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}"/>
+            <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}"/>
+            <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource HoverColor}"/>
+            <SolidColorBrush x:Key="ErrorLightBrush" Color="{StaticResource ErrorLightColor}"/>
+            <SolidColorBrush x:Key="ErrorBorderBrush" Color="{StaticResource ErrorBorderColor}"/>
+            <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}"/>
+            <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
+
+            <!-- Converters -->
+            <converters:IndexConverter x:Key="IndexConverter"/>
+            <converters:IntZeroToBoolConverter x:Key="IntZeroToBoolConverter"/>
             <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
             <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
             <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
@@ -24,53 +55,130 @@
             <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
-            <!-- QuickTechSystems.WPF/App.xaml -->
-
             <converters:TableStatusColorConverter x:Key="TableStatusColorConverter"/>
             <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+            <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
+            <converters:ProductCostMultiConverter x:Key="ProductCostMultiConverter"/>
+
             <!-- Common Styles -->
             <Style x:Key="CardBorderStyle" TargetType="Border">
-                <Setter Property="Background" Value="White"/>
-                <Setter Property="BorderBrush" Value="#E5E7EB"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="CornerRadius" Value="8"/>
                 <Setter Property="Effect">
                     <Setter.Value>
-                        <DropShadowEffect BlurRadius="10" 
-                                        Direction="270" 
-                                        ShadowDepth="3" 
-                                        Opacity="0.2"/>
+                        <DropShadowEffect BlurRadius="6" 
+                                          Direction="270" 
+                                          ShadowDepth="1" 
+                                          Color="{StaticResource ShadowColor}"
+                                          Opacity="0.08"/>
                     </Setter.Value>
                 </Setter>
             </Style>
 
             <Style x:Key="LightIconButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="Transparent"/>
-                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
                 <Setter Property="BorderBrush" Value="Transparent"/>
                 <Setter Property="BorderThickness" Value="0"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="FontSize" Value="14"/>
-                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
                 <Setter Property="Cursor" Value="Hand"/>
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
                             <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}" 
-                                CornerRadius="4">
+                                    BorderBrush="{TemplateBinding BorderBrush}" 
+                                    BorderThickness="{TemplateBinding BorderThickness}" 
+                                    CornerRadius="4">
                                 <ContentPresenter HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center" 
-                                              Margin="{TemplateBinding Padding}"/>
+                                                  VerticalAlignment="Center" 
+                                                  Margin="{TemplateBinding Padding}"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#22FFFFFF"/>
+                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                                 </Trigger>
                                 <Trigger Property="IsPressed" Value="True">
-                                    <Setter Property="Background" Value="#44FFFFFF"/>
+                                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Primary Button Style -->
+            <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="BorderBrush" Value="{StaticResource AccentDarkBrush}"/>
+                <Setter Property="BorderThickness" Value="0"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center" 
+                                                  Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource AccentDarkBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#CCCCCC"/>
+                                    <Setter Property="Foreground" Value="#888888"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
+            <!-- Secondary Button Style -->
+            <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="16,8"/>
+                <Setter Property="MinHeight" Value="36"/>
+                <Setter Property="FontWeight" Value="Normal"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" 
+                                                  VerticalAlignment="Center" 
+                                                  Margin="{TemplateBinding Padding}"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Background" Value="#F5F5F5"/>
+                                    <Setter Property="Foreground" Value="#AAAAAA"/>
+                                    <Setter Property="BorderBrush" Value="#DDDDDD"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -80,9 +188,9 @@
 
             <!-- Toggle Button Style -->
             <Style x:Key="ModernToggleButtonStyle" TargetType="ToggleButton">
-                <Setter Property="Background" Value="#F3F4F6"/>
-                <Setter Property="Foreground" Value="#374151"/>
-                <Setter Property="BorderBrush" Value="#E5E7EB"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="12,6"/>
                 <Setter Property="Template">
@@ -97,14 +205,32 @@
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsChecked" Value="True">
-                                    <Setter Property="Background" Value="#2196F3"/>
+                                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                                     <Setter Property="Foreground" Value="White"/>
-                                    <Setter Property="BorderBrush" Value="#1976D2"/>
+                                    <Setter Property="BorderBrush" Value="{StaticResource AccentDarkBrush}"/>
+                                </Trigger>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                                    <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Setter.Value>
                 </Setter>
+            </Style>
+
+            <!-- DataGrid Style -->
+            <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+                <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="RowBackground" Value="{StaticResource SurfaceBrush}"/>
+                <Setter Property="AlternatingRowBackground" Value="#F9FAFC"/>
+                <Setter Property="HorizontalGridLinesBrush" Value="#F0F2F5"/>
+                <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+                <Setter Property="HeadersVisibility" Value="Column"/>
+                <Setter Property="RowHeight" Value="48"/>
+                <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             </Style>
 
             <!-- View DataTemplates -->
@@ -119,9 +245,6 @@
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:CustomerViewModel}">
                 <views:CustomerView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:TransactionViewModel}">
-                <views:TransactionView/>
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
                 <views:SettingsView/>
@@ -141,7 +264,6 @@
             <DataTemplate DataType="{x:Type vm:DrawerViewModel}">
                 <views:DrawerView/>
             </DataTemplate>
-           
             <DataTemplate DataType="{x:Type vm:EmployeeViewModel}">
                 <views:EmployeeView/>
             </DataTemplate>
@@ -153,6 +275,9 @@
             </DataTemplate>
             <DataTemplate DataType="{x:Type vm:TableManagementViewModel}">
                 <views:TableManagementView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:MainStockViewModel}">
+                <views:MainStockView/>
             </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>

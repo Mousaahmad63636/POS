@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Path: QuickTechSystems.WPF.Views/ProductView.xaml.cs
+using System;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -30,7 +31,15 @@ namespace QuickTechSystems.WPF.Views
             // Ensure DataContext is set properly
             if (DataContext != null)
             {
-                // Any initialization needed
+                // Trigger an initial data load to ensure fresh data
+                if (DataContext is ProductViewModel viewModel)
+                {
+                    // Force refresh after a short delay to ensure UI is ready
+                    Dispatcher.BeginInvoke(new Action(async () =>
+                    {
+                        await viewModel.ForceRefreshDataAsync();
+                    }), System.Windows.Threading.DispatcherPriority.Background);
+                }
             }
 
             // Adjust layout based on size
@@ -114,51 +123,11 @@ namespace QuickTechSystems.WPF.Views
                     showSupplierColumn ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // Preserve all existing event handlers
-        private void DeleteButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button &&
-                button.DataContext is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.SelectedProduct = product;
-                if (viewModel.DeleteCommand.CanExecute(null))
-                {
-                    viewModel.DeleteCommand.Execute(null);
-                }
-            }
-        }
-
         private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is DataGrid grid &&
-                grid.SelectedItem is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.EditProduct(product);
-            }
+            // No edit action on double-click in the view-only mode
+            // If you want to show a read-only product details window, implement it here
         }
-
-        private void EditButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button &&
-                button.DataContext is ProductDTO product &&
-                DataContext is ProductViewModel viewModel)
-            {
-                viewModel.EditProduct(product);
-            }
-        }
-
-        private void EditMenuItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is ProductViewModel viewModel &&
-                viewModel.SelectedProduct != null)
-            {
-                viewModel.EditProduct(viewModel.SelectedProduct);
-            }
-        }
-
-     
 
         private void TabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -182,6 +151,37 @@ namespace QuickTechSystems.WPF.Views
                         {
                             Debug.WriteLine($"Error loading DamagedGoodsView: {ex.Message}");
                         }
+                    }
+                }
+            }
+        }
+
+        // Fixed method to refresh calculated fields
+        private void ProductsDataGrid_LoadingRow(object sender, DataGridRowEventArgs e)
+        {
+            if (e.Row.DataContext is ProductDTO product)
+            {
+                // Instead of directly calling the event, use a trick to trigger a refresh
+                // by updating the DataGrid's item container visual appearance
+
+                // Get the current values
+                int currentStock = product.CurrentStock;
+                decimal purchasePrice = product.PurchasePrice;
+                decimal salePrice = product.SalePrice;
+
+                // Access the calculated fields to ensure they're evaluated
+                var dataGridRow = e.Row;
+
+                // Force a refresh of the DataGrid row
+                dataGridRow.InvalidateVisual();
+
+                // If we have a view model, we can ask it to recalculate values for this product
+                if (DataContext is ProductViewModel viewModel)
+                {
+                    if (viewModel.SelectedProduct == product)
+                    {
+                        // This will trigger recalculation for the selected product
+                        viewModel.SelectedProduct = product;
                     }
                 }
             }

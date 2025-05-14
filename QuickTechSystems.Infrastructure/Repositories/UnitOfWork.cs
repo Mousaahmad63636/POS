@@ -1,4 +1,4 @@
-﻿// QuickTechSystems.Infrastructure.Repositories/UnitOfWork.cs
+﻿// Path: QuickTechSystems.Infrastructure.Repositories/UnitOfWork.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Domain.Entities;
@@ -17,6 +17,8 @@ namespace QuickTechSystems.Infrastructure.Repositories
 
         // Repositories
         private IGenericRepository<Product>? _products;
+        private IGenericRepository<MainStock>? _mainStocks; // Add this
+        private IGenericRepository<InventoryTransfer>? _inventoryTransfers; // Add this
         private IGenericRepository<Category>? _categories;
         private IGenericRepository<Customer>? _customers;
         private IGenericRepository<Transaction>? _transactions;
@@ -26,10 +28,29 @@ namespace QuickTechSystems.Infrastructure.Repositories
         private IGenericRepository<Expense>? _expenses;
         private IGenericRepository<Employee>? _employees;
         private IGenericRepository<Drawer>? _drawers;
- 
+        private IGenericRepository<InventoryHistory>? _inventoryHistories;
         private IGenericRepository<Quote>? _quotes;
         private IGenericRepository<LowStockHistory>? _lowStockHistories;
         private IGenericRepository<RestaurantTable>? _restaurantTables;
+        private IGenericRepository<SupplierInvoice>? _supplierInvoices;
+        private IGenericRepository<SupplierInvoiceDetail>? _supplierInvoiceDetails;
+
+        // Add MainStocks property
+        public IGenericRepository<MainStock> MainStocks =>
+            _mainStocks ??= new GenericRepository<MainStock>(_context, _contextFactory);
+
+        // Add InventoryTransfers property
+        public IGenericRepository<InventoryTransfer> InventoryTransfers =>
+            _inventoryTransfers ??= new GenericRepository<InventoryTransfer>(_context, _contextFactory);
+
+        public IGenericRepository<InventoryHistory> InventoryHistories =>
+            _inventoryHistories ??= new GenericRepository<InventoryHistory>(_context, _contextFactory);
+
+        public IGenericRepository<SupplierInvoice> SupplierInvoices =>
+            _supplierInvoices ??= new GenericRepository<SupplierInvoice>(_context, _contextFactory);
+
+        public IGenericRepository<SupplierInvoiceDetail> SupplierInvoiceDetails =>
+            _supplierInvoiceDetails ??= new GenericRepository<SupplierInvoiceDetail>(_context, _contextFactory);
 
         public IGenericRepository<RestaurantTable> RestaurantTables =>
             _restaurantTables ??= new GenericRepository<RestaurantTable>(_context, _contextFactory);
@@ -39,11 +60,14 @@ namespace QuickTechSystems.Infrastructure.Repositories
             _contextFactory = contextFactory;
             _context = _contextFactory.CreateDbContext();
         }
+        public void DetachEntity<T>(T entity) where T : class
+        {
+            if (entity == null) return;
 
+            _context.Entry(entity).State = EntityState.Detached;
+        }
         public IGenericRepository<Quote> Quotes =>
             _quotes ??= new GenericRepository<Quote>(_context, _contextFactory);
-
-   
 
         public IGenericRepository<Employee> Employees =>
             _employees ??= new GenericRepository<Employee>(_context, _contextFactory);
@@ -74,8 +98,10 @@ namespace QuickTechSystems.Infrastructure.Repositories
 
         public IGenericRepository<Supplier> Suppliers =>
             _suppliers ??= new GenericRepository<Supplier>(_context, _contextFactory);
+
         public IGenericRepository<LowStockHistory> LowStockHistories =>
-    _lowStockHistories ??= new GenericRepository<LowStockHistory>(_context, _contextFactory);
+            _lowStockHistories ??= new GenericRepository<LowStockHistory>(_context, _contextFactory);
+
         public DbContext Context => _context;
 
         public async Task<int> SaveChangesAsync()
@@ -106,6 +132,8 @@ namespace QuickTechSystems.Infrastructure.Repositories
         {
             _restaurantTables = null;
             _products = null;
+            _mainStocks = null; // Add this line
+            _inventoryTransfers = null; // Add this line
             _categories = null;
             _customers = null;
             _transactions = null;
@@ -117,6 +145,9 @@ namespace QuickTechSystems.Infrastructure.Repositories
             _drawers = null;
             _lowStockHistories = null;
             _quotes = null;
+            _supplierInvoices = null;
+            _supplierInvoiceDetails = null;
+            _inventoryHistories = null;
         }
 
         public async Task<IDbContextTransaction> BeginTransactionAsync()
@@ -133,7 +164,6 @@ namespace QuickTechSystems.Infrastructure.Repositories
             }
         }
 
-        // Add this method to UnitOfWork.cs
         public IGenericRepository<T> GetRepository<T>() where T : class
         {
             // Use reflection to get the appropriate repository property
@@ -149,6 +179,7 @@ namespace QuickTechSystems.Infrastructure.Repositories
             // If no specific repository exists, create a generic one
             return new GenericRepository<T>(_context, _contextFactory);
         }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed && disposing)

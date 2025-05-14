@@ -1,4 +1,4 @@
-﻿// QuickTechSystems.Application/Services/Interfaces/IProductService.cs
+﻿// Path: QuickTechSystems.Application.Services.Interfaces/IProductService.cs
 using QuickTechSystems.Application.DTOs;
 using System;
 using System.Collections.Generic;
@@ -9,12 +9,18 @@ namespace QuickTechSystems.Application.Services.Interfaces
     public interface IProductService : IBaseService<ProductDTO>
     {
         Task<IEnumerable<ProductDTO>> GetByCategoryAsync(int categoryId);
-        Task<bool> UpdateStockAsync(int productId, decimal quantity);  // Changed from int to decimal
+        Task<bool> UpdateStockAsync(int productId, decimal quantity);
         Task<IEnumerable<ProductDTO>> GetLowStockProductsAsync();
         Task<ProductDTO?> GetByBarcodeAsync(string barcode);
+
+        // Added back for compatibility with existing code
+        Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null);
+
         Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0);
 
-        // New method for batch processing
-        Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null);
+        // Method to receive inventory from MainStock
+        Task<bool> ReceiveInventoryAsync(int productId, decimal quantity, string source, string reference);
+
+       
     }
 }

@@ -44,7 +44,10 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _errorMessage;
             set => SetProperty(ref _errorMessage, value);
         }
-
+        public async Task RefreshData()
+        {
+            await LoadDataAsync();
+        }
         public ObservableCollection<EmployeeSalaryTransactionDTO> SalaryTransactions
         {
             get => _salaryTransactions;
@@ -375,6 +378,74 @@ namespace QuickTechSystems.WPF.ViewModels
             finally
             {
                 IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        public async Task UpdateEmployeeDirectEdit(EmployeeDTO employee)
+        {
+            if (employee == null) return;
+
+            // Don't wait if an operation is already in progress
+            if (!await _operationLock.WaitAsync(0))
+            {
+                // For in-grid editing, just log rather than show error to avoid disrupting UX
+                Debug.WriteLine("UpdateEmployeeDirectEdit skipped - another operation in progress");
+                return;
+            }
+
+            try
+            {
+                // Don't set IsLoading for in-grid edits to avoid UI flickering
+                ErrorMessage = string.Empty;
+
+                // Create a copy to avoid issues during async operation
+                var employeeToSave = new EmployeeDTO
+                {
+                    EmployeeId = employee.EmployeeId,
+                    Username = employee.Username,
+                    FirstName = employee.FirstName,
+                    LastName = employee.LastName,
+                    Role = employee.Role,
+                    IsActive = employee.IsActive,
+                    MonthlySalary = employee.MonthlySalary,
+                    CurrentBalance = employee.CurrentBalance,
+                    // Preserve password hash
+                    PasswordHash = employee.PasswordHash
+                };
+
+                await _employeeService.UpdateAsync(employeeToSave.EmployeeId, employeeToSave);
+
+                // Update the local collection with the new values
+                var existingEmployee = Employees.FirstOrDefault(e => e.EmployeeId == employee.EmployeeId);
+                if (existingEmployee != null)
+                {
+                    int index = Employees.IndexOf(existingEmployee);
+                    if (index >= 0)
+                    {
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            // Update in-place to avoid collection refresh
+                            Employees[index] = employeeToSave;
+                        });
+                    }
+                }
+
+                // Subtle feedback - don't show message box for routine edits
+                Debug.WriteLine($"Employee {employee.Username} updated via direct edit");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating employee via direct edit: {ex.Message}");
+
+                // Use a less intrusive error notification for in-grid edits
+                ErrorMessage = $"Update failed: {ex.Message}";
+
+                // Refresh to revert changes if there was an error
+                await LoadDataAsync();
+            }
+            finally
+            {
                 _operationLock.Release();
             }
         }

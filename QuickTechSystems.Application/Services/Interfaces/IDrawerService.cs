@@ -14,7 +14,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<DrawerDTO> CloseDrawerAsync(decimal finalBalance, string? notes);
         Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn);
         Task<decimal> GetCurrentBalanceAsync();
-
+        Task<bool> ProcessSupplierInvoiceAsync(decimal amount, string supplierName, string reference);
         // Transaction Processing
         Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn, string description);
         Task<DrawerDTO> ProcessTransactionAsync(decimal amount, string transactionType, string description, string reference = "");

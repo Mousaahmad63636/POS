@@ -66,7 +66,18 @@ namespace QuickTechSystems.WPF.ViewModels
             InitializeCommands();
             _ = LoadDataAsync();
         }
-
+        public void UpdateBusinessSettingDirectEdit(BusinessSettingDTO setting)
+        {
+            try
+            {
+                // Save the setting immediately when edited in-grid
+                SaveBusinessSettingCommand.Execute(setting);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating setting: {ex.Message}");
+            }
+        }
         public bool IsLoading
         {
             get => _isLoading;

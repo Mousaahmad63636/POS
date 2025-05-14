@@ -46,25 +46,64 @@ namespace QuickTechSystems.WPF.ViewModels
         private DateTime _filterEndDate = DateTime.Now;
         private ObservableCollection<TransactionDTO> _paymentHistory = new ObservableCollection<TransactionDTO>();
         private bool _isPaymentHistoryVisible;
-        private bool _isBalanceUpdateDialogOpen;
-        private decimal _balanceAdjustmentAmount;
+      
+        private TransactionDTO _selectedTransaction;
+        private decimal _originalPaymentAmount;
+        private decimal _newPaymentAmount;
+        private string _paymentUpdateReason = string.Empty;
+        public bool IsNotSaving => !IsSaving;
+        private string _productSearchText = string.Empty;
+        private ObservableCollection<CustomerProductPriceViewModel> _filteredCustomerProducts;
+        public ObservableCollection<CustomerProductPriceViewModel> FilteredCustomerProducts
+        {
+            get => _filteredCustomerProducts ?? CustomerProducts;
+            set => SetProperty(ref _filteredCustomerProducts, value);
+        }
+        public string ProductSearchText
+        {
+            get => _productSearchText;
+            set
+            {
+                if (SetProperty(ref _productSearchText, value))
+                {
+                    FilterCustomerProducts();
+                }
+            }
+        }
+        public TransactionDTO SelectedTransaction
+        {
+            get => _selectedTransaction;
+            set => SetProperty(ref _selectedTransaction, value);
+        }
+
+        public decimal OriginalPaymentAmount
+        {
+            get => _originalPaymentAmount;
+            set => SetProperty(ref _originalPaymentAmount, value);
+        }
+
+        public decimal NewPaymentAmount
+        {
+            get => _newPaymentAmount;
+            set => SetProperty(ref _newPaymentAmount, value);
+        }
+
+        public string PaymentUpdateReason
+        {
+            get => _paymentUpdateReason;
+            set => SetProperty(ref _paymentUpdateReason, value);
+        }
         #region Properties
         public bool IsSaving
         {
             get => _isSaving;
-            set => SetProperty(ref _isSaving, value);
-        }
-        public bool IsBalanceUpdateDialogOpen
-        {
-            get => _isBalanceUpdateDialogOpen;
-            set => SetProperty(ref _isBalanceUpdateDialogOpen, value);
+            set
+            {
+                SetProperty(ref _isSaving, value);
+                OnPropertyChanged(nameof(IsNotSaving));
+            }
         }
 
-        public decimal BalanceAdjustmentAmount
-        {
-            get => _balanceAdjustmentAmount;
-            set => SetProperty(ref _balanceAdjustmentAmount, value);
-        }
 
         public bool IsProductPricesDialogOpen
         {
@@ -232,6 +271,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand DeleteCommand { get; }
         public ICommand SearchCommand { get; }
         public ICommand ApplyDateFilterCommand { get; }
+        public ICommand UpdatePaymentCommand { get; }
         public ICommand SetProductPricesCommand { get; }
         public ICommand SaveCustomPricesCommand { get; }
         public ICommand CloseProductPricesDialogCommand { get; }
@@ -242,9 +282,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ClosePaymentDialogCommand { get; }
         public ICommand ShowPaymentHistoryCommand { get; }
         public ICommand ClosePaymentHistoryCommand { get; }
-        public ICommand UpdateCustomerBalanceCommand { get; }
-        public ICommand CloseBalanceUpdateDialogCommand { get; }
-        public ICommand ProcessBalanceUpdateCommand { get; }
+    
         public ICommand PrintPaymentHistoryCommand { get; }
         #endregion
 
@@ -269,6 +307,14 @@ namespace QuickTechSystems.WPF.ViewModels
                 _ => ClosePaymentDialog(),
                 _ => !IsSaving);
 
+
+            UpdatePaymentCommand = new AsyncRelayCommand(
+    async _ => await UpdatePayment(),
+    _ => !IsSaving && SelectedTransaction != null &&
+         NewPaymentAmount > 0 &&
+         !string.IsNullOrWhiteSpace(PaymentUpdateReason));
+
+
             ProcessPaymentCommand = new AsyncRelayCommand(
                 async _ => await ProcessPayment(),
                 _ => !IsSaving && PaymentAmount > 0 && SelectedCustomer != null);
@@ -280,17 +326,8 @@ namespace QuickTechSystems.WPF.ViewModels
             ClosePaymentHistoryCommand = new RelayCommand(
                 _ => ClosePaymentHistory(),
                 _ => IsPaymentHistoryVisible);
-            UpdateCustomerBalanceCommand = new RelayCommand(
-                _ => ShowBalanceUpdateDialog(),
-                _ => !IsSaving && SelectedCustomer != null);
 
-            CloseBalanceUpdateDialogCommand = new RelayCommand(
-                _ => CloseBalanceUpdateDialog(),
-                _ => !IsSaving);
-
-            ProcessBalanceUpdateCommand = new AsyncRelayCommand(
-                async _ => await ProcessBalanceUpdate(),
-                _ => !IsSaving && SelectedCustomer != null && BalanceAdjustmentAmount != 0);
+         
 
             ApplyDateFilterCommand = new AsyncRelayCommand(
                 async _ => await LoadPaymentHistory(),
@@ -323,31 +360,81 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _eventAggregator.Unsubscribe<EntityChangedEvent<CustomerDTO>>(_customerChangedHandler);
         }
-        private void ShowBalanceUpdateDialog()
-        {
-            if (SelectedCustomer == null)
-                return;
-
-            BalanceAdjustmentAmount = 0;
-            IsBalanceUpdateDialogOpen = true;
-        }
-
-        private void CloseBalanceUpdateDialog()
-        {
-            IsBalanceUpdateDialogOpen = false;
-            BalanceAdjustmentAmount = 0;
-        }
-
-        private async Task ProcessBalanceUpdate()
+        public async Task UpdateCustomerDirectEdit(CustomerDTO customer)
         {
             try
             {
-                if (SelectedCustomer == null)
+                if (customer == null) return;
+
+                // Don't set IsSaving to true for direct edits to avoid UI flickering
+                ErrorMessage = string.Empty;
+                HasErrors = false;
+
+                // Create a copy to avoid issues during async operation
+                var customerToSave = new CustomerDTO
+                {
+                    CustomerId = customer.CustomerId,
+                    Name = customer.Name,
+                    Phone = customer.Phone ?? string.Empty,
+                    Email = customer.Email ?? string.Empty,
+                    Address = customer.Address ?? string.Empty,
+                    IsActive = customer.IsActive,
+                    CreatedAt = customer.CreatedAt,
+                    UpdatedAt = DateTime.Now,
+                    Balance = customer.Balance,
+                    TransactionCount = customer.TransactionCount
+                };
+
+                await ExecuteDbOperationSafelyAsync(async () =>
+                {
+                    await _customerService.UpdateAsync(customerToSave);
+                }, "Updating customer");
+
+                // No need to refresh the UI as the binding already updated the displayed values
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating customer: {ex.Message}");
+                await ShowErrorMessageAsync($"Error updating customer: {ex.Message}");
+
+                // Refresh to revert changes if there was an error
+                await LoadDataAsync();
+            }
+        }
+        public async void EditPayment(TransactionDTO transaction)
+        {
+            if (transaction == null)
+                return;
+
+            SelectedTransaction = transaction;
+            OriginalPaymentAmount = transaction.PaidAmount;
+            NewPaymentAmount = transaction.PaidAmount; // Start with current amount
+            PaymentUpdateReason = string.Empty;
+
+            // Show the payment edit window
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                var paymentEditWindow = new PaymentEditWindow(this);
+                paymentEditWindow.ShowDialog();
+            });
+        }
+
+        private async Task UpdatePayment()
+        {
+            try
+            {
+                if (SelectedTransaction == null || SelectedCustomer == null)
                     return;
 
-                if (BalanceAdjustmentAmount == 0)
+                if (NewPaymentAmount <= 0)
                 {
-                    await ShowErrorMessageAsync("Adjustment amount cannot be zero.");
+                    await ShowErrorMessageAsync("Payment amount must be greater than zero.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(PaymentUpdateReason))
+                {
+                    await ShowErrorMessageAsync("Please provide a reason for updating the payment.");
                     return;
                 }
 
@@ -355,77 +442,90 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = string.Empty;
                 HasErrors = false;
 
-                // Generate unique reference
-                string reference = $"ADJ-{DateTime.Now:yyyyMMddHHmmss}";
-
-                Debug.WriteLine($"Starting balance adjustment for customer {SelectedCustomer.CustomerId}, amount: {BalanceAdjustmentAmount}");
+                Debug.WriteLine($"Starting payment update for transaction {SelectedTransaction.TransactionId}, new amount: {NewPaymentAmount}");
 
                 try
                 {
-                    // Process the adjustment with timeout handling
-                    var adjustmentTask = _customerService.UpdateBalanceAsync(
-                        SelectedCustomer.CustomerId,
-                        BalanceAdjustmentAmount);
-
-                    // Add timeout to prevent hanging
-                    var timeoutTask = Task.Delay(10000); // 10 second timeout
-
-                    var completedTask = await Task.WhenAny(adjustmentTask, timeoutTask);
-
-                    if (completedTask == timeoutTask)
-                    {
-                        Debug.WriteLine("Balance adjustment timed out");
-                        await ShowErrorMessageAsync("Balance adjustment timed out. Please try again.");
-                        return;
-                    }
-
-                    bool success = await adjustmentTask;
+                    // Call the service method to update the payment
+                    bool success = await ExecuteDbOperationSafelyAsync(async () => {
+                        return await _customerService.UpdatePaymentTransactionAsync(
+                            SelectedTransaction.TransactionId,
+                            NewPaymentAmount,
+                            PaymentUpdateReason);
+                    }, "Updating payment transaction");
 
                     if (success)
                     {
-                        Debug.WriteLine("Balance adjustment processed successfully");
-
-                        await Task.Delay(200); // Add a small delay for UI responsiveness
-                        CloseBalanceUpdateDialog();
+                        Debug.WriteLine("Payment updated successfully");
 
                         await ForceDataRefresh();
 
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             MessageBox.Show(
-                                $"Customer balance {(BalanceAdjustmentAmount > 0 ? "increased" : "decreased")} successfully.",
+                                "Payment updated successfully.",
                                 "Success",
                                 MessageBoxButton.OK,
                                 MessageBoxImage.Information);
                         });
 
                         // Refresh payment history
-                        if (IsPaymentHistoryVisible)
-                        {
-                            await LoadPaymentHistory();
-                        }
+                        await LoadPaymentHistory();
                     }
                     else
                     {
-                        Debug.WriteLine("Balance adjustment returned false");
-                        await ShowErrorMessageAsync("Balance adjustment could not be processed. Please try again.");
+                        Debug.WriteLine("Payment update returned false");
+                        await ShowErrorMessageAsync("Payment update could not be processed. Please try again.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Exception during balance adjustment: {ex.Message}");
-                    await ShowErrorMessageAsync($"Error processing balance adjustment: {ex.Message}");
+                    Debug.WriteLine($"Exception during payment update: {ex.Message}");
+                    await ShowErrorMessageAsync($"Error updating payment: {ex.Message}");
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error in balance adjustment method: {ex.Message}");
-                await ShowErrorMessageAsync($"Error processing balance adjustment: {ex.Message}");
+                Debug.WriteLine($"Error in payment update method: {ex.Message}");
+                await ShowErrorMessageAsync($"Error updating payment: {ex.Message}");
             }
             finally
             {
                 IsSaving = false;
             }
+        }
+    
+
+    
+        // Add this method to use the window approach
+        public void ShowCustomerDetailsWindow()
+        {
+            // Create and show the window 
+            var detailsWindow = new CustomerDetailsWindow(this);
+            bool? result = detailsWindow.ShowDialog();
+
+            // Handle the result if needed
+            if (result.HasValue && result.Value)
+            {
+                // Customer was saved successfully
+                // No need to close popup manually as the window handles this
+            }
+        }
+
+        // Modify your existing ShowCustomerPopup method to use the window approach
+        public void ShowCustomerPopup()
+        {
+            // Instead of opening the popup, show the window
+            ShowCustomerDetailsWindow();
+
+            // Don't set this flag anymore as we're not using the popup
+            // IsCustomerPopupOpen = true;
+        }
+
+        // Keep this method for backward compatibility
+        public void CloseCustomerPopup()
+        {
+            IsCustomerPopupOpen = false;
         }
         private async void HandleCustomerChanged(EntityChangedEvent<CustomerDTO> evt)
         {
@@ -650,16 +750,9 @@ namespace QuickTechSystems.WPF.ViewModels
         #endregion
 
         #region Customer Popup Management
-        public void ShowCustomerPopup()
-        {
-            IsCustomerPopupOpen = true;
-        }
+     
 
-        public void CloseCustomerPopup()
-        {
-            IsCustomerPopupOpen = false;
-        }
-
+    
         private void AddNew()
         {
             SelectedCustomer = new CustomerDTO
@@ -708,9 +801,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     CustomerId = customerId,
                     Name = SelectedCustomer.Name,
-                    Phone = SelectedCustomer.Phone,
-                    Email = SelectedCustomer.Email,
-                    Address = SelectedCustomer.Address,
+                    Phone = SelectedCustomer.Phone ?? string.Empty,
+                    Email = SelectedCustomer.Email ?? string.Empty,
+                    Address = SelectedCustomer.Address ?? string.Empty,
                     IsActive = SelectedCustomer.IsActive,
                     CreatedAt = customerId == 0 ? DateTime.Now : SelectedCustomer.CreatedAt,
                     UpdatedAt = customerId != 0 ? DateTime.Now : null,
@@ -890,7 +983,8 @@ namespace QuickTechSystems.WPF.ViewModels
         #endregion
 
         #region Product Pricing
-        private async Task ShowProductPricesDialog()
+        // Update the existing method to use window approach
+        public async Task ShowProductPricesDialog()
         {
             if (SelectedCustomer == null) return;
 
@@ -920,12 +1014,18 @@ namespace QuickTechSystems.WPF.ViewModels
                             {
                                 ProductId = p.ProductId,
                                 ProductName = p.Name,
+                                Barcode = p.Barcode, // Add barcode information
                                 DefaultPrice = p.SalePrice,
                                 CustomPrice = customPrice?.Price ?? p.SalePrice
                             };
                         }));
 
-                    IsProductPricesDialogOpen = true;
+                    // Make sure IsSaving is false before showing the window
+                    IsSaving = false;
+
+                    // Show the window
+                    var pricesWindow = new ProductPricesWindow(this);
+                    pricesWindow.ShowDialog();
                 });
             }
             catch (Exception ex)
@@ -945,6 +1045,66 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsSaving = false;
             }
+        }
+
+        private void FilterCustomerProducts()
+        {
+            if (CustomerProducts == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(ProductSearchText))
+            {
+                FilteredCustomerProducts = CustomerProducts;
+                return;
+            }
+
+            var searchText = ProductSearchText.ToLower();
+            var filtered = CustomerProducts.Where(p =>
+                p.ProductName.ToLower().Contains(searchText) ||
+                (p.Barcode != null && p.Barcode.ToLower().Contains(searchText))
+            ).ToList();
+
+            FilteredCustomerProducts = new ObservableCollection<CustomerProductPriceViewModel>(filtered);
+        }
+        // Update the existing method to use window approach
+        private async Task ShowPaymentHistory()
+        {
+            if (SelectedCustomer == null)
+                return;
+
+            try
+            {
+                // Don't set IsPaymentHistoryVisible flag - we don't want popup
+                // First load the payment history data
+                await LoadPaymentHistory();
+
+                // Show only the window
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var historyWindow = new PaymentHistoryWindow(this);
+                    historyWindow.ShowDialog();
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error showing payment history: {ex.Message}");
+                await ShowErrorMessageAsync($"Error loading payment history: {ex.Message}");
+            }
+        }
+
+        // You may want to keep these methods for backward compatibility,
+        // but they will now be empty or just call the new methods
+        public void CloseProductPricesDialog()
+        {
+            // No longer needed with window approach
+            IsProductPricesDialogOpen = false;
+        }
+
+        public void ClosePaymentHistory()
+        {
+            // This method might still be used elsewhere, but we don't need it
+            // for the normal window closing flow
+            IsPaymentHistoryVisible = false;
         }
 
         private async Task SaveCustomPrices()
@@ -970,6 +1130,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     await _customerService.SetCustomProductPricesAsync(customerId, prices);
                 }, "Saving custom prices");
 
+                // Set this flag to false to indicate saving is complete
+                // This will trigger the window to close via PropertyChanged
                 IsProductPricesDialogOpen = false;
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -997,10 +1159,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private void CloseProductPricesDialog()
-        {
-            IsProductPricesDialogOpen = false;
-        }
+
 
         private void ResetCustomPrice(CustomerProductPriceViewModel price)
         {
@@ -1031,24 +1190,34 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            // First refresh the customer data to ensure we have the latest balance
             try
             {
+                // First refresh the customer data to ensure we have the latest balance
                 var refreshedCustomer = await _customerService.GetByIdAsync(SelectedCustomer.CustomerId);
                 if (refreshedCustomer != null)
                 {
                     // Update the selected customer with fresh data
                     SelectedCustomer = refreshedCustomer;
                 }
+
+                // Reset payment amount to current balance
+                PaymentAmount = SelectedCustomer.Balance;
+
+                // IMPORTANT: Don't set IsPaymentDialogOpen flag - this prevents the popup
+                // The flag is only used for the popup which we don't want to show
+
+                // Show the window directly
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var paymentWindow = new PaymentWindow(this);
+                    paymentWindow.ShowDialog();
+                });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error refreshing customer before payment: {ex.Message}");
+                Debug.WriteLine($"Error showing payment dialog: {ex.Message}");
+                await ShowErrorMessageAsync($"Error preparing payment: {ex.Message}");
             }
-
-            // Reset payment amount to current balance
-            PaymentAmount = SelectedCustomer.Balance;
-            IsPaymentDialogOpen = true;
         }
 
         private void ClosePaymentDialog()
@@ -1203,23 +1372,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private async Task ShowPaymentHistory()
-        {
-            if (SelectedCustomer == null)
-                return;
-
-            try
-            {
-                IsPaymentHistoryVisible = true;
-                await LoadPaymentHistory();
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error loading payment history: {ex.Message}");
-                IsPaymentHistoryVisible = false;
-            }
-        }
-
+      
         private async Task LoadPaymentHistory()
         {
             if (SelectedCustomer == null)
@@ -1279,11 +1432,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public void ClosePaymentHistory()
-        {
-            IsPaymentHistoryVisible = false;
-        }
-
+      
         private async Task PrintPaymentHistory()
         {
             try

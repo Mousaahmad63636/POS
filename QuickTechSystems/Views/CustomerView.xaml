@@ -11,998 +11,230 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
-
-        <Style x:Key="SelectedCustomerRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource ModernDataGridRow}">
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="#4A6FBF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center" 
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#3A5FA9"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#CCCCCC"/>
+                                <Setter Property="Foreground" Value="#888888"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ActionButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="MinWidth" Value="75"/>
+            <Setter Property="MinHeight" Value="36"/>
+            <Setter Property="Margin" Value="3"/>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#E3F2FD"/>
-                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryColor}"/>
-                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryColor}"/>
-                    <Setter Property="Effect">
-                        <Setter.Value>
-                            <DropShadowEffect ShadowDepth="2" 
-                                             Direction="315" 
-                                             Color="#0066CC" 
-                                             Opacity="0.5" 
-                                             BlurRadius="8"/>
-                        </Setter.Value>
-                    </Setter>
+                    <Setter Property="Background" Value="#E3EAFF"/>
+                    <Setter Property="BorderBrush" Value="#BBC8F3"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#F0F4FF"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
-
-        <Style x:Key="ActionButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Margin" Value="0,0,10,0"/>
-            <Setter Property="MinWidth" Value="120"/>
+        <Style TargetType="DataGrid">
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#DDDDDD"/>
+            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#EEEEEE"/>
+            <Setter Property="CanUserResizeRows" Value="False"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="RowHeight" Value="48"/>
+            <Setter Property="AlternatingRowBackground" Value="#F9FAFC"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalGridLinesBrush" Value="Transparent"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="BorderBrush" Value="#999999"/>
+                </Trigger>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="#4A6FBF"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
     <Grid x:Name="MainGrid">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid Style="{StaticResource ResponsivePageLayout}">
+            <Grid x:Name="ContentGrid" Margin="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Style="{StaticResource SectionHeader}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                <!-- Header -->
+                <TextBlock Grid.Row="0" Text="CUSTOMER MANAGEMENT" 
+                           HorizontalAlignment="Center" 
+                           FontSize="18" FontWeight="SemiBold"
+                           Margin="0,0,0,20"/>
 
-                        <StackPanel>
-                            <TextBlock Text="{DynamicResource Customer_Title}" Style="{StaticResource DisplaySmall}" Margin="0,0,0,8"/>
-                            <TextBlock Text="Manage your customers and their information" Style="{StaticResource BodyLarge}" Foreground="{StaticResource TextSecondaryColor}" Margin="0,0,0,16"/>
-                        </StackPanel>
+                <!-- Control Panel -->
+                <Grid Grid.Row="1" Margin="0,0,0,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
+                    <!-- Search Box -->
+                    <Border Grid.Column="0" Margin="0,0,12,0"
+                            Background="White"
+                            BorderThickness="1" 
+                            BorderBrush="#CCCCCC"
+                            CornerRadius="4">
+                        <Grid>
+                            <TextBlock Text="Search customers..." 
+                                       Foreground="#999999" 
+                                       Margin="10,0,0,0" 
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding Text.IsEmpty, ElementName=searchBox, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            <TextBox x:Name="searchBox"
+                                     Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     MinHeight="42"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     VerticalContentAlignment="Center"
+                                     Padding="10,0"/>
+                        </Grid>
+                    </Border>
 
-                        <Button Grid.Column="1" 
-                                Content="Add New Customer" 
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="Add New Customer" 
                                 Command="{Binding AddCommand}"
-                                Style="{StaticResource ActionButtonStyle}"
-                                Background="#4CAF50"
-                                VerticalAlignment="Top"
-                                Margin="0,8,0,0">
-                            <Button.Resources>
-                                <Style TargetType="Border">
-                                    <Setter Property="CornerRadius" Value="4"/>
-                                </Style>
-                            </Button.Resources>
-                        </Button>
+                                Style="{StaticResource ModernButton}"
+                                Margin="0,0,8,0"
+                                MinWidth="160"/>
+                        <Button Content="Refresh" 
+                                Command="{Binding LoadCommand}"
+                                Style="{StaticResource ModernButton}"
+                                MinWidth="100"/>
+                    </StackPanel>
+                </Grid>
 
-                    </Grid>
-                    <Button Grid.Column="1" 
-        Content="Refresh Data" 
-        Command="{Binding LoadCommand}"
-        Style="{StaticResource ActionButtonStyle}"
-        Background="#007BFF"
-        VerticalAlignment="Top"
-        Margin="10,8,0,0">
-                        <Button.Resources>
-                            <Style TargetType="Border">
-                                <Setter Property="CornerRadius" Value="4"/>
-                            </Style>
-                        </Button.Resources>
-                    </Button>
-                    <Border Style="{StaticResource PageDivider}"/>
-                </StackPanel>
+                <!-- Customer Data Grid -->
+                <DataGrid Grid.Row="2" 
+                          ItemsSource="{Binding Customers}"
+                          SelectedItem="{Binding SelectedCustomer}"
+                          AutoGenerateColumns="False"
+                          CanUserAddRows="False"
+                          IsReadOnly="False"
+                          CellEditEnding="DataGrid_CellEditEnding"
+                          MouseDoubleClick="DataGrid_MouseDoubleClick"
+                          Margin="0,0,0,16">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="{DynamicResource Customer_Name}" 
+                                           Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                           Width="*"/>
+                        <DataGridTextColumn Header="{DynamicResource Customer_Phone}" 
+                                           Binding="{Binding Phone, UpdateSourceTrigger=PropertyChanged}"
+                                           Width="140"/>
+                        <DataGridTextColumn Header="{DynamicResource Customer_Email}" 
+                                           Binding="{Binding Email, UpdateSourceTrigger=PropertyChanged}"
+                                           Width="200"/>
+                        <DataGridTextColumn Header="Balance" 
+                                           Binding="{Binding Balance, StringFormat=C2}"
+                                           IsReadOnly="True"
+                                           Width="120"/>
+                        <DataGridCheckBoxColumn Header="{DynamicResource Customer_Active}" 
+                                               Binding="{Binding IsActive, UpdateSourceTrigger=PropertyChanged}"
+                                               Width="80"/>
+                        <DataGridTemplateColumn Width="Auto">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Edit" 
+                                                Click="EditButton_Click"
+                                                Style="{StaticResource ActionButton}"/>
+                                        <Button Content="Prices" 
+                                                Command="{Binding DataContext.SetProductPricesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource ActionButton}"/>
+                                        <Button Content="History" 
+                                                Command="{Binding DataContext.ShowPaymentHistoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Style="{StaticResource ActionButton}"/>
+                                        <Button Content="Payment" 
+                                                Command="{Binding DataContext.ShowPaymentDialogCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                Visibility="{Binding Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"
+                                                Style="{StaticResource ActionButton}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                    <DataGrid.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Edit Customer" Click="EditMenuItem_Click"/>
+                            <MenuItem Header="Set Custom Prices" Command="{Binding SetProductPricesCommand}"/>
+                            <MenuItem Header="View Payment History" Command="{Binding ShowPaymentHistoryCommand}"/>
+                            <MenuItem Header="Process Payment" 
+                                      Command="{Binding ShowPaymentDialogCommand}"
+                                      Visibility="{Binding SelectedCustomer.Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"/>
+                            <Separator/>
+                            <MenuItem Header="Delete Customer" Click="DeleteMenuItem_Click"/>
+                        </ContextMenu>
+                    </DataGrid.ContextMenu>
+                </DataGrid>
 
-                <Border Grid.Row="1" 
-                        Style="{StaticResource EnhancedResponsiveCardContainer}">
-                    <DockPanel>
-                        <Border DockPanel.Dock="Top"
-                                Padding="0,0,0,16">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <TextBox x:Name="searchBox"
-                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                      Style="{StaticResource SearchTextBox}">
-                                    <TextBox.Resources>
-                                        <Style TargetType="Border">
-                                            <Setter Property="CornerRadius" Value="4"/>
-                                        </Style>
-                                    </TextBox.Resources>
-                                </TextBox>
-
-                                <Button Grid.Column="1"
-                                        Content="Search"
-                                        Command="{Binding SearchCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Margin="8,0,0,0"
-                                        MinWidth="100"/>
-                            </Grid>
-                        </Border>
-
-                        <DataGrid ItemsSource="{Binding Customers}"
-                                SelectedItem="{Binding SelectedCustomer}"
-                                Style="{StaticResource ResponsiveDataGrid}"
-                                ColumnHeaderStyle="{StaticResource ModernDataGridColumnHeader}"
-                                CellStyle="{StaticResource ModernDataGridCell}"
-                                RowStyle="{StaticResource SelectedCustomerRowStyle}"
-                                MouseDoubleClick="DataGrid_MouseDoubleClick">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="{DynamicResource Customer_Name}" 
-                                                  Binding="{Binding Name}"
-                                                  Width="*"/>
-                                <DataGridTextColumn Header="{DynamicResource Customer_Phone}" 
-                                                  Binding="{Binding Phone}"
-                                                  Width="120"/>
-                                <DataGridTextColumn Header="{DynamicResource Customer_Email}" 
-                                                  Binding="{Binding Email}"
-                                                  Width="180"/>
-                                <DataGridTextColumn Header="Balance" 
-                                                  Binding="{Binding Balance, StringFormat=C2}"
-                                                  Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Balance}" Value="0">
-                                                    <Setter Property="Foreground" Value="#28a745"/>
-                                                </DataTrigger>
-                                                <Trigger Property="Text" Value="$0.00">
-                                                    <Setter Property="Foreground" Value="#28a745"/>
-                                                </Trigger>
-                                                <DataTrigger Binding="{Binding Balance, Converter={StaticResource LessThanZeroConverter}}" Value="True">
-                                                    <Setter Property="Foreground" Value="#dc3545"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                                <DataGridCheckBoxColumn Header="{DynamicResource Customer_Active}" 
-                                                      Binding="{Binding IsActive}"
-                                                      Width="60"/>
-                                <DataGridTemplateColumn Width="240">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Content="Edit" 
-                                                        Click="EditButton_Click"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Margin="0,0,8,0"/>
-                                                <Button Content="Prices" 
-                                                        Command="{Binding DataContext.SetProductPricesCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Margin="0,0,8,0"/>
-                                                <Button Content="History" 
-                                                        Command="{Binding DataContext.ShowPaymentHistoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding}"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Margin="0,0,8,0"/>
-                                                <Button Content="Payment" 
-                                                        Command="{Binding DataContext.ShowPaymentDialogCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                        CommandParameter="{Binding}"
-                                                        Style="{StaticResource TextButtonStyle}"
-                                                        Foreground="#28a745"
-                                                        Visibility="{Binding Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"
-                                                        Margin="0,0,8,0"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                            <DataGrid.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Edit Customer" Click="EditMenuItem_Click"/>
-                                    <MenuItem Header="Set Custom Prices" Command="{Binding SetProductPricesCommand}"/>
-                                    <MenuItem Header="View Payment History" Command="{Binding ShowPaymentHistoryCommand}"/>
-                                    <MenuItem Header="Process Payment" 
-                                              Command="{Binding ShowPaymentDialogCommand}"
-                                              Visibility="{Binding SelectedCustomer.Balance, Converter={StaticResource PaymentButtonVisibilityConverter}}"/>
-                                    <Separator/>
-                                    <MenuItem Header="Delete Customer" Click="DeleteMenuItem_Click" Foreground="#dc3545"/>
-                                </ContextMenu>
-                            </DataGrid.ContextMenu>
-                        </DataGrid>
-                    </DockPanel>
+                <!-- Error Message Box -->
+                <Border Grid.Row="3"
+                       Background="#FFEBEE"
+                       BorderBrush="#FFCDD2"
+                       CornerRadius="4"
+                       BorderThickness="1"
+                       Padding="12,8"
+                       Margin="0,10,0,0"
+                       Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
+                    <TextBlock Text="{Binding ErrorMessage}"
+                              Foreground="#D32F2F"/>
                 </Border>
             </Grid>
         </ScrollViewer>
 
-        <Border Style="{StaticResource LoadingOverlay}"
-               Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel HorizontalAlignment="Center" 
-                    VerticalAlignment="Center">
-                <ProgressBar Style="{StaticResource ModernProgressBar}" 
-                           IsIndeterminate="True" 
-                           Width="120" 
-                           Margin="0,0,0,16"/>
-                <TextBlock Text="Processing..." 
-                         Foreground="White" 
-                         FontSize="14" 
-                         FontWeight="SemiBold"
-                         HorizontalAlignment="Center"/>
+        <!-- Loading Overlay -->
+        <Border Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}"
+                Background="#80000000">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="150" Height="4" Margin="0,0,0,16"/>
+                <TextBlock Text="Processing..." Foreground="White" HorizontalAlignment="Center"/>
             </StackPanel>
         </Border>
-
-        <Popup IsOpen="{Binding IsCustomerPopupOpen, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CustomerViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-            <local:CustomerDetailsPopup x:Name="DetailsPopup"
-                                      DataContext="{Binding}"
-                                      CloseRequested="CustomerDetailsPopup_CloseRequested"
-                                      SaveCompleted="CustomerDetailsPopup_SaveCompleted"/>
-        </Popup>
-
-        <Popup x:Name="ProductPricesPopup"
-              IsOpen="{Binding IsProductPricesDialogOpen, Mode=TwoWay}"
-              StaysOpen="True"
-              PlacementTarget="{Binding ElementName=CustomerViewRoot}"
-              Placement="Center"
-              PopupAnimation="Fade"
-              AllowsTransparency="True"
-              Focusable="True">
-
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CustomerViewRoot}" 
-                 Height="{Binding ActualHeight, ElementName=CustomerViewRoot}">
-
-                <Border Background="White"
-                       BorderBrush="#DDDDDD"
-                       BorderThickness="1"
-                       CornerRadius="8"
-                       Width="700" Height="500"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Effect="{StaticResource MediumShadow}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Border Grid.Row="0">
-                            <Grid Margin="24,16">
-                                <TextBlock Text="Custom Product Pricing" 
-                                         FontSize="18"
-                                         FontWeight="SemiBold"
-                                         HorizontalAlignment="Left"
-                                         VerticalAlignment="Center"/>
-
-                                <Button Content="✕"
-                                        Command="{Binding CloseProductPricesDialogCommand}"
-                                        Style="{StaticResource IconButtonStyle}"
-                                        HorizontalAlignment="Right" 
-                                        VerticalAlignment="Top"
-                                        ToolTip="Close"/>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Row="1" 
-                                Background="#F8F9FA" 
-                                Padding="24,12">
-                            <StackPanel>
-                                <TextBlock>
-                                    <Run Text="Customer: " FontWeight="SemiBold"/>
-                                    <Run Text="{Binding SelectedCustomer.Name}"/>
-                                </TextBlock>
-                                <TextBlock Margin="0,4,0,0" Foreground="{StaticResource TextSecondaryColor}">
-                                    <Run Text="These prices will only apply to this customer's transactions."/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <DataGrid Grid.Row="2"
-                                ItemsSource="{Binding CustomerProducts}"
-                                AutoGenerateColumns="False"
-                                CanUserAddRows="False"
-                                CanUserDeleteRows="False"
-                                HeadersVisibility="Column"
-                                GridLinesVisibility="Horizontal"
-                                BorderThickness="0"
-                                Background="White">
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#007BFF"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Setter Property="Padding" Value="16,10"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="Background" Value="#EFF7FF"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                    <Setter Property="BorderBrush" Value="#E6E6E6"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="AlternationIndex" Value="0">
-                                            <Setter Property="Background" Value="White"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Product"
-                                                 Binding="{Binding ProductName}"
-                                                 IsReadOnly="True"
-                                                 Width="*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Default Price"
-                                                 Binding="{Binding DefaultPrice, StringFormat=C2}"
-                                                 IsReadOnly="True"
-                                                 Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="0,10,16,10"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Custom Price" 
-                                                 Binding="{Binding CustomPrice, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
-                                                 Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="0,10,16,10"/>
-                                            <Setter Property="Foreground" Value="#007BFF"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Cursor" Value="Hand"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                    <DataGridTextColumn.EditingElementStyle>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
-                                            <Setter Property="HorizontalContentAlignment" Value="Right"/>
-                                            <Setter Property="BorderBrush" Value="#007BFF"/>
-                                            <Setter Property="BorderThickness" Value="1"/>
-                                            <Setter Property="Padding" Value="8"/>
-                                            <Setter Property="Margin" Value="4"/>
-                                        </Style>
-                                    </DataGridTextColumn.EditingElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTemplateColumn Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <Button Content="Reset" 
-                                                    Click="ResetPrice_Click"
-                                                    Foreground="#007BFF"
-                                                    Background="Transparent"
-                                                    BorderThickness="0"
-                                                    Padding="8"
-                                                    Cursor="Hand">
-                                                <Button.Style>
-                                                    <Style TargetType="Button">
-                                                        <Style.Triggers>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter Property="Foreground" Value="#0056b3"/>
-                                                                <Setter Property="TextBlock.TextDecorations" Value="Underline"/>
-                                                            </Trigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Button.Style>
-                                            </Button>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                            <DataGrid.AlternationCount>2</DataGrid.AlternationCount>
-                        </DataGrid>
-
-                        <Border Grid.Row="3">
-                            <Grid Margin="24,16">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Cancel"
-                                           Command="{Binding CloseProductPricesDialogCommand}"
-                                           Foreground="#6C757D"
-                                           Background="Transparent"
-                                           BorderThickness="1"
-                                           BorderBrush="#6C757D"
-                                           Padding="12,6"
-                                           Margin="0,0,10,0"
-                                           Width="100">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#6C757D"/>
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Content="Save Changes"
-                                           Command="{Binding SaveCustomPricesCommand}"
-                                           Background="#007BFF"
-                                           Foreground="White"
-                                           BorderThickness="0"
-                                           Padding="12,6"
-                                           Width="140">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#0056b3"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Popup>
-
-        <Popup IsOpen="{Binding IsPaymentDialogOpen, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CustomerViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CustomerViewRoot}" 
-                  Height="{Binding ActualHeight, ElementName=CustomerViewRoot}">
-
-                <Border Background="White"
-                        BorderBrush="#DDDDDD"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Width="400"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Effect="{StaticResource MediumShadow}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Border Grid.Row="0" Background="#007BFF" CornerRadius="8,8,0,0">
-                            <Grid Margin="24,16">
-                                <TextBlock Text="Process Customer Payment" 
-                                          FontSize="18"
-                                          FontWeight="SemiBold"
-                                          Foreground="White"
-                                          HorizontalAlignment="Left"
-                                          VerticalAlignment="Center"/>
-
-                                <Button Content="✕"
-                                        Command="{Binding ClosePaymentDialogCommand}"
-                                        Style="{StaticResource LightIconButtonStyle}"
-                                        HorizontalAlignment="Right" 
-                                        VerticalAlignment="Top"
-                                        ToolTip="Close"/>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Row="1" 
-                                Background="#F8F9FA" 
-                                Padding="24,16">
-                            <StackPanel>
-                                <TextBlock FontSize="16" FontWeight="SemiBold">
-                                    <Run Text="{Binding SelectedCustomer.Name}"/>
-                                </TextBlock>
-                                <TextBlock Margin="0,8,0,0">
-                                    <Run Text="Current Balance: "/>
-                                    <Run Text="{Binding SelectedCustomer.Balance, StringFormat=C2}" 
-                                         FontWeight="Bold" 
-                                         Foreground="#dc3545"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="2" Padding="24,16">
-                            <StackPanel>
-                                <TextBlock Text="Payment Amount:" 
-                                          Margin="0,0,0,8"
-                                          FontWeight="SemiBold"/>
-                                <TextBox Text="{Binding PaymentAmount, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
-                                         Padding="10"
-                                         FontSize="16"
-                                         BorderBrush="#007BFF"
-                                         BorderThickness="1"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="3" Background="#F8F9FA" CornerRadius="0,0,8,8">
-                            <Grid Margin="24,16">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Cancel"
-                                           Command="{Binding ClosePaymentDialogCommand}"
-                                           Foreground="#6C757D"
-                                           Background="Transparent"
-                                           BorderThickness="1"
-                                           BorderBrush="#6C757D"
-                                           Padding="16,8"
-                                           Margin="0,0,10,0"
-                                           Width="100">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#6C757D"/>
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Content="Process Payment"
-                                           Command="{Binding ProcessPaymentCommand}"
-                                           Background="#28a745"
-                                           Foreground="White"
-                                           BorderThickness="0"
-                                           Padding="16,8"
-                                           Width="160">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#218838"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Popup>
-
-        <!-- Payment History Dialog -->
-        <Popup IsOpen="{Binding IsPaymentHistoryVisible, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CustomerViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-
-            <!-- Dark Overlay -->
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CustomerViewRoot}" 
-                  Height="{Binding ActualHeight, ElementName=CustomerViewRoot}">
-
-                <!-- Dialog Content -->
-                <Border Background="White"
-                        BorderBrush="#DDDDDD"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Width="1000" Height="600"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Effect="{StaticResource MediumShadow}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Dialog Header -->
-                        <Border Grid.Row="0" Background="#007BFF" CornerRadius="8,8,0,0">
-                            <Grid Margin="24,16">
-                                <TextBlock Text="{Binding PaymentHistoryTitle, FallbackValue='Payment History'}" 
-                                          FontSize="18"
-                                          FontWeight="SemiBold"
-                                          Foreground="White"
-                                          HorizontalAlignment="Left"
-                                          VerticalAlignment="Center"/>
-
-                                <Button Content="✕"
-                                        Command="{Binding ClosePaymentHistoryCommand}"
-                                        Style="{StaticResource LightIconButtonStyle}"
-                                        HorizontalAlignment="Right" 
-                                        VerticalAlignment="Top"
-                                        ToolTip="Close"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Customer Info -->
-                        <Border Grid.Row="1" 
-                                Background="#F8F9FA" 
-                                Padding="24,16">
-                            <StackPanel>
-                                <TextBlock FontSize="16" FontWeight="SemiBold">
-                                    <Run Text="{Binding SelectedCustomer.Name}"/>
-                                </TextBlock>
-                                <TextBlock Margin="0,8,0,0">
-                                    <Run Text="Current Balance: "/>
-                                    <Run Text="{Binding SelectedCustomer.Balance, StringFormat=C2}" 
-                                         FontWeight="Bold"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Date Filter Controls - ENHANCED SECTION -->
-                        <Border Grid.Row="2" 
-                                Padding="24,16"
-                                Background="#F8F9FA">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-
-                                <CheckBox Grid.Column="0" Content="Filter by Date:" IsChecked="{Binding UseDateFilter}" 
-                                          VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold"/>
-
-                                <TextBlock Grid.Column="1" Text="From:" VerticalAlignment="Center" Margin="0,0,5,0"
-                                           IsEnabled="{Binding UseDateFilter}"/>
-
-                                <DatePicker Grid.Column="2" SelectedDate="{Binding FilterStartDate}" Width="120" Margin="0,0,10,0"
-                                            IsEnabled="{Binding UseDateFilter}" BorderBrush="#007BFF"/>
-
-                                <TextBlock Grid.Column="3" Text="To:" VerticalAlignment="Center" Margin="0,0,5,0"
-                                           IsEnabled="{Binding UseDateFilter}"/>
-
-                                <DatePicker Grid.Column="4" SelectedDate="{Binding FilterEndDate}" Width="120" Margin="0,0,10,0"
-                                            IsEnabled="{Binding UseDateFilter}" BorderBrush="#007BFF"/>
-
-                                <Button Grid.Column="5" Content="Apply Filter" Command="{Binding ApplyDateFilterCommand}"
-                                        IsEnabled="{Binding UseDateFilter}" HorizontalAlignment="Left" 
-                                        Background="#007BFF" Foreground="White" Padding="12,6" BorderThickness="0"
-                                        Margin="0,0,10,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#0056b3"/>
-                                                </Trigger>
-                                                <Trigger Property="IsEnabled" Value="False">
-                                                    <Setter Property="Background" Value="#99CCFF"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-
-                                <Button Grid.Column="7" Content="Update Balance" 
-                                        Command="{Binding UpdateCustomerBalanceCommand}"
-                                        Background="#FF9800" Foreground="White" 
-                                        Padding="12,6" BorderThickness="0" Margin="0,0,10,0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#F57C00"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-
-                                <Button Grid.Column="8" Content="Print" 
-                                        Command="{Binding PrintPaymentHistoryCommand}"
-                                        Background="#28a745" Foreground="White" 
-                                        Padding="12,6" BorderThickness="0">
-                                    <Button.Style>
-                                        <Style TargetType="Button">
-                                            <Style.Triggers>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter Property="Background" Value="#218838"/>
-                                                </Trigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Button.Style>
-                                </Button>
-                            </Grid>
-                        </Border>
-
-                        <!-- Payment History DataGrid -->
-                        <DataGrid x:Name="PaymentHistoryGrid" 
-                                  Grid.Row="3"
-                                  ItemsSource="{Binding PaymentHistory}"
-                                  AutoGenerateColumns="False"
-                                  IsReadOnly="True"
-                                  CanUserAddRows="False"
-                                  CanUserDeleteRows="False"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="Horizontal"
-                                  BorderThickness="0"
-                                  Background="White">
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#007BFF"/>
-                                    <Setter Property="Foreground" Value="White"/>
-                                    <Setter Property="Padding" Value="16,10"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Setter Property="Background" Value="#EFF7FF"/>
-                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
-                                    <Setter Property="BorderBrush" Value="#E6E6E6"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="AlternationIndex" Value="0">
-                                            <Setter Property="Background" Value="White"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Date"
-                                                  Binding="{Binding TransactionDate, StringFormat=\{0:MM/dd/yyyy HH:mm\}}"
-                                                  Width="150">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Transaction #"
-                                                  Binding="{Binding TransactionId}"
-                                                  Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Customer"
-                                                  Binding="{Binding CustomerName}"
-                                                  Width="180">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Type"
-                                                  Binding="{Binding TransactionType}"
-                                                  Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Amount"
-                                                  Binding="{Binding TotalAmount, StringFormat=C2}"
-                                                  Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="0,10,16,10"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Paid Amount"
-                                                  Binding="{Binding PaidAmount, StringFormat=C2}"
-                                                  Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                            <Setter Property="Padding" Value="0,10,16,10"/>
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#28a745"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-
-                                <DataGridTextColumn Header="Status"
-                                                  Binding="{Binding Status}"
-                                                  Width="*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Padding" Value="16,10"/>
-                                            <Setter Property="VerticalAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
-                            </DataGrid.Columns>
-                            <DataGrid.AlternationCount>2</DataGrid.AlternationCount>
-                        </DataGrid>
-
-                        <!-- Dialog Footer -->
-                        <Border Grid.Row="4" Background="#F8F9FA" CornerRadius="0,0,8,8">
-                            <Grid Margin="24,16">
-                                <TextBlock Text="{Binding PaymentHistorySummary}" 
-                                           FontWeight="SemiBold" 
-                                           VerticalAlignment="Center"
-                                           HorizontalAlignment="Left"/>
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Close"
-                                           Command="{Binding ClosePaymentHistoryCommand}"
-                                           Foreground="#6C757D"
-                                           Background="Transparent"
-                                           BorderThickness="1"
-                                           BorderBrush="#6C757D"
-                                           Padding="16,8"
-                                           Margin="0,0,10,0"
-                                           Width="100">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#6C757D"/>
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Popup>
-
-        <!-- Balance Update Dialog -->
-        <Popup IsOpen="{Binding IsBalanceUpdateDialogOpen, Mode=TwoWay}"
-               StaysOpen="True"
-               AllowsTransparency="True"
-               PlacementTarget="{Binding ElementName=CustomerViewRoot}"
-               Placement="Center"
-               PopupAnimation="Fade"
-               Focusable="True">
-
-            <Grid Background="#80000000" Width="{Binding ActualWidth, ElementName=CustomerViewRoot}" 
-                  Height="{Binding ActualHeight, ElementName=CustomerViewRoot}">
-
-                <Border Background="White"
-                        BorderBrush="#DDDDDD"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Width="400"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Effect="{StaticResource MediumShadow}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <Border Grid.Row="0" Background="#FF9800" CornerRadius="8,8,0,0">
-                            <Grid Margin="24,16">
-                                <TextBlock Text="Update Customer Balance" 
-                                          FontSize="18"
-                                          FontWeight="SemiBold"
-                                          Foreground="White"
-                                          HorizontalAlignment="Left"
-                                          VerticalAlignment="Center"/>
-
-                                <Button Content="✕"
-                                        Command="{Binding CloseBalanceUpdateDialogCommand}"
-                                        Style="{StaticResource LightIconButtonStyle}"
-                                        HorizontalAlignment="Right" 
-                                        VerticalAlignment="Top"
-                                        ToolTip="Close"/>
-                            </Grid>
-                        </Border>
-
-                        <Border Grid.Row="1" 
-                                Background="#F8F9FA" 
-                                Padding="24,16">
-                            <StackPanel>
-                                <TextBlock FontSize="16" FontWeight="SemiBold">
-                                    <Run Text="{Binding SelectedCustomer.Name}"/>
-                                </TextBlock>
-                                <TextBlock Margin="0,8,0,0">
-                                    <Run Text="Current Balance: "/>
-                                    <Run Text="{Binding SelectedCustomer.Balance, StringFormat=C2}" 
-                                         FontWeight="Bold"/>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="2" Padding="24,16">
-                            <StackPanel>
-                                <TextBlock Text="Adjustment Amount:" 
-                                          Margin="0,0,0,8"
-                                          FontWeight="SemiBold"/>
-                                <TextBlock Text="(Use negative value to decrease balance)" 
-                                          Margin="0,0,0,8"
-                                          Foreground="#6C757D"
-                                          FontSize="12"/>
-                                <TextBox Text="{Binding BalanceAdjustmentAmount, StringFormat=C2, UpdateSourceTrigger=PropertyChanged}"
-                                         Padding="10"
-                                         FontSize="16"
-                                         BorderBrush="#FF9800"
-                                         BorderThickness="1"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Grid.Row="3" Background="#F8F9FA" CornerRadius="0,0,8,8">
-                            <Grid Margin="24,16">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <Button Content="Cancel"
-                                           Command="{Binding CloseBalanceUpdateDialogCommand}"
-                                           Foreground="#6C757D"
-                                           Background="Transparent"
-                                           BorderThickness="1"
-                                           BorderBrush="#6C757D"
-                                           Padding="16,8"
-                                           Margin="0,0,10,0"
-                                           Width="100">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#6C757D"/>
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                    <Button Content="Update Balance"
-                                           Command="{Binding ProcessBalanceUpdateCommand}"
-                                           Background="#FF9800"
-                                           Foreground="White"
-                                           BorderThickness="0"
-                                           Padding="16,8"
-                                           Width="160">
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter Property="Background" Value="#F57C00"/>
-                                                    </Trigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </StackPanel>
-                            </Grid>
-                        </Border>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Popup>
     </Grid>
 </UserControl>

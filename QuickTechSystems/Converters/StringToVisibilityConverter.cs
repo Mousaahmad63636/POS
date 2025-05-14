@@ -10,17 +10,13 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value == null)
+            if (value == null || parameter == null)
                 return Visibility.Collapsed;
 
             string stringValue = value.ToString();
-            bool invertResult = parameter != null && parameter.ToString().ToLower() == "invert";
-            bool isEmpty = string.IsNullOrWhiteSpace(stringValue);
+            string targetValue = parameter.ToString();
 
-            if (invertResult)
-                return isEmpty ? Visibility.Visible : Visibility.Collapsed;
-            else
-                return isEmpty ? Visibility.Collapsed : Visibility.Visible;
+            return stringValue == targetValue ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

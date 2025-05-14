@@ -17,7 +17,7 @@ namespace QuickTechSystems.WPF.Views
             this.Loaded += OnControlLoaded;
             this.SizeChanged += OnControlSizeChanged;
 
-            // Add handler for DataContext changes to bind to popup state changes
+            // Add handler for DataContext changes to bind to property changes
             this.DataContextChanged += CategoryView_DataContextChanged;
         }
 
@@ -38,36 +38,7 @@ namespace QuickTechSystems.WPF.Views
 
         private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            var viewModel = sender as CategoryViewModel;
-            if (viewModel == null) return;
-
-            // Update popup header text when the popup is opened
-            if (e.PropertyName == nameof(CategoryViewModel.IsProductCategoryPopupOpen) &&
-                viewModel.IsProductCategoryPopupOpen)
-            {
-                if (ProductCategoryPopup != null)
-                {
-                    ProductCategoryPopup.SetMode("Product", viewModel.IsNewProductCategory);
-
-                    // Set appropriate title based on whether we're adding or editing
-                    ProductCategoryPopup.HeaderText.Text = viewModel.IsNewProductCategory
-                        ? "Add New Product Category"
-                        : "Update Product Category";
-                }
-            }
-            else if (e.PropertyName == nameof(CategoryViewModel.IsExpenseCategoryPopupOpen) &&
-                     viewModel.IsExpenseCategoryPopupOpen)
-            {
-                if (ExpenseCategoryPopup != null)
-                {
-                    ExpenseCategoryPopup.SetMode("Expense", viewModel.IsNewExpenseCategory);
-
-                    // Set appropriate title based on whether we're adding or editing
-                    ExpenseCategoryPopup.HeaderText.Text = viewModel.IsNewExpenseCategory
-                        ? "Add New Expense Category"
-                        : "Update Expense Category";
-                }
-            }
+            // Handle any remaining property change notifications if needed
         }
 
         private void OnControlLoaded(object sender, RoutedEventArgs e)
@@ -129,8 +100,6 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is CategoryViewModel viewModel)
             {
                 viewModel.EditProductCategory(category);
-                ProductCategoryPopup.SetMode("Product", false);
-                // Title will be set by property changed handler
             }
         }
 
@@ -140,8 +109,6 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is CategoryViewModel viewModel)
             {
                 viewModel.EditExpenseCategory(category);
-                ExpenseCategoryPopup.SetMode("Expense", false);
-                // Title will be set by property changed handler
             }
         }
 
@@ -152,8 +119,6 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is CategoryViewModel viewModel)
             {
                 viewModel.EditProductCategory(category);
-                ProductCategoryPopup.SetMode("Product", false);
-                // Title will be set by property changed handler
             }
         }
 
@@ -164,47 +129,6 @@ namespace QuickTechSystems.WPF.Views
                 DataContext is CategoryViewModel viewModel)
             {
                 viewModel.EditExpenseCategory(category);
-                ExpenseCategoryPopup.SetMode("Expense", false);
-                // Title will be set by property changed handler
-            }
-        }
-
-        // Popup event handlers
-        private void ProductCategoryPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CategoryViewModel viewModel)
-            {
-                viewModel.CloseProductCategoryPopup();
-            }
-        }
-
-        private void ProductCategoryPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CategoryViewModel viewModel)
-            {
-                viewModel.SaveProductCommand.Execute(null);
-                viewModel.CloseProductCategoryPopup();
-                // Force UI refresh
-                viewModel.RefreshCommand.Execute(null);
-            }
-        }
-
-        private void ExpenseCategoryPopup_CloseRequested(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CategoryViewModel viewModel)
-            {
-                viewModel.CloseExpenseCategoryPopup();
-            }
-        }
-
-        private void ExpenseCategoryPopup_SaveCompleted(object sender, RoutedEventArgs e)
-        {
-            if (DataContext is CategoryViewModel viewModel)
-            {
-                viewModel.SaveExpenseCommand.Execute(null);
-                viewModel.CloseExpenseCategoryPopup();
-                // Force UI refresh
-                viewModel.RefreshCommand.Execute(null);
             }
         }
     }

@@ -85,7 +85,8 @@ namespace QuickTechSystems.WPF
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
             // In your startup configuration
-          
+            // In the ConfigureServices method, add:
+            services.AddSingleton<IBulkOperationQueueService, BulkOperationQueueService>();
             // Application Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
@@ -99,14 +100,20 @@ namespace QuickTechSystems.WPF
             services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
+            services.AddScoped<IMainStockService, MainStockService>();
+            services.AddScoped<IInventoryTransferService, InventoryTransferService>();
+            services.AddScoped<MainStockViewModel>();
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
             services.AddScoped<IRestaurantTableService, RestaurantTableService>();
             services.AddScoped<TableManagementViewModel>();
             services.AddTransient<TableManagementView>();
+            services.AddScoped<ISupplierInvoiceService, SupplierInvoiceService>();
 
-            services.AddTransient<TransactionViewModel>();
-            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
+            services.AddScoped<IGenericRepository<SupplierInvoice>>(provider =>
+       provider.GetRequiredService<IUnitOfWork>().SupplierInvoices);
+            services.AddScoped<IGenericRepository<SupplierInvoiceDetail>>(provider =>
+                provider.GetRequiredService<IUnitOfWork>().SupplierInvoiceDetails);
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
 
@@ -129,10 +136,9 @@ namespace QuickTechSystems.WPF
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
-            services.AddTransient<BulkProductViewModel>();
             services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
             services.AddScoped<LowStockHistoryViewModel>();
-
+            services.AddTransient<SupplierInvoiceViewModel>();
             // Views
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginView>();
@@ -148,7 +154,7 @@ namespace QuickTechSystems.WPF
             services.AddTransient<SupplierView>();
             services.AddTransient<SystemPreferencesView>();
             services.AddTransient<TransactionHistoryView>();
-            services.AddTransient<TransactionView>();
+
             services.AddTransient<QuantityDialog>();
             services.AddScoped<DamagedGoodsViewModel>();
         }
