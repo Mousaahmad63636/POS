@@ -1,4 +1,4 @@
-﻿// QuickTechSystems/ViewModels/BulkMainStockViewModel.DataOperations.cs
+﻿// Path: QuickTechSystems.WPF.ViewModels/BulkMainStockViewModel.DataOperations.cs
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -109,6 +109,18 @@ namespace QuickTechSystems.WPF.ViewModels
                     return false;
                 }
 
+                // Validate invoice selection for bulk operation
+                if (SelectedBulkInvoice == null)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        MessageBox.Show("Please select a supplier invoice before saving items.",
+                            "Invoice Required", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    });
+
+                    return false;
+                }
+
                 // Generate missing barcodes if needed
                 if (GenerateBarcodesForNewItems)
                 {
@@ -130,7 +142,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Ensure ItemsPerBox has a valid value (minimum 1)
                     if (item.ItemsPerBox <= 0)
                     {
-                        item.ItemsPerBox = 1;
+                        item.ItemsPerBox = 0;
                     }
 
                     // Verify box barcode is properly set
@@ -146,6 +158,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
 
                     item.UpdatedAt = DateTime.Now;
+
+                    // Set supplier invoice ID to the selected bulk invoice
+                    item.SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId;
                 }
 
                 // Add all items to the queue
@@ -168,6 +183,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // Handle window closing
                     var result = statusWindow.ShowDialog();
+
+                    // After processing is complete, handle supplier invoice integration
+                    if (result == true)
+                    {
+                        ProcessSupplierInvoiceIntegration();
+                    }
 
                     // Set dialog result to close the window
                     DialogResultBackup = result == true;
@@ -197,57 +218,210 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         /// <summary>
-        /// Ensures consistent pricing across an item
+        /// Processes supplier invoice integration after the batch operation is complete
         /// </summary>
-        /// <param name="item">The item to update</param>
+        private async void ProcessSupplierInvoiceIntegration()
+        {
+            try
+            {
+                if (SelectedBulkInvoice == null)
+                {
+                    Debug.WriteLine("No invoice selected for integration");
+                    return;
+                }
+
+                StatusMessage = "Integrating with supplier invoice...";
+                IsSaving = true;
+
+                // Get the saved products from the database to ensure we have valid IDs
+                var savedItems = new List<MainStockDTO>();
+                foreach (var item in Items)
+                {
+                    if (!string.IsNullOrWhiteSpace(item.Barcode))
+                    {
+                        var savedItem = await _mainStockService.GetByBarcodeAsync(item.Barcode);
+                        if (savedItem != null)
+                        {
+                            savedItems.Add(savedItem);
+                        }
+                    }
+                }
+
+                int processedCount = 0;
+                foreach (var mainStockItem in savedItems)
+                {
+                    try
+                    {
+                        // First, find or create the store product
+                        var existingProduct = await _productService.FindProductByBarcodeAsync(mainStockItem.Barcode);
+                        ProductDTO storeProduct;
+
+                        if (existingProduct != null)
+                        {
+                            // Update existing product
+                            storeProduct = new ProductDTO
+                            {
+                                ProductId = existingProduct.ProductId,
+                                Name = mainStockItem.Name,
+                                Barcode = mainStockItem.Barcode,
+                                BoxBarcode = mainStockItem.BoxBarcode,
+                                CategoryId = mainStockItem.CategoryId,
+                                CategoryName = mainStockItem.CategoryName,
+                                SupplierId = mainStockItem.SupplierId,
+                                SupplierName = mainStockItem.SupplierName,
+                                Description = mainStockItem.Description,
+                                PurchasePrice = mainStockItem.PurchasePrice,
+                                WholesalePrice = mainStockItem.WholesalePrice,
+                                SalePrice = mainStockItem.SalePrice,
+                                MainStockId = mainStockItem.MainStockId,
+                                BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
+                                BoxWholesalePrice = mainStockItem.BoxWholesalePrice,
+                                BoxSalePrice = mainStockItem.BoxSalePrice,
+                                ItemsPerBox = mainStockItem.ItemsPerBox,
+                                MinimumBoxStock = mainStockItem.MinimumBoxStock,
+                                MinimumStock = mainStockItem.MinimumStock,
+                                ImagePath = mainStockItem.ImagePath,
+                                Speed = mainStockItem.Speed,
+                                IsActive = mainStockItem.IsActive,
+                                CurrentStock = existingProduct.CurrentStock,
+                                UpdatedAt = DateTime.Now
+                            };
+                            await _productService.UpdateAsync(storeProduct);
+                        }
+                        else
+                        {
+                            // Create new product
+                            storeProduct = new ProductDTO
+                            {
+                                Name = mainStockItem.Name,
+                                Barcode = mainStockItem.Barcode,
+                                BoxBarcode = mainStockItem.BoxBarcode,
+                                CategoryId = mainStockItem.CategoryId,
+                                CategoryName = mainStockItem.CategoryName,
+                                SupplierId = mainStockItem.SupplierId,
+                                SupplierName = mainStockItem.SupplierName,
+                                Description = mainStockItem.Description,
+                                PurchasePrice = mainStockItem.PurchasePrice,
+                                WholesalePrice = mainStockItem.WholesalePrice,
+                                SalePrice = mainStockItem.SalePrice,
+                                MainStockId = mainStockItem.MainStockId,
+                                BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
+                                BoxWholesalePrice = mainStockItem.BoxWholesalePrice,
+                                BoxSalePrice = mainStockItem.BoxSalePrice,
+                                ItemsPerBox = mainStockItem.ItemsPerBox,
+                                MinimumBoxStock = mainStockItem.MinimumBoxStock,
+                                CurrentStock = 0,
+                                MinimumStock = mainStockItem.MinimumStock,
+                                ImagePath = mainStockItem.ImagePath,
+                                Speed = mainStockItem.Speed,
+                                IsActive = mainStockItem.IsActive,
+                                CreatedAt = DateTime.Now
+                            };
+                            storeProduct = await _productService.CreateAsync(storeProduct);
+                        }
+
+                        // Then, create the supplier invoice detail
+                        var invoiceDetail = new SupplierInvoiceDetailDTO
+                        {
+                            SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId,
+                            ProductId = storeProduct.ProductId,
+                            ProductName = mainStockItem.Name,
+                            ProductBarcode = mainStockItem.Barcode,
+                            BoxBarcode = mainStockItem.BoxBarcode,
+                            NumberOfBoxes = mainStockItem.NumberOfBoxes,
+                            ItemsPerBox = mainStockItem.ItemsPerBox,
+                            BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
+                            BoxSalePrice = mainStockItem.BoxSalePrice,
+                            Quantity = mainStockItem.CurrentStock,
+                            PurchasePrice = mainStockItem.PurchasePrice,
+                            TotalPrice = mainStockItem.PurchasePrice * mainStockItem.CurrentStock
+                        };
+
+                        await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
+                        processedCount++;
+
+                        // Update status periodically
+                        if (processedCount % 5 == 0)
+                        {
+                            StatusMessage = $"Processed {processedCount} items for invoice...";
+                            await Task.Delay(10); // Allow UI to update
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error processing invoice integration for item {mainStockItem.Name}: {ex.Message}");
+                        // Continue with next item despite error
+                    }
+                }
+
+                StatusMessage = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}";
+                await Task.Delay(2000);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in supplier invoice integration: {ex.Message}");
+                StatusMessage = $"Error integrating with invoice: {ex.Message}";
+                await Task.Delay(3000);
+            }
+            finally
+            {
+                IsSaving = false;
+                StatusMessage = string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// Ensures consistent pricing for the item, respecting manually entered values
+        /// </summary>
         private void EnsureConsistentPricing(MainStockDTO item)
         {
+            // If user has entered both Box Purchase Price and Purchase Price directly
+            // We don't adjust either one - respect both user inputs
+            if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
+            {
+                // Do nothing - respect both values as the user entered them
+            }
             // Calculate purchase price from box price if needed
-            if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
+            else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
             }
-
-            // Calculate box purchase price from item price if needed
+            // Calculate box purchase price from item price if needed (only if ItemsPerBox is set)
             else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
             }
 
+            // Handle Wholesale Price similarly - only if ItemsPerBox > 0
+            if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
+            {
+                // Respect both user inputs
+            }
             // Calculate wholesale price from box wholesale price if needed
-            if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
+            else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
             }
-
-            // Calculate box wholesale price from item wholesale price if needed
+            // Calculate box wholesale price from item wholesale price if needed (only if ItemsPerBox is set)
             else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
             }
 
+            // Handle Sale Price similarly - only if ItemsPerBox > 0
+            if (item.BoxSalePrice > 0 && item.SalePrice > 0)
+            {
+                // Respect both user inputs
+            }
             // Calculate sale price from box sale price if needed
-            if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
+            else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
             }
-
-            // Calculate box sale price from item sale price if needed
+            // Calculate box sale price from item sale price if needed (only if ItemsPerBox is set)
             else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
-            }
-
-            // Ensure we have a valid sale price (default to purchase price + 20% if not set)
-            if (item.SalePrice <= 0 && item.PurchasePrice > 0)
-            {
-                item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
-            }
-
-            // Ensure we have a valid box sale price (default to box purchase price + 20% if not set)
-            if (item.BoxSalePrice <= 0 && item.BoxPurchasePrice > 0)
-            {
-                item.BoxSalePrice = Math.Round(item.BoxPurchasePrice * 1.2m, 2);
             }
 
             // Ensure we have a valid wholesale price (default to purchase price + 10% if not set)
@@ -256,10 +430,26 @@ namespace QuickTechSystems.WPF.ViewModels
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
             }
 
-            // Ensure we have a valid box wholesale price (default to box purchase price + 10% if not set)
-            if (item.BoxWholesalePrice <= 0 && item.BoxPurchasePrice > 0)
+            // Ensure we have a valid sale price (default to purchase price + 20% if not set)
+            if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
-                item.BoxWholesalePrice = Math.Round(item.BoxPurchasePrice * 1.1m, 2);
+                item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
+            }
+
+            // Only set box prices from item prices if ItemsPerBox is valid
+            if (item.ItemsPerBox > 0)
+            {
+                // Ensure we have a valid box wholesale price (default to wholesale price * ItemsPerBox if not set)
+                if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
+                {
+                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                }
+
+                // Ensure we have a valid box sale price (default to sale price * ItemsPerBox if not set)
+                if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
+                {
+                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                }
             }
         }
 
@@ -290,14 +480,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (item.CategoryId <= 0)
                     itemErrors.Add("Category is required");
 
+                if (!item.SupplierId.HasValue || item.SupplierId <= 0)
+                    itemErrors.Add("Supplier is required");
+
+                // At least one price option must be provided
                 if (item.PurchasePrice <= 0 && item.BoxPurchasePrice <= 0)
-                    itemErrors.Add("Purchase Price (Item or Box) is required");
+                    itemErrors.Add("Either item purchase price or box purchase price is required");
 
                 if (item.SalePrice <= 0 && item.BoxSalePrice <= 0)
-                    itemErrors.Add("Sale Price (Item or Box) is required");
+                    itemErrors.Add("Either item sale price or box sale price is required");
 
-                if (item.ItemsPerBox <= 0)
-                    itemErrors.Add("Items per Box must be greater than zero");
+                // Individual items quantity is required
+                if (item.IndividualItems <= 0)
+                    itemErrors.Add("Individual items quantity must be greater than zero");
 
                 // Add errors for this item if any
                 if (itemErrors.Count > 0)
@@ -327,7 +522,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
-                // Check box barcode for duplicates
+                // Check box barcode for duplicates (only if provided)
                 if (!string.IsNullOrWhiteSpace(item.BoxBarcode))
                 {
                     if (boxBarcodes.TryGetValue(item.BoxBarcode, out var index))

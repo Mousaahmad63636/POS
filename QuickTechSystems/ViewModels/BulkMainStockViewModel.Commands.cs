@@ -21,8 +21,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsActive = true,
                 CreatedAt = DateTime.Now,
-                ItemsPerBox = 1, // Default to 1 item per box
-                NumberOfBoxes = 1 // Default to 1 box
+                ItemsPerBox = 0, // Default to 1 item per box
+                NumberOfBoxes = 0 // Default to 1 box
             };
 
             // Apply bulk selection if available

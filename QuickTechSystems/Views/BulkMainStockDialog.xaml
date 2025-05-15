@@ -242,7 +242,7 @@
                      Height="25" Margin="0,0,0,10"/>
 
                                                 <!-- Individual Items - MOVED HERE FIRST -->
-                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Individual Items:" Margin="0,0,5,5" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Individual Items: *" Margin="0,0,5,5" VerticalAlignment="Center"/>
                                                 <TextBox Grid.Row="1" Grid.Column="1" 
                                                          Text="{Binding IndividualItems, UpdateSourceTrigger=PropertyChanged}" 
                                                          Tag="integer"
@@ -404,11 +404,15 @@
                                                          LostFocus="PriceTextBox_LostFocus"
                                                          Height="25" Margin="0,20,5,10"/>
 
-                                                <!-- Item Purchase Price -->
+                                                <!-- Item Purchase Price (editable) -->
                                                 <TextBlock Grid.Row="0" Grid.Column="1" Text="Item Purchase:" Margin="0,0,0,5"/>
-                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ItemPurchasePrice, StringFormat=N2, Mode=OneWay}" 
-                                                         Height="25" Margin="0,20,0,10"
-                                                         IsReadOnly="True" Background="#F9F9F9"/>
+                                                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PurchasePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,0,10"
+         Tag="decimal"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
 
                                                 <!-- Box Wholesale Price (NEW) -->
                                                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Box Wholesale:" Margin="0,0,5,5"/>
