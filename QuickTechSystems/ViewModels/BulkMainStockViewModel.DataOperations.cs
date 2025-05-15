@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.WPF.ViewModels/BulkMainStockViewModel.DataOperations.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -14,9 +13,6 @@ namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class BulkMainStockViewModel
     {
-        /// <summary>
-        /// Loads reference data for the view.
-        /// </summary>
         private async Task LoadDataAsync()
         {
             try
@@ -24,7 +20,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Loading data...";
 
-                // Load categories with proper error handling
                 try
                 {
                     var categories = await _categoryService.GetActiveAsync();
@@ -39,7 +34,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     ShowTemporaryErrorMessage("Error loading categories. Functionality may be limited.");
                 }
 
-                // Load suppliers with proper error handling
                 try
                 {
                     var suppliers = await _supplierService.GetActiveAsync();
@@ -54,7 +48,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     ShowTemporaryErrorMessage("Error loading suppliers. Functionality may be limited.");
                 }
 
-                // Load draft supplier invoices with proper error handling
                 try
                 {
                     var invoices = await _supplierInvoiceService.GetByStatusAsync("Draft");
@@ -80,7 +73,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     MessageBox.Show($"Error loading data: {errorMessage}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
                 });
             }
             finally
@@ -89,14 +82,10 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        /// <summary>
-        /// Saves all items to the database with improved concurrency handling.
-        /// </summary>
         public async Task<bool> SaveAllAsync()
         {
             try
             {
-                // Validate items before attempting to save
                 var validationResult = ValidateItems();
                 if (!validationResult.IsValid)
                 {
@@ -109,7 +98,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     return false;
                 }
 
-                // Validate invoice selection for bulk operation
                 if (SelectedBulkInvoice == null)
                 {
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -121,81 +109,97 @@ namespace QuickTechSystems.WPF.ViewModels
                     return false;
                 }
 
-                // Generate missing barcodes if needed
-                if (GenerateBarcodesForNewItems)
+                // Generate barcodes on background thread
+                await Task.Run(() =>
                 {
-                    GenerateMissingBarcodes();
-                }
+                    if (GenerateBarcodesForNewItems)
+                    {
+                        GenerateMissingBarcodes();
+                    }
+                });
 
                 IsSaving = true;
                 StatusMessage = "Preparing items for processing...";
 
-                // Pre-process each item to ensure correct properties and data integrity
-                foreach (var item in Items)
+                // Prepare items on background thread
+                await Task.Run(() =>
                 {
-                    // Set CurrentStock based on IndividualItems
-                    item.CurrentStock = item.IndividualItems;
-
-                    // Make sure prices are properly set
-                    EnsureConsistentPricing(item);
-
-                    // Ensure ItemsPerBox has a valid value (minimum 1)
-                    if (item.ItemsPerBox <= 0)
+                    foreach (var item in Items)
                     {
-                        item.ItemsPerBox = 0;
+                        item.CurrentStock = item.IndividualItems;
+                        EnsureConsistentPricing(item);
+
+                        if (item.ItemsPerBox <= 0)
+                        {
+                            item.ItemsPerBox = 0;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(item.BoxBarcode) && !string.IsNullOrWhiteSpace(item.Barcode))
+                        {
+                            item.BoxBarcode = $"BX{item.Barcode}";
+                        }
+
+                        if (item.CreatedAt == default)
+                        {
+                            item.CreatedAt = DateTime.Now;
+                        }
+
+                        item.UpdatedAt = DateTime.Now;
+                        item.SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId;
                     }
+                });
 
-                    // Verify box barcode is properly set
-                    if (string.IsNullOrWhiteSpace(item.BoxBarcode) && !string.IsNullOrWhiteSpace(item.Barcode))
-                    {
-                        item.BoxBarcode = $"BX{item.Barcode}";
-                    }
-
-                    // Make sure timestamps are properly set
-                    if (item.CreatedAt == default)
-                    {
-                        item.CreatedAt = DateTime.Now;
-                    }
-
-                    item.UpdatedAt = DateTime.Now;
-
-                    // Set supplier invoice ID to the selected bulk invoice
-                    item.SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId;
-                }
-
-                // Add all items to the queue
+                // Queue items for processing
                 _bulkOperationQueueService.EnqueueItems(Items.ToList());
 
-                // Show the status window
+                // Use TaskCompletionSource to wait for window to close
+                var tcs = new TaskCompletionSource<bool>();
+                BulkProcessingStatusWindow statusWindow = null;
+
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     var statusViewModel = new BulkProcessingStatusViewModel(_bulkOperationQueueService, _eventAggregator);
-                    var statusWindow = new BulkProcessingStatusWindow
+                    statusWindow = new BulkProcessingStatusWindow
                     {
                         Owner = GetOwnerWindow(),
                         DataContext = statusViewModel
                     };
 
+                    // Handle requested close through the ViewModel
                     statusViewModel.CloseRequested += (sender, args) =>
                     {
-                        statusWindow.DialogResult = args.DialogResult;
+                        if (!tcs.Task.IsCompleted)
+                        {
+                            tcs.TrySetResult(args.DialogResult);
+                        }
+                        statusWindow.Close();
                     };
 
-                    // Handle window closing
-                    var result = statusWindow.ShowDialog();
-
-                    // After processing is complete, handle supplier invoice integration
-                    if (result == true)
+                    // Handle window closed event
+                    statusWindow.Closed += (sender, args) =>
                     {
-                        ProcessSupplierInvoiceIntegration();
-                    }
+                        if (!tcs.Task.IsCompleted)
+                        {
+                            tcs.TrySetResult(false);
+                        }
+                    };
 
-                    // Set dialog result to close the window
-                    DialogResultBackup = result == true;
-                    DialogResult = result;
+                    // Show window (non-modal)
+                    statusWindow.Show();
                 });
 
-                return true;
+                // Wait for the window to close and get the result
+                var result = await tcs.Task;
+
+                if (result)
+                {
+                    await ProcessSupplierInvoiceIntegrationAsync();
+                }
+
+                DialogResultBackup = result;
+                DialogResult = result;
+
+                return result;
             }
             catch (Exception ex)
             {
@@ -217,10 +221,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        /// <summary>
-        /// Processes supplier invoice integration after the batch operation is complete
-        /// </summary>
-        private async void ProcessSupplierInvoiceIntegration()
+        private async Task ProcessSupplierInvoiceIntegrationAsync()
         {
             try
             {
@@ -233,33 +234,72 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Integrating with supplier invoice...";
                 IsSaving = true;
 
-                // Get the saved products from the database to ensure we have valid IDs
+                // Get barcodes first to avoid holding DB context open
+                var barcodes = Items.Where(i => !string.IsNullOrWhiteSpace(i.Barcode))
+                                   .Select(i => i.Barcode)
+                                   .ToList();
+
                 var savedItems = new List<MainStockDTO>();
-                foreach (var item in Items)
+                const int batchSize = 5; // Smaller batch size to avoid DB overload
+
+                // Process in smaller batches
+                for (int i = 0; i < barcodes.Count; i += batchSize)
                 {
-                    if (!string.IsNullOrWhiteSpace(item.Barcode))
+                    var batch = barcodes.Skip(i).Take(batchSize).ToList();
+
+                    foreach (var barcode in batch)
                     {
-                        var savedItem = await _mainStockService.GetByBarcodeAsync(item.Barcode);
-                        if (savedItem != null)
+                        try
                         {
-                            savedItems.Add(savedItem);
+                            // Get item from database
+                            var savedItem = await _mainStockService.GetByBarcodeAsync(barcode);
+                            if (savedItem != null)
+                            {
+                                savedItems.Add(savedItem);
+                            }
+
+                            // Update UI with progress
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                StatusMessage = $"Finding items {savedItems.Count} of {barcodes.Count}...";
+                            });
+
+                            // Give the UI thread time to update
+                            await Task.Delay(50);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error retrieving item with barcode {barcode}: {ex.Message}");
                         }
                     }
+
+                    // Delay between batches
+                    await Task.Delay(100);
                 }
 
+                // Process store products and invoice details
                 int processedCount = 0;
-                foreach (var mainStockItem in savedItems)
+                var totalCount = savedItems.Count;
+
+                for (int i = 0; i < savedItems.Count; i++)
                 {
+                    var mainStockItem = savedItems[i];
                     try
                     {
-                        // First, find or create the store product
+                        // Update UI with progress
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            StatusMessage = $"Creating products and invoice details ({i + 1}/{totalCount})...";
+                        });
+
+                        // Get or create store product
+                        ProductDTO storeProduct = null;
                         var existingProduct = await _productService.FindProductByBarcodeAsync(mainStockItem.Barcode);
-                        ProductDTO storeProduct;
 
                         if (existingProduct != null)
                         {
                             // Update existing product
-                            storeProduct = new ProductDTO
+                            var productToUpdate = new ProductDTO
                             {
                                 ProductId = existingProduct.ProductId,
                                 Name = mainStockItem.Name,
@@ -286,12 +326,15 @@ namespace QuickTechSystems.WPF.ViewModels
                                 CurrentStock = existingProduct.CurrentStock,
                                 UpdatedAt = DateTime.Now
                             };
-                            await _productService.UpdateAsync(storeProduct);
+
+                            // Update product without storing the result
+                            await _productService.UpdateAsync(productToUpdate);
+                            storeProduct = productToUpdate; // Use the updated product
                         }
                         else
                         {
                             // Create new product
-                            storeProduct = new ProductDTO
+                            var newProduct = new ProductDTO
                             {
                                 Name = mainStockItem.Name,
                                 Barcode = mainStockItem.Barcode,
@@ -317,51 +360,75 @@ namespace QuickTechSystems.WPF.ViewModels
                                 IsActive = mainStockItem.IsActive,
                                 CreatedAt = DateTime.Now
                             };
-                            storeProduct = await _productService.CreateAsync(storeProduct);
+
+                            // Create product without storing the result
+                            await _productService.CreateAsync(newProduct);
+
+                            // After creation, get the product with its assigned ID
+                            storeProduct = await _productService.FindProductByBarcodeAsync(mainStockItem.Barcode);
+
+                            if (storeProduct == null)
+                            {
+                                // Fallback - use the created product
+                                storeProduct = newProduct;
+                                Debug.WriteLine($"Warning: Could not retrieve created product for {mainStockItem.Barcode}");
+                            }
                         }
 
-                        // Then, create the supplier invoice detail
-                        var invoiceDetail = new SupplierInvoiceDetailDTO
-                        {
-                            SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId,
-                            ProductId = storeProduct.ProductId,
-                            ProductName = mainStockItem.Name,
-                            ProductBarcode = mainStockItem.Barcode,
-                            BoxBarcode = mainStockItem.BoxBarcode,
-                            NumberOfBoxes = mainStockItem.NumberOfBoxes,
-                            ItemsPerBox = mainStockItem.ItemsPerBox,
-                            BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
-                            BoxSalePrice = mainStockItem.BoxSalePrice,
-                            Quantity = mainStockItem.CurrentStock,
-                            PurchasePrice = mainStockItem.PurchasePrice,
-                            TotalPrice = mainStockItem.PurchasePrice * mainStockItem.CurrentStock
-                        };
+                        // Give DB a chance to complete the operation
+                        await Task.Delay(50);
 
-                        await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
-                        processedCount++;
-
-                        // Update status periodically
-                        if (processedCount % 5 == 0)
+                        // Create invoice detail
+                        if (storeProduct?.ProductId > 0)
                         {
-                            StatusMessage = $"Processed {processedCount} items for invoice...";
-                            await Task.Delay(10); // Allow UI to update
+                            var invoiceDetail = new SupplierInvoiceDetailDTO
+                            {
+                                SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId,
+                                ProductId = storeProduct.ProductId,
+                                ProductName = mainStockItem.Name,
+                                ProductBarcode = mainStockItem.Barcode,
+                                BoxBarcode = mainStockItem.BoxBarcode,
+                                NumberOfBoxes = mainStockItem.NumberOfBoxes,
+                                ItemsPerBox = mainStockItem.ItemsPerBox,
+                                BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
+                                BoxSalePrice = mainStockItem.BoxSalePrice,
+                                Quantity = mainStockItem.CurrentStock,
+                                PurchasePrice = mainStockItem.PurchasePrice,
+                                TotalPrice = mainStockItem.PurchasePrice * mainStockItem.CurrentStock
+                            };
+
+                            await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
+                            processedCount++;
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"Warning: Could not create invoice detail for product {mainStockItem.Name} - Invalid ProductId");
+                        }
+
+                        // Give UI and DB a chance to breathe
+                        if (i % 5 == 0)
+                        {
+                            await Task.Delay(100);
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error processing invoice integration for item {mainStockItem.Name}: {ex.Message}");
-                        // Continue with next item despite error
+                        Debug.WriteLine($"Error processing integration for item {mainStockItem.Name}: {ex.Message}");
                     }
                 }
 
-                StatusMessage = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}";
-                await Task.Delay(2000);
+                // Show success message
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    StatusMessage = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}";
+                });
+                await Task.Delay(1000);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error in supplier invoice integration: {ex.Message}");
                 StatusMessage = $"Error integrating with invoice: {ex.Message}";
-                await Task.Delay(3000);
+                await Task.Delay(1000);
             }
             finally
             {
@@ -370,110 +437,104 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        /// <summary>
-        /// Ensures consistent pricing for the item, respecting manually entered values
-        /// </summary>
         private void EnsureConsistentPricing(MainStockDTO item)
         {
-            // If user has entered both Box Purchase Price and Purchase Price directly
-            // We don't adjust either one - respect both user inputs
+            // Handle purchase prices
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
             {
-                // Do nothing - respect both values as the user entered them
+                // Both prices provided - respect user input
             }
-            // Calculate purchase price from box price if needed
             else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate item price from box price
                 item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box purchase price from item price if needed (only if ItemsPerBox is set)
             else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate box price from item price
                 item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
             }
 
-            // Handle Wholesale Price similarly - only if ItemsPerBox > 0
+            // Handle wholesale prices
             if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
             {
-                // Respect both user inputs
+                // Both prices provided - respect user input
             }
-            // Calculate wholesale price from box wholesale price if needed
             else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate item price from box price
                 item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box wholesale price from item wholesale price if needed (only if ItemsPerBox is set)
             else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate box price from item price
                 item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
             }
 
-            // Handle Sale Price similarly - only if ItemsPerBox > 0
+            // Handle sale prices
             if (item.BoxSalePrice > 0 && item.SalePrice > 0)
             {
-                // Respect both user inputs
+                // Both prices provided - respect user input
             }
-            // Calculate sale price from box sale price if needed
             else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate item price from box price
                 item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box sale price from item sale price if needed (only if ItemsPerBox is set)
             else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
             {
+                // Calculate box price from item price
                 item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
             }
 
-            // Ensure we have a valid wholesale price (default to purchase price + 10% if not set)
+            // Set defaults if needed
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
+                // Default wholesale price to purchase price + 10%
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
             }
 
-            // Ensure we have a valid sale price (default to purchase price + 20% if not set)
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
+                // Default sale price to purchase price + 20%
                 item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
             }
 
-            // Only set box prices from item prices if ItemsPerBox is valid
+            // Calculate box prices if items per box is set
             if (item.ItemsPerBox > 0)
             {
-                // Ensure we have a valid box wholesale price (default to wholesale price * ItemsPerBox if not set)
                 if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
                 {
+                    // Default box wholesale price
                     item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
                 }
 
-                // Ensure we have a valid box sale price (default to sale price * ItemsPerBox if not set)
                 if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
                 {
+                    // Default box sale price
                     item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
                 }
             }
         }
 
-        /// <summary>
-        /// Validates all items before saving.
-        /// </summary>
         private (bool IsValid, List<string> ValidationErrors) ValidateItems()
         {
             var validationErrors = new List<string>();
 
-            // Check for empty collection first
+            // Check for empty collection
             if (Items.Count == 0)
             {
                 validationErrors.Add("No items to save.");
                 return (false, validationErrors);
             }
 
-            // Check for invalid items
+            // Validate each item
             for (int i = 0; i < Items.Count; i++)
             {
                 var item = Items[i];
                 var itemErrors = new List<string>();
 
-                // Check for required fields
+                // Required field validation
                 if (string.IsNullOrWhiteSpace(item.Name))
                     itemErrors.Add("Name is required");
 
@@ -483,14 +544,14 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (!item.SupplierId.HasValue || item.SupplierId <= 0)
                     itemErrors.Add("Supplier is required");
 
-                // At least one price option must be provided
+                // Price validation
                 if (item.PurchasePrice <= 0 && item.BoxPurchasePrice <= 0)
                     itemErrors.Add("Either item purchase price or box purchase price is required");
 
                 if (item.SalePrice <= 0 && item.BoxSalePrice <= 0)
                     itemErrors.Add("Either item sale price or box sale price is required");
 
-                // Individual items quantity is required
+                // Quantity validation
                 if (item.IndividualItems <= 0)
                     itemErrors.Add("Individual items quantity must be greater than zero");
 
@@ -522,7 +583,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
-                // Check box barcode for duplicates (only if provided)
+                // Check box barcode for duplicates
                 if (!string.IsNullOrWhiteSpace(item.BoxBarcode))
                 {
                     if (boxBarcodes.TryGetValue(item.BoxBarcode, out var index))
@@ -547,25 +608,19 @@ namespace QuickTechSystems.WPF.ViewModels
             return (validationErrors.Count == 0, validationErrors);
         }
 
-        /// <summary>
-        /// Generates missing barcodes for items that don't have them.
-        /// </summary>
         private void GenerateMissingBarcodes()
         {
-            // Get current time for consistent timestamp across all generated barcodes
             var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
             var random = new Random();
 
             foreach (var item in Items.Where(i => string.IsNullOrWhiteSpace(i.Barcode)))
             {
-                // Generate a unique barcode with better uniqueness guarantees
+                // Generate a unique barcode
                 var randomDigits = random.Next(1000, 9999).ToString();
                 var categoryPrefix = item.CategoryId > 0 ? item.CategoryId.ToString().PadLeft(3, '0') : "000";
 
-                // Add a checksum digit to improve barcode integrity
+                // Add checksum for integrity
                 var baseCode = $"{categoryPrefix}{timestamp}{randomDigits}";
-
-                // Simple checksum: sum of all digits modulo 10
                 int sum = 0;
                 foreach (char c in baseCode)
                 {
@@ -578,30 +633,16 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 item.Barcode = $"{baseCode}{checkDigit}";
 
-                // Always generate a box barcode if item barcode exists
+                // Generate box barcode if needed
                 if (string.IsNullOrWhiteSpace(item.BoxBarcode))
                 {
                     item.BoxBarcode = $"BX{item.Barcode}";
                 }
 
-                // Generate barcode image if possible
-                try
-                {
-                    item.BarcodeImage = _barcodeService.GenerateBarcode(item.Barcode);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error generating barcode image: {ex.Message}");
-                    // Continue despite error
-                }
+                // Removed barcode image generation code
             }
         }
 
-        /// <summary>
-        /// Gets a detailed error message from an exception
-        /// </summary>
-        /// <param name="ex">The exception</param>
-        /// <returns>A detailed error message</returns>
         private string GetDetailedErrorMessage(Exception ex)
         {
             if (ex == null)
@@ -610,6 +651,7 @@ namespace QuickTechSystems.WPF.ViewModels
             var message = ex.Message;
             var currentEx = ex;
 
+            // Get the innermost exception message
             while (currentEx.InnerException != null)
             {
                 currentEx = currentEx.InnerException;
