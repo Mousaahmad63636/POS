@@ -321,7 +321,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _itemsPerBox;
             set
             {
-                if (value <= 0) value = 1; // Ensure at least 1 item per box
+                // Remove the line that forces a minimum value of 1
+                // if (value <= 0) value = 1; // Ensure at least 1 item per box
                 _itemsPerBox = value;
                 OnPropertyChanged();
                 // Recalculate item purchase price and total stock
