@@ -46,7 +46,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _wholesalePrice;
             set
             {
-                _wholesalePrice = value;
+                // Ensure non-negative value
+                _wholesalePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
             }
         }
@@ -59,7 +60,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _boxWholesalePrice;
             set
             {
-                _boxWholesalePrice = value;
+                // Ensure non-negative value
+                _boxWholesalePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
             }
         }
@@ -218,7 +220,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _purchasePrice;
             set
             {
-                _purchasePrice = value;
+                // Ensure non-negative value
+                _purchasePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
             }
         }
@@ -228,11 +231,11 @@ namespace QuickTechSystems.Application.DTOs
             get => _salePrice;
             set
             {
-                _salePrice = value;
+                // Ensure non-negative value
+                _salePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
             }
         }
-
         public decimal CurrentStock
         {
             get => _currentStock;
@@ -336,7 +339,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _boxPurchasePrice;
             set
             {
-                _boxPurchasePrice = value;
+                // Ensure non-negative value
+                _boxPurchasePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
                 // Recalculate item purchase price
                 OnPropertyChanged(nameof(ItemPurchasePrice));
@@ -348,7 +352,8 @@ namespace QuickTechSystems.Application.DTOs
             get => _boxSalePrice;
             set
             {
-                _boxSalePrice = value;
+                // Ensure non-negative value
+                _boxSalePrice = value < 0 ? 0 : value;
                 OnPropertyChanged();
             }
         }

@@ -24,6 +24,8 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using QuickTechSystems.Application.Interfaces;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Globalization;
+using System.Windows.Markup;
 
 namespace QuickTechSystems.WPF
 {
@@ -36,6 +38,12 @@ namespace QuickTechSystems.WPF
 
         public App()
         {
+            InitializeComponent();
+
+            // Set a consistent culture for the application
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
             _configuration = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -161,6 +169,12 @@ namespace QuickTechSystems.WPF
 
         protected override async void OnStartup(StartupEventArgs e)
         {
+            // Set default culture for all UI threads
+            FrameworkElement.LanguageProperty.OverrideMetadata(
+                typeof(FrameworkElement),
+                new FrameworkPropertyMetadata(
+                    XmlLanguage.GetLanguage(CultureInfo.InvariantCulture.IetfLanguageTag)));
+
             base.OnStartup(e);
 
             try

@@ -16,6 +16,7 @@
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageConverter"/>
         <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:DecimalConverter x:Key="DecimalConverter"/>
         <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
         <converters:IntZeroToBoolConverter x:Key="IntZeroToBoolConverter"/>
     </Window.Resources>
@@ -328,57 +329,65 @@
 
                             <!-- Box Purchase Price -->
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Box Purchase:" Margin="0,0,5,5"/>
-                            <TextBox Grid.Row="0" Grid.Column="0" Text="{Binding EditingItem.BoxPurchasePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="25" Margin="0,20,5,10"
-                                     PreviewTextInput="DecimalTextBox_PreviewTextInput"
-                                     DataObject.Pasting="NumericTextBox_Pasting"
-                                     GotFocus="PriceTextBox_GotFocus"
-                                     LostFocus="PriceTextBox_LostFocus"/>
+                            <TextBox Grid.Row="0" Grid.Column="0" 
+         Text="{Binding EditingItem.BoxPurchasePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,5,10"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
 
                             <!-- Item Purchase Price (editable) -->
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="Item Purchase: *" Margin="0,0,0,5"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditingItem.PurchasePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
+                            <TextBox Grid.Row="0" Grid.Column="1" 
+         Text="{Binding EditingItem.PurchasePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
          Height="25" Margin="0,20,0,10"
          PreviewTextInput="DecimalTextBox_PreviewTextInput"
          DataObject.Pasting="NumericTextBox_Pasting"
          GotFocus="PriceTextBox_GotFocus"
          LostFocus="PriceTextBox_LostFocus"/>
 
+
                             <!-- Box Wholesale Price -->
                             <TextBlock Grid.Row="1" Grid.Column="0" Text="Box Wholesale:" Margin="0,0,5,5"/>
-                            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding EditingItem.BoxWholesalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="25" Margin="0,20,5,10"
-                                     PreviewTextInput="DecimalTextBox_PreviewTextInput"
-                                     DataObject.Pasting="NumericTextBox_Pasting"
-                                     GotFocus="PriceTextBox_GotFocus"
-                                     LostFocus="PriceTextBox_LostFocus"/>
+                            <TextBox Grid.Row="1" Grid.Column="0" 
+         Text="{Binding EditingItem.BoxWholesalePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,5,10"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
+
 
                             <!-- Item Wholesale Price -->
                             <TextBlock Grid.Row="1" Grid.Column="1" Text="Item Wholesale:" Margin="0,0,0,5"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding EditingItem.WholesalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="25" Margin="0,20,0,10"
-                                     PreviewTextInput="DecimalTextBox_PreviewTextInput"
-                                     DataObject.Pasting="NumericTextBox_Pasting"
-                                     GotFocus="PriceTextBox_GotFocus"
-                                     LostFocus="PriceTextBox_LostFocus"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" 
+         Text="{Binding EditingItem.WholesalePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,0,10"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
 
                             <!-- Box Sale Price -->
                             <TextBlock Grid.Row="2" Grid.Column="0" Text="Box Sale:" Margin="0,0,5,5"/>
-                            <TextBox Grid.Row="2" Grid.Column="0" Text="{Binding EditingItem.BoxSalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="25" Margin="0,20,5,10"
-                                     PreviewTextInput="DecimalTextBox_PreviewTextInput"
-                                     DataObject.Pasting="NumericTextBox_Pasting"
-                                     GotFocus="PriceTextBox_GotFocus"
-                                     LostFocus="PriceTextBox_LostFocus"/>
+                            <TextBox Grid.Row="2" Grid.Column="0" 
+         Text="{Binding EditingItem.BoxSalePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,5,10"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
 
                             <!-- Item Sale Price -->
                             <TextBlock Grid.Row="2" Grid.Column="1" Text="Item Sale:" Margin="0,0,0,5"/>
-                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding EditingItem.SalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
-                                     Height="25" Margin="0,20,0,10"
-                                     PreviewTextInput="DecimalTextBox_PreviewTextInput"
-                                     DataObject.Pasting="NumericTextBox_Pasting"
-                                     GotFocus="PriceTextBox_GotFocus"
-                                     LostFocus="PriceTextBox_LostFocus"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" 
+         Text="{Binding EditingItem.SalePrice, Converter={StaticResource DecimalConverter}, UpdateSourceTrigger=PropertyChanged}" 
+         Height="25" Margin="0,20,0,10"
+         PreviewTextInput="DecimalTextBox_PreviewTextInput"
+         DataObject.Pasting="NumericTextBox_Pasting"
+         GotFocus="PriceTextBox_GotFocus"
+         LostFocus="PriceTextBox_LostFocus"/>
 
                             <!-- Min Stock -->
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Min Stock:" Margin="0,0,5,5"/>
