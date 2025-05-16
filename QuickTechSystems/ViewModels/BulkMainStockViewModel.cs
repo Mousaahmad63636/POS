@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -20,8 +21,6 @@ namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class BulkMainStockViewModel : ViewModelBase, IDisposable
     {
-        #region Services
-
         private readonly IMainStockService _mainStockService;
         private readonly ICategoryService _categoryService;
         private readonly ISupplierService _supplierService;
@@ -32,10 +31,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly IEventAggregator _eventAggregator;
         private Dictionary<int, List<string>> _validationErrors;
         private readonly IBulkOperationQueueService _bulkOperationQueueService;
-
-        #endregion
-
-        #region Properties
+        private readonly SemaphoreSlim _operationLock;
+        private const int DEFAULT_LOCK_TIMEOUT_MS = 5000; // 5 seconds
+        private bool _isDisposed;
 
         private bool _isSaving;
         private int _totalRows;
@@ -185,17 +183,13 @@ namespace QuickTechSystems.WPF.ViewModels
             get => IsCategorySelected && IsSupplierSelected && IsInvoiceSelected;
         }
 
-        #endregion
-
-        #region Commands
-
         public ICommand LoadDataCommand { get; private set; }
         public ICommand SaveAllCommand { get; private set; }
         public ICommand AddRowCommand { get; private set; }
         public ICommand RemoveRowCommand { get; private set; }
         public ICommand ClearAllCommand { get; private set; }
         public ICommand GenerateAllBarcodesCommand { get; private set; }
-        public ICommand ValidateBarcodeCommand { get; private set; }
+        public ICommand ValidateItemCommand { get; private set; }
         public ICommand PrintAllBarcodesCommand { get; private set; }
         public ICommand ApplyBulkCategoryCommand { get; private set; }
         public ICommand ApplyBulkSupplierCommand { get; private set; }
@@ -207,8 +201,6 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ClearItemImageCommand { get; private set; }
         public ICommand LookupProductCommand { get; private set; }
         public ICommand LookupBoxBarcodeCommand { get; private set; }
-
-        #endregion
 
         public BulkMainStockViewModel(
             IMainStockService mainStockService,
@@ -230,6 +222,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _productService = productService;
             _bulkOperationQueueService = bulkOperationQueueService;
             _eventAggregator = eventAggregator;
+            _operationLock = new SemaphoreSlim(1, 1);
 
             _items = new ObservableCollection<MainStockDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
@@ -267,9 +260,10 @@ namespace QuickTechSystems.WPF.ViewModels
             RemoveRowCommand = new RelayCommand<MainStockDTO>(RemoveRow);
             ClearAllCommand = new RelayCommand(_ => ClearAll());
 
+            // Fixed line - no more ambiguous call
             GenerateAllBarcodesCommand = new RelayCommand(_ => GenerateAllBarcodes());
-            ValidateBarcodeCommand = new RelayCommand<MainStockDTO>(ValidateItem);
-            PrintAllBarcodesCommand = new AsyncRelayCommand(async _ => await PrintAllBarcodesAsync());
+            ValidateItemCommand = new RelayCommand<MainStockDTO>(ValidateItem);
+            PrintAllBarcodesCommand = new AsyncRelayCommand(async _ => { });
 
             ApplyBulkCategoryCommand = new RelayCommand(_ => ApplyBulkCategory());
             ApplyBulkSupplierCommand = new RelayCommand(_ => ApplyBulkSupplier());
@@ -278,8 +272,8 @@ namespace QuickTechSystems.WPF.ViewModels
             AddNewSupplierCommand = new AsyncRelayCommand(async _ => await AddNewSupplierAsync());
             AddNewInvoiceCommand = new AsyncRelayCommand(async _ => await AddNewInvoiceAsync());
 
-            UploadItemImageCommand = new RelayCommand<MainStockDTO>(UploadItemImage);
-            ClearItemImageCommand = new RelayCommand<MainStockDTO>(ClearItemImage);
+            UploadItemImageCommand = new RelayCommand<MainStockDTO>(item => { });
+            ClearItemImageCommand = new RelayCommand<MainStockDTO>(item => { });
 
             LookupProductCommand = new AsyncRelayCommand<MainStockDTO>(async item => await LookupProductAsync(item));
             LookupBoxBarcodeCommand = new AsyncRelayCommand<MainStockDTO>(async item => await LookupBoxBarcodeAsync(item));
@@ -299,12 +293,46 @@ namespace QuickTechSystems.WPF.ViewModels
                    ?? System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
-            foreach (var item in Items)
+            if (!_isDisposed)
             {
-                UnsubscribeFromItemPropertyChanges(item);
+                foreach (var item in Items)
+                {
+                    UnsubscribeFromItemPropertyChanges(item);
+                }
+
+                try
+                {
+                    _operationLock?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error disposing semaphore: {ex.Message}");
+                }
+
+                _isDisposed = true;
+
+                base.Dispose();
             }
+        }
+
+        private void ShowTemporaryErrorMessage(string message)
+        {
+            StatusMessage = message;
+            Debug.WriteLine(message);
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(3000);
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (StatusMessage == message)
+                    {
+                        StatusMessage = string.Empty;
+                    }
+                });
+            });
         }
     }
 }

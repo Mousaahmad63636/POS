@@ -21,49 +21,7 @@ namespace QuickTechSystems.WPF.ViewModels
         /// <summary>
         /// Generates barcodes for all items that don't have them.
         /// </summary>
-        private void GenerateAllBarcodes()
-        {
-            try
-            {
-                int generatedCount = 0;
 
-                foreach (var item in Items)
-                {
-                    // Skip items that already have barcodes
-                    if (!string.IsNullOrWhiteSpace(item.Barcode))
-                        continue;
-
-                    // Generate a unique barcode with better uniqueness guarantees
-                    string barcode = GenerateUniqueBarcode(item);
-                    item.Barcode = barcode;
-                    generatedCount++;
-
-                    // Generate barcode image
-                    try
-                    {
-                        item.BarcodeImage = _barcodeService.GenerateBarcode(item.Barcode);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error generating barcode image: {ex.Message}");
-                        // Continue despite error
-                    }
-
-                    // Generate box barcode if empty
-                    if (string.IsNullOrWhiteSpace(item.BoxBarcode))
-                    {
-                        item.BoxBarcode = $"BX{item.Barcode}";
-                    }
-                }
-
-                StatusMessage = $"Generated {generatedCount} barcodes for items without barcodes.";
-            }
-            catch (Exception ex)
-            {
-                StatusMessage = $"Error generating barcodes: {ex.Message}";
-                Debug.WriteLine($"Error in GenerateAllBarcodes: {ex}");
-            }
-        }
 
         /// <summary>
         /// Generates a unique barcode for an item.
