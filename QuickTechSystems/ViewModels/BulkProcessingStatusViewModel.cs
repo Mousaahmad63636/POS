@@ -345,78 +345,80 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public override void Dispose()
         {
-            base.Dispose();
-            _eventAggregator.Unsubscribe<BulkProcessingStatusEvent>(HandleStatusUpdate);
-        }
-
-        public void UpdateProgress(int completed, int total, string operation)
-        {
-            CompletedItems = completed;
-            TotalItems = total;
-            StatusMessage = operation;
-
-            if (total > 0)
+            try
             {
-                ProgressPercentage = (int)((double)completed / total * 100);
+                _eventAggregator.Unsubscribe<BulkProcessingStatusEvent>(HandleStatusUpdate);
+
+                // Cancel any ongoing processing when disposing
+                _queueService?.CancelProcessing();
+
+                // Don't try to set read-only properties to null
+                // Instead, clear collections to release references
+                LogMessages?.Clear();
+                ErrorCategories?.Clear();
             }
-            else
+            catch (Exception ex)
             {
-                ProgressPercentage = 0;
+                Debug.WriteLine($"Error during BulkProcessingStatusViewModel disposal: {ex.Message}");
             }
-        }
-    }
-
-    public class ErrorCategoryViewModel : INotifyPropertyChanged
-    {
-        private string _category;
-        private int _count;
-        private string _description;
-
-        public string Category
-        {
-            get => _category;
-            set
+            finally
             {
-                _category = value;
-                OnPropertyChanged(nameof(Category));
+                base.Dispose();
             }
         }
 
-        public int Count
+        public class ErrorCategoryViewModel : INotifyPropertyChanged
         {
-            get => _count;
-            set
+            private string _category;
+            private int _count;
+            private string _description;
+
+            public string Category
             {
-                _count = value;
-                OnPropertyChanged(nameof(Count));
+                get => _category;
+                set
+                {
+                    _category = value;
+                    OnPropertyChanged(nameof(Category));
+                }
+            }
+
+            public int Count
+            {
+                get => _count;
+                set
+                {
+                    _count = value;
+                    OnPropertyChanged(nameof(Count));
+                }
+            }
+
+            public string Description
+            {
+                get => _description;
+                set
+                {
+                    _description = value;
+                    OnPropertyChanged(nameof(Description));
+                }
+            }
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            protected virtual void OnPropertyChanged(string propertyName)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             }
         }
 
-        public string Description
+        public class DialogResultEventArgs : EventArgs
         {
-            get => _description;
-            set
+            public bool DialogResult { get; }
+
+            public DialogResultEventArgs(bool dialogResult)
             {
-                _description = value;
-                OnPropertyChanged(nameof(Description));
+                DialogResult = dialogResult;
             }
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-    }
-
-    public class DialogResultEventArgs : EventArgs
-    {
-        public bool DialogResult { get; }
-
-        public DialogResultEventArgs(bool dialogResult)
-        {
-            DialogResult = dialogResult;
         }
     }
 }

@@ -228,16 +228,44 @@ namespace QuickTechSystems.Application.Services
         /// <inheritdoc/>
         public void Reset()
         {
-            CancelProcessing();
+            try
+            {
+                CancelProcessing();
 
-            _itemIndex.Clear();
-            _errorIndex.Clear();
-            _errorCategories.Clear();
-            _totalProcessed = 0;
-            _successCount = 0;
-            _failureCount = 0;
+                _itemIndex.Clear();
+                _errorIndex.Clear();
+                _errorCategories.Clear();
+                _totalProcessed = 0;
+                _successCount = 0;
+                _failureCount = 0;
 
-            Debug.WriteLine("Bulk operation queue has been reset");
+                // Ensure processing state is reset
+                _isProcessing = false;
+
+                // Clear any disposed cancellation token source
+                if (_cancellationTokenSource != null)
+                {
+                    try
+                    {
+                        if (!_cancellationTokenSource.IsCancellationRequested)
+                        {
+                            _cancellationTokenSource.Cancel();
+                        }
+                        _cancellationTokenSource.Dispose();
+                        _cancellationTokenSource = null;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed, ignore
+                    }
+                }
+
+                Debug.WriteLine("BulkOperationQueueService has been reset");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error resetting BulkOperationQueueService: {ex.Message}");
+            }
         }
 
         #endregion

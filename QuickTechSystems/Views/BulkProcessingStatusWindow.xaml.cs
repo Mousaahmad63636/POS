@@ -1,5 +1,6 @@
 ﻿// QuickTechSystems/Views/BulkProcessingStatusWindow.xaml.cs
 using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Data;
 
@@ -14,7 +15,25 @@ namespace QuickTechSystems.WPF.Views
         {
             InitializeComponent();
 
-            // Resource is now defined in XAML, so we don't need to add it here
+            // Add explicit cleanup when closing the window
+            this.Closed += BulkProcessingStatusWindow_Closed;
+        }
+
+        private void BulkProcessingStatusWindow_Closed(object sender, EventArgs e)
+        {
+            try
+            {
+                // Ensure view model is disposed when window closes
+                if (DataContext is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                    DataContext = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error cleaning up BulkProcessingStatusWindow: {ex.Message}");
+            }
         }
     }
 

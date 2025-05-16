@@ -163,6 +163,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 });
 
+                // Reset the queue service before enqueueing new items
+                _bulkOperationQueueService.Reset();
+
                 _bulkOperationQueueService.EnqueueItems(Items.ToList());
 
                 var tcs = new TaskCompletionSource<bool>();
@@ -192,6 +195,12 @@ namespace QuickTechSystems.WPF.ViewModels
                         {
                             tcs.TrySetResult(false);
                         }
+
+                        // Ensure view model is disposed when window closes
+                        if (statusWindow.DataContext is IDisposable disposable)
+                        {
+                            disposable.Dispose();
+                        }
                     };
 
                     statusWindow.Show();
@@ -203,6 +212,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     await ProcessSupplierInvoiceIntegrationAsync();
                 }
+
+                // Always reset the queue service after the operation completes
+                _bulkOperationQueueService.Reset();
 
                 DialogResultBackup = result;
                 DialogResult = result;
@@ -220,6 +232,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     MessageBox.Show($"Error preparing items: {errorMessage}",
                         "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
+
+                // Reset the queue service on error
+                _bulkOperationQueueService.Reset();
 
                 return false;
             }
