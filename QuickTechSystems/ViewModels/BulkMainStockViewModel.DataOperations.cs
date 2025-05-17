@@ -446,45 +446,72 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = string.Empty;
             }
         }
-
         private void EnsureConsistentPricing(MainStockDTO item)
         {
-            if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
+            // IMPORTANT CHECK: Only perform calculations if NumberOfBoxes > 0
+            // If NumberOfBoxes is 0, respect all zero values for box-related fields
+            bool hasBoxes = item.NumberOfBoxes > 0;
+
+            // Only update box purchase price if we have boxes
+            if (hasBoxes)
             {
+                if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
+                {
+                    // Both prices are set, keep them as is
+                }
+                else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate individual price from box price
+                    item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
+                }
+                else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate box price from individual price
+                    item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                }
+
+                // Only update box wholesale price if we have boxes
+                if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
+                {
+                    // Both prices are set, keep them as is
+                }
+                else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate individual wholesale from box wholesale
+                    item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
+                }
+                else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate box wholesale from individual wholesale
+                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                }
+
+                // Only update box sale price if we have boxes
+                if (item.BoxSalePrice > 0 && item.SalePrice > 0)
+                {
+                    // Both prices are set, keep them as is
+                }
+                else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate individual sale price from box sale price
+                    item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
+                }
+                else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
+                {
+                    // Calculate box sale price from individual sale price
+                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                }
             }
-            else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
+            else
             {
-                item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                // If there are no boxes, ensure all box-related prices are 0
+                item.BoxPurchasePrice = 0;
+                item.BoxWholesalePrice = 0;
+                item.BoxSalePrice = 0;
             }
 
-            if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
-            {
-            }
-            else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
-            }
-
-            if (item.BoxSalePrice > 0 && item.SalePrice > 0)
-            {
-            }
-            else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
-            }
-
+            // This section applies in both cases (with or without boxes)
+            // Standard price calculations when needed
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
@@ -494,21 +521,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
             }
-
-            if (item.ItemsPerBox > 0)
-            {
-                if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
-                {
-                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
-                }
-
-                if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
-                {
-                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
-                }
-            }
         }
-
         private (bool IsValid, List<string> ValidationErrors) ValidateItems()
         {
             var validationErrors = new List<string>();

@@ -232,8 +232,71 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await LoadDataAsync();
 
+                // Find ProductDTO related to this MainStock item
+                ProductDTO relatedProduct = null;
+                if (EditingItem.MainStockId > 0)
+                {
+                    var products = await _productService.GetAllAsync();
+                    relatedProduct = products.FirstOrDefault(p => p.MainStockId == EditingItem.MainStockId);
+
+                    if (relatedProduct != null)
+                    {
+                        Debug.WriteLine($"InitializeAsync: Found related product ID {relatedProduct.ProductId} for MainStock ID {EditingItem.MainStockId}");
+
+                        // Find invoice details for this product
+                        try
+                        {
+                            // This method needs to be added to the SupplierInvoiceService
+                            var invoiceDetails = await _supplierInvoiceService.GetInvoiceDetailsForProductAsync(relatedProduct.ProductId);
+
+                            if (invoiceDetails.Any())
+                            {
+                                // Get the most recent invoice (usually the one we want)
+                                var mostRecentDetail = invoiceDetails.OrderByDescending(d => d.SupplierInvoiceId).First();
+                                var invoiceId = mostRecentDetail.SupplierInvoiceId;
+
+                                Debug.WriteLine($"InitializeAsync: Found invoice ID {invoiceId} for product");
+
+                                // Look for the invoice in the already loaded invoices
+                                var existingInvoice = DraftInvoices?.FirstOrDefault(i => i.SupplierInvoiceId == invoiceId);
+
+                                if (existingInvoice != null)
+                                {
+                                    Debug.WriteLine($"InitializeAsync: Found invoice in collection: {existingInvoice.InvoiceNumber}");
+                                    SelectedInvoice = existingInvoice;
+                                }
+                                else
+                                {
+                                    // Not found in pre-loaded collection, fetch from database
+                                    var invoice = await _supplierInvoiceService.GetByIdAsync(invoiceId);
+
+                                    if (invoice != null)
+                                    {
+                                        Debug.WriteLine($"InitializeAsync: Loaded invoice {invoice.InvoiceNumber} from database");
+                                        DraftInvoices.Add(invoice);
+                                        SelectedInvoice = invoice;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Debug.WriteLine("InitializeAsync: No invoice details found for product");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"InitializeAsync: Error finding invoice details: {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"InitializeAsync: No related product found for MainStock ID {EditingItem.MainStockId}");
+                    }
+                }
+
                 FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(DraftInvoices);
                 OnPropertyChanged(nameof(HasFilteredInvoices));
+                OnPropertyChanged(nameof(CurrentInvoiceDisplay));
 
                 if (EditingItem != null)
                 {
@@ -245,55 +308,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     if (EditingItem.SupplierId.HasValue && EditingItem.SupplierId.Value > 0)
                     {
                         SelectedSupplier = Suppliers?.FirstOrDefault(s => s.SupplierId == EditingItem.SupplierId.Value);
-                    }
-
-                    if (EditingItem.SupplierInvoiceId.HasValue && EditingItem.SupplierInvoiceId.Value > 0)
-                    {
-                        Debug.WriteLine($"Looking for invoice ID: {EditingItem.SupplierInvoiceId.Value}");
-
-                        var existingInvoice = DraftInvoices?.FirstOrDefault(i =>
-                            i.SupplierInvoiceId == EditingItem.SupplierInvoiceId.Value);
-
-                        if (existingInvoice != null)
-                        {
-                            Debug.WriteLine($"Found existing invoice in collection: {existingInvoice.InvoiceNumber}");
-                            SelectedInvoice = existingInvoice;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                Debug.WriteLine("Invoice not found in collection, fetching from database...");
-                                var invoice = await _supplierInvoiceService.GetByIdAsync(EditingItem.SupplierInvoiceId.Value);
-
-                                if (invoice != null)
-                                {
-                                    Debug.WriteLine($"Successfully loaded invoice from database: {invoice.InvoiceNumber}");
-
-                                    DraftInvoices.Add(invoice);
-                                    FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(DraftInvoices);
-                                    OnPropertyChanged(nameof(HasFilteredInvoices));
-
-                                    SelectedInvoice = invoice;
-
-                                    OnPropertyChanged(nameof(SelectedInvoice));
-                                    OnPropertyChanged(nameof(DraftInvoices));
-                                    OnPropertyChanged(nameof(CurrentInvoiceDisplay));
-                                }
-                                else
-                                {
-                                    Debug.WriteLine("No invoice found in database with that ID");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Error loading invoice: {ex.Message}");
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Debug.WriteLine("No SupplierInvoiceId found on the editing item");
                     }
                 }
             }
@@ -321,10 +335,12 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var invoices = new List<SupplierInvoiceDTO>();
 
+                // Load draft invoices first
                 var draftInvoices = await _supplierInvoiceService.GetByStatusAsync("Draft");
                 invoices.AddRange(draftInvoices);
 
-                var recentDate = DateTime.Now.AddDays(-90);
+                // Load recent invoices with a longer timeframe (180 days instead of 90)
+                var recentDate = DateTime.Now.AddDays(-180);
                 var recentInvoices = await _supplierInvoiceService.GetRecentInvoicesAsync(recentDate);
 
                 foreach (var invoice in recentInvoices)
@@ -335,15 +351,38 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
+                // If we have a specific SupplierInvoiceId in the EditingItem, try to load that too
+                if (EditingItem?.SupplierInvoiceId.HasValue == true && EditingItem.SupplierInvoiceId.Value > 0)
+                {
+                    int invoiceId = EditingItem.SupplierInvoiceId.Value;
+                    if (!invoices.Any(i => i.SupplierInvoiceId == invoiceId))
+                    {
+                        Debug.WriteLine($"LoadDataAsync: Looking for specific invoice ID {invoiceId} for current item");
+                        try
+                        {
+                            var specificInvoice = await _supplierInvoiceService.GetByIdAsync(invoiceId);
+                            if (specificInvoice != null)
+                            {
+                                Debug.WriteLine($"LoadDataAsync: Found specific invoice {specificInvoice.InvoiceNumber}");
+                                invoices.Add(specificInvoice);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"LoadDataAsync: Error loading specific invoice: {ex.Message}");
+                        }
+                    }
+                }
+
                 DraftInvoices = new ObservableCollection<SupplierInvoiceDTO>(invoices);
+                Debug.WriteLine($"LoadDataAsync: Loaded {DraftInvoices.Count} invoices total");
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error loading data: {ex.Message}");
+                Debug.WriteLine($"LoadDataAsync: Error loading data: {ex.Message}");
                 throw;
             }
         }
-
         private async Task SaveAsync()
         {
             try
@@ -850,42 +889,73 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void EnsureConsistentPricing(MainStockDTO item)
         {
-            if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
+            // NEVER force ItemsPerBox to 1 if it's 0 or any other value
+
+            // IMPORTANT CHECK: Only perform calculations if NumberOfBoxes > 0
+            // If NumberOfBoxes is 0, respect all zero values for box-related fields
+            bool hasBoxes = item.NumberOfBoxes > 0;
+
+            // Only update box purchase price if we have boxes
+            if (hasBoxes)
             {
+                // Important: Don't modify ItemsPerBox if it's 0
+                // Only calculate prices if ItemsPerBox is already > 0
+                if (item.ItemsPerBox > 0)
+                {
+                    if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
+                    {
+                        // Both prices are set, keep them as is
+                    }
+                    else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0)
+                    {
+                        // Calculate individual price from box price
+                        item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
+                    }
+                    else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0)
+                    {
+                        // Calculate box price from individual price
+                        item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                    }
+
+                    // Same for wholesale and sale prices
+                    // Only calculate if ItemsPerBox > 0
+                    if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
+                    {
+                        // Both prices are set, keep them as is
+                    }
+                    else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0)
+                    {
+                        item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
+                    }
+                    else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
+                    {
+                        item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                    }
+
+                    if (item.BoxSalePrice > 0 && item.SalePrice > 0)
+                    {
+                        // Both prices are set, keep them as is
+                    }
+                    else if (item.SalePrice <= 0 && item.BoxSalePrice > 0)
+                    {
+                        item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
+                    }
+                    else if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
+                    {
+                        item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                    }
+                }
             }
-            else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
+            else
             {
-                item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                // If there are no boxes, ensure all box-related prices are 0
+                item.BoxPurchasePrice = 0;
+                item.BoxWholesalePrice = 0;
+                item.BoxSalePrice = 0;
             }
 
-            if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
-            {
-            }
-            else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
-            }
-
-            if (item.BoxSalePrice > 0 && item.SalePrice > 0)
-            {
-            }
-            else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
-            }
-            else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
-            {
-                item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
-            }
-
+            // This section applies in both cases (with or without boxes)
+            // Standard price calculations when needed
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
@@ -894,19 +964,6 @@ namespace QuickTechSystems.WPF.ViewModels
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
-            }
-
-            if (item.ItemsPerBox > 0)
-            {
-                if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
-                {
-                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
-                }
-
-                if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
-                {
-                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
-                }
             }
         }
 

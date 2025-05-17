@@ -48,6 +48,20 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        public async Task<IEnumerable<SupplierInvoiceDetailDTO>> GetInvoiceDetailsForProductAsync(int productId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var details = await _unitOfWork.SupplierInvoiceDetails
+                    .Query()
+                    .Include(d => d.SupplierInvoice)
+                    .Where(d => d.ProductId == productId)
+                    .ToListAsync();
+
+                return _mapper.Map<IEnumerable<SupplierInvoiceDetailDTO>>(details);
+            });
+        }
+
         public async Task<IEnumerable<SupplierInvoiceDTO>> GetBySupplierAsync(int supplierId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -436,81 +450,80 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        // Path: QuickTechSystems.Application.Services/SupplierInvoiceService.cs
-
-        // Update the AddProductToInvoiceAsync method to use direct SQL
-        public async Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto)
+        public async Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDTO)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
+                Debug.WriteLine($"AddProductToInvoiceAsync: Adding product {detailDTO.ProductId} to invoice {detailDTO.SupplierInvoiceId}");
+
                 try
                 {
-                    // First check if the invoice exists and is in draft status
-                    var invoiceStatus = await _unitOfWork.Context.Set<SupplierInvoice>()
-                        .Where(i => i.SupplierInvoiceId == detailDto.SupplierInvoiceId)
-                        .Select(i => new { i.Status })
-                        .FirstOrDefaultAsync();
+                    // Check if this product is already in this invoice
+                    var existingDetail = await _unitOfWork.SupplierInvoiceDetails
+                        .Query()
+                        .FirstOrDefaultAsync(d =>
+                            d.SupplierInvoiceId == detailDTO.SupplierInvoiceId &&
+                            d.ProductId == detailDTO.ProductId);
 
-                    if (invoiceStatus == null)
+                    SupplierInvoiceDetail detail;
+
+                    if (existingDetail != null)
                     {
-                        throw new InvalidOperationException($"Invoice with ID {detailDto.SupplierInvoiceId} not found");
+                        Debug.WriteLine($"AddProductToInvoiceAsync: Found existing detail ID {existingDetail.SupplierInvoiceDetailId}. Updating it.");
+
+                        // Update existing detail instead of creating a new one
+                        existingDetail.Quantity = detailDTO.Quantity;
+                        existingDetail.PurchasePrice = detailDTO.PurchasePrice;
+                        existingDetail.TotalPrice = detailDTO.TotalPrice;
+                        existingDetail.BoxBarcode = detailDTO.BoxBarcode;
+                        existingDetail.NumberOfBoxes = detailDTO.NumberOfBoxes;
+                        existingDetail.ItemsPerBox = detailDTO.ItemsPerBox;
+                        existingDetail.BoxPurchasePrice = detailDTO.BoxPurchasePrice;
+                        existingDetail.BoxSalePrice = detailDTO.BoxSalePrice;
+
+                        await _unitOfWork.SupplierInvoiceDetails.UpdateAsync(existingDetail);
+                        detail = existingDetail;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"AddProductToInvoiceAsync: No existing detail found. Creating new one.");
+
+                        // Create new detail
+                        detail = _mapper.Map<SupplierInvoiceDetail>(detailDTO);
+                        await _unitOfWork.SupplierInvoiceDetails.AddAsync(detail);
                     }
 
-                    if (invoiceStatus.Status != "Draft")
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Recalculate invoice total
+                    var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(detailDTO.SupplierInvoiceId);
+                    if (invoice != null)
                     {
-                        throw new InvalidOperationException($"Cannot add products to invoice in {invoiceStatus.Status} status");
+                        var allDetails = await _unitOfWork.SupplierInvoiceDetails
+                            .Query()
+                            .Where(d => d.SupplierInvoiceId == detailDTO.SupplierInvoiceId)
+                            .ToListAsync();
+
+                        invoice.TotalAmount = allDetails.Sum(d => d.TotalPrice);
+                        // Removed the ItemCount property assignment as it doesn't exist
+                        invoice.UpdatedAt = DateTime.Now;
+
+                        await _unitOfWork.SupplierInvoices.UpdateAsync(invoice);
+                        await _unitOfWork.SaveChangesAsync();
                     }
 
-                    // Verify product exists without tracking
-                    bool productExists = await _unitOfWork.Context.Set<Product>()
-                        .AsNoTracking()
-                        .AnyAsync(p => p.ProductId == detailDto.ProductId);
-
-                    if (!productExists)
-                    {
-                        throw new InvalidOperationException($"Product with ID {detailDto.ProductId} not found");
-                    }
-
-                    // Calculate total price
-                    detailDto.TotalPrice = detailDto.Quantity * detailDto.PurchasePrice;
-
-                    // Use direct SQL to add the invoice detail, avoiding entity tracking issues
-                    string sql = @"
-                INSERT INTO SupplierInvoiceDetails (
-                    SupplierInvoiceId, ProductId, Quantity, PurchasePrice, TotalPrice, 
-                    BoxBarcode, NumberOfBoxes, ItemsPerBox, BoxPurchasePrice, BoxSalePrice
-                ) VALUES (
-                    @supplierId, @productId, @quantity, @purchasePrice, @totalPrice,
-                    @boxBarcode, @numberOfBoxes, @itemsPerBox, @boxPurchasePrice, @boxSalePrice
-                )";
-
-                    var parameters = new[]
-                    {
-                new Microsoft.Data.SqlClient.SqlParameter("@supplierId", detailDto.SupplierInvoiceId),
-                new Microsoft.Data.SqlClient.SqlParameter("@productId", detailDto.ProductId),
-                new Microsoft.Data.SqlClient.SqlParameter("@quantity", detailDto.Quantity),
-                new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", detailDto.PurchasePrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@totalPrice", detailDto.TotalPrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxBarcode", (object)detailDto.BoxBarcode ?? DBNull.Value),
-                new Microsoft.Data.SqlClient.SqlParameter("@numberOfBoxes", detailDto.NumberOfBoxes),
-                new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", detailDto.ItemsPerBox),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", detailDto.BoxPurchasePrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", detailDto.BoxSalePrice)
-            };
-
-                    await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
-
-                    // Update the calculated amount on the invoice
-                    await UpdateCalculatedAmountAsync(detailDto.SupplierInvoiceId);
+                    return true; // Just to return something for the Task<bool> inside ExecuteInScopeAsync
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error adding product to invoice: {ex}");
+                    Debug.WriteLine($"AddProductToInvoiceAsync: Error: {ex.Message}");
+                    if (ex.InnerException != null)
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
                     throw;
                 }
             });
         }
- 
+
         public async Task RemoveProductFromInvoiceAsync(int detailId)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>

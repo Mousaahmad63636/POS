@@ -369,6 +369,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // In MainStockService.cs
         public async Task<MainStockDTO> GetByIdAsync(int id)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -382,6 +383,11 @@ namespace QuickTechSystems.Application.Services
 
                 if (mainStock != null)
                 {
+                    // Explicitly preserve ItemsPerBox and BoxPurchasePrice values
+                    // This prevents auto-calculation/default values from being applied
+                    dto.ItemsPerBox = mainStock.ItemsPerBox;
+                    dto.BoxPurchasePrice = mainStock.BoxPurchasePrice;
+
                     if (mainStock.Category != null)
                     {
                         dto.CategoryName = mainStock.Category.Name;
@@ -397,6 +403,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // In MainStockService.cs, in the CreateBatchAsync method
         public async Task<List<MainStockDTO>> CreateBatchAsync(List<MainStockDTO> products, IProgress<string>? progress = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -426,8 +433,14 @@ namespace QuickTechSystems.Application.Services
                         if (string.IsNullOrWhiteSpace(product.BoxBarcode) && !string.IsNullOrWhiteSpace(product.Barcode))
                             product.BoxBarcode = $"BX{product.Barcode}";
 
-                        if (product.ItemsPerBox <= 0)
-                            product.ItemsPerBox = 1;
+                        // !!! IMPORTANT !!! - This is the key part to fix
+                        // Only set default ItemsPerBox if it wasn't already set by the user
+                        // Do NOT force NumberOfBoxes to 1 if it was set to 0
+                        if (product.ItemsPerBox < 0)
+                            product.ItemsPerBox = 0;
+
+                        // Do not modify NumberOfBoxes - respect what the user entered
+                        // Do not recalculate BoxPurchasePrice if it was explicitly set to 0
 
                         // IMPORTANT CHANGE: Do NOT calculate CurrentStock from boxes and individual items
                         // Keep them separate - CurrentStock will not be a calculated field
@@ -464,6 +477,10 @@ namespace QuickTechSystems.Application.Services
                         {
                             // Create new
                             var entity = _mapper.Map<MainStock>(product);
+                            // IMPORTANT: Ensure we don't override what user entered
+                            entity.NumberOfBoxes = product.NumberOfBoxes; // Keep as is (could be 0)
+                            entity.BoxPurchasePrice = product.BoxPurchasePrice; // Keep as is (could be 0)
+
                             var addedEntity = await _repository.AddAsync(entity);
                             await _unitOfWork.SaveChangesAsync();
 

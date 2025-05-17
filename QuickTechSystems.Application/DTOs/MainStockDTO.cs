@@ -74,6 +74,8 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
+        // In MainStockDTO.cs, look for the MainStockDTO_PropertyChanged method
+        // In MainStockDTO.cs
         private void MainStockDTO_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             // We only want to update the related property if we're not already
@@ -86,14 +88,19 @@ namespace QuickTechSystems.Application.DTOs
                     // Handle relationships between box and individual prices
                     if (e.PropertyName == nameof(ItemsPerBox))
                     {
+                        // IMPORTANT: Only recalculate if ItemsPerBox > 0 
+                        // Don't do any calculation if ItemsPerBox is 0
+                        if (ItemsPerBox <= 0)
+                            return;
+
                         // Don't recalculate if both values are set by the user
                         if (PurchasePrice > 0 && BoxPurchasePrice > 0)
                             return;
 
                         // Recalculate appropriate price when items per box changes
-                        if (BoxPurchasePrice > 0 && ItemsPerBox > 0)
+                        if (BoxPurchasePrice > 0)
                             PurchasePrice = Math.Round(BoxPurchasePrice / ItemsPerBox, 2);
-                        else if (PurchasePrice > 0 && ItemsPerBox > 0)
+                        else if (PurchasePrice > 0)
                             BoxPurchasePrice = Math.Round(PurchasePrice * ItemsPerBox, 2);
                     }
                 }
@@ -103,7 +110,6 @@ namespace QuickTechSystems.Application.DTOs
                 }
             }
         }
-
         public int MainStockId
         {
             get => _mainStockId;

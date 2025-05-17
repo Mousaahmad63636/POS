@@ -21,6 +21,8 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task UpdateCalculatedAmountAsync(int invoiceId);
         Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto);
         Task RemoveProductFromInvoiceAsync(int detailId);
+        // Add this method to ISupplierInvoiceService interface
+        Task<IEnumerable<SupplierInvoiceDetailDTO>> GetInvoiceDetailsForProductAsync(int productId);
         Task<IEnumerable<SupplierInvoiceDTO>> GetRecentInvoicesAsync(DateTime startDate);
     }
 }
