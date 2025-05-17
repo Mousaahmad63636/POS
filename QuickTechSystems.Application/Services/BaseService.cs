@@ -1,7 +1,8 @@
 ﻿// QuickTechSystems.Application/Services/BaseService.cs
 using AutoMapper;
+using System.Diagnostics;
 using QuickTechSystems.Application.Events;
-using QuickTechSystems.Application.Interfaces; // Updated this import
+using QuickTechSystems.Application.Interfaces;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Interfaces.Repositories;
 using System;
@@ -64,14 +65,62 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // Updated UpdateAsync method - matches interface return type and fixes naming conflict
         public virtual async Task UpdateAsync(TDto dto)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var entity = _mapper.Map<TEntity>(dto);
-                await _repository.UpdateAsync(entity);
-                await _unitOfWork.SaveChangesAsync();
-                _eventAggregator.Publish(new EntityChangedEvent<TDto>("Update", dto));
+                try
+                {
+                    // Find the ID property - using reflection to be generic across entity types
+                    var idProperty = typeof(TDto).GetProperty("ProductId") ??
+                                     typeof(TDto).GetProperty("Id") ??
+                                     typeof(TDto).GetProperty($"{typeof(TEntity).Name}Id");
+
+                    if (idProperty == null)
+                    {
+                        Debug.WriteLine($"Warning: Cannot find ID property in DTO of type {typeof(TDto).Name}");
+                        // Fallback to traditional update without detaching
+                        var entityToUpdate = _mapper.Map<TEntity>(dto);
+                        await _repository.UpdateAsync(entityToUpdate);
+                        await _unitOfWork.SaveChangesAsync();
+                        _eventAggregator.Publish(new EntityChangedEvent<TDto>("Update", dto));
+                        return;
+                    }
+
+                    var id = idProperty.GetValue(dto);
+                    Debug.WriteLine($"BaseService.UpdateAsync: Updating entity of type {typeof(TEntity).Name} with ID {id}");
+
+                    // Get existing entity - we need this to properly detach it
+                    var existingEntity = await _repository.GetByIdAsync((int)id);
+                    if (existingEntity == null)
+                    {
+                        Debug.WriteLine($"Entity with ID {id} not found for update.");
+                        throw new Exception($"Entity with ID {id} not found.");
+                    }
+
+                    // Detach existing entity to avoid tracking conflicts
+                    _unitOfWork.DetachEntity(existingEntity);
+
+                    // Map DTO to fresh entity and update
+                    var updatedEntity = _mapper.Map<TEntity>(dto);
+                    await _repository.UpdateAsync(updatedEntity);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Publish update event
+                    _eventAggregator.Publish(new EntityChangedEvent<TDto>("Update", dto));
+
+                    Debug.WriteLine($"Successfully updated entity of type {typeof(TEntity).Name}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in BaseService.UpdateAsync: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
+                    throw;
+                }
             });
         }
 

@@ -103,7 +103,7 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-        public async Task<ProductDTO> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0)
+        public async Task<ProductDTO?> FindProductByBarcodeAsync(string barcode, int excludeProductId = 0)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -302,7 +302,51 @@ namespace QuickTechSystems.Application.Services
         }
         // Path: QuickTechSystems.Application.Services/ProductService.cs
         // Update the SynchronizeWithMainStockAsync method
+        public override async Task<ProductDTO> UpdateAsync(ProductDTO dto)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    Debug.WriteLine($"ProductService.UpdateAsync: Updating product with ID {dto.ProductId}");
 
+                    // First, get the entity from the database
+                    var existingEntity = await _repository.GetByIdAsync(dto.ProductId);
+                    if (existingEntity == null)
+                    {
+                        throw new Exception($"Entity with ID {dto.ProductId} not found.");
+                    }
+
+                    // Detach existing entity to avoid tracking conflicts
+                    _unitOfWork.DetachEntity(existingEntity);
+
+                    // Map DTO to a fresh entity
+                    var entity = _mapper.Map<Product>(dto);
+
+                    // Update the entity and save changes
+                    await _repository.UpdateAsync(entity);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    // Map back to DTO
+                    var resultDto = _mapper.Map<ProductDTO>(entity);
+
+                    // Publish event
+                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", resultDto));
+
+                    Debug.WriteLine($"ProductService.UpdateAsync: Successfully updated product {dto.ProductId}");
+                    return resultDto;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in ProductService.UpdateAsync: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
+                    throw;
+                }
+            });
+        }
         public async Task SynchronizeWithMainStockAsync(int productId)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>

@@ -64,7 +64,21 @@ namespace QuickTechSystems.Infrastructure.Repositories
         {
             if (entity == null) return;
 
-            _context.Entry(entity).State = EntityState.Detached;
+            try
+            {
+                var entry = _context.Entry(entity);
+
+                // Only detach if the entity is being tracked
+                if (entry.State != EntityState.Detached)
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the exception but don't rethrow - detaching is a best-effort operation
+                System.Diagnostics.Debug.WriteLine($"Error detaching entity: {ex.Message}");
+            }
         }
         public IGenericRepository<Quote> Quotes =>
             _quotes ??= new GenericRepository<Quote>(_context, _contextFactory);

@@ -1,7 +1,7 @@
-﻿// Path: QuickTechSystems.WPF.ViewModels/EditMainStockViewModel.cs
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -17,7 +17,6 @@ namespace QuickTechSystems.WPF.ViewModels
     public class EditMainStockViewModel : ViewModelBase
     {
         #region Services
-
         private readonly IMainStockService _mainStockService;
         private readonly ICategoryService _categoryService;
         private readonly ISupplierService _supplierService;
@@ -25,21 +24,21 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly IBarcodeService _barcodeService;
         private readonly IImagePathService _imagePathService;
         private readonly IProductService _productService;
-
         #endregion
 
         #region Properties
-
         private MainStockDTO _editingItem;
         private ObservableCollection<CategoryDTO> _categories;
         private ObservableCollection<SupplierDTO> _suppliers;
         private ObservableCollection<SupplierInvoiceDTO> _draftInvoices;
+        private ObservableCollection<SupplierInvoiceDTO> _filteredInvoices;
         private CategoryDTO _selectedCategory;
         private SupplierDTO _selectedSupplier;
         private SupplierInvoiceDTO _selectedInvoice;
         private bool _isSaving;
         private string _statusMessage;
         private bool? _dialogResult;
+        private string _invoiceSearchText = string.Empty;
 
         public MainStockDTO EditingItem
         {
@@ -48,7 +47,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (value != null && value.IndividualItems <= 0)
                 {
-                    // Set individual items to be equal to current stock
                     value.IndividualItems = (int)value.CurrentStock;
                 }
                 SetProperty(ref _editingItem, value);
@@ -71,6 +69,12 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _draftInvoices;
             set => SetProperty(ref _draftInvoices, value);
+        }
+
+        public ObservableCollection<SupplierInvoiceDTO> FilteredInvoices
+        {
+            get => _filteredInvoices;
+            set => SetProperty(ref _filteredInvoices, value);
         }
 
         public CategoryDTO SelectedCategory
@@ -107,6 +111,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _selectedInvoice, value) && EditingItem != null)
                 {
                     EditingItem.SupplierInvoiceId = value?.SupplierInvoiceId;
+                    OnPropertyChanged(nameof(CurrentInvoiceDisplay));
                 }
             }
         }
@@ -129,10 +134,34 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _dialogResult, value);
         }
 
+        public string InvoiceSearchText
+        {
+            get => _invoiceSearchText;
+            set
+            {
+                if (SetProperty(ref _invoiceSearchText, value))
+                {
+                    SearchInvoices();
+                }
+            }
+        }
+
+        public bool HasFilteredInvoices => FilteredInvoices != null && FilteredInvoices.Count > 0;
+
+        public string CurrentInvoiceDisplay
+        {
+            get
+            {
+                if (SelectedInvoice != null)
+                {
+                    return $"{SelectedInvoice.InvoiceNumber} - {SelectedInvoice.SupplierName} ({SelectedInvoice.Status}) - {SelectedInvoice.TotalAmount:C2}";
+                }
+                return "No invoice selected";
+            }
+        }
         #endregion
 
         #region Commands
-
         public ICommand SaveCommand { get; private set; }
         public ICommand CancelCommand { get; private set; }
         public ICommand GenerateBarcodeCommand { get; private set; }
@@ -144,7 +173,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ClearInvoiceCommand { get; private set; }
         public ICommand LookupProductCommand { get; private set; }
         public ICommand LookupBoxBarcodeCommand { get; private set; }
-
+        public ICommand SearchInvoicesCommand { get; private set; }
         #endregion
 
         public EditMainStockViewModel(
@@ -165,6 +194,8 @@ namespace QuickTechSystems.WPF.ViewModels
             _imagePathService = imagePathService;
             _productService = productService;
 
+            _filteredInvoices = new ObservableCollection<SupplierInvoiceDTO>();
+
             InitializeCommands();
         }
 
@@ -181,17 +212,17 @@ namespace QuickTechSystems.WPF.ViewModels
             ClearInvoiceCommand = new RelayCommand(_ => ClearInvoice());
             LookupProductCommand = new AsyncRelayCommand<MainStockDTO>(async item => await LookupProductAsync(item));
             LookupBoxBarcodeCommand = new AsyncRelayCommand<MainStockDTO>(async item => await LookupBoxBarcodeAsync(item));
+            SearchInvoicesCommand = new RelayCommand(_ => SearchInvoices());
         }
 
         public async Task InitializeAsync(MainStockDTO item)
         {
-            // Create a new item if none provided
             EditingItem = item ?? new MainStockDTO
             {
                 IsActive = true,
-                ItemsPerBox = 0,  // Changed from 1 to 0
-                NumberOfBoxes = 0, // Already defaulting to 0
-                IndividualItems = 1 // Ensure we have at least 1 individual item by default
+                ItemsPerBox = 0,
+                NumberOfBoxes = 0,
+                IndividualItems = 1
             };
 
             try
@@ -201,7 +232,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await LoadDataAsync();
 
-                // Set selected values from the editing item
+                FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(DraftInvoices);
+                OnPropertyChanged(nameof(HasFilteredInvoices));
+
                 if (EditingItem != null)
                 {
                     if (EditingItem.CategoryId > 0)
@@ -214,12 +247,10 @@ namespace QuickTechSystems.WPF.ViewModels
                         SelectedSupplier = Suppliers?.FirstOrDefault(s => s.SupplierId == EditingItem.SupplierId.Value);
                     }
 
-                    // Enhanced invoice selection logic
                     if (EditingItem.SupplierInvoiceId.HasValue && EditingItem.SupplierInvoiceId.Value > 0)
                     {
                         Debug.WriteLine($"Looking for invoice ID: {EditingItem.SupplierInvoiceId.Value}");
 
-                        // First check if the invoice is already loaded in DraftInvoices
                         var existingInvoice = DraftInvoices?.FirstOrDefault(i =>
                             i.SupplierInvoiceId == EditingItem.SupplierInvoiceId.Value);
 
@@ -230,7 +261,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         }
                         else
                         {
-                            // If not found in the loaded invoices, try to fetch it specifically
                             try
                             {
                                 Debug.WriteLine("Invoice not found in collection, fetching from database...");
@@ -240,15 +270,15 @@ namespace QuickTechSystems.WPF.ViewModels
                                 {
                                     Debug.WriteLine($"Successfully loaded invoice from database: {invoice.InvoiceNumber}");
 
-                                    // Add to collection if not already there
                                     DraftInvoices.Add(invoice);
+                                    FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(DraftInvoices);
+                                    OnPropertyChanged(nameof(HasFilteredInvoices));
 
-                                    // Set as selected invoice (AFTER adding to collection)
                                     SelectedInvoice = invoice;
 
-                                    // Force UI update to ensure selection appears
                                     OnPropertyChanged(nameof(SelectedInvoice));
                                     OnPropertyChanged(nameof(DraftInvoices));
+                                    OnPropertyChanged(nameof(CurrentInvoiceDisplay));
                                 }
                                 else
                                 {
@@ -283,26 +313,20 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
-                // Load categories
                 var categories = await _categoryService.GetActiveAsync();
                 Categories = new ObservableCollection<CategoryDTO>(categories);
 
-                // Load suppliers
                 var suppliers = await _supplierService.GetActiveAsync();
                 Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
 
-                // Load invoices with enhanced approach
                 var invoices = new List<SupplierInvoiceDTO>();
 
-                // Get draft invoices (for new items)
                 var draftInvoices = await _supplierInvoiceService.GetByStatusAsync("Draft");
                 invoices.AddRange(draftInvoices);
 
-                // Also load recent invoices of all statuses (for editing existing items)
-                var recentDate = DateTime.Now.AddDays(-90);  // Go back 90 days to ensure we find most invoices
+                var recentDate = DateTime.Now.AddDays(-90);
                 var recentInvoices = await _supplierInvoiceService.GetRecentInvoicesAsync(recentDate);
 
-                // Add recent invoices without duplicating
                 foreach (var invoice in recentInvoices)
                 {
                     if (!invoices.Any(i => i.SupplierInvoiceId == invoice.SupplierInvoiceId))
@@ -310,9 +334,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         invoices.Add(invoice);
                     }
                 }
-
-                // If we're editing an item with a specific invoice ID that's not in either collection,
-                // we'll fetch it separately in the InitializeAsync method
 
                 DraftInvoices = new ObservableCollection<SupplierInvoiceDTO>(invoices);
             }
@@ -336,22 +357,16 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-
                 if (string.IsNullOrWhiteSpace(EditingItem.BoxBarcode) && !string.IsNullOrWhiteSpace(EditingItem.Barcode))
                     EditingItem.BoxBarcode = $"BX{EditingItem.Barcode}";
 
-
-                // Ensure consistent pricing
                 EnsureConsistentPricing(EditingItem);
 
-                // Set CurrentStock based on IndividualItems
                 EditingItem.CurrentStock = EditingItem.IndividualItems;
 
-                // Validate the item
                 if (!ValidateItem())
                     return;
 
-                // Ensure the invoice ID is set on the item before saving
                 if (SelectedInvoice != null)
                     EditingItem.SupplierInvoiceId = SelectedInvoice.SupplierInvoiceId;
 
@@ -363,7 +378,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 else
                     savedItem = await _mainStockService.UpdateAsync(EditingItem);
 
-                // Process store product and invoice integration
                 try
                 {
                     StatusMessage = "Adding product to invoice...";
@@ -501,7 +515,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 EditingItem.BarcodeImage = _barcodeService.GenerateBarcode(EditingItem.Barcode);
 
-                // If box barcode is empty, generate it automatically
                 if (string.IsNullOrWhiteSpace(EditingItem.BoxBarcode))
                 {
                     EditingItem.BoxBarcode = $"BX{EditingItem.Barcode}";
@@ -612,7 +625,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (result == true && dialog.CreatedInvoice != null)
                 {
                     DraftInvoices.Add(dialog.CreatedInvoice);
+                    FilteredInvoices.Add(dialog.CreatedInvoice);
                     SelectedInvoice = dialog.CreatedInvoice;
+                    OnPropertyChanged(nameof(HasFilteredInvoices));
+                    OnPropertyChanged(nameof(CurrentInvoiceDisplay));
                     StatusMessage = $"Invoice '{dialog.CreatedInvoice.InvoiceNumber}' created successfully";
                 }
             }
@@ -631,6 +647,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 EditingItem.SupplierInvoiceId = null;
             }
             StatusMessage = "Invoice selection cleared";
+            OnPropertyChanged(nameof(CurrentInvoiceDisplay));
+        }
+
+        private void SearchInvoices()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(InvoiceSearchText))
+                {
+                    FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(DraftInvoices);
+                }
+                else
+                {
+                    var searchText = InvoiceSearchText.ToLower();
+                    var filteredList = DraftInvoices
+                        .Where(i =>
+                            i.InvoiceNumber.ToLower().Contains(searchText) ||
+                            i.SupplierName.ToLower().Contains(searchText) ||
+                            i.Status.ToLower().Contains(searchText))
+                        .ToList();
+
+                    FilteredInvoices = new ObservableCollection<SupplierInvoiceDTO>(filteredList);
+                }
+
+                OnPropertyChanged(nameof(HasFilteredInvoices));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error searching invoices: {ex.Message}");
+                StatusMessage = $"Error searching invoices: {ex.Message}";
+            }
         }
 
         private async Task LookupProductAsync(MainStockDTO item)
@@ -647,11 +694,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (existingProduct != null)
                 {
-                    // Preserve important user-entered fields
                     int numberOfBoxes = item.NumberOfBoxes;
                     int individualItems = item.IndividualItems;
 
-                    // Update fields from existing product
                     item.MainStockId = existingProduct.MainStockId;
                     item.Name = existingProduct.Name;
                     item.Description = existingProduct.Description;
@@ -674,21 +719,18 @@ namespace QuickTechSystems.WPF.ViewModels
                     item.ImagePath = existingProduct.ImagePath;
                     item.CurrentStock = existingProduct.CurrentStock;
 
-                    // Restore individual items or use current stock if it's greater than zero
                     if (individualItems > 0)
                         item.IndividualItems = individualItems;
                     else if (existingProduct.CurrentStock > 0)
                         item.IndividualItems = (int)existingProduct.CurrentStock;
                     else
-                        item.IndividualItems = 1; // Ensure at least 1
+                        item.IndividualItems = 1;
 
-                    // Restore the number of boxes the user entered
                     if (numberOfBoxes > 0)
                         item.NumberOfBoxes = numberOfBoxes;
                     else
                         item.NumberOfBoxes = existingProduct.NumberOfBoxes;
 
-                    // Update selected values
                     SelectedCategory = Categories?.FirstOrDefault(c => c.CategoryId == item.CategoryId);
                     SelectedSupplier = Suppliers?.FirstOrDefault(s => s.SupplierId == item.SupplierId);
 
@@ -696,7 +738,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
-                    // New product - ensure box barcode if item barcode is provided
                     if (string.IsNullOrWhiteSpace(item.BoxBarcode))
                     {
                         item.BoxBarcode = $"BX{item.Barcode}";
@@ -734,11 +775,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (existingProduct != null)
                 {
-                    // Keep the current box quantities
                     int numberOfBoxes = item.NumberOfBoxes > 0 ? item.NumberOfBoxes : 1;
                     int individualItems = item.IndividualItems;
 
-                    // Update fields from existing product
                     item.MainStockId = existingProduct.MainStockId;
                     item.Name = existingProduct.Name;
                     item.Barcode = existingProduct.Barcode;
@@ -762,16 +801,13 @@ namespace QuickTechSystems.WPF.ViewModels
                     item.CurrentStock = existingProduct.CurrentStock;
                     item.IndividualItems = (int)existingProduct.CurrentStock;
 
-                    // Restore the number of boxes
                     item.NumberOfBoxes = numberOfBoxes;
 
-                    // If individualItems was set, keep it
                     if (individualItems > 0)
                     {
                         item.IndividualItems = individualItems;
                     }
 
-                    // Update selected values
                     SelectedCategory = Categories?.FirstOrDefault(c => c.CategoryId == item.CategoryId);
                     SelectedSupplier = Suppliers?.FirstOrDefault(s => s.SupplierId == item.SupplierId);
 
@@ -779,7 +815,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
-                    // If not found and the box barcode doesn't start with "BX", try with it
                     if (!item.BoxBarcode.StartsWith("BX", StringComparison.OrdinalIgnoreCase))
                     {
                         var modifiedBoxBarcode = $"BX{item.BoxBarcode}";
@@ -788,10 +823,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             var productWithPrefix = await _mainStockService.GetByBoxBarcodeAsync(modifiedBoxBarcode);
                             if (productWithPrefix != null)
                             {
-                                // Update the box barcode to the correct format
                                 item.BoxBarcode = modifiedBoxBarcode;
-
-                                // Recursively call this method again with the updated barcode
                                 await LookupBoxBarcodeAsync(item);
                                 return;
                             }
@@ -816,96 +848,72 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        /// <summary>
-        /// Ensures consistent pricing for the item
-        /// </summary>
-        /// <summary>
-        /// Ensures consistent pricing for the item, respecting manually entered values
-        /// </summary>
         private void EnsureConsistentPricing(MainStockDTO item)
         {
-            // If user has entered both Box Purchase Price and Purchase Price directly
-            // We don't adjust either one - respect both user inputs
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
             {
-                // Do nothing - respect both values as the user entered them
             }
-            // Calculate purchase price from box price if needed
             else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box purchase price from item price if needed (only if ItemsPerBox is set)
             else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
             }
 
-            // Handle Wholesale Price similarly - only if ItemsPerBox > 0
             if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
             {
-                // Respect both user inputs
             }
-            // Calculate wholesale price from box wholesale price if needed
             else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box wholesale price from item wholesale price if needed (only if ItemsPerBox is set)
             else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
             }
 
-            // Handle Sale Price similarly - only if ItemsPerBox > 0
             if (item.BoxSalePrice > 0 && item.SalePrice > 0)
             {
-                // Respect both user inputs
             }
-            // Calculate sale price from box sale price if needed
             else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
             }
-            // Calculate box sale price from item sale price if needed (only if ItemsPerBox is set)
             else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
             {
                 item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
             }
 
-            // Ensure we have a valid wholesale price (default to purchase price + 10% if not set)
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
             }
 
-            // Ensure we have a valid sale price (default to purchase price + 20% if not set)
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
             }
 
-            // Only set box prices from item prices if ItemsPerBox is valid
             if (item.ItemsPerBox > 0)
             {
-                // Ensure we have a valid box wholesale price (default to wholesale price * ItemsPerBox if not set)
                 if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
                 {
                     item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
                 }
 
-                // Ensure we have a valid box sale price (default to sale price * ItemsPerBox if not set)
                 if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
                 {
                     item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
                 }
             }
         }
+
         private bool ValidateItem()
         {
             var errors = new List<string>();
 
-            // Required fields validation
             if (string.IsNullOrWhiteSpace(EditingItem.Name))
                 errors.Add("• Item name is required");
 
@@ -915,18 +923,15 @@ namespace QuickTechSystems.WPF.ViewModels
             if (EditingItem.SupplierId <= 0 || !EditingItem.SupplierId.HasValue)
                 errors.Add("• Please select a supplier");
 
-            // At least one pricing option must be provided
             if (EditingItem.PurchasePrice <= 0 && EditingItem.BoxPurchasePrice <= 0)
                 errors.Add("• Either item purchase price or box purchase price is required");
 
             if (EditingItem.SalePrice <= 0 && EditingItem.BoxSalePrice <= 0)
                 errors.Add("• Either item sale price or box sale price is required");
 
-            // Individual items quantity is required
             if (EditingItem.IndividualItems <= 0)
                 errors.Add("• Individual items quantity must be greater than zero");
 
-            // Add validation for invoice selection
             if (SelectedInvoice == null)
                 errors.Add("• Please select a supplier invoice");
 
