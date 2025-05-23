@@ -264,19 +264,16 @@ namespace QuickTechSystems.Application.Services
             {
                 Debug.WriteLine("Starting create in MainStockService");
 
-                // Ensure the created date is set
                 if (dto.CreatedAt == default)
                 {
                     dto.CreatedAt = DateTime.Now;
                 }
 
-                // Ensure box barcode is set if barcode exists
                 if (string.IsNullOrWhiteSpace(dto.BoxBarcode) && !string.IsNullOrWhiteSpace(dto.Barcode))
                 {
                     dto.BoxBarcode = $"BX{dto.Barcode}";
                 }
 
-                // Retrieve category and supplier names if they're not set but IDs are
                 if (string.IsNullOrWhiteSpace(dto.CategoryName) && dto.CategoryId > 0)
                 {
                     var category = await _unitOfWork.Categories.GetByIdAsync(dto.CategoryId);
@@ -297,27 +294,30 @@ namespace QuickTechSystems.Application.Services
                     }
                 }
 
-                // Map DTO to entity
                 var entity = _mapper.Map<MainStock>(dto);
 
-                // EXPLICITLY SET CURRENT STOCK TO INDIVIDUAL ITEMS ONLY
-                entity.CurrentStock = dto.IndividualItems;
+                if (dto.AutoSyncToProducts)
+                {
+                    entity.CurrentStock = 0;
+                    entity.NumberOfBoxes = 0;
+                }
+                else
+                {
+                    entity.CurrentStock = dto.IndividualItems;
+                    entity.NumberOfBoxes = dto.NumberOfBoxes;
+                }
 
-                // Clear any automatic box stock calculations
-                entity.NumberOfBoxes = dto.NumberOfBoxes;  // Maintain box count separately
-                entity.ItemsPerBox = dto.ItemsPerBox;      // Maintain items-per-box ratio
+                entity.ItemsPerBox = dto.ItemsPerBox;
 
                 var result = await _repository.AddAsync(entity);
                 await _unitOfWork.SaveChangesAsync();
 
-                // Verify that the ID was properly assigned
                 if (result.MainStockId <= 0)
                 {
                     Debug.WriteLine($"WARNING: MainStockId was not properly assigned for {dto.Name}");
                     throw new InvalidOperationException($"Database did not assign a valid ID to MainStock item: {dto.Name}");
                 }
 
-                // Retrieve fresh entity with relationships to ensure all names are set
                 var freshEntity = await _repository.Query()
                     .Include(m => m.Category)
                     .Include(m => m.Supplier)
@@ -325,7 +325,6 @@ namespace QuickTechSystems.Application.Services
 
                 var resultDto = _mapper.Map<MainStockDTO>(freshEntity ?? result);
 
-                // Manually ensure names are set in case mapper didn't handle it
                 if (freshEntity != null)
                 {
                     if (freshEntity.Category != null)
@@ -334,13 +333,95 @@ namespace QuickTechSystems.Application.Services
                         resultDto.SupplierName = freshEntity.Supplier.Name;
                 }
 
+                if (dto.AutoSyncToProducts)
+                {
+                    var originalCurrentStock = dto.CurrentStock;
+                    resultDto.CurrentStock = originalCurrentStock;
+                    await AutoSyncToProductsAsync(resultDto);
+                    resultDto.CurrentStock = 0;
+                }
+
                 Debug.WriteLine($"Successfully created MainStock item with ID: {resultDto.MainStockId}");
                 _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Create", resultDto));
 
                 return resultDto;
             });
         }
+        private async Task AutoSyncToProductsAsync(MainStockDTO mainStockDto)
+        {
+            try
+            {
+                var existingProduct = await _productService.FindProductByBarcodeAsync(mainStockDto.Barcode);
 
+                if (existingProduct != null)
+                {
+                    var updatedProduct = new ProductDTO
+                    {
+                        ProductId = existingProduct.ProductId,
+                        Name = mainStockDto.Name,
+                        Barcode = mainStockDto.Barcode,
+                        BoxBarcode = mainStockDto.BoxBarcode,
+                        CategoryId = mainStockDto.CategoryId,
+                        CategoryName = mainStockDto.CategoryName,
+                        SupplierId = mainStockDto.SupplierId,
+                        SupplierName = mainStockDto.SupplierName,
+                        Description = mainStockDto.Description,
+                        PurchasePrice = mainStockDto.PurchasePrice,
+                        WholesalePrice = mainStockDto.WholesalePrice,
+                        SalePrice = mainStockDto.SalePrice,
+                        MainStockId = mainStockDto.MainStockId,
+                        BoxPurchasePrice = mainStockDto.BoxPurchasePrice,
+                        BoxWholesalePrice = mainStockDto.BoxWholesalePrice,
+                        BoxSalePrice = mainStockDto.BoxSalePrice,
+                        ItemsPerBox = mainStockDto.ItemsPerBox,
+                        MinimumBoxStock = mainStockDto.MinimumBoxStock,
+                        CurrentStock = existingProduct.CurrentStock + (int)mainStockDto.CurrentStock,
+                        MinimumStock = mainStockDto.MinimumStock,
+                        ImagePath = mainStockDto.ImagePath,
+                        Speed = mainStockDto.Speed,
+                        IsActive = mainStockDto.IsActive,
+                        UpdatedAt = DateTime.Now
+                    };
+
+                    await _productService.UpdateAsync(updatedProduct);
+                }
+                else
+                {
+                    var newProduct = new ProductDTO
+                    {
+                        Name = mainStockDto.Name,
+                        Barcode = mainStockDto.Barcode,
+                        BoxBarcode = mainStockDto.BoxBarcode,
+                        CategoryId = mainStockDto.CategoryId,
+                        CategoryName = mainStockDto.CategoryName,
+                        SupplierId = mainStockDto.SupplierId,
+                        SupplierName = mainStockDto.SupplierName,
+                        Description = mainStockDto.Description,
+                        PurchasePrice = mainStockDto.PurchasePrice,
+                        WholesalePrice = mainStockDto.WholesalePrice,
+                        SalePrice = mainStockDto.SalePrice,
+                        MainStockId = mainStockDto.MainStockId,
+                        BoxPurchasePrice = mainStockDto.BoxPurchasePrice,
+                        BoxWholesalePrice = mainStockDto.BoxWholesalePrice,
+                        BoxSalePrice = mainStockDto.BoxSalePrice,
+                        ItemsPerBox = mainStockDto.ItemsPerBox,
+                        MinimumBoxStock = mainStockDto.MinimumBoxStock,
+                        CurrentStock = (int)mainStockDto.CurrentStock,
+                        MinimumStock = mainStockDto.MinimumStock,
+                        ImagePath = mainStockDto.ImagePath,
+                        Speed = mainStockDto.Speed,
+                        IsActive = mainStockDto.IsActive,
+                        CreatedAt = DateTime.Now
+                    };
+
+                    await _productService.CreateAsync(newProduct);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error auto-syncing to Products: {ex.Message}");
+            }
+        }
         public async Task<MainStockDTO?> GetByBarcodeAsync(string barcode)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -404,6 +485,7 @@ namespace QuickTechSystems.Application.Services
                 var savedProducts = new List<MainStockDTO>();
                 var categories = await _unitOfWork.Categories.Query().AsNoTracking().ToListAsync();
                 var suppliers = await _unitOfWork.Suppliers.Query().AsNoTracking().ToListAsync();
+                bool shouldAutoSync = products.FirstOrDefault()?.AutoSyncToProducts ?? false;
 
                 for (int i = 0; i < products.Count; i++)
                 {
@@ -412,7 +494,6 @@ namespace QuickTechSystems.Application.Services
                     {
                         progress?.Report($"Processing item {i + 1} of {products.Count}: {product.Name}");
 
-                        // Ensure basic data integrity
                         if (string.IsNullOrEmpty(product.CategoryName) && product.CategoryId > 0)
                             product.CategoryName = categories.FirstOrDefault(c => c.CategoryId == product.CategoryId)?.Name ?? string.Empty;
 
@@ -422,28 +503,28 @@ namespace QuickTechSystems.Application.Services
                         if (product.CreatedAt == default)
                             product.CreatedAt = DateTime.Now;
 
-                        // Validate and ensure necessary fields
                         if (string.IsNullOrWhiteSpace(product.BoxBarcode) && !string.IsNullOrWhiteSpace(product.Barcode))
                             product.BoxBarcode = $"BX{product.Barcode}";
 
                         if (product.ItemsPerBox <= 0)
                             product.ItemsPerBox = 1;
 
-                        // IMPORTANT CHANGE: Do NOT calculate CurrentStock from boxes and individual items
-                        // Keep them separate - CurrentStock will not be a calculated field
-
-                        // Handle existing products
                         var existingProduct = !string.IsNullOrEmpty(product.Barcode)
                             ? await _repository.Query().FirstOrDefaultAsync(p => p.Barcode == product.Barcode)
                             : null;
 
                         if (existingProduct != null)
                         {
-                            // Update existing
                             product.MainStockId = existingProduct.MainStockId;
                             var entity = _mapper.Map<MainStock>(product);
                             entity.CreatedAt = existingProduct.CreatedAt;
                             entity.UpdatedAt = DateTime.Now;
+
+                            if (shouldAutoSync)
+                            {
+                                entity.CurrentStock = 0;
+                                entity.NumberOfBoxes = 0;
+                            }
 
                             _unitOfWork.DetachEntity(existingProduct);
                             await _repository.UpdateAsync(entity);
@@ -457,13 +538,28 @@ namespace QuickTechSystems.Application.Services
 
                             var updatedDto = _mapper.Map<MainStockDTO>(refreshedEntity ?? entity);
                             UpdateDtoNames(updatedDto, refreshedEntity, product);
+
+                            if (shouldAutoSync)
+                            {
+                                var originalCurrentStock = product.CurrentStock;
+                                updatedDto.CurrentStock = originalCurrentStock;
+                                await AutoSyncToProductsAsync(updatedDto);
+                                updatedDto.CurrentStock = 0;
+                            }
+
                             savedProducts.Add(updatedDto);
                             _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", updatedDto));
                         }
                         else
                         {
-                            // Create new
                             var entity = _mapper.Map<MainStock>(product);
+
+                            if (shouldAutoSync)
+                            {
+                                entity.CurrentStock = 0;
+                                entity.NumberOfBoxes = 0;
+                            }
+
                             var addedEntity = await _repository.AddAsync(entity);
                             await _unitOfWork.SaveChangesAsync();
 
@@ -478,6 +574,15 @@ namespace QuickTechSystems.Application.Services
 
                             var newDto = _mapper.Map<MainStockDTO>(freshEntity ?? addedEntity);
                             UpdateDtoNames(newDto, freshEntity, product);
+
+                            if (shouldAutoSync)
+                            {
+                                var originalCurrentStock = product.CurrentStock;
+                                newDto.CurrentStock = originalCurrentStock;
+                                await AutoSyncToProductsAsync(newDto);
+                                newDto.CurrentStock = 0;
+                            }
+
                             savedProducts.Add(newDto);
                             _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Create", newDto));
                         }
@@ -1044,7 +1149,6 @@ namespace QuickTechSystems.Application.Services
             {
                 try
                 {
-                    // Validate data integrity
                     if (dto.UpdatedAt == null)
                         dto.UpdatedAt = DateTime.Now;
 
@@ -1054,7 +1158,6 @@ namespace QuickTechSystems.Application.Services
                     if (dto.ItemsPerBox <= 0)
                         dto.ItemsPerBox = 1;
 
-                    // Update category and supplier names if needed
                     if (string.IsNullOrEmpty(dto.CategoryName) && dto.CategoryId > 0)
                     {
                         var category = await _unitOfWork.Categories.GetByIdAsync(dto.CategoryId);
@@ -1069,33 +1172,35 @@ namespace QuickTechSystems.Application.Services
                             dto.SupplierName = supplier.Name;
                     }
 
-                    // Find existing entity and detach
                     var existingEntity = await _repository.GetByIdAsync(dto.MainStockId);
                     if (existingEntity != null)
                         _unitOfWork.DetachEntity(existingEntity);
 
-                    // Map DTO to entity
                     var entity = _mapper.Map<MainStock>(dto);
 
-                    // Make sure stock properties are correctly set without combining
-                    entity.CurrentStock = dto.CurrentStock;
-                    entity.NumberOfBoxes = dto.NumberOfBoxes;
+                    if (dto.AutoSyncToProducts)
+                    {
+                        entity.CurrentStock = 0;
+                        entity.NumberOfBoxes = 0;
+                    }
+                    else
+                    {
+                        entity.CurrentStock = dto.CurrentStock;
+                        entity.NumberOfBoxes = dto.NumberOfBoxes;
+                    }
+
                     entity.ItemsPerBox = dto.ItemsPerBox;
 
-                    // Update and save
                     await _repository.UpdateAsync(entity);
                     await _unitOfWork.SaveChangesAsync();
 
-                    // Get updated entity with related data
                     var updatedEntity = await _repository.Query()
                         .Include(m => m.Category)
                         .Include(m => m.Supplier)
                         .FirstOrDefaultAsync(m => m.MainStockId == dto.MainStockId);
 
-                    // Map back to DTO
                     var resultDto = _mapper.Map<MainStockDTO>(updatedEntity ?? entity);
 
-                    // Set names correctly
                     if (updatedEntity != null)
                     {
                         if (updatedEntity.Category != null)
@@ -1109,10 +1214,16 @@ namespace QuickTechSystems.Application.Services
                         resultDto.SupplierName = dto.SupplierName;
                     }
 
-                    // Publish update event
+                    if (dto.AutoSyncToProducts)
+                    {
+                        var originalCurrentStock = dto.CurrentStock;
+                        resultDto.CurrentStock = originalCurrentStock;
+                        await AutoSyncToProductsAsync(resultDto);
+                        resultDto.CurrentStock = 0;
+                    }
+
                     _eventAggregator.Publish(new EntityChangedEvent<MainStockDTO>("Update", resultDto));
 
-                    // Sync linked products
                     var linkedProducts = await _unitOfWork.Products
                         .Query()
                         .Include(p => p.Category)
@@ -1155,7 +1266,6 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
         public async Task<IEnumerable<MainStockDTO>> SearchAsync(string searchTerm)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

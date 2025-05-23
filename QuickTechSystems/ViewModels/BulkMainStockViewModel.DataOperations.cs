@@ -141,6 +141,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     foreach (var item in Items)
                     {
                         item.CurrentStock = item.IndividualItems;
+                        item.AutoSyncToProducts = AutoSyncToProducts;
                         EnsureConsistentPricing(item);
 
                         if (item.ItemsPerBox <= 0)
@@ -163,9 +164,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 });
 
-                // Reset the queue service before enqueueing new items
                 _bulkOperationQueueService.Reset();
-
                 _bulkOperationQueueService.EnqueueItems(Items.ToList());
 
                 var tcs = new TaskCompletionSource<bool>();
@@ -196,7 +195,6 @@ namespace QuickTechSystems.WPF.ViewModels
                             tcs.TrySetResult(false);
                         }
 
-                        // Ensure view model is disposed when window closes
                         if (statusWindow.DataContext is IDisposable disposable)
                         {
                             disposable.Dispose();
@@ -208,14 +206,16 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var result = await tcs.Task;
 
-                if (result)
+                if (result && AutoSyncToProducts)
+                {
+                    await ProcessInvoiceIntegrationAsync();
+                }
+                else if (result && !AutoSyncToProducts)
                 {
                     await ProcessSupplierInvoiceIntegrationAsync();
                 }
 
-                // Always reset the queue service after the operation completes
                 _bulkOperationQueueService.Reset();
-
                 DialogResultBackup = result;
                 DialogResult = result;
 
@@ -233,9 +233,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 });
 
-                // Reset the queue service on error
                 _bulkOperationQueueService.Reset();
-
                 return false;
             }
             finally
@@ -255,6 +253,121 @@ namespace QuickTechSystems.WPF.ViewModels
                         Debug.WriteLine($"Error releasing semaphore: {ex.Message}");
                     }
                 }
+            }
+        }
+
+        private async Task ProcessInvoiceIntegrationAsync()
+        {
+            try
+            {
+                if (SelectedBulkInvoice == null)
+                {
+                    Debug.WriteLine("No invoice selected for integration");
+                    return;
+                }
+
+                StatusMessage = "Integrating with supplier invoice...";
+                IsSaving = true;
+
+                var savedItems = new List<MainStockDTO>();
+                var barcodes = Items.Where(i => !string.IsNullOrWhiteSpace(i.Barcode))
+                                   .Select(i => i.Barcode)
+                                   .ToList();
+
+                const int queryBatchSize = 10;
+                for (int i = 0; i < barcodes.Count; i += queryBatchSize)
+                {
+                    var batch = barcodes.Skip(i).Take(queryBatchSize).ToList();
+
+                    foreach (var barcode in batch)
+                    {
+                        try
+                        {
+                            var savedItem = await _mainStockService.GetByBarcodeAsync(barcode);
+                            if (savedItem != null)
+                            {
+                                savedItems.Add(savedItem);
+                            }
+
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                            {
+                                StatusMessage = $"Finding items {savedItems.Count} of {barcodes.Count}...";
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error retrieving item with barcode {barcode}: {ex.Message}");
+                        }
+                    }
+
+                    await Task.Delay(200);
+                }
+
+                int processedCount = 0;
+                var totalCount = savedItems.Count;
+
+                foreach (var mainStockItem in savedItems)
+                {
+                    try
+                    {
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            StatusMessage = $"Processing invoice details ({processedCount + 1}/{totalCount})...";
+                        });
+
+                        await Task.Delay(100);
+                        var storeProduct = await _productService.FindProductByBarcodeAsync(mainStockItem.Barcode);
+
+                        if (storeProduct?.ProductId > 0)
+                        {
+                            var invoiceDetail = new SupplierInvoiceDetailDTO
+                            {
+                                SupplierInvoiceId = SelectedBulkInvoice.SupplierInvoiceId,
+                                ProductId = storeProduct.ProductId,
+                                ProductName = mainStockItem.Name,
+                                ProductBarcode = mainStockItem.Barcode,
+                                BoxBarcode = mainStockItem.BoxBarcode,
+                                NumberOfBoxes = mainStockItem.NumberOfBoxes,
+                                ItemsPerBox = mainStockItem.ItemsPerBox,
+                                BoxPurchasePrice = mainStockItem.BoxPurchasePrice,
+                                BoxSalePrice = mainStockItem.BoxSalePrice,
+                                Quantity = mainStockItem.CurrentStock,
+                                PurchasePrice = mainStockItem.PurchasePrice,
+                                TotalPrice = mainStockItem.PurchasePrice * mainStockItem.CurrentStock
+                            };
+
+                            await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
+                            processedCount++;
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"Warning: Could not create invoice detail for product {mainStockItem.Name} - Invalid ProductId");
+                        }
+
+                        await Task.Delay(200);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error processing integration for item {mainStockItem.Name}: {ex.Message}");
+                    }
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    StatusMessage = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}";
+                });
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in supplier invoice integration: {ex.Message}");
+                StatusMessage = $"Error integrating with invoice: {ex.Message}";
+                await Task.Delay(1000);
+            }
+            finally
+            {
+                IsSaving = false;
+                StatusMessage = string.Empty;
             }
         }
 

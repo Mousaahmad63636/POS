@@ -34,7 +34,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private readonly SemaphoreSlim _operationLock;
         private const int DEFAULT_LOCK_TIMEOUT_MS = 5000; // 5 seconds
         private bool _isDisposed;
-
+        private bool _autoSyncToProducts = true;
         private bool _isSaving;
         private int _totalRows;
         private int _currentRow;
@@ -72,7 +72,11 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _currentRow;
             set => SetProperty(ref _currentRow, value);
         }
-
+        public bool AutoSyncToProducts
+        {
+            get => _autoSyncToProducts;
+            set => SetProperty(ref _autoSyncToProducts, value);
+        }
         public string StatusMessage
         {
             get => _statusMessage;

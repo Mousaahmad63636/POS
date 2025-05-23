@@ -374,7 +374,6 @@ namespace QuickTechSystems.WPF.ViewModels
         /// </summary>
         private async Task SaveAsync()
         {
-            // Use a reasonable timeout instead of 0
             if (!await _operationLock.WaitAsync(DEFAULT_LOCK_TIMEOUT_MS))
             {
                 ShowTemporaryErrorMessage("Save operation already in progress. Please wait.");
@@ -389,7 +388,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Validating item...";
 
-                // Create a complete copy of the selected item to avoid tracking issues
                 var itemToUpdate = new MainStockDTO
                 {
                     MainStockId = SelectedItem.MainStockId,
@@ -416,39 +414,32 @@ namespace QuickTechSystems.WPF.ViewModels
                     ItemsPerBox = SelectedItem.ItemsPerBox,
                     MinimumBoxStock = SelectedItem.MinimumBoxStock,
                     CreatedAt = SelectedItem.CreatedAt,
-                    UpdatedAt = DateTime.Now
+                    UpdatedAt = DateTime.Now,
+                    AutoSyncToProducts = AutoSyncToProducts
                 };
 
-                // Check if barcode is empty and generate one if needed
                 if (string.IsNullOrWhiteSpace(itemToUpdate.Barcode))
                 {
                     Debug.WriteLine("No barcode provided, generating automatic barcode");
-
-                    // Generate a unique barcode based on category, timestamp, and random number
-                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8); // Use ticks for uniqueness
+                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
                     var random = new Random();
                     var randomDigits = random.Next(1000, 9999).ToString();
                     var categoryPrefix = itemToUpdate.CategoryId.ToString().PadLeft(3, '0');
-
                     itemToUpdate.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
                 }
 
-                // Always ensure barcode image exists before saving
                 if (itemToUpdate.BarcodeImage == null && !string.IsNullOrWhiteSpace(itemToUpdate.Barcode))
                 {
                     Debug.WriteLine("Generating barcode image for item");
                     try
                     {
                         itemToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(itemToUpdate.Barcode);
-
-                        // Update the UI image
                         BarcodeImage = LoadBarcodeImage(itemToUpdate.BarcodeImage);
                         Debug.WriteLine("Barcode image generated successfully");
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error generating barcode image: {ex.Message}");
-                        // Continue despite this error - we can still save without the image
                     }
                 }
 
@@ -457,7 +448,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Check for duplicate barcode
                 try
                 {
                     var existingItem = await _mainStockService.FindProductByBarcodeAsync(
@@ -480,7 +470,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error checking for duplicate barcode: {ex.Message}");
-                    // Continue despite this error, as it's better to attempt the save
                 }
 
                 StatusMessage = "Saving item...";
@@ -491,80 +480,56 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     if (itemToUpdate.MainStockId == 0)
                     {
-                        // Create new item
                         savedItem = await _mainStockService.CreateAsync(itemToUpdate);
                     }
                     else
                     {
-                        // Update existing item - use the UpdateAsync method
                         savedItem = await _mainStockService.UpdateAsync(itemToUpdate);
                     }
 
-                    // Update SelectedItem reference with the returned values
                     await SafeDispatcherOperation(() => {
                         SelectedItem = savedItem;
                     });
 
-                    // Handle supplier invoice association if selected
                     if (SelectedInvoice != null && savedItem != null)
                     {
                         try
                         {
                             StatusMessage = "Adding product to invoice...";
-
-                            // Find or create a corresponding Product for this MainStock item
                             var matchingProduct = await _productService.FindProductByBarcodeAsync(savedItem.Barcode);
 
-                            // If no matching product exists, create one based on this MainStock item
-                            if (matchingProduct == null)
+                            if (matchingProduct == null && AutoSyncToProducts)
                             {
-                                var newProduct = new ProductDTO
-                                {
-                                    Name = savedItem.Name,
-                                    Barcode = savedItem.Barcode,
-                                    CategoryId = savedItem.CategoryId,
-                                    CategoryName = savedItem.CategoryName,
-                                    SupplierId = savedItem.SupplierId,
-                                    SupplierName = savedItem.SupplierName,
-                                    Description = savedItem.Description,
-                                    PurchasePrice = savedItem.PurchasePrice,
-                                    SalePrice = savedItem.SalePrice,
-                                    CurrentStock = 0, // Start with zero stock
-                                    MinimumStock = savedItem.MinimumStock,
-                                    ImagePath = savedItem.ImagePath,
-                                    Speed = savedItem.Speed,
-                                    IsActive = savedItem.IsActive,
-                                };
-
-                                matchingProduct = await _productService.CreateAsync(newProduct);
+                                await Task.Delay(500);
+                                matchingProduct = await _productService.FindProductByBarcodeAsync(savedItem.Barcode);
                             }
 
-                            // Get the quantity from the product's current stock
-                            decimal quantity = savedItem.CurrentStock;
-
-                            var invoiceDetail = new SupplierInvoiceDetailDTO
+                            if (matchingProduct != null)
                             {
-                                SupplierInvoiceId = SelectedInvoice.SupplierInvoiceId,
-                                ProductId = matchingProduct.ProductId, // Use the real Product ID
-                                ProductName = savedItem.Name,
-                                ProductBarcode = savedItem.Barcode,
-                                Quantity = quantity,
-                                PurchasePrice = savedItem.PurchasePrice,
-                                TotalPrice = savedItem.PurchasePrice * quantity // Calculate total correctly
-                            };
+                                decimal quantity = savedItem.CurrentStock;
+                                var invoiceDetail = new SupplierInvoiceDetailDTO
+                                {
+                                    SupplierInvoiceId = SelectedInvoice.SupplierInvoiceId,
+                                    ProductId = matchingProduct.ProductId,
+                                    ProductName = savedItem.Name,
+                                    ProductBarcode = savedItem.Barcode,
+                                    Quantity = quantity,
+                                    PurchasePrice = savedItem.PurchasePrice,
+                                    TotalPrice = savedItem.PurchasePrice * quantity
+                                };
 
-                            await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
+                                await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
 
-                            await SafeDispatcherOperation(() =>
-                            {
-                                MessageBox.Show($"Product saved and added to invoice {SelectedInvoice.InvoiceNumber} with quantity {quantity}.", "Success",
-                                    MessageBoxButton.OK, MessageBoxImage.Information);
-                            });
+                                await SafeDispatcherOperation(() =>
+                                {
+                                    MessageBox.Show($"Product saved and added to invoice {SelectedInvoice.InvoiceNumber} with quantity {quantity}.", "Success",
+                                        MessageBoxButton.OK, MessageBoxImage.Information);
+                                });
+                            }
                         }
                         catch (Exception ex)
                         {
                             Debug.WriteLine($"Error adding product to invoice: {ex.Message}");
-
                             await SafeDispatcherOperation(() =>
                             {
                                 MessageBox.Show($"Product saved successfully but could not be added to invoice: {ex.Message}",
@@ -576,16 +541,15 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         await SafeDispatcherOperation(() =>
                         {
-                            MessageBox.Show("Product saved successfully.", "Success",
-                                MessageBoxButton.OK, MessageBoxImage.Information);
+                            string message = AutoSyncToProducts ?
+                                "Product saved and synced to store successfully." :
+                                "Product saved successfully.";
+                            MessageBox.Show(message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                         });
                     }
 
                     CloseItemPopup();
-
-                    // Refresh the data
                     await SafeLoadDataAsync();
-
                     Debug.WriteLine("Save completed, item refreshed");
                 }
                 catch (Exception ex)

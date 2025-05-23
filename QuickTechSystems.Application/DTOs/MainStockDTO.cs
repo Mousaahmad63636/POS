@@ -32,7 +32,7 @@ namespace QuickTechSystems.Application.DTOs
         private int _itemsPerBox = 0;
         private int _minimumBoxStock;
         private int _individualItems;
-
+        public bool AutoSyncToProducts { get; set; } = true;
         public int? SupplierInvoiceId { get; set; }
         // Path: QuickTechSystems.Application.DTOs/MainStockDTO.cs
 

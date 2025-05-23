@@ -43,6 +43,8 @@
 
                 <!-- Search Box -->
                 <Grid Grid.Column="0" Margin="0,0,8,0">
+                    
+                    
                     <TextBox x:Name="searchBox" 
                              Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
                              Width="180"
@@ -51,6 +53,13 @@
                                Text="Search inventory..." 
                                VerticalAlignment="Center" 
                                Margin="10,0,0,0">
+                        
+                        <CheckBox Grid.Row="0" Grid.Column="2" 
+          Content="Auto-sync to Products" 
+          IsChecked="{Binding AutoSyncToProducts}"
+          VerticalAlignment="Center"
+          Margin="10,0,0,0"
+          ToolTip="Automatically create/update products when saving MainStock items"/>
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed"/>
@@ -62,6 +71,8 @@
                             </Style>
                         </TextBlock.Style>
                     </TextBlock>
+                    
+
                 </Grid>
 
                 <!-- Stock Controls -->

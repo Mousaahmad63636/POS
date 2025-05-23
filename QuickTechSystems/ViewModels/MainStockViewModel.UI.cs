@@ -145,6 +145,14 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private bool _autoSyncToProducts = true;
+
+        public bool AutoSyncToProducts
+        {
+            get => _autoSyncToProducts;
+            set => SetProperty(ref _autoSyncToProducts, value);
+        }
+
         /// <summary>
         /// Load image from a file path with proper error handling
         /// </summary>
