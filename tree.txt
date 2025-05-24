@@ -1,4 +1,5 @@
-Volume serial number is 5688-0C4D
+
+
 C:.
 │   .gitignore
 │   QuickTechSystems.sln
