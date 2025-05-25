@@ -73,7 +73,6 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
         public async Task<IEnumerable<ProductDTO>> GetByCategoryAsync(int categoryId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
