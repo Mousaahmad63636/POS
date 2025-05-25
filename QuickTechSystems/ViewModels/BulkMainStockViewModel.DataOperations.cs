@@ -560,10 +560,12 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Path: QuickTechSystems.WPF.ViewModels/BulkMainStockViewModel.DataOperations.cs
         private void EnsureConsistentPricing(MainStockDTO item)
         {
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
             {
+                // Both values are set, no automatic calculation needed
             }
             else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
@@ -576,6 +578,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
             {
+                // Both values are set, no automatic calculation needed
             }
             else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
@@ -588,6 +591,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             if (item.BoxSalePrice > 0 && item.SalePrice > 0)
             {
+                // Both values are set, no automatic calculation needed
             }
             else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
@@ -598,16 +602,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
             }
 
+            // Set default wholesale price as 10% markup from purchase price
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
             }
 
+            // Set default sale price as 20% markup from purchase price
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
                 item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
             }
 
+            // Calculate box prices only if ItemsPerBox > 0 (meaning the item is sold in boxes)
             if (item.ItemsPerBox > 0)
             {
                 if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
@@ -621,7 +628,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
         private (bool IsValid, List<string> ValidationErrors) ValidateItems()
         {
             var validationErrors = new List<string>();

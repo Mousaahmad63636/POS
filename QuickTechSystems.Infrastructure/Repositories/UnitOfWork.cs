@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Infrastructure.Repositories/UnitOfWork.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Domain.Interfaces.Repositories;
@@ -15,10 +14,9 @@ namespace QuickTechSystems.Infrastructure.Repositories
         private ApplicationDbContext _context;
         private bool _disposed;
 
-        // Repositories
         private IGenericRepository<Product>? _products;
-        private IGenericRepository<MainStock>? _mainStocks; // Add this
-        private IGenericRepository<InventoryTransfer>? _inventoryTransfers; // Add this
+        private IGenericRepository<MainStock>? _mainStocks;
+        private IGenericRepository<InventoryTransfer>? _inventoryTransfers;
         private IGenericRepository<Category>? _categories;
         private IGenericRepository<Customer>? _customers;
         private IGenericRepository<Transaction>? _transactions;
@@ -35,11 +33,9 @@ namespace QuickTechSystems.Infrastructure.Repositories
         private IGenericRepository<SupplierInvoice>? _supplierInvoices;
         private IGenericRepository<SupplierInvoiceDetail>? _supplierInvoiceDetails;
 
-        // Add MainStocks property
         public IGenericRepository<MainStock> MainStocks =>
             _mainStocks ??= new GenericRepository<MainStock>(_context, _contextFactory);
 
-        // Add InventoryTransfers property
         public IGenericRepository<InventoryTransfer> InventoryTransfers =>
             _inventoryTransfers ??= new GenericRepository<InventoryTransfer>(_context, _contextFactory);
 
@@ -60,12 +56,27 @@ namespace QuickTechSystems.Infrastructure.Repositories
             _contextFactory = contextFactory;
             _context = _contextFactory.CreateDbContext();
         }
+
         public void DetachEntity<T>(T entity) where T : class
         {
             if (entity == null) return;
 
-            _context.Entry(entity).State = EntityState.Detached;
+            var entry = _context.Entry(entity);
+            if (entry != null)
+            {
+                entry.State = EntityState.Detached;
+            }
         }
+
+        public void DetachAllEntities()
+        {
+            var entries = _context.ChangeTracker.Entries().ToList();
+            foreach (var entry in entries)
+            {
+                entry.State = EntityState.Detached;
+            }
+        }
+
         public IGenericRepository<Quote> Quotes =>
             _quotes ??= new GenericRepository<Quote>(_context, _contextFactory);
 
@@ -112,17 +123,13 @@ namespace QuickTechSystems.Infrastructure.Repositories
             }
             catch (ObjectDisposedException)
             {
-                // Recreate context if it's been disposed
                 _context = _contextFactory.CreateDbContext();
-                // Reinitialize repositories
                 ResetRepositories();
                 return await _context.SaveChangesAsync();
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("disposed") || ex.Message.Contains("second operation"))
             {
-                // Recreate context for other related issues
                 _context = _contextFactory.CreateDbContext();
-                // Reinitialize repositories
                 ResetRepositories();
                 return await _context.SaveChangesAsync();
             }
@@ -132,8 +139,8 @@ namespace QuickTechSystems.Infrastructure.Repositories
         {
             _restaurantTables = null;
             _products = null;
-            _mainStocks = null; // Add this line
-            _inventoryTransfers = null; // Add this line
+            _mainStocks = null;
+            _inventoryTransfers = null;
             _categories = null;
             _customers = null;
             _transactions = null;
@@ -166,7 +173,6 @@ namespace QuickTechSystems.Infrastructure.Repositories
 
         public IGenericRepository<T> GetRepository<T>() where T : class
         {
-            // Use reflection to get the appropriate repository property
             var propertyName = typeof(T).Name + "s";
             var property = GetType().GetProperties()
                 .FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
@@ -176,7 +182,6 @@ namespace QuickTechSystems.Infrastructure.Repositories
                 return (IGenericRepository<T>)property.GetValue(this);
             }
 
-            // If no specific repository exists, create a generic one
             return new GenericRepository<T>(_context, _contextFactory);
         }
 

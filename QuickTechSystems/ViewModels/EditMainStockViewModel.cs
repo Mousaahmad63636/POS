@@ -336,10 +336,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-
                 if (string.IsNullOrWhiteSpace(EditingItem.BoxBarcode) && !string.IsNullOrWhiteSpace(EditingItem.Barcode))
                     EditingItem.BoxBarcode = $"BX{EditingItem.Barcode}";
-
 
                 // Ensure consistent pricing
                 EnsureConsistentPricing(EditingItem);
@@ -363,15 +361,18 @@ namespace QuickTechSystems.WPF.ViewModels
                 else
                     savedItem = await _mainStockService.UpdateAsync(EditingItem);
 
-                // Process store product and invoice integration
+                // Process store product and invoice integration with proper tracking management
                 try
                 {
                     StatusMessage = "Adding product to invoice...";
+
+                    // Use AsNoTracking to avoid tracking conflicts
                     var existingProduct = await _productService.FindProductByBarcodeAsync(savedItem.Barcode);
 
                     ProductDTO storeProduct;
                     if (existingProduct != null)
                     {
+                        // Create a completely new DTO to avoid tracking issues
                         storeProduct = new ProductDTO
                         {
                             ProductId = existingProduct.ProductId,
@@ -396,9 +397,12 @@ namespace QuickTechSystems.WPF.ViewModels
                             ImagePath = savedItem.ImagePath,
                             Speed = savedItem.Speed,
                             IsActive = savedItem.IsActive,
-                            CurrentStock = existingProduct.CurrentStock,
+                            CurrentStock = existingProduct.CurrentStock, // Preserve existing stock
+                            CreatedAt = existingProduct.CreatedAt, // Preserve creation date
                             UpdatedAt = DateTime.Now
                         };
+
+                        // Call update with the new DTO - this should handle detaching internally
                         await _productService.UpdateAsync(storeProduct);
                     }
                     else

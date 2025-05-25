@@ -141,6 +141,7 @@ namespace QuickTechSystems.Application.Services
                 var query = _repository.Query()
                     .Include(p => p.Category)
                     .Include(p => p.Supplier)
+                    .AsNoTracking() // Important: Prevent tracking conflicts
                     .Where(p => p.Barcode == barcode);
 
                 if (excludeMainStockId > 0)
@@ -167,7 +168,6 @@ namespace QuickTechSystems.Application.Services
                 return dto;
             });
         }
-
         public async Task<MainStockDTO?> GetByBoxBarcodeAsync(string boxBarcode)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -478,6 +478,7 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // Path: QuickTechSystems.Application.Services/MainStockService.cs
         public async Task<List<MainStockDTO>> CreateBatchAsync(List<MainStockDTO> products, IProgress<string>? progress = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -506,8 +507,10 @@ namespace QuickTechSystems.Application.Services
                         if (string.IsNullOrWhiteSpace(product.BoxBarcode) && !string.IsNullOrWhiteSpace(product.Barcode))
                             product.BoxBarcode = $"BX{product.Barcode}";
 
-                        if (product.ItemsPerBox <= 0)
-                            product.ItemsPerBox = 1;
+                        // REMOVED: The problematic line that forced ItemsPerBox to 1
+                        // Allow ItemsPerBox to be 0 for items that aren't sold in boxes
+                        // if (product.ItemsPerBox <= 0)
+                        //     product.ItemsPerBox = 1;
 
                         var existingProduct = !string.IsNullOrEmpty(product.Barcode)
                             ? await _repository.Query().FirstOrDefaultAsync(p => p.Barcode == product.Barcode)

@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Domain.Interfaces.Repositories/IUnitOfWork.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using QuickTechSystems.Domain.Entities;
 
@@ -8,8 +7,8 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
     public interface IUnitOfWork : IDisposable
     {
         IGenericRepository<Product> Products { get; }
-        IGenericRepository<MainStock> MainStocks { get; } // Add this line
-        IGenericRepository<InventoryTransfer> InventoryTransfers { get; } // Add this line
+        IGenericRepository<MainStock> MainStocks { get; }
+        IGenericRepository<InventoryTransfer> InventoryTransfers { get; }
         IGenericRepository<Category> Categories { get; }
         IGenericRepository<Customer> Customers { get; }
         IGenericRepository<Transaction> Transactions { get; }
@@ -28,6 +27,7 @@ namespace QuickTechSystems.Domain.Interfaces.Repositories
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         void DetachEntity<T>(T entity) where T : class;
+        void DetachAllEntities();
         DbContext Context { get; }
     }
 }

@@ -66,9 +66,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        /// <summary>
-        /// Validates and updates the box barcode of an item based on its item barcode.
-        /// Uses a consistent rule that when box barcode equals item barcode, apply the BX prefix.
         /// </summary>
         /// <param name="item">The item to validate.</param>
         private void ValidateAndUpdateBoxBarcode(MainStockDTO item)
@@ -95,11 +92,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 // In this case, we don't make any changes to preserve user customization
             }
 
-            // Remove auto-calculation of CurrentStock based on boxes
-            // Make sure ItemsPerBox defaults to 1 only if boxes exist
-            if (item.ItemsPerBox <= 0 && item.NumberOfBoxes > 0)
+            // Allow ItemsPerBox to remain 0 if that's what the user set
+            // Only auto-set ItemsPerBox if boxes exist but ItemsPerBox is negative (which shouldn't happen)
+            if (item.ItemsPerBox < 0 && item.NumberOfBoxes > 0)
             {
-                item.ItemsPerBox = 0;
+                item.ItemsPerBox = 0; // Reset to 0 instead of negative
             }
         }
     }
