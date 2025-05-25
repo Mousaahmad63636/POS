@@ -523,8 +523,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
-        // USE YOUR EXISTING PrinterService - SIMPLE AND CLEAN!
+        // Update the PrintBarcodeAsync method in ProductViewModel.cs
         private async Task PrintBarcodeAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -561,16 +560,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
-                    // Print each label using YOUR PrinterService
+                    // Print each label using YOUR PrinterService with ACTUAL barcode text
                     for (int i = 0; i < LabelsPerProduct; i++)
                     {
                         StatusMessage = $"Printing label {i + 1} of {LabelsPerProduct}...";
 
-                        // Use your existing PrinterService - EXACTLY as designed!
+                        // Use your existing PrinterService with the ACTUAL barcode text
                         _printerService.PrintBarcode(
                             SelectedProduct.BarcodeImage,
                             SelectedProduct.Name ?? "Unknown Product",
-                            $"${SelectedProduct.SalePrice:F2}"
+                            $"${SelectedProduct.SalePrice:F2}",
+                            SelectedProduct.Barcode // PASS THE ACTUAL BARCODE TEXT
                         );
 
                         Debug.WriteLine($"Successfully printed label {i + 1} using PrinterService");
@@ -610,6 +610,220 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Add these supporting methods to your ProductViewModel.cs class (exactly from old implementation)
+        private UIElement CreateHighQualityBarcodeLabel(ProductDTO product, double width, double height)
+        {
+            // Create a container for the label content with top padding
+            var outerCanvas = new Canvas
+            {
+                Width = width,
+                Height = height,
+                Background = Brushes.White
+            };
+
+            // Create inner canvas for content that will be shifted down
+            var canvas = new Canvas
+            {
+                Width = width,
+                Height = height - 15
+            };
+
+            // Position the inner canvas with top padding to shift everything down
+            Canvas.SetTop(canvas, 15);
+            outerCanvas.Children.Add(canvas);
+
+            // Position the barcode image - use most of the available space
+            double barcodeWidth = Math.Min(width * 0.9, 600);
+            double barcodeHeight = Math.Min(height * 0.5, 200);
+
+            try
+            {
+                if (product == null)
+                {
+                    throw new ArgumentNullException("product", "Product cannot be null");
+                }
+
+                string displayBarcode = product.Barcode ?? "N/A";
+                if (!string.IsNullOrEmpty(displayBarcode) && displayBarcode.Length > 12)
+                {
+                    Debug.WriteLine($"Warning: Barcode '{displayBarcode}' exceeds 12 digits. It may not scan correctly.");
+                }
+
+                // Add product name with improved text quality
+                var nameText = product.Name ?? "Unknown Product";
+                var nameTextBlock = new TextBlock
+                {
+                    Text = nameText,
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 10,
+                    FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    MaxHeight = height * 0.15
+                };
+
+                // High-quality text rendering
+                TextOptions.SetTextRenderingMode(nameTextBlock, TextRenderingMode.ClearType);
+                TextOptions.SetTextFormattingMode(nameTextBlock, TextFormattingMode.Display);
+
+                Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
+                Canvas.SetTop(nameTextBlock, 0);
+                canvas.Children.Add(nameTextBlock);
+
+                double barcodeTop = height * 0.15;
+
+                BitmapImage bitmapSource = null;
+                if (product.BarcodeImage != null)
+                {
+                    bitmapSource = LoadHighQualityBarcodeImage(product.BarcodeImage);
+                }
+
+                if (bitmapSource == null)
+                {
+                    // Create a placeholder for missing barcode image
+                    var placeholder = new Border
+                    {
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Background = Brushes.LightGray,
+                        BorderBrush = Brushes.Gray,
+                        BorderThickness = new Thickness(1)
+                    };
+
+                    var placeholderText = new TextBlock
+                    {
+                        Text = "Barcode Image\nNot Available",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 10,
+                        TextAlignment = TextAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap
+                    };
+
+                    placeholder.Child = placeholderText;
+
+                    Canvas.SetLeft(placeholder, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(placeholder, barcodeTop);
+                    canvas.Children.Add(placeholder);
+                }
+                else
+                {
+                    // Create and position barcode image with enhanced quality settings
+                    var barcodeImage = new Image
+                    {
+                        Source = bitmapSource,
+                        Width = barcodeWidth,
+                        Height = barcodeHeight,
+                        Stretch = Stretch.Uniform,
+                        SnapsToDevicePixels = true,
+                        UseLayoutRounding = true // Ensures pixel-perfect rendering
+                    };
+
+                    // Critical: Use NearestNeighbor for barcodes to prevent smoothing
+                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.NearestNeighbor);
+                    RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
+                    RenderOptions.SetClearTypeHint(barcodeImage, ClearTypeHint.Enabled);
+
+                    Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
+                    Canvas.SetTop(barcodeImage, barcodeTop);
+                    canvas.Children.Add(barcodeImage);
+                }
+
+                // Add barcode text
+                var barcodeTextBlock = new TextBlock
+                {
+                    Text = displayBarcode,
+                    FontFamily = new FontFamily("Consolas, Courier New, Monospace"),
+                    FontSize = 9,
+                    TextAlignment = TextAlignment.Center,
+                    Width = width * 0.9
+                };
+
+                TextOptions.SetTextRenderingMode(barcodeTextBlock, TextRenderingMode.ClearType);
+                TextOptions.SetTextFormattingMode(barcodeTextBlock, TextFormattingMode.Display);
+
+                double barcodeImageBottom = barcodeTop + barcodeHeight;
+                Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
+                Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
+                canvas.Children.Add(barcodeTextBlock);
+
+                // Add price if needed
+                if (product.SalePrice > 0)
+                {
+                    var priceTextBlock = new TextBlock
+                    {
+                        Text = $"${product.SalePrice:N2}",
+                        FontFamily = new FontFamily("Arial"),
+                        FontSize = 12,
+                        FontWeight = FontWeights.Bold,
+                        TextAlignment = TextAlignment.Center,
+                        Width = width * 0.9
+                    };
+
+                    TextOptions.SetTextRenderingMode(priceTextBlock, TextRenderingMode.ClearType);
+                    TextOptions.SetTextFormattingMode(priceTextBlock, TextFormattingMode.Display);
+
+                    Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
+                    Canvas.SetTop(priceTextBlock, height * 0.75);
+                    canvas.Children.Add(priceTextBlock);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error creating high-quality barcode label: {ex.Message}");
+
+                var errorTextBlock = new TextBlock
+                {
+                    Text = $"Error: {ex.Message}",
+                    FontFamily = new FontFamily("Arial"),
+                    FontSize = 8,
+                    TextWrapping = TextWrapping.Wrap,
+                    Width = width * 0.9,
+                    Foreground = Brushes.Red
+                };
+
+                Canvas.SetLeft(errorTextBlock, (width - errorTextBlock.Width) / 2);
+                Canvas.SetTop(errorTextBlock, height * 0.7);
+                canvas.Children.Add(errorTextBlock);
+            }
+
+            return outerCanvas;
+        }
+
+        private BitmapImage LoadHighQualityBarcodeImage(byte[] imageData)
+        {
+            if (imageData == null) return null;
+
+            var image = new BitmapImage();
+            try
+            {
+                using (var ms = new MemoryStream(imageData))
+                {
+                    image.BeginInit();
+
+                    // High quality loading settings
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat |
+                                          BitmapCreateOptions.IgnoreImageCache |
+                                          BitmapCreateOptions.IgnoreColorProfile;
+
+                    // Load at full resolution - don't decode at a different size
+                    // This preserves the sharp edges of the barcode
+
+                    image.StreamSource = ms;
+                    image.EndInit();
+                    image.Freeze(); // Important for cross-thread usage
+                }
+                return image;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading high-quality barcode image: {ex.Message}");
+                return null;
+            }
+        }
         // Enhanced barcode image loading method
         private BitmapImage LoadBarcodeImageFromBytes(byte[] imageData)
         {

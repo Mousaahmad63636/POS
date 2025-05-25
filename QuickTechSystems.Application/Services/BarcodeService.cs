@@ -13,37 +13,34 @@ namespace QuickTechSystems.Application.Services
     [SupportedOSPlatform("windows")]
     public class BarcodeService : IBarcodeService
     {
+        // Update BarcodeService.cs GenerateBarcode method
         public byte[] GenerateBarcode(string content, int width = 300, int height = 100)
         {
             try
             {
-                // Create custom encoding options with specific settings for better rendering
+                // Normalize barcode to standard length
+                string normalizedContent = NormalizeBarcode(content);
+
                 var encodingOptions = new EncodingOptions
                 {
-                    Width = width * 3, // Generate at 3x resolution for better quality
+                    Width = width * 3,
                     Height = height * 3,
                     Margin = 10,
-                    PureBarcode = true // No text in the barcode itself
+                    PureBarcode = true
                 };
 
-                // Add hints for better quality
                 encodingOptions.Hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.H;
                 encodingOptions.Hints[EncodeHintType.DISABLE_ECI] = true;
 
-                // Create the barcode writer
                 var writer = new BarcodeWriter
                 {
-                    Format = BarcodeFormat.CODE_128,
+                    Format = BarcodeFormat.CODE_128, // Good for variable lengths
                     Options = encodingOptions
                 };
 
-                // Generate the barcode bitmap at high resolution
-                using var highResBitmap = writer.Write(content);
+                using var highResBitmap = writer.Write(normalizedContent);
+                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, normalizedContent, width, height);
 
-                // Create final bitmap at requested size with text
-                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, content, width, height);
-
-                // Convert to byte array
                 using var stream = new MemoryStream();
                 finalBitmap.Save(stream, ImageFormat.Png);
 
@@ -56,6 +53,37 @@ namespace QuickTechSystems.Application.Services
             }
         }
 
+        // Add this method to BarcodeService.cs
+        private string NormalizeBarcode(string barcode)
+        {
+            if (string.IsNullOrWhiteSpace(barcode))
+                return "000000000000"; // Default 12-digit
+
+            // Remove any non-numeric characters
+            string numericOnly = new string(barcode.Where(char.IsDigit).ToArray());
+
+            if (numericOnly.Length <= 8)
+            {
+                // Pad to 8 digits for EAN-8
+                return numericOnly.PadLeft(8, '0');
+            }
+            else if (numericOnly.Length <= 12)
+            {
+                // Pad to 12 digits for UPC-A (most common)
+                return numericOnly.PadLeft(12, '0');
+            }
+            else if (numericOnly.Length <= 13)
+            {
+                // Pad to 13 digits for EAN-13
+                return numericOnly.PadLeft(13, '0');
+            }
+            else
+            {
+                // If longer than 13, truncate to 12 for better compatibility
+                System.Diagnostics.Debug.WriteLine($"Warning: Barcode '{barcode}' too long ({numericOnly.Length} digits). Truncating to 12 digits for better scanner compatibility.");
+                return numericOnly.Substring(0, 12);
+            }
+        }
         private Bitmap CreateFinalBarcodeImage(Bitmap highResBitmap, string text, int targetWidth, int targetHeight)
         {
             // Add space for text
