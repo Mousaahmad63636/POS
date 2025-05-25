@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using QuickTechSystems.Application.Services;
+
 namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class MainStockViewModel
@@ -46,7 +47,7 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         /// <summary>
-        /// Generate an automatic barcode for the selected item
+        /// Generate an automatic 12-digit barcode for the selected item
         /// </summary>
         private void GenerateAutomaticBarcode()
         {
@@ -58,13 +59,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-                // Generate a unique barcode with more entropy
-                var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
-                var random = new Random();
-                var randomDigits = random.Next(1000, 9999).ToString();
-                var categoryPrefix = SelectedItem.CategoryId.ToString().PadLeft(3, '0');
-
-                SelectedItem.Barcode = $"{categoryPrefix}{timestamp}{randomDigits}";
+                // Generate 12-digit barcode
+                SelectedItem.Barcode = GenerateBarcode12Digits(SelectedItem.CategoryId);
                 var barcodeData = _barcodeService.GenerateBarcode(SelectedItem.Barcode);
 
                 if (barcodeData != null)
@@ -130,7 +126,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         }
 
                         SelectedItem.BarcodeImage = barcodeData;
-                        // Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.BarcodeOperations.cs (continued)
                         BarcodeImage = LoadBarcodeImage(barcodeData);
                         Debug.WriteLine("Successfully generated barcode image for printing");
 

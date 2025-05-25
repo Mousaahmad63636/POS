@@ -12,10 +12,43 @@ using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services;
+
 namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class MainStockViewModel
     {
+        /// <summary>
+        /// Generate a 12-digit barcode with category prefix
+        /// </summary>
+        private string GenerateBarcode12Digits(int categoryId)
+        {
+            // Category prefix (2-3 digits)
+            string categoryPrefix = categoryId.ToString().PadLeft(2, '0');
+            if (categoryPrefix.Length > 3)
+                categoryPrefix = categoryPrefix.Substring(categoryPrefix.Length - 3, 3);
+
+            // Timestamp (6 digits) - using seconds since epoch modulo to fit
+            var timestamp = ((DateTimeOffset.Now.ToUnixTimeSeconds() % 1000000)).ToString("D6");
+
+            // Random digits to fill remaining space
+            var random = new Random();
+            int remainingDigits = 12 - categoryPrefix.Length - timestamp.Length;
+            int maxRandom = (int)Math.Pow(10, remainingDigits) - 1;
+            int minRandom = (int)Math.Pow(10, remainingDigits - 1);
+
+            var randomPart = random.Next(minRandom, maxRandom + 1).ToString();
+
+            string barcode = $"{categoryPrefix}{timestamp}{randomPart}";
+
+            // Ensure exactly 12 digits
+            if (barcode.Length > 12)
+                barcode = barcode.Substring(0, 12);
+            else if (barcode.Length < 12)
+                barcode = barcode.PadRight(12, '0');
+
+            return barcode;
+        }
+
         /// <summary>
         /// Load draft invoices from the database
         /// </summary>
@@ -418,14 +451,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     AutoSyncToProducts = AutoSyncToProducts
                 };
 
+                // Generate 12-digit barcode if needed
                 if (string.IsNullOrWhiteSpace(itemToUpdate.Barcode))
                 {
-                    Debug.WriteLine("No barcode provided, generating automatic barcode");
-                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
-                    var random = new Random();
-                    var randomDigits = random.Next(1000, 9999).ToString();
-                    var categoryPrefix = itemToUpdate.CategoryId.ToString().PadLeft(3, '0');
-                    itemToUpdate.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
+                    Debug.WriteLine("No barcode provided, generating automatic 12-digit barcode");
+                    itemToUpdate.Barcode = GenerateBarcode12Digits(itemToUpdate.CategoryId);
                 }
 
                 if (itemToUpdate.BarcodeImage == null && !string.IsNullOrWhiteSpace(itemToUpdate.Barcode))
@@ -913,12 +943,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
-        /// <summary>
-        /// Direct database refresh implementation
-        /// </summary>
-        // Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.Events.cs
-        // Add this method to the class
 
         /// <summary>
         /// Direct database refresh implementation that ensures all data is freshly loaded

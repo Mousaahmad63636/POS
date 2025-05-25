@@ -14,6 +14,38 @@ namespace QuickTechSystems.WPF.ViewModels
 {
     public partial class BulkMainStockViewModel
     {
+        /// <summary>
+        /// Generate a 12-digit barcode with category prefix
+        /// </summary>
+        private string GenerateBarcode12Digits(int categoryId)
+        {
+            // Category prefix (2-3 digits)
+            string categoryPrefix = categoryId.ToString().PadLeft(2, '0');
+            if (categoryPrefix.Length > 3)
+                categoryPrefix = categoryPrefix.Substring(categoryPrefix.Length - 3, 3);
+
+            // Timestamp (6 digits) - using seconds since epoch modulo to fit
+            var timestamp = ((DateTimeOffset.Now.ToUnixTimeSeconds() % 1000000)).ToString("D6");
+
+            // Random digits to fill remaining space
+            var random = new Random();
+            int remainingDigits = 12 - categoryPrefix.Length - timestamp.Length;
+            int maxRandom = (int)Math.Pow(10, remainingDigits) - 1;
+            int minRandom = (int)Math.Pow(10, remainingDigits - 1);
+
+            var randomPart = random.Next(minRandom, maxRandom + 1).ToString();
+
+            string barcode = $"{categoryPrefix}{timestamp}{randomPart}";
+
+            // Ensure exactly 12 digits
+            if (barcode.Length > 12)
+                barcode = barcode.Substring(0, 12);
+            else if (barcode.Length < 12)
+                barcode = barcode.PadRight(12, '0');
+
+            return barcode;
+        }
+
         private async Task LoadDataAsync()
         {
             try
@@ -560,7 +592,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Path: QuickTechSystems.WPF.ViewModels/BulkMainStockViewModel.DataOperations.cs
         private void EnsureConsistentPricing(MainStockDTO item)
         {
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
@@ -628,6 +659,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         private (bool IsValid, List<string> ValidationErrors) ValidateItems()
         {
             var validationErrors = new List<string>();
@@ -708,19 +740,15 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return (validationErrors.Count == 0, validationErrors);
         }
+
         /// <summary>
-        /// Generates barcodes for all items that don't have them.
-        /// </summary>
-        /// <summary>
-        /// Generates barcodes for all items that don't have them.
+        /// Generates 12-digit barcodes for all items that don't have them.
         /// </summary>
         public void GenerateAllBarcodes()
         {
             try
             {
                 int generatedCount = 0;
-                var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
-                var random = new Random();
 
                 foreach (var item in Items)
                 {
@@ -730,23 +758,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        // Generate a unique barcode
-                        var randomDigits = random.Next(1000, 9999).ToString();
-                        var categoryPrefix = item.CategoryId > 0 ? item.CategoryId.ToString().PadLeft(3, '0') : "000";
-
-                        // Add checksum for integrity
-                        var baseCode = $"{categoryPrefix}{timestamp}{randomDigits}";
-                        int sum = 0;
-                        foreach (char c in baseCode)
-                        {
-                            if (char.IsDigit(c))
-                            {
-                                sum += (c - '0');
-                            }
-                        }
-                        int checkDigit = sum % 10;
-
-                        item.Barcode = $"{baseCode}{checkDigit}";
+                        // Generate a unique 12-digit barcode
+                        item.Barcode = GenerateBarcode12Digits(item.CategoryId);
                         generatedCount++;
 
                         // Generate box barcode if empty
@@ -762,7 +775,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
-                StatusMessage = $"Generated {generatedCount} barcodes for items without barcodes.";
+                StatusMessage = $"Generated {generatedCount} 12-digit barcodes for items without barcodes.";
             }
             catch (Exception ex)
             {
@@ -770,30 +783,15 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Error in GenerateAllBarcodes: {ex}");
             }
         }
+
         private void GenerateMissingBarcodes()
         {
-            var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
-            var random = new Random();
-
             foreach (var item in Items.Where(i => string.IsNullOrWhiteSpace(i.Barcode)))
             {
                 try
                 {
-                    var randomDigits = random.Next(1000, 9999).ToString();
-                    var categoryPrefix = item.CategoryId > 0 ? item.CategoryId.ToString().PadLeft(3, '0') : "000";
-
-                    var baseCode = $"{categoryPrefix}{timestamp}{randomDigits}";
-                    int sum = 0;
-                    foreach (char c in baseCode)
-                    {
-                        if (char.IsDigit(c))
-                        {
-                            sum += (c - '0');
-                        }
-                    }
-                    int checkDigit = sum % 10;
-
-                    item.Barcode = $"{baseCode}{checkDigit}";
+                    // Generate a unique 12-digit barcode
+                    item.Barcode = GenerateBarcode12Digits(item.CategoryId);
 
                     if (string.IsNullOrWhiteSpace(item.BoxBarcode))
                     {
@@ -806,9 +804,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
-        // Keep only one implementation of GenerateAllBarcodes
-
 
         private string GetDetailedErrorMessage(Exception ex)
         {
