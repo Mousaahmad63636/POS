@@ -67,7 +67,8 @@ namespace QuickTechSystems.WPF
             services.AddSingleton<LanguageManager>();
             services.AddScoped<IActivityLogger, ActivityLogger>();
 
-
+            // Add this line to register your PrinterService
+            services.AddScoped<IPrinterService, PrinterService>();
             // Database Context - Using DbContextPool for better management
             services.AddDbContextPool<ApplicationDbContext>(options =>
                 options.UseSqlServer(
