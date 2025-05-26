@@ -1,4 +1,5 @@
-﻿using ZXing;
+﻿// Path: QuickTechSystems.Application.Services/BarcodeService.cs
+using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
 using System.Drawing.Imaging;
@@ -13,13 +14,12 @@ namespace QuickTechSystems.Application.Services
     [SupportedOSPlatform("windows")]
     public class BarcodeService : IBarcodeService
     {
-        // Update BarcodeService.cs GenerateBarcode method
         public byte[] GenerateBarcode(string content, int width = 300, int height = 100)
         {
             try
             {
-                // Normalize barcode to standard length
-                string normalizedContent = NormalizeBarcode(content);
+                // Clean the barcode but don't pad it
+                string cleanedContent = CleanBarcode(content);
 
                 var encodingOptions = new EncodingOptions
                 {
@@ -38,8 +38,8 @@ namespace QuickTechSystems.Application.Services
                     Options = encodingOptions
                 };
 
-                using var highResBitmap = writer.Write(normalizedContent);
-                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, normalizedContent, width, height);
+                using var highResBitmap = writer.Write(cleanedContent);
+                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, cleanedContent, width, height);
 
                 using var stream = new MemoryStream();
                 finalBitmap.Save(stream, ImageFormat.Png);
@@ -53,37 +53,27 @@ namespace QuickTechSystems.Application.Services
             }
         }
 
-        // Add this method to BarcodeService.cs
-        private string NormalizeBarcode(string barcode)
+        /// <summary>
+        /// Cleans the barcode by removing non-alphanumeric characters but preserves the original length and value
+        /// </summary>
+        private string CleanBarcode(string barcode)
         {
             if (string.IsNullOrWhiteSpace(barcode))
-                return "000000000000"; // Default 12-digit
+                return "000000000000"; // Default only for completely empty barcodes
 
-            // Remove any non-numeric characters
-            string numericOnly = new string(barcode.Where(char.IsDigit).ToArray());
+            // Remove only whitespace and special characters, but keep alphanumeric
+            // This allows for both numeric and alphanumeric barcodes
+            string cleaned = new string(barcode.Where(c => char.IsLetterOrDigit(c)).ToArray());
 
-            if (numericOnly.Length <= 8)
-            {
-                // Pad to 8 digits for EAN-8
-                return numericOnly.PadLeft(8, '0');
-            }
-            else if (numericOnly.Length <= 12)
-            {
-                // Pad to 12 digits for UPC-A (most common)
-                return numericOnly.PadLeft(12, '0');
-            }
-            else if (numericOnly.Length <= 13)
-            {
-                // Pad to 13 digits for EAN-13
-                return numericOnly.PadLeft(13, '0');
-            }
-            else
-            {
-                // If longer than 13, truncate to 12 for better compatibility
-                System.Diagnostics.Debug.WriteLine($"Warning: Barcode '{barcode}' too long ({numericOnly.Length} digits). Truncating to 12 digits for better scanner compatibility.");
-                return numericOnly.Substring(0, 12);
-            }
+            // If after cleaning we have nothing, return a default
+            if (string.IsNullOrEmpty(cleaned))
+                return "000000000000";
+
+            // Return the cleaned barcode as-is, without any padding or truncation
+            // The barcode library (CODE_128) can handle variable lengths from 1 to many characters
+            return cleaned;
         }
+
         private Bitmap CreateFinalBarcodeImage(Bitmap highResBitmap, string text, int targetWidth, int targetHeight)
         {
             // Add space for text
@@ -131,6 +121,9 @@ namespace QuickTechSystems.Application.Services
         {
             try
             {
+                // Clean the content but don't normalize length
+                string cleanedContent = CleanBarcode(content);
+
                 // Simplified fallback method
                 var writer = new BarcodeWriter
                 {
@@ -144,7 +137,7 @@ namespace QuickTechSystems.Application.Services
                     }
                 };
 
-                using var bitmap = writer.Write(content);
+                using var bitmap = writer.Write(cleanedContent);
 
                 // Apply threshold to ensure pure black and white
                 using var processedBitmap = ApplyThreshold(bitmap);

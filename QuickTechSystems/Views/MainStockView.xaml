@@ -1,5 +1,4 @@
-﻿<!-- Path: QuickTechSystems.WPF.Views/MainStockView.xaml -->
-<UserControl x:Class="QuickTechSystems.WPF.Views.MainStockView"
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.MainStockView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -8,8 +7,31 @@
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              mc:Ignorable="d"
              x:Name="MainStockViewRoot">
-
     <UserControl.Resources>
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="Margin" Value="4 2"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Padding" Value="8 4"/>
+            <Setter Property="Margin" Value="4 2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12 4"/>
+            <Setter Property="Margin" Value="4 2"/>
+            <Setter Property="MinWidth" Value="80"/>
+        </Style>
+
+        <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+            <Setter Property="Margin" Value="4 2"/>
+            <Setter Property="Padding" Value="4 2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Converters (existing ones preserved) -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:ByteArrayToImageSourceConverter x:Key="ByteArrayToImageConverter"/>
         <converters:BoolToColorConverter x:Key="BoolToColorConverter"/>
@@ -21,418 +43,234 @@
         <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
     </UserControl.Resources>
 
-    <Grid>
-        <Grid x:Name="ContentGrid" Margin="10">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
+    <Grid x:Name="ContentGrid" Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- Header Row -->
-            <Grid Grid.Row="0" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+        <!-- Header Section -->
+        <Border Grid.Row="0" Padding="8" Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}"
+                CornerRadius="4" Margin="0 0 0 12">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <!-- Search Group -->
+                <GroupBox Header="Search" Margin="0 0 12 0">
+                    <Grid Width="200">
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Tag="Search inventory..."/>
+                        <TextBlock Text="Search inventory..." Foreground="Gray" Margin="8 0 0 0"
+                                   IsHitTestVisible="False" Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                    </Grid>
+                </GroupBox>
 
-                <!-- Search Box -->
-                <Grid Grid.Column="0" Margin="0,0,8,0">
-                    
-                    
-                    <TextBox x:Name="searchBox" 
-                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
-                             Width="180"
-                             Margin="0"/>
-                    <TextBlock IsHitTestVisible="False" 
-                               Text="Search inventory..." 
-                               VerticalAlignment="Center" 
-                               Margin="10,0,0,0">
-                        
-                        <CheckBox Grid.Row="0" Grid.Column="2" 
-          Content="Auto-sync to Products" 
-          IsChecked="{Binding AutoSyncToProducts}"
-          VerticalAlignment="Center"
-          Margin="10,0,0,0"
-          ToolTip="Automatically create/update products when saving MainStock items"/>
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Text, ElementName=searchBox}" Value="">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                    
+                <!-- Stock Management Group -->
+                <GroupBox Header="Stock Actions" Margin="0 0 12 0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Width="60" Text="{Binding StockIncrement}" Margin="0 0 8 0"/>
+                        <Button Content="Add Stock" Command="{Binding UpdateStockCommand}"/>
+                    </StackPanel>
+                </GroupBox>
 
-                </Grid>
-
-                <!-- Stock Controls -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center">
-                    <TextBox Width="60"
-                             Text="{Binding StockIncrement, UpdateSourceTrigger=PropertyChanged}"
-                             Margin="0,0,4,0"
-                             VerticalContentAlignment="Center"/>
-                    <Button Content="Add to Stock"
-                            Command="{Binding UpdateStockCommand}"
-                            Padding="8,0"/>
+                <!-- Transfer Actions -->
+                <StackPanel Orientation="Vertical" Margin="0 0 12 0">
+                    <Button Content="Transfer to Store" Command="{Binding TransferToStoreCommand}"
+                            Margin="0 2" Padding="8 4"/>
+                    <Button Content="Box to Individual" Command="{Binding BoxToIndividualCommand}"
+                            Margin="0 2" Padding="8 4"/>
                 </StackPanel>
 
-                <!-- Transfer Controls -->
-                <Button Grid.Column="2" 
-                        Content="Transfer to Store"
-                        Command="{Binding TransferToStoreCommand}"
-                        Padding="8,0"
-                        Margin="8,0"/>
+                <!-- Global Actions -->
+                <GroupBox Header="Actions" Margin="0 0 12 0">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Refresh" Command="{Binding LoadCommand}"/>
+                        <Button Content="Add New" Command="{Binding AddCommand}"/>
+                        <Button Content="Bulk Add" Command="{Binding BulkAddCommand}"/>
+                        <Button Content="Generate Barcodes" Command="{Binding GenerateMissingBarcodesCommand}"/>
+                    </StackPanel>
+                </GroupBox>
 
-                <!-- Box to Individual Button - NEW -->
-                <Button Grid.Column="3" 
-                        Content="Box to Individual"
-                        Command="{Binding BoxToIndividualCommand}"
-                        Padding="8,0"
-                        Margin="8,0"/>
+                <!-- Auto-sync Checkbox -->
+                <CheckBox Content="Auto-sync Products" IsChecked="{Binding AutoSyncToProducts}"
+                          VerticalAlignment="Center" Margin="12 0 0 0"/>
+            </StackPanel>
+        </Border>
 
-                <!-- Action Buttons -->
-                <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
-                    <Button Content="Refresh" 
-                            Command="{Binding LoadCommand}"
-                            Margin="0,0,8,0"
-                            Padding="12,0"/>
-                    <Button Content="Add New" 
-                            Command="{Binding AddCommand}"
-                            Margin="0,0,8,0"
-                            Padding="12,0"/>
-                    <Button Content="Bulk Add"
-                            Command="{Binding BulkAddCommand}"
-                            Margin="0,0,8,0"
-                            Padding="12,0"/>
-                    <Button Content="Generate Barcodes"
-                            Command="{Binding GenerateMissingBarcodesCommand}"
-                            Padding="12,0"/>
-                </StackPanel>
-            </Grid>
+        <!-- Main DataGrid -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem}"
+                  AutoGenerateColumns="False" IsReadOnly="True" IsEnabled="{Binding IsNotSaving}"
+                  HeadersVisibility="Column" RowHeight="40" FontSize="14" GridLinesVisibility="None"
+                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                  MouseDoubleClick="DataGrid_MouseDoubleClick">
 
-            <!-- MainStock DataGrid -->
-            <DataGrid Grid.Row="1"
-                      x:Name="MainStockDataGrid"
-                      ItemsSource="{Binding Items}"
-                      SelectedItem="{Binding SelectedItem}"
-                      AutoGenerateColumns="False"
-                      IsReadOnly="True"
-                      IsEnabled="{Binding IsNotSaving}"
-                      BorderThickness="1"
-                      MouseDoubleClick="DataGrid_MouseDoubleClick"
-                      HorizontalScrollBarVisibility="Auto">
-                <DataGrid.Columns>
-                    <!-- Image column -->
-                    <DataGridTemplateColumn Header="Image" Width="60">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Border Width="40" Height="40" BorderThickness="1">
-                                    <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=40}" 
-                                           Height="36" 
-                                           Width="36" 
-                                           Stretch="Uniform"/>
-                                </Border>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
+            <DataGrid.Columns>
+                <!-- Image Column -->
+                <DataGridTemplateColumn Header="Image" Width="60">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Width="40" Height="40" Background="WhiteSmoke" CornerRadius="4"
+                                    BorderThickness="1" BorderBrush="#DDDDDD">
+                                <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=40}"
+                                       Stretch="Uniform"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
-                    <!-- Item Barcode column -->
-                    <DataGridTextColumn Header="Item Barcode" 
-                                        Binding="{Binding Barcode}"
-                                        Width="110"/>
+                <!-- Barcode Columns -->
+                <DataGridTextColumn Header="Item Barcode" Binding="{Binding Barcode}" Width="120"/>
+                <DataGridTextColumn Header="Box Barcode" Binding="{Binding BoxBarcode}" Width="120"/>
 
-                    <!-- Box Barcode column -->
-                    <DataGridTextColumn Header="Box Barcode" 
-                                        Binding="{Binding BoxBarcode}"
-                                        Width="110"/>
+                <!-- Product Info Columns -->
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*" MinWidth="200"/>
+                <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="140"/>
 
-                    <!-- Main information columns -->
-                    <DataGridTextColumn Header="Name" 
-                                        Binding="{Binding Name}"
-                                        Width="*"
-                                        MinWidth="180"/>
-                    <DataGridTextColumn Header="Category" 
-                                        Binding="{Binding CategoryName}"
-                                        Width="120"/>
-                    <!-- Add this column to MainStockView.xaml DataGrid -->
-                    <DataGridTextColumn Header="Individual Items" 
-                                        Binding="{Binding CurrentStock}"
-                                        Width="85"/>
-                    <!-- Stock information -->
-                    <DataGridTextColumn Header="Items/Box" 
-                                        Binding="{Binding ItemsPerBox}"
-                                        Width="70"/>
+                <!-- Stock Columns -->
+                <DataGridTextColumn Header="Items/Box" Binding="{Binding ItemsPerBox}" Width="80"/>
+                <DataGridTextColumn Header="Boxes" Binding="{Binding NumberOfBoxes}" Width="70"/>
+                <DataGridTextColumn Header="Total Stock" Binding="{Binding CurrentStock}" Width="90"/>
 
-                    <!-- Changed to directly use NumberOfBoxes -->
-                    <DataGridTextColumn Header="Boxes" 
-                                        Binding="{Binding NumberOfBoxes}"
-                                        Width="70"/>
+                <!-- Pricing Columns -->
+                <DataGridTextColumn Header="Box Purchase" Binding="{Binding BoxPurchasePrice, StringFormat=C2}" Width="110"/>
+                <DataGridTextColumn Header="Box Wholesale" Binding="{Binding BoxWholesalePrice, StringFormat=C2}" Width="110"/>
+                <DataGridTextColumn Header="Box Sale" Binding="{Binding BoxSalePrice, StringFormat=C2}" Width="110"/>
+                <DataGridTextColumn Header="Item Purchase" Binding="{Binding PurchasePrice, StringFormat=C2}" Width="110"/>
+                <DataGridTextColumn Header="Item Wholesale" Binding="{Binding WholesalePrice, StringFormat=C2}" Width="110"/>
+                <DataGridTextColumn Header="Item Sale" Binding="{Binding SalePrice, StringFormat=C2}" Width="110"/>
 
-                    <DataGridTextColumn Header="Total Stock" 
-                                        Binding="{Binding CurrentStock}"
-                                        Width="85"/>
+                <!-- Status Column -->
+                <DataGridTemplateColumn Header="Status" Width="90">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="3" Padding="4 2" Background="{Binding IsActive, Converter={StaticResource BoolToColorConverter}, ConverterParameter='Green|LightGray'}">
+                                <TextBlock Text="{Binding IsActive, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Active|Inactive'}"
+                                           HorizontalAlignment="Center" Foreground="White"/>
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
 
-                    <!-- Pricing information -->
-                    <DataGridTextColumn Header="Box Purchase" 
-                                        Binding="{Binding BoxPurchasePrice, StringFormat=C2}"
-                                        Width="100"/>
+                <!-- Edit Column -->
+                <DataGridTemplateColumn Header="Actions" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Content="✏ Edit" Click="NewEditButton_Click"
+                                    Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}"
+                                    Padding="8 2" FontWeight="SemiBold"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
 
-                    <DataGridTextColumn Header="Box Wholesale" 
-                                        Binding="{Binding BoxWholesalePrice, StringFormat=C2}"
-                                        Width="100"/>
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Edit" Click="NewEditMenuItem_Click"/>
+                    <Separator/>
+                    <MenuItem Header="Transfer to Store" Command="{Binding TransferToStoreCommand}"/>
+                    <MenuItem Header="Box to Individual" Command="{Binding BoxToIndividualCommand}"/>
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+        </DataGrid>
 
-                    <DataGridTextColumn Header="Box Sale" 
-                                        Binding="{Binding BoxSalePrice, StringFormat=C2}"
-                                        Width="100"/>
+        <!-- Pagination Controls -->
+        <Border Grid.Row="2" Background="#F8F8F8" Padding="8" CornerRadius="4" Margin="0 12 0 8">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="← Previous" Command="{Binding PreviousPageCommand}" Margin="0 0 8 0"/>
 
-                    <DataGridTextColumn Header="Item Purchase" 
-                                        Binding="{Binding PurchasePrice, StringFormat=C2}"
-                                        Width="100"/>
-
-                    <DataGridTextColumn Header="Item Wholesale" 
-                                        Binding="{Binding WholesalePrice, StringFormat=C2}"
-                                        Width="100"/>
-
-                    <DataGridTextColumn Header="Item Sale" 
-                                        Binding="{Binding SalePrice, StringFormat=C2}"
-                                        Width="100"/>
-
-                    <!-- Supplier information -->
-                    <DataGridTextColumn Header="Supplier" 
-                                        Binding="{Binding SupplierName}"
-                                        Width="120"/>
-
-                    <!-- Status -->
-                    <DataGridTemplateColumn Header="Active" Width="75">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding IsActive, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Active|Inactive'}" 
-                                           HorizontalAlignment="Center"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-
-                    <!-- Edit button -->
-                    <DataGridTemplateColumn Width="110">
-                        <DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate>
-                                <Button Content="Edit"
-                                        Click="NewEditButton_Click"
-                                        Margin="4"/>
-                            </DataTemplate>
-                        </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                </DataGrid.Columns>
-
-                <DataGrid.ContextMenu>
-                    <ContextMenu>
-                        <MenuItem Header="Edit" Click="NewEditMenuItem_Click"/>
-                        <Separator/>
-                        <MenuItem Header="Transfer to Store" Command="{Binding TransferToStoreCommand}"/>
-                        <MenuItem Header="Box to Individual" Command="{Binding BoxToIndividualCommand}"/>
-                    </ContextMenu>
-                </DataGrid.ContextMenu>
-            </DataGrid>
-
-            <!-- Pagination Controls -->
-            <Grid Grid.Row="2" Margin="0,10,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Page Size Selector -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Items per page:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox ItemsSource="{Binding AvailablePageSizes}" 
-                              SelectedItem="{Binding PageSize}" 
-                              Width="65">
-                    </ComboBox>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ComboBox ItemsSource="{Binding AvailablePageSizes}" SelectedItem="{Binding PageSize}"
+                              Width="80" Margin="0 0 8 0"/>
+                    <TextBlock Text="items per page"/>
                 </StackPanel>
 
-                <!-- Page Navigation Controls -->
-                <StackPanel Grid.Column="1" 
-                            HorizontalAlignment="Center" 
-                            Orientation="Horizontal" 
-                            VerticalAlignment="Center">
-                    <Button Content="Previous" 
-                            Command="{Binding PreviousPageCommand}" 
-                            Margin="2,0"/>
-                    <TextBlock Text="{Binding CurrentPage}" 
-                               Margin="8,0" 
-                               VerticalAlignment="Center"/>
-                    <Button Content="Next" 
-                            Command="{Binding NextPageCommand}" 
-                            Margin="2,0"/>
-                </StackPanel>
+                <TextBlock Text="{Binding CurrentPage}" Margin="16 0" FontWeight="Bold"/>
+                <TextBlock Text="of" Margin="0 0 16 0"/>
+                <TextBlock Text="{Binding TotalPages}" FontWeight="Bold" Margin="0 0 16 0"/>
 
-                <!-- Page Information -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Page " VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center"/>
-                    <TextBlock Text=" of " VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center"/>
-                    <TextBlock Text=" (" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding TotalItems}" VerticalAlignment="Center"/>
-                    <TextBlock Text=" total)" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Grid>
+                <Button Content="Next →" Command="{Binding NextPageCommand}" Margin="8 0 0 0"/>
+            </StackPanel>
+        </Border>
 
-            <!-- Error Message Box -->
-            <TextBlock Grid.Row="3"
-                       Text="{Binding StatusMessage}"
-                       Visibility="{Binding StatusMessage, Converter={StaticResource StringToVisibilityConverter}}"
-                       Margin="0,0,0,8"/>
+        <!-- Status Messages -->
+        <Border Grid.Row="3" Background="#FFF0F0" Padding="8" CornerRadius="4"
+                Visibility="{Binding StatusMessage, Converter={StaticResource StringToVisibilityConverter}}">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#666666" TextWrapping="Wrap"/>
+        </Border>
 
-            <!-- Loading Overlay -->
-            <Border Grid.Row="0" 
-                    Grid.RowSpan="4" 
-                    Background="#80000000"
-                    Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <ProgressBar IsIndeterminate="True" Width="100" Margin="0,0,0,10"/>
-                    <TextBlock Text="{Binding StatusMessage}"
-                               HorizontalAlignment="Center"
-                               Foreground="White"/>
+        <!-- Loading Overlay -->
+        <Border Grid.RowSpan="4" Background="#80000000"
+                Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Background="White" CornerRadius="8" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <ProgressBar IsIndeterminate="True" Width="200" Height="8" Margin="0 0 0 12"/>
+                    <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center" FontWeight="Medium"/>
                 </StackPanel>
             </Border>
+        </Border>
 
-            <!-- Transfer to Store Popup -->
-            <Border Grid.Row="0"
-                    Grid.RowSpan="4"
-                    Background="#80000000"
-                    Visibility="{Binding IsTransferPopupOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <Border Background="White"
-                        BorderBrush="Gray"
-                        BorderThickness="1"
-                        Width="500"
-                        Height="400"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Center">
-                    <Grid Margin="20">
+        <!-- Transfer Popup -->
+        <Border Grid.RowSpan="4" Background="#80000000"
+                Visibility="{Binding IsTransferPopupOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <Border Background="White" CornerRadius="8" Padding="24" Width="500" 
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Transfer Inventory" FontSize="18" FontWeight="Bold" Margin="0 0 0 16"/>
+
+                    <StackPanel Grid.Row="1" Margin="0 0 0 16">
+                        <TextBlock Text="{Binding SelectedItem.Name}" FontWeight="Medium"/>
+                        <TextBlock Text="{Binding SelectedItem.Barcode}" Foreground="#666666"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="2" Margin="0 0 0 24">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
-                        <TextBlock Grid.Row="0"
-                                   Text="Transfer to Store Inventory"
-                                   FontSize="18"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,20"/>
+                        <ComboBox Grid.Row="0" ItemsSource="{Binding StoreProducts}" DisplayMemberPath="Name"
+                                 SelectedItem="{Binding SelectedStoreProduct}" Margin="0 0 0 12"/>
 
-                        <TextBlock Grid.Row="1"
-                                   Text="Selected MainStock Item:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,5"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0 0 0 12">
+                            <RadioButton Content="Transfer Items" IsChecked="{Binding TransferByItems}" Margin="0 0 16 0"/>
+                            <RadioButton Content="Transfer Boxes" IsChecked="{Binding TransferByBoxes}"/>
+                        </StackPanel>
 
-                        <TextBlock Grid.Row="2"
-                                   Text="{Binding SelectedItem.Name}"
-                                   Margin="0,0,0,20"/>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0 0 0 12">
+                            <TextBox Text="{Binding TransferQuantity}" Width="100" Margin="0 0 8 0"/>
+                            <TextBlock Text="{Binding TransferByBoxes, Converter={StaticResource BoolToTextConverter}, ConverterParameter='boxes|items'}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
 
-                        <TextBlock Grid.Row="3"
-                                   Text="Select Store Product to Transfer To:"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,5"/>
-
-                        <ComboBox Grid.Row="4"
-                                  ItemsSource="{Binding StoreProducts}"
-                                  SelectedItem="{Binding SelectedStoreProduct}"
-                                  DisplayMemberPath="Name"
-                                  Height="36"
-                                  Margin="0,0,0,15"/>
-
-                        <Grid Grid.Row="5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Grid.Column="0"
-                                       Text="Transfer Type:"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,5"/>
-
-                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" 
-                                        Orientation="Horizontal" Margin="0,0,0,15">
-                                <RadioButton Content="Transfer Individual Items" 
-                                             IsChecked="{Binding TransferByItems}" 
-                                             GroupName="TransferType" 
-                                             Margin="0,0,15,0"/>
-                                <RadioButton Content="Transfer Boxes" 
-                                             IsChecked="{Binding TransferByBoxes}" 
-                                             GroupName="TransferType"/>
-                            </StackPanel>
-
-                            <TextBlock Grid.Row="2" Grid.Column="0"
-                                       Text="Quantity to Transfer:"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,5"/>
-
-                            <TextBox Grid.Row="3" Grid.Column="0"
-                                     Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="36"
-                                     Margin="0,0,10,0"/>
-
-                            <TextBlock Grid.Row="3" Grid.Column="1"
-                                       VerticalAlignment="Center"
-                                       Text="{Binding TransferByBoxes, Converter={StaticResource BoolToTextConverter}, ConverterParameter='boxes|items'}"/>
-
-                            <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,10,0,0">
-                                <TextBlock>
-                                    <TextBlock.Text>
-                                        <MultiBinding StringFormat="Available in MainStock: {0} items ({1} boxes)">
-                                            <Binding Path="SelectedItem.CurrentStock"/>
-                                            <Binding Path="SelectedItem.NumberOfBoxes"/>
-                                        </MultiBinding>
-                                    </TextBlock.Text>
-                                </TextBlock>
-                                <TextBlock Text="{Binding SelectedItem.ItemsPerBox, StringFormat=Items per box: {0}}" 
-                                           Margin="0,5,0,0"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <StackPanel Grid.Row="6"
-                                    Orientation="Horizontal"
-                                    HorizontalAlignment="Right"
-                                    Margin="0,20,0,0">
-                            <Button Content="Cancel"
-                                    Width="100"
-                                    Height="36"
-                                    Margin="0,0,10,0"
-                                    Click="CloseTransferPopup_Click"/>
-                            <Button Content="Transfer"
-                                    Width="100"
-                                    Height="36"
-                                    Command="{Binding SaveTransferCommand}"/>
+                        <StackPanel Grid.Row="3">
+                            <TextBlock>
+                                <Run Text="Available:" FontWeight="Medium"/>
+                                <Run Text="{Binding SelectedItem.CurrentStock}"/>
+                                <Run Text="items ("/>
+                                <Run Text="{Binding SelectedItem.NumberOfBoxes}"/>
+                                <Run Text="boxes)"/>
+                            </TextBlock>
+                            <TextBlock Text="{Binding SelectedItem.ItemsPerBox, StringFormat='Items per box: {0}'}"
+                                       Foreground="#666666"/>
                         </StackPanel>
                     </Grid>
-                </Border>
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Cancel" Click="CloseTransferPopup_Click" Margin="0 0 8 0"/>
+                        <Button Content="Confirm Transfer" Command="{Binding SaveTransferCommand}" 
+                                Background="#007ACC" Foreground="White"/>
+                    </StackPanel>
+                </Grid>
             </Border>
-        </Grid>
+        </Border>
     </Grid>
 </UserControl>
