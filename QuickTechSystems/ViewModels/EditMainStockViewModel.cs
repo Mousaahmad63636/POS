@@ -40,6 +40,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isSaving;
         private string _statusMessage;
         private bool? _dialogResult;
+        private bool _autoSyncToProducts = false; // Default to false for editing
 
         public MainStockDTO EditingItem
         {
@@ -129,6 +130,20 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _dialogResult, value);
         }
 
+        /// <summary>
+        /// Controls whether changes should be automatically synced to the Products/Store
+        /// </summary>
+        public bool AutoSyncToProducts
+        {
+            get => _autoSyncToProducts;
+            set => SetProperty(ref _autoSyncToProducts, value);
+        }
+
+        /// <summary>
+        /// Indicates if this is a new item (for UI logic)
+        /// </summary>
+        public bool IsNewItem => EditingItem?.MainStockId == 0;
+
         #endregion
 
         #region Commands
@@ -189,10 +204,14 @@ namespace QuickTechSystems.WPF.ViewModels
             EditingItem = item ?? new MainStockDTO
             {
                 IsActive = true,
-                ItemsPerBox = 0,  // Changed from 1 to 0
-                NumberOfBoxes = 0, // Already defaulting to 0
+                ItemsPerBox = 0,  // Default to 0
+                NumberOfBoxes = 0,
                 IndividualItems = 1 // Ensure we have at least 1 individual item by default
             };
+
+            // Set AutoSyncToProducts based on whether this is a new item or existing item
+            // For new items, default to true; for existing items, default to false
+            AutoSyncToProducts = IsNewItem;
 
             try
             {
@@ -311,9 +330,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
-                // If we're editing an item with a specific invoice ID that's not in either collection,
-                // we'll fetch it separately in the InitializeAsync method
-
                 DraftInvoices = new ObservableCollection<SupplierInvoiceDTO>(invoices);
             }
             catch (Exception ex)
@@ -345,6 +361,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Set CurrentStock based on IndividualItems
                 EditingItem.CurrentStock = EditingItem.IndividualItems;
 
+                // Set the AutoSyncToProducts flag on the item
+                EditingItem.AutoSyncToProducts = AutoSyncToProducts;
+
                 // Validate the item
                 if (!ValidateItem())
                     return;
@@ -361,113 +380,19 @@ namespace QuickTechSystems.WPF.ViewModels
                 else
                     savedItem = await _mainStockService.UpdateAsync(EditingItem);
 
-                // Process store product and invoice integration with proper tracking management
-                try
+                // FIXED: Only sync to products if AutoSyncToProducts is enabled
+                if (AutoSyncToProducts)
                 {
-                    StatusMessage = "Adding product to invoice...";
-
-                    // Use AsNoTracking to avoid tracking conflicts
-                    var existingProduct = await _productService.FindProductByBarcodeAsync(savedItem.Barcode);
-
-                    ProductDTO storeProduct;
-                    if (existingProduct != null)
-                    {
-                        // Create a completely new DTO to avoid tracking issues
-                        storeProduct = new ProductDTO
-                        {
-                            ProductId = existingProduct.ProductId,
-                            Name = savedItem.Name,
-                            Barcode = savedItem.Barcode,
-                            BoxBarcode = savedItem.BoxBarcode,
-                            CategoryId = savedItem.CategoryId,
-                            CategoryName = savedItem.CategoryName,
-                            SupplierId = savedItem.SupplierId,
-                            SupplierName = savedItem.SupplierName,
-                            Description = savedItem.Description,
-                            PurchasePrice = savedItem.PurchasePrice,
-                            WholesalePrice = savedItem.WholesalePrice,
-                            SalePrice = savedItem.SalePrice,
-                            MainStockId = savedItem.MainStockId,
-                            BoxPurchasePrice = savedItem.BoxPurchasePrice,
-                            BoxWholesalePrice = savedItem.BoxWholesalePrice,
-                            BoxSalePrice = savedItem.BoxSalePrice,
-                            ItemsPerBox = savedItem.ItemsPerBox,
-                            MinimumBoxStock = savedItem.MinimumBoxStock,
-                            MinimumStock = savedItem.MinimumStock,
-                            ImagePath = savedItem.ImagePath,
-                            Speed = savedItem.Speed,
-                            IsActive = savedItem.IsActive,
-                            CurrentStock = existingProduct.CurrentStock, // Preserve existing stock
-                            CreatedAt = existingProduct.CreatedAt, // Preserve creation date
-                            UpdatedAt = DateTime.Now
-                        };
-
-                        // Call update with the new DTO - this should handle detaching internally
-                        await _productService.UpdateAsync(storeProduct);
-                    }
-                    else
-                    {
-                        storeProduct = new ProductDTO
-                        {
-                            Name = savedItem.Name,
-                            Barcode = savedItem.Barcode,
-                            BoxBarcode = savedItem.BoxBarcode,
-                            CategoryId = savedItem.CategoryId,
-                            CategoryName = savedItem.CategoryName,
-                            SupplierId = savedItem.SupplierId,
-                            SupplierName = savedItem.SupplierName,
-                            Description = savedItem.Description,
-                            PurchasePrice = savedItem.PurchasePrice,
-                            WholesalePrice = savedItem.WholesalePrice,
-                            SalePrice = savedItem.SalePrice,
-                            MainStockId = savedItem.MainStockId,
-                            BoxPurchasePrice = savedItem.BoxPurchasePrice,
-                            BoxWholesalePrice = savedItem.BoxWholesalePrice,
-                            BoxSalePrice = savedItem.BoxSalePrice,
-                            ItemsPerBox = savedItem.ItemsPerBox,
-                            MinimumBoxStock = savedItem.MinimumBoxStock,
-                            CurrentStock = 0,
-                            MinimumStock = savedItem.MinimumStock,
-                            ImagePath = savedItem.ImagePath,
-                            Speed = savedItem.Speed,
-                            IsActive = savedItem.IsActive,
-                            CreatedAt = DateTime.Now
-                        };
-                        storeProduct = await _productService.CreateAsync(storeProduct);
-                    }
-
-                    if (SelectedInvoice != null)
-                    {
-                        var invoiceDetail = new SupplierInvoiceDetailDTO
-                        {
-                            SupplierInvoiceId = SelectedInvoice.SupplierInvoiceId,
-                            ProductId = storeProduct.ProductId,
-                            ProductName = savedItem.Name,
-                            ProductBarcode = savedItem.Barcode,
-                            BoxBarcode = savedItem.BoxBarcode,
-                            NumberOfBoxes = savedItem.NumberOfBoxes,
-                            ItemsPerBox = savedItem.ItemsPerBox,
-                            BoxPurchasePrice = savedItem.BoxPurchasePrice,
-                            BoxSalePrice = savedItem.BoxSalePrice,
-                            Quantity = savedItem.CurrentStock,
-                            PurchasePrice = savedItem.PurchasePrice,
-                            TotalPrice = savedItem.PurchasePrice * savedItem.CurrentStock
-                        };
-                        await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
-                    }
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        MessageBox.Show($"Product {(isNewItem ? "created" : "updated")} successfully" +
-                            (SelectedInvoice != null ? $" and added to invoice '{SelectedInvoice.InvoiceNumber}'" : ""),
-                            "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-                    });
+                    await ProcessProductSyncAndInvoiceIntegration(savedItem, isNewItem);
                 }
-                catch (Exception ex)
+                else
                 {
-                    Debug.WriteLine($"Error adding product to invoice: {ex.Message}");
+                    // Show success message for MainStock-only save
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        MessageBox.Show($"Product saved but could not be properly linked to the invoice: {ex.Message}",
-                            "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        string message = $"MainStock item {(isNewItem ? "created" : "updated")} successfully.\n\n" +
+                                       "Item was NOT automatically synced to the store.\n" +
+                                       "You can transfer it manually later if needed.";
+                        MessageBox.Show(message, "MainStock Updated", MessageBoxButton.OK, MessageBoxImage.Information);
                     });
                 }
 
@@ -484,6 +409,127 @@ namespace QuickTechSystems.WPF.ViewModels
             finally
             {
                 IsSaving = false;
+            }
+        }
+
+        /// <summary>
+        /// Processes product synchronization and invoice integration when AutoSyncToProducts is enabled
+        /// </summary>
+        private async Task ProcessProductSyncAndInvoiceIntegration(MainStockDTO savedItem, bool isNewItem)
+        {
+            try
+            {
+                StatusMessage = "Syncing to store products...";
+
+                // Check if product already exists
+                var existingProduct = await _productService.FindProductByBarcodeAsync(savedItem.Barcode);
+
+                ProductDTO storeProduct;
+                if (existingProduct != null)
+                {
+                    // Update existing product
+                    storeProduct = new ProductDTO
+                    {
+                        ProductId = existingProduct.ProductId,
+                        Name = savedItem.Name,
+                        Barcode = savedItem.Barcode,
+                        BoxBarcode = savedItem.BoxBarcode,
+                        CategoryId = savedItem.CategoryId,
+                        CategoryName = savedItem.CategoryName,
+                        SupplierId = savedItem.SupplierId,
+                        SupplierName = savedItem.SupplierName,
+                        Description = savedItem.Description,
+                        PurchasePrice = savedItem.PurchasePrice,
+                        WholesalePrice = savedItem.WholesalePrice,
+                        SalePrice = savedItem.SalePrice,
+                        MainStockId = savedItem.MainStockId,
+                        BoxPurchasePrice = savedItem.BoxPurchasePrice,
+                        BoxWholesalePrice = savedItem.BoxWholesalePrice,
+                        BoxSalePrice = savedItem.BoxSalePrice,
+                        ItemsPerBox = savedItem.ItemsPerBox,
+                        MinimumBoxStock = savedItem.MinimumBoxStock,
+                        MinimumStock = savedItem.MinimumStock,
+                        ImagePath = savedItem.ImagePath,
+                        Speed = savedItem.Speed,
+                        IsActive = savedItem.IsActive,
+                        CurrentStock = existingProduct.CurrentStock, // Preserve existing stock
+                        CreatedAt = existingProduct.CreatedAt, // Preserve creation date
+                        UpdatedAt = DateTime.Now
+                    };
+
+                    await _productService.UpdateAsync(storeProduct);
+                }
+                else
+                {
+                    // Create new product
+                    storeProduct = new ProductDTO
+                    {
+                        Name = savedItem.Name,
+                        Barcode = savedItem.Barcode,
+                        BoxBarcode = savedItem.BoxBarcode,
+                        CategoryId = savedItem.CategoryId,
+                        CategoryName = savedItem.CategoryName,
+                        SupplierId = savedItem.SupplierId,
+                        SupplierName = savedItem.SupplierName,
+                        Description = savedItem.Description,
+                        PurchasePrice = savedItem.PurchasePrice,
+                        WholesalePrice = savedItem.WholesalePrice,
+                        SalePrice = savedItem.SalePrice,
+                        MainStockId = savedItem.MainStockId,
+                        BoxPurchasePrice = savedItem.BoxPurchasePrice,
+                        BoxWholesalePrice = savedItem.BoxWholesalePrice,
+                        BoxSalePrice = savedItem.BoxSalePrice,
+                        ItemsPerBox = savedItem.ItemsPerBox,
+                        MinimumBoxStock = savedItem.MinimumBoxStock,
+                        CurrentStock = 0, // New products start with 0 stock
+                        MinimumStock = savedItem.MinimumStock,
+                        ImagePath = savedItem.ImagePath,
+                        Speed = savedItem.Speed,
+                        IsActive = savedItem.IsActive,
+                        CreatedAt = DateTime.Now
+                    };
+                    storeProduct = await _productService.CreateAsync(storeProduct);
+                }
+
+                // Add to invoice if one is selected
+                if (SelectedInvoice != null)
+                {
+                    StatusMessage = "Adding to supplier invoice...";
+
+                    var invoiceDetail = new SupplierInvoiceDetailDTO
+                    {
+                        SupplierInvoiceId = SelectedInvoice.SupplierInvoiceId,
+                        ProductId = storeProduct.ProductId,
+                        ProductName = savedItem.Name,
+                        ProductBarcode = savedItem.Barcode,
+                        BoxBarcode = savedItem.BoxBarcode,
+                        NumberOfBoxes = savedItem.NumberOfBoxes,
+                        ItemsPerBox = savedItem.ItemsPerBox,
+                        BoxPurchasePrice = savedItem.BoxPurchasePrice,
+                        BoxSalePrice = savedItem.BoxSalePrice,
+                        Quantity = savedItem.CurrentStock,
+                        PurchasePrice = savedItem.PurchasePrice,
+                        TotalPrice = savedItem.PurchasePrice * savedItem.CurrentStock
+                    };
+                    await _supplierInvoiceService.AddProductToInvoiceAsync(invoiceDetail);
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                    string message = $"Product {(isNewItem ? "created" : "updated")} and synced to store successfully.";
+                    if (SelectedInvoice != null)
+                    {
+                        message += $"\nItem was added to invoice '{SelectedInvoice.InvoiceNumber}'.";
+                    }
+                    MessageBox.Show(message, "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in product sync and invoice integration: {ex.Message}");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
+                    MessageBox.Show($"MainStock item saved but sync to store failed: {ex.Message}",
+                        "Partial Success", MessageBoxButton.OK, MessageBoxImage.Warning);
+                });
             }
         }
 
@@ -821,9 +867,6 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         /// <summary>
-        /// Ensures consistent pricing for the item
-        /// </summary>
-        /// <summary>
         /// Ensures consistent pricing for the item, respecting manually entered values
         /// </summary>
         private void EnsureConsistentPricing(MainStockDTO item)
@@ -905,6 +948,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         private bool ValidateItem()
         {
             var errors = new List<string>();
@@ -930,9 +974,9 @@ namespace QuickTechSystems.WPF.ViewModels
             if (EditingItem.IndividualItems <= 0)
                 errors.Add("• Individual items quantity must be greater than zero");
 
-            // Add validation for invoice selection
-            if (SelectedInvoice == null)
-                errors.Add("• Please select a supplier invoice");
+            // Modified: Only require invoice selection if AutoSyncToProducts is enabled
+            if (AutoSyncToProducts && SelectedInvoice == null)
+                errors.Add("• Please select a supplier invoice (required when auto-sync is enabled)");
 
             if (errors.Any())
             {

@@ -25,6 +25,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -80,8 +81,34 @@
             </Grid>
         </Border>
 
+        <!-- Auto-Sync Option -->
+        <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="5" Margin="0,0,0,10" Padding="15" Background="#F8F9FA">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <CheckBox Grid.Column="0" 
+                          IsChecked="{Binding AutoSyncToProducts}" 
+                          VerticalAlignment="Center"
+                          Margin="0,0,15,0"/>
+
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="Auto-sync to Store Products" 
+                               FontWeight="SemiBold" 
+                               Margin="0,0,0,2"/>
+                    <TextBlock Text="When enabled, changes will automatically be reflected in the store inventory. When disabled, items stay in MainStock only."
+                               FontSize="12" 
+                               Foreground="#666666"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Invoice Selection Section -->
-        <Border Grid.Row="1" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="5" Margin="0,0,0,10" Padding="15">
+        <Border Grid.Row="2" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="5" Margin="0,0,0,10" Padding="15"
+                Visibility="{Binding AutoSyncToProducts, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -126,7 +153,7 @@
         </Border>
 
         <!-- Main Content Area -->
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
             <Grid Margin="10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -415,7 +442,7 @@
         </ScrollViewer>
 
         <!-- Footer with Buttons -->
-        <Grid Grid.Row="3" Margin="0,10,0,0">
+        <Grid Grid.Row="4" Margin="0,10,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -434,7 +461,7 @@
         </Grid>
 
         <!-- Loading Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="4" 
+        <Border Grid.Row="0" Grid.RowSpan="5" 
                 Background="#80000000" 
                 Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">

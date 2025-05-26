@@ -238,13 +238,17 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 var result = await tcs.Task;
 
+                // FIXED: Only process invoice integration if AutoSyncToProducts is true
+                // When AutoSyncToProducts is false, we only create MainStock entries without touching Products
                 if (result && AutoSyncToProducts)
                 {
                     await ProcessInvoiceIntegrationAsync();
                 }
                 else if (result && !AutoSyncToProducts)
                 {
-                    await ProcessSupplierInvoiceIntegrationAsync();
+                    // When AutoSyncToProducts is false, we don't create products or invoice details
+                    // Items are saved to MainStock only and can be transferred manually later
+                    await ShowMainStockOnlyCompletionMessage();
                 }
 
                 _bulkOperationQueueService.Reset();
@@ -287,7 +291,42 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+        /// <summary>
+        /// Shows completion message when items are saved to MainStock only (AutoSyncToProducts = false)
+        /// </summary>
+        private async Task ShowMainStockOnlyCompletionMessage()
+        {
+            try
+            {
+                StatusMessage = "Items saved to MainStock successfully...";
 
+                var itemCount = Items.Count;
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var message = $"Successfully saved {itemCount} items to MainStock.\n\n" +
+                                 "Items were NOT automatically transferred to the store.\n" +
+                                 "You can transfer them manually later using the 'Transfer to Store' function.";
+
+                    StatusMessage = $"Successfully saved {itemCount} items to MainStock only";
+
+                    MessageBox.Show(message, "MainStock Items Saved",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error showing completion message: {ex.Message}");
+                StatusMessage = $"Items saved to MainStock (completion message error: {ex.Message})";
+                await Task.Delay(1000);
+            }
+            finally
+            {
+                StatusMessage = string.Empty;
+            }
+        }
         private async Task ProcessInvoiceIntegrationAsync()
         {
             try
@@ -348,6 +387,9 @@ namespace QuickTechSystems.WPF.ViewModels
                         });
 
                         await Task.Delay(100);
+
+                        // FIXED: Only look for existing products, don't create new ones
+                        // The products should already exist because AutoSyncToProducts was true
                         var storeProduct = await _productService.FindProductByBarcodeAsync(mainStockItem.Barcode);
 
                         if (storeProduct?.ProductId > 0)
@@ -373,7 +415,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         }
                         else
                         {
-                            Debug.WriteLine($"Warning: Could not create invoice detail for product {mainStockItem.Name} - Invalid ProductId");
+                            Debug.WriteLine($"Warning: Could not find product for {mainStockItem.Name}. Product should have been auto-created.");
                         }
 
                         await Task.Delay(200);
@@ -386,8 +428,14 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    StatusMessage = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}";
+                    var message = $"Successfully integrated {processedCount} items with invoice {SelectedBulkInvoice.InvoiceNumber}.\n" +
+                                 $"Items were automatically synced to the store.";
+                    StatusMessage = message;
+
+                    MessageBox.Show(message, "Integration Complete",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
                 });
+
                 await Task.Delay(1000);
             }
             catch (Exception ex)
@@ -402,7 +450,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = string.Empty;
             }
         }
-
         private async Task ProcessSupplierInvoiceIntegrationAsync()
         {
             try
