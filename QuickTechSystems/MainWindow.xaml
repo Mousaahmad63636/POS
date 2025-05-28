@@ -1,7 +1,7 @@
 ﻿<Window x:Class="QuickTechSystems.WPF.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/design/blend/2008"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:QuickTechSystems.WPF"
         xmlns:views="clr-namespace:QuickTechSystems.WPF.Views"
@@ -21,31 +21,91 @@
         StateChanged="MainWindow_StateChanged"
         SizeChanged="MainWindow_SizeChanged"
         FlowDirection="{Binding CurrentFlowDirection}"
-        Background="{StaticResource PrimaryBackgroundBrush}">
+        Background="#F0F2F5">
 
     <Window.Resources>
+        <!-- Converters -->
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
+        <!-- Color Scheme -->
+        <SolidColorBrush x:Key="SidebarBackground" Color="#1E293B"/>
+        <SolidColorBrush x:Key="ButtonHoverBackground" Color="#334155"/>
+        <SolidColorBrush x:Key="CategoryText" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#F8FAFC"/>
+        <SolidColorBrush x:Key="PrimaryBlue" Color="#1e40af"/>
+        <SolidColorBrush x:Key="BorderGray" Color="#e2e8f0"/>
+        <SolidColorBrush x:Key="DangerColor" Color="#ef4444"/>
+
+        <!-- Effects -->
+        <DropShadowEffect x:Key="CardShadow" 
+                         BlurRadius="15"
+                         Direction="315"
+                         Opacity="0.2"
+                         ShadowDepth="5"
+                         Color="#0F172A"/>
+
+        <!-- Error Notification Style -->
+        <Style x:Key="ErrorNotification" TargetType="Border">
+            <Setter Property="Background" Value="#fef2f2"/>
+            <Setter Property="BorderBrush" Value="#fecaca"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="0,0,0,20"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Navigation Button Style -->
         <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
             <Setter Property="Height" Value="46"/>
             <Setter Property="Margin" Value="8,2"/>
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="14.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8"
-                                Padding="16,0">
-                            <ContentPresenter HorizontalAlignment="Left" 
-                                              VerticalAlignment="Center"/>
+                        <Border x:Name="border" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="10"
+                                BorderThickness="0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Icon -->
+                                <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                                         Margin="0,0,12,0"
+                                         VerticalAlignment="Center"/>
+
+                                <!-- Text -->
+                                <ContentPresenter Grid.Column="1"
+                                                VerticalAlignment="Center"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#37475E"/>
+                                <Setter TargetName="border" Property="Background" 
+                                        Value="{StaticResource ButtonHoverBackground}"/>
+                                <Setter TargetName="border" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="10" 
+                                                        ShadowDepth="1" 
+                                                        Opacity="0.2"/>
+                                    </Setter.Value>
+                                </Setter>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -56,22 +116,19 @@
             </Setter>
         </Style>
 
-        <Style x:Key="IconContainer" TargetType="Border">
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="Background" Value="#4A6FBF"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Margin" Value="0,0,12,0"/>
-            <Setter Property="HorizontalAlignment" Value="Center"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
+        <!-- User Info Text Style -->
+        <Style x:Key="UserInfoText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0,2"/>
         </Style>
 
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#94A3B8"/>
+        <!-- Category Header Style -->
+        <Style x:Key="CategoryHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource CategoryText}"/>
             <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Margin" Value="24,20,0,10"/>
-            <Setter Property="Opacity" Value="0.9"/>
         </Style>
     </Window.Resources>
 
@@ -81,35 +138,40 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
+        <!-- Navigation Panel -->
         <Border Grid.Column="0"
-                Background="#2C3E50"
-                BorderBrush="{StaticResource BorderBrush}"
-                BorderThickness="0,0,1,0"
+                Background="{StaticResource SidebarBackground}"
+                CornerRadius="0,16,16,0"
+                Effect="{StaticResource CardShadow}"
                 x:Name="NavigationPanel">
-            <DockPanel Margin="0,0">
+            <DockPanel Margin="0,10">
+                <!-- App Header -->
                 <Border DockPanel.Dock="Top" 
-                       Padding="20,20"
-                       Background="#1E2A3A">
+                       Padding="20,16"
+                       Background="#161F2E"
+                       CornerRadius="0,16,0,0">
                     <StackPanel>
                         <TextBlock Text="{DynamicResource MainWindow_AppTitle}"
                                  Foreground="White"
-                                 FontSize="24"
-                                 FontWeight="SemiBold"/>
+                                 FontSize="26"
+                                 FontWeight="Bold"/>
 
+                        <!-- User Info -->
                         <Border Margin="0,16,0,0"
-                                Background="#263545"
+                                Background="#1F2937"
                                 CornerRadius="8"
-                                Padding="14">
+                                Padding="12">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
+                                <!-- User Avatar -->
                                 <Border Width="40" 
                                         Height="40"
-                                        Background="{StaticResource AccentBrush}"
-                                        CornerRadius="20">
+                                        CornerRadius="20"
+                                        Background="{StaticResource PrimaryBlue}">
                                     <TextBlock Text="{Binding UserInitials}"
                                              Foreground="White"
                                              FontWeight="Bold"
@@ -117,322 +179,184 @@
                                              VerticalAlignment="Center"/>
                                 </Border>
 
+                                <!-- User Details -->
                                 <StackPanel Grid.Column="1" 
                                           Margin="12,0,0,0">
                                     <TextBlock Text="{Binding CurrentUserName}"
-                                             Foreground="White"
-                                             FontWeight="SemiBold"
-                                             FontSize="14"/>
+                                             Style="{StaticResource UserInfoText}"
+                                             FontWeight="Bold"/>
                                     <TextBlock Text="{Binding CurrentUserRole}"
-                                             Foreground="White"
-                                             Opacity="0.7"
-                                             FontSize="13"/>
+                                             Style="{StaticResource UserInfoText}"
+                                             Opacity="0.7"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
                     </StackPanel>
                 </Border>
 
+                <!-- Navigation Menu -->
                 <ScrollViewer DockPanel.Dock="Top" 
                             VerticalScrollBarVisibility="Auto"
-                            Margin="0,16,0,0">
+                            Margin="0,20,0,0">
                     <StackPanel>
+                        <!-- Main Operations -->
                         <TextBlock Text="{DynamicResource MainWindow_MainOperations}"
-                                 Style="{StaticResource SectionHeader}"/>
+                                 Style="{StaticResource CategoryHeader}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Dashboard}" 
+                                Tag="📊"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 CommandParameter="Dashboard"
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📊" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Dashboard" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                        <Button Content="{DynamicResource MainWindow_Transactions}"
+                                Tag="💰"
+                                Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}" 
+                                IsEnabled="{Binding IsNavigationEnabled}"
+                                CommandParameter="Transactions"/>
+
+                        <!-- Finance Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Finance}"
-                                 Style="{StaticResource SectionHeader}"/>
-
-                        <Button Style="{StaticResource NavButton}"
+                                 Style="{StaticResource CategoryHeader}"/>
+                        <Button Content="{DynamicResource MainWindow_Customers}"
+        Tag="👥"
+        Style="{StaticResource NavButton}"
+        Command="{Binding NavigateCommand}" 
+        IsEnabled="{Binding IsNavigationEnabled}"
+        CommandParameter="Customers"/>
+                        <Button Content="{DynamicResource MainWindow_Drawer}"
+                                Tag="🏦"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Customers">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="👥" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Customers" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                CommandParameter="Drawer"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Quotes}"
+                                Tag="📝"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Drawer">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="🏦" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Drawer" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                CommandParameter="Quotes"/>
 
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Quotes">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📝" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Quotes" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Expenses}"
+                                Tag="💸"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Expenses"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="💸" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Expenses" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                        <!-- Management Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Management}"
-                                 Style="{StaticResource SectionHeader}"
+                                 Style="{StaticResource CategoryHeader}"
                                  Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                CommandParameter="TableManagement"
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="🍽️" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Table Management" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="Table Management"
+        Tag="🍽️"
+        Style="{StaticResource NavButton}"
+        Command="{Binding NavigateCommand}" 
+        CommandParameter="TableManagement"
+        IsEnabled="{Binding IsNavigationEnabled}"
+        Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <Button Content="{DynamicResource MainWindow_Products}"
+                                Tag="📦"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Products"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📦" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Products" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="MainStock"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="🏭" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Main Stock" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Categories}"
+                                Tag="📂"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Categories"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📂" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Categories" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Suppliers}"
+                                Tag="🚚"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Suppliers"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="🚚" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Suppliers" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                        <!-- Reports Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Reports}"
-                                 Style="{StaticResource SectionHeader}"
+                                 Style="{StaticResource CategoryHeader}"
                                  Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_TransactionHistory}"
+                                Tag="📊"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="TransactionHistory"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📊" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Transaction History" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Profit}"
+                                Tag="📈"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Profit"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📈" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Profit" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+
+                        <Button Content="{DynamicResource MainWindow_LowStockHistory}"
+                                Tag="📉"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="LowStockHistory"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📉" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Low Stock History" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                        <!-- Admin Section -->
                         <TextBlock Text="{DynamicResource MainWindow_Administration}"
-                                 Style="{StaticResource SectionHeader}"
+                                 Style="{StaticResource CategoryHeader}"
                                  Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Settings}"
+                                Tag="⚙️"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Settings"
-                                Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="⚙️" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Settings" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <Button Content="{DynamicResource MainWindow_Employees}"
+                                Tag="👥"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Employees"
-                                Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="👥" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Employees" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
-                        <Button Style="{StaticResource NavButton}"
+                        <!-- Logout Button -->
+                        <Button Content="{DynamicResource MainWindow_Logout}"
+                                Tag="🚪"
+                                Style="{StaticResource NavButton}"
                                 Command="{Binding LogoutCommand}"
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                Margin="8,40,8,20">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}" Background="#E53E3E">
-                                    <TextBlock Text="🚪" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Logout" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
+                                Margin="8,40,8,20"
+                                Foreground="#FE8A8A"/>
                     </StackPanel>
                 </ScrollViewer>
             </DockPanel>
         </Border>
 
+        <!-- Hide sidebar button -->
         <Button x:Name="HideSidebarButton"
-                Width="36"
-                Height="36"
-                FontSize="16"
-                FontWeight="SemiBold"
-                Background="#1E2A3A"
+                Content="‹"
+                Width="44"
+                Height="44"
+                FontSize="24"
+                FontWeight="Bold"
+                Background="{StaticResource SidebarBackground}"
                 Foreground="White"
                 BorderThickness="0"
                 HorizontalAlignment="Right"
@@ -440,49 +364,77 @@
                 Margin="0,12,12,0"
                 Panel.ZIndex="999"
                 Click="HideSidebarButton_Click"
-                Grid.Column="0"
-                Cursor="Hand">
-            <Border CornerRadius="18" Width="36" Height="36">
-                <TextBlock Text="‹" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            </Border>
+                Grid.Column="0">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="border" 
+                               Background="{TemplateBinding Background}"
+                               CornerRadius="8"
+                               BorderThickness="0"
+                               Effect="{StaticResource CardShadow}">
+                            <ContentPresenter x:Name="contentPresenter" 
+                                            HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" 
+                                   Value="{StaticResource ButtonHoverBackground}"/>
+                            <Setter TargetName="border" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="20" 
+                                                    ShadowDepth="3" 
+                                                    Opacity="0.3"
+                                                    Color="#0F172A"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
         </Button>
 
+        <!-- Content Area -->
         <Border Grid.Column="1"
-                Background="{StaticResource PrimaryBackgroundBrush}"
-                BorderBrush="{StaticResource BorderBrush}"
-                BorderThickness="0,0,0,0"
-                Margin="0,0,0,0">
+                Background="White"
+                CornerRadius="16,0,0,16"
+                Margin="0,10,10,10">
             <Grid>
                 <ContentControl Content="{Binding CurrentViewModel}"
                               Margin="20"/>
 
+                <!-- Loading Overlay -->
                 <Grid Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
-                      Background="#80F7F9FC">
-                    <Border Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
+                      Background="#80FFFFFF">
+                    <Border Background="White"
                             CornerRadius="8"
-                            Width="320">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="8" Direction="270" ShadowDepth="2" Color="{StaticResource ShadowColor}" Opacity="0.15"/>
-                        </Border.Effect>
-                        <StackPanel Margin="24" 
+                            Width="300"
+                            Effect="{StaticResource CardShadow}">
+                        <StackPanel Margin="20" 
                                   VerticalAlignment="Center" 
                                   HorizontalAlignment="Center">
                             <ProgressBar IsIndeterminate="True" 
-                                       Width="240" 
-                                       Height="4"/>
+                                       Width="200" 
+                                       Height="4"
+                                       Background="Transparent"
+                                       Foreground="{StaticResource PrimaryBlue}"/>
                             <TextBlock Text="{Binding LoadingMessage}"
-                                     Margin="0,16,0,0"
+                                     Margin="0,12,0,0"
                                      FontSize="14"
-                                     Foreground="{StaticResource TextSecondaryBrush}"
-                                     TextAlignment="Center"/>
+                                     TextAlignment="Center"
+                                     Foreground="{StaticResource PrimaryBlue}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
-                <Border Background="{StaticResource ErrorLightBrush}"
-                       BorderBrush="{StaticResource ErrorBorderBrush}"
+                <!-- Error Message -->
+                <Border Background="#fef2f2"
+                       BorderBrush="#fecaca"
                        BorderThickness="1"
                        CornerRadius="8"
                        Padding="16"
@@ -491,7 +443,7 @@
                        Margin="0,0,0,20"
                        Panel.ZIndex="999">
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="6" Direction="270" ShadowDepth="2" Color="{StaticResource ShadowColor}" Opacity="0.1"/>
+                        <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.1"/>
                     </Border.Effect>
                     <Border.Style>
                         <Style TargetType="Border">
@@ -507,16 +459,17 @@
                         </Style>
                     </Border.Style>
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="⚠️" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="⚠️" FontSize="16" Margin="0,0,8,0"/>
                         <TextBlock Text="{Binding ErrorMessage}" 
+                                  Foreground="{StaticResource DangerColor}" 
                                   TextWrapping="Wrap"
-                                  Foreground="{StaticResource ErrorTextBrush}"
                                   MaxWidth="500"/>
                     </StackPanel>
                 </Border>
             </Grid>
         </Border>
 
+        <!-- Hover-activated sidebar reveal area -->
         <Border x:Name="SidebarHoverArea"
                 Grid.Column="1" 
                 Width="15" 
@@ -527,25 +480,55 @@
                 Visibility="Collapsed"
                 MouseEnter="SidebarHoverArea_MouseEnter"/>
 
+        <!-- Show sidebar button -->
         <Button x:Name="ShowSidebarButton"
-                Width="36"
-                Height="36"
-                FontSize="16"
-                FontWeight="SemiBold"
-                Background="#1E2A3A"
+                Content="›"
+                Width="44"
+                Height="44"
+                FontSize="24"
+                FontWeight="Bold"
+                Background="{StaticResource SidebarBackground}"
                 Foreground="White"
                 BorderThickness="0"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
-                Margin="12,12,0,0"
+                Margin="0,12,0,0"
                 Panel.ZIndex="999"
                 Click="ShowSidebarButton_Click"
                 Grid.Column="1"
-                Cursor="Hand"
                 Visibility="Collapsed">
-            <Border CornerRadius="18" Width="36" Height="36">
-                <TextBlock Text="›" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-            </Border>
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="border" 
+                               Background="{TemplateBinding Background}"
+                               CornerRadius="8"
+                               BorderThickness="0"
+                               Effect="{StaticResource CardShadow}">
+                            <ContentPresenter x:Name="contentPresenter" 
+                                            HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" 
+                                   Value="{StaticResource ButtonHoverBackground}"/>
+                            <Setter TargetName="border" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="20" 
+                                                    ShadowDepth="3" 
+                                                    Opacity="0.3"
+                                                    Color="#0F172A"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
         </Button>
     </Grid>
 </Window>

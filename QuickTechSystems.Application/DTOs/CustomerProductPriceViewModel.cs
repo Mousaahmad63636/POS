@@ -8,7 +8,6 @@ namespace QuickTechSystems.Application.DTOs
     {
         private int _productId;
         private string _productName;
-        private string _barcode; // New field for barcode
         private decimal _defaultPrice;
         private decimal _customPrice;
 
@@ -33,20 +32,6 @@ namespace QuickTechSystems.Application.DTOs
                 if (_productName != value)
                 {
                     _productName = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        // New Barcode property
-        public string Barcode
-        {
-            get => _barcode;
-            set
-            {
-                if (_barcode != value)
-                {
-                    _barcode = value;
                     OnPropertyChanged();
                 }
             }
@@ -81,6 +66,9 @@ namespace QuickTechSystems.Application.DTOs
                 }
             }
         }
+
+        // Optional calculated property example: 
+        // public decimal PriceChangePercentage => DefaultPrice > 0 ? (CustomPrice - DefaultPrice) / DefaultPrice * 100 : 0;
 
         public event PropertyChangedEventHandler PropertyChanged;
 

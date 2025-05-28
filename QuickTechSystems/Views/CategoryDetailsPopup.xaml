@@ -1,0 +1,79 @@
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.CategoryDetailsPopup"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             Width="450" 
+             Height="400">
+    <Border CornerRadius="8" 
+            Background="White" 
+            BorderBrush="#DDDDDD" 
+            BorderThickness="1"
+            Effect="{StaticResource MediumShadow}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <!-- Header -->
+            <Border Grid.Row="0" 
+                    Background="{StaticResource PrimaryColor}" 
+                    CornerRadius="8,8,0,0">
+                <Grid Margin="24,16">
+                    <TextBlock x:Name="HeaderText"
+                             Text="{DynamicResource Category_Details}" 
+                             FontSize="18"
+                             FontWeight="SemiBold"
+                             Foreground="White"
+                             HorizontalAlignment="Left"
+                             VerticalAlignment="Center"/>
+                    <Button Content="✕"
+                            Click="CloseButton_Click"
+                            Style="{StaticResource IconButtonStyle}"
+                            Foreground="White"
+                            HorizontalAlignment="Right" 
+                            VerticalAlignment="Top"
+                            ToolTip="{DynamicResource General_Close}"/>
+                </Grid>
+            </Border>
+            <!-- Form Content -->
+            <StackPanel Grid.Row="1" Style="{StaticResource FormSection}" Margin="24,16">
+                <TextBlock Text="{DynamicResource Category_Name}" Style="{StaticResource FormLabel}"/>
+                <TextBox x:Name="NameTextBox"
+                        Text="{Binding Mode=TwoWay, Path=Name, UpdateSourceTrigger=PropertyChanged}"
+                        Style="{StaticResource FormField}"/>
+                <TextBlock Text="{DynamicResource Category_Description}" Style="{StaticResource FormLabel}"/>
+                <TextBox x:Name="DescriptionTextBox"
+                        Text="{Binding Mode=TwoWay, Path=Description}"
+                        Style="{StaticResource FormTextArea}"/>
+                <CheckBox x:Name="IsActiveCheckBox"
+                         Content="{DynamicResource Category_IsActive}"
+                         IsChecked="{Binding Mode=TwoWay, Path=IsActive}"
+                         Margin="0,16,0,0"/>
+            </StackPanel>
+            <!-- Footer -->
+            <Border Grid.Row="2" 
+                    Background="#F8F9FA" 
+                    BorderBrush="#EEEEEE"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,8,8">
+                <Grid Margin="24,16">
+                    <StackPanel Orientation="Horizontal" 
+                              HorizontalAlignment="Right">
+                        <Button Content="{DynamicResource Transaction_Cancel}"
+                               Click="CancelButton_Click"
+                               Style="{StaticResource SecondaryButtonStyle}"
+                               Width="100"
+                               Margin="0,0,8,0"/>
+                        <Button Content="{DynamicResource Category_Save}"
+                               Click="SaveButton_Click"
+                               Style="{StaticResource PrimaryButtonStyle}"
+                               Width="100"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

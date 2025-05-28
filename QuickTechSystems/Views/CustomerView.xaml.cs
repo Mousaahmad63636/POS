@@ -24,25 +24,11 @@ namespace QuickTechSystems.WPF.Views
             AdjustLayoutForSize();
         }
 
-
         private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
         {
             AdjustLayoutForSize();
         }
-        private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            if (e.EditAction == DataGridEditAction.Commit)
-            {
-                var viewModel = DataContext as CustomerViewModel;
-                var customer = e.Row.Item as CustomerDTO;
 
-                if (viewModel != null && customer != null)
-                {
-                    // Start the update process without awaiting to avoid UI freezing
-                    _ = viewModel.UpdateCustomerDirectEdit(customer);
-                }
-            }
-        }
         private void AdjustLayoutForSize()
         {
             var parentWindow = Window.GetWindow(this);
@@ -50,22 +36,27 @@ namespace QuickTechSystems.WPF.Views
 
             double windowWidth = parentWindow.ActualWidth;
 
-            // Adjust margins based on window width
+            var scrollViewer = MainGrid.Children[0] as ScrollViewer;
+            if (scrollViewer == null) return;
+
+            var contentGrid = scrollViewer.Content as Grid;
+            if (contentGrid == null) return;
+
             if (windowWidth >= 1920)
             {
-                ContentGrid.Margin = new Thickness(32);
+                contentGrid.Margin = new Thickness(32);
             }
             else if (windowWidth >= 1366)
             {
-                ContentGrid.Margin = new Thickness(24);
+                contentGrid.Margin = new Thickness(24);
             }
             else if (windowWidth >= 800)
             {
-                ContentGrid.Margin = new Thickness(16);
+                contentGrid.Margin = new Thickness(16);
             }
             else
             {
-                ContentGrid.Margin = new Thickness(8);
+                contentGrid.Margin = new Thickness(8);
             }
         }
 
@@ -118,6 +109,22 @@ namespace QuickTechSystems.WPF.Views
                 viewModel.DeleteCommand.CanExecute(null))
             {
                 viewModel.DeleteCommand.Execute(null);
+            }
+        }
+
+        private void CustomerDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is CustomerViewModel viewModel)
+            {
+                viewModel.CloseCustomerPopup();
+            }
+        }
+
+        private void CustomerDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is CustomerViewModel viewModel)
+            {
+                viewModel.CloseCustomerPopup();
             }
         }
 

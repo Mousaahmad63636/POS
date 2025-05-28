@@ -31,6 +31,12 @@ namespace QuickTechSystems.WPF.ViewModels
         private Dictionary<string, string> _validationErrors;
         private Action<EntityChangedEvent<CategoryDTO>> _categoryChangedHandler;
 
+        // Popup properties
+        private bool _isProductCategoryPopupOpen;
+        private bool _isExpenseCategoryPopupOpen;
+        private bool _isNewProductCategory;
+        private bool _isNewExpenseCategory;
+
         #region Constructor
         public CategoryViewModel(
             ICategoryService categoryService,
@@ -118,6 +124,31 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _validationErrors;
             set => SetProperty(ref _validationErrors, value);
         }
+
+        // Popup properties
+        public bool IsProductCategoryPopupOpen
+        {
+            get => _isProductCategoryPopupOpen;
+            set => SetProperty(ref _isProductCategoryPopupOpen, value);
+        }
+
+        public bool IsExpenseCategoryPopupOpen
+        {
+            get => _isExpenseCategoryPopupOpen;
+            set => SetProperty(ref _isExpenseCategoryPopupOpen, value);
+        }
+
+        public bool IsNewProductCategory
+        {
+            get => _isNewProductCategory;
+            set => SetProperty(ref _isNewProductCategory, value);
+        }
+
+        public bool IsNewExpenseCategory
+        {
+            get => _isNewExpenseCategory;
+            set => SetProperty(ref _isNewExpenseCategory, value);
+        }
         #endregion
 
         #region Commands
@@ -191,29 +222,49 @@ namespace QuickTechSystems.WPF.ViewModels
         }
         #endregion
 
-        #region Category Window Management
-        public void AddProduct()
+        #region Popup Management
+        public void ShowProductCategoryPopup()
         {
-            var newCategory = new CategoryDTO
+            IsProductCategoryPopupOpen = true;
+        }
+
+        public void CloseProductCategoryPopup()
+        {
+            IsProductCategoryPopupOpen = false;
+        }
+
+        public void ShowExpenseCategoryPopup()
+        {
+            IsExpenseCategoryPopupOpen = true;
+        }
+
+        public void CloseExpenseCategoryPopup()
+        {
+            IsExpenseCategoryPopupOpen = false;
+        }
+
+        private void AddProduct()
+        {
+            SelectedProductCategory = new CategoryDTO
             {
                 Type = "Product",
                 IsActive = true,
                 CreatedAt = DateTime.Now
             };
-
-            OpenCategoryDetailsWindow(newCategory, "Product", true);
+            IsNewProductCategory = true;
+            ShowProductCategoryPopup();
         }
 
-        public void AddExpense()
+        private void AddExpense()
         {
-            var newCategory = new CategoryDTO
+            SelectedExpenseCategory = new CategoryDTO
             {
                 Type = "Expense",
                 IsActive = true,
                 CreatedAt = DateTime.Now
             };
-
-            OpenCategoryDetailsWindow(newCategory, "Expense", true);
+            IsNewExpenseCategory = true;
+            ShowExpenseCategoryPopup();
         }
 
         public void EditProductCategory(CategoryDTO category)
@@ -221,7 +272,8 @@ namespace QuickTechSystems.WPF.ViewModels
             if (category != null)
             {
                 SelectedProductCategory = category;
-                OpenCategoryDetailsWindow(category, "Product", false);
+                IsNewProductCategory = false;
+                ShowProductCategoryPopup();
             }
         }
 
@@ -230,48 +282,8 @@ namespace QuickTechSystems.WPF.ViewModels
             if (category != null)
             {
                 SelectedExpenseCategory = category;
-                OpenCategoryDetailsWindow(category, "Expense", false);
-            }
-        }
-
-        private async void OpenCategoryDetailsWindow(CategoryDTO category, string categoryType, bool isNew)
-        {
-            // Create a deep copy to avoid modifying the original until save is confirmed
-            var categoryCopy = new CategoryDTO
-            {
-                CategoryId = category.CategoryId,
-                Name = category.Name,
-                Description = category.Description,
-                Type = category.Type,
-                IsActive = category.IsActive,
-                CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            };
-
-            var window = new CategoryDetailsWindow(categoryCopy, categoryType, isNew);
-
-            // Show window as dialog
-            var result = window.ShowDialog();
-
-            // If dialog result is true (Save was clicked), update the category
-            if (result == true)
-            {
-                // Update the original category with values from the copy
-                category.Name = categoryCopy.Name;
-                category.Description = categoryCopy.Description;
-                category.IsActive = categoryCopy.IsActive;
-
-                // Save changes based on category type
-                if (categoryType == "Product")
-                {
-                    SelectedProductCategory = category;
-                    await SaveProductAsync();
-                }
-                else // Expense
-                {
-                    SelectedExpenseCategory = category;
-                    await SaveExpenseAsync();
-                }
+                IsNewExpenseCategory = false;
+                ShowExpenseCategoryPopup();
             }
         }
         #endregion
@@ -469,6 +481,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     await ForceRefreshAsync();
                     SelectedProductCategory = null;
+                    CloseProductCategoryPopup();
                     await ShowSuccessMessage("Product category deleted successfully.");
                 }
             }
@@ -543,6 +556,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     await ForceRefreshAsync();
                     SelectedExpenseCategory = null;
+                    CloseExpenseCategoryPopup();
                     await ShowSuccessMessage("Expense category deleted successfully.");
                 }
             }

@@ -11,7 +11,7 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using System.Threading.Tasks;
 using System.Threading;
-using QuickTechSystems.Application.Services;
+
 namespace QuickTechSystems.WPF.ViewModels
 {
     public class MainViewModel : ViewModelBase
@@ -216,7 +216,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 "Dashboard" => IsManager,
                 "Transactions" => true,
                 "Products" => IsManager,
-                "MainStock" => IsManager,
                 "Categories" => IsManager,
                 "Suppliers" => IsManager,
                 "Expenses" => IsManager,
@@ -287,10 +286,9 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         "Dashboard" => _serviceProvider.GetRequiredService<DashboardViewModel>(),
                         "Products" => _serviceProvider.GetRequiredService<ProductViewModel>(),
-                        "MainStock" => _serviceProvider.GetRequiredService<MainStockViewModel>(),
                         "Categories" => _serviceProvider.GetRequiredService<CategoryViewModel>(),
                         "Customers" => _serviceProvider.GetRequiredService<CustomerViewModel>(),
-                        // "Transactions" => _serviceProvider.GetRequiredService<TransactionViewModel>(), // Remove this line
+                        "Transactions" => _serviceProvider.GetRequiredService<TransactionViewModel>(),
                         "Settings" => _serviceProvider.GetRequiredService<SettingsViewModel>(),
                         "Suppliers" => _serviceProvider.GetRequiredService<SupplierViewModel>(),
                         "TransactionHistory" => _serviceProvider.GetRequiredService<TransactionHistoryViewModel>(),
@@ -301,7 +299,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         "Quotes" => _serviceProvider.GetRequiredService<QuoteViewModel>(),
                         "LowStockHistory" => _serviceProvider.GetRequiredService<LowStockHistoryViewModel>(),
                         "TableManagement" => _serviceProvider.GetRequiredService<TableManagementViewModel>(),
-                        "Transactions" => _serviceProvider.GetRequiredService<DashboardViewModel>(), // Redirect to Dashboard
                         _ => throw new ArgumentException($"Unknown destination: {destination}")
                     };
 

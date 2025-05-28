@@ -15,10 +15,12 @@ namespace QuickTechSystems.Domain.Entities
         public string PaymentMethod { get; set; } = string.Empty;
         public string CashierId { get; set; } = string.Empty;
         public string CashierName { get; set; } = string.Empty;
+        public string CashierRole { get; set; } = string.Empty;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime ModifiedDate { get; set; } = DateTime.UtcNow;
+        public bool IsDeleted { get; set; } = false;
 
-        // Navigation properties
         public virtual Customer? Customer { get; set; }
         public virtual ICollection<TransactionDetail> TransactionDetails { get; set; } = new List<TransactionDetail>();
-        public string CashierRole { get; set; } = string.Empty;
     }
 }

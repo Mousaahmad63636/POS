@@ -24,8 +24,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using QuickTechSystems.Application.Interfaces;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Globalization;
-using System.Windows.Markup;
 
 namespace QuickTechSystems.WPF
 {
@@ -38,12 +36,6 @@ namespace QuickTechSystems.WPF
 
         public App()
         {
-            InitializeComponent();
-
-            // Set a consistent culture for the application
-            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
-            System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
-
             _configuration = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -93,8 +85,7 @@ namespace QuickTechSystems.WPF
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
             // In your startup configuration
-            // In the ConfigureServices method, add:
-            services.AddSingleton<IBulkOperationQueueService, BulkOperationQueueService>();
+          
             // Application Services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
@@ -108,20 +99,14 @@ namespace QuickTechSystems.WPF
             services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
-            services.AddScoped<IMainStockService, MainStockService>();
-            services.AddScoped<IInventoryTransferService, InventoryTransferService>();
-            services.AddScoped<MainStockViewModel>();
             services.AddScoped<ITransactionService, TransactionService>();
             services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
             services.AddScoped<IRestaurantTableService, RestaurantTableService>();
             services.AddScoped<TableManagementViewModel>();
             services.AddTransient<TableManagementView>();
-            services.AddScoped<ISupplierInvoiceService, SupplierInvoiceService>();
 
-            services.AddScoped<IGenericRepository<SupplierInvoice>>(provider =>
-       provider.GetRequiredService<IUnitOfWork>().SupplierInvoices);
-            services.AddScoped<IGenericRepository<SupplierInvoiceDetail>>(provider =>
-                provider.GetRequiredService<IUnitOfWork>().SupplierInvoiceDetails);
+            services.AddTransient<TransactionViewModel>();
+            services.AddSingleton<ITransactionWindowManager, TransactionWindowManager>();
             // Splash Screen
             services.AddScoped<SplashScreenViewModel>();
 
@@ -144,9 +129,10 @@ namespace QuickTechSystems.WPF
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
+            services.AddTransient<BulkProductViewModel>();
             services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
             services.AddScoped<LowStockHistoryViewModel>();
-            services.AddTransient<SupplierInvoiceViewModel>();
+
             // Views
             services.AddTransient<MainWindow>();
             services.AddTransient<LoginView>();
@@ -162,19 +148,13 @@ namespace QuickTechSystems.WPF
             services.AddTransient<SupplierView>();
             services.AddTransient<SystemPreferencesView>();
             services.AddTransient<TransactionHistoryView>();
-
+            services.AddTransient<TransactionView>();
             services.AddTransient<QuantityDialog>();
             services.AddScoped<DamagedGoodsViewModel>();
         }
 
         protected override async void OnStartup(StartupEventArgs e)
         {
-            // Set default culture for all UI threads
-            FrameworkElement.LanguageProperty.OverrideMetadata(
-                typeof(FrameworkElement),
-                new FrameworkPropertyMetadata(
-                    XmlLanguage.GetLanguage(CultureInfo.InvariantCulture.IetfLanguageTag)));
-
             base.OnStartup(e);
 
             try
