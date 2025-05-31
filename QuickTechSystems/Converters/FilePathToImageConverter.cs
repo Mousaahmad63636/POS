@@ -11,47 +11,38 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value == null || string.IsNullOrEmpty(value.ToString()))
-                return null;
-
             try
             {
-                string imagePath = value.ToString();
+                string imagePath = value as string;
 
-                // Check if this is a relative path
-                if (!Path.IsPathRooted(imagePath))
-                {
-                    // Combine with base application path - this could also use a service to get the full path
-                    string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                    string productImagesDirectory = Path.Combine(baseDirectory, "ProductImages");
-                    imagePath = Path.Combine(productImagesDirectory, imagePath);
-                }
-
-                if (!File.Exists(imagePath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"Image file not found: {imagePath}");
+                if (string.IsNullOrWhiteSpace(imagePath))
                     return null;
-                }
 
-                BitmapImage image = new BitmapImage();
-                image.BeginInit();
-                image.CacheOption = BitmapCacheOption.OnLoad;
-                image.UriSource = new Uri(imagePath);
+                // Check if file exists
+                if (!File.Exists(imagePath))
+                    return null;
 
-                // If sizing parameter is provided, set DecodePixelWidth
-                if (parameter != null && int.TryParse(parameter.ToString(), out int size))
+                // Create BitmapImage
+                BitmapImage bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+
+                // If parameter is provided, use it as decode pixel width for optimization
+                if (parameter != null && int.TryParse(parameter.ToString(), out int decodeWidth))
                 {
-                    image.DecodePixelWidth = size;
+                    bitmap.DecodePixelWidth = decodeWidth;
                 }
 
-                image.EndInit();
-                image.Freeze(); // Important for cross-thread usage
+                bitmap.UriSource = new Uri(imagePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze(); // Important for performance and cross-thread access
 
-                return image;
+                return bitmap;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                System.Diagnostics.Debug.WriteLine($"Error converting image path: {ex.Message}");
+                // Return null if image cannot be loaded
                 return null;
             }
         }

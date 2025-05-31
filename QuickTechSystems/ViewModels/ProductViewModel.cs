@@ -332,6 +332,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand GenerateBarcodeCommand { get; private set; }
         public ICommand PrintBarcodeCommand { get; private set; }
         public ICommand SyncWithMainStockCommand { get; private set; }
+        public ICommand EditProductCommand { get; private set; }
 
         // Pagination commands
         public ICommand NextPageCommand { get; private set; }
@@ -397,6 +398,7 @@ namespace QuickTechSystems.WPF.ViewModels
             GenerateBarcodeCommand = new AsyncRelayCommand(async _ => await GenerateBarcodeAsync(), _ => !IsSaving);
             PrintBarcodeCommand = new AsyncRelayCommand(async _ => await PrintBarcodeAsync(), _ => !IsSaving);
             SyncWithMainStockCommand = new AsyncRelayCommand(async _ => await SyncWithMainStockAsync(), _ => !IsSaving);
+            EditProductCommand = new AsyncRelayCommand(async _ => await EditProductAsync(), _ => !IsSaving && SelectedProduct != null); // ADD THIS LINE
 
             // Pagination commands
             NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
@@ -404,6 +406,7 @@ namespace QuickTechSystems.WPF.ViewModels
             GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
             ChangePageSizeCommand = new RelayCommand<int>(size => PageSize = size);
         }
+
 
         // Generate Barcode Method - Separate from Printing
         private async Task GenerateBarcodeAsync()
@@ -606,6 +609,83 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 IsSaving = false;
                 StatusMessage = string.Empty;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task EditProductAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                ShowTemporaryErrorMessage("Another operation is in progress. Please wait.");
+                return;
+            }
+
+            try
+            {
+                if (SelectedProduct == null)
+                {
+                    ShowTemporaryErrorMessage("Please select a product to edit.");
+                    return;
+                }
+
+                // Create and show the edit window
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    try
+                    {
+                        var editWindow = new Views.ProductEditWindow(
+                            SelectedProduct,
+                            _productService,
+                            _categoryService,
+                            _supplierService)
+                        {
+                            Owner = GetOwnerWindow()
+                        };
+
+                        // Show dialog and handle result
+                        var result = editWindow.ShowDialog();
+
+                        if (result == true)
+                        {
+                            // Product was successfully updated
+                            // The HandleProductChanged event handler will automatically update the UI
+                            // No need to refresh the entire page
+                            Debug.WriteLine($"Product {SelectedProduct.Name} was successfully updated");
+
+                            // Recalculate values in case prices or stock changed
+                            CalculateSelectedProductValues();
+                            CalculateAggregatedValues();
+
+                            // Show success message briefly
+                            StatusMessage = "Product updated successfully!";
+                            Task.Run(async () =>
+                            {
+                                await Task.Delay(3000);
+                                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                                {
+                                    if (StatusMessage == "Product updated successfully!")
+                                    {
+                                        StatusMessage = string.Empty;
+                                    }
+                                });
+                            });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening product edit window: {ex.Message}");
+                        ShowTemporaryErrorMessage($"Error opening edit window: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in EditProductAsync: {ex.Message}");
+                ShowTemporaryErrorMessage($"Error editing product: {ex.Message}");
+            }
+            finally
+            {
                 _operationLock.Release();
             }
         }
@@ -1151,21 +1231,31 @@ namespace QuickTechSystems.WPF.ViewModels
                             if (existingProduct != null)
                             {
                                 var index = Products.IndexOf(existingProduct);
-                                if (existingProduct.CurrentStock > 0 && evt.Entity.CurrentStock == 0)
-                                {
-                                    evt.Entity.CurrentStock = existingProduct.CurrentStock;
-                                }
+
+                                // Preserve selection if this is the selected product
+                                bool wasSelected = SelectedProduct != null && SelectedProduct.ProductId == evt.Entity.ProductId;
+
+                                // Update the product in the collection
                                 Products[index] = evt.Entity;
-                                Debug.WriteLine("Product updated in collection");
+
+                                // Restore selection if it was selected
+                                if (wasSelected)
+                                {
+                                    SelectedProduct = evt.Entity;
+                                }
+
+                                Debug.WriteLine("Product updated in collection without refresh");
                             }
                             else
                             {
+                                // Product not in current view, check if it should be added due to search criteria
                                 if (string.IsNullOrWhiteSpace(SearchText) ||
                                     evt.Entity.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                                     evt.Entity.Barcode.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
                                     evt.Entity.CategoryName.Contains(SearchText, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    Task.Run(async () => await ForceRefreshDataAsync());
+                                    // Only refresh if the product should be visible but isn't
+                                    Task.Run(async () => await SafeLoadDataAsync());
                                     Debug.WriteLine("Scheduled reload for updated product not in current view");
                                 }
                             }
@@ -1177,6 +1267,13 @@ namespace QuickTechSystems.WPF.ViewModels
                             if (productToRemove != null)
                             {
                                 Products.Remove(productToRemove);
+
+                                // Clear selection if the deleted product was selected
+                                if (SelectedProduct != null && SelectedProduct.ProductId == evt.Entity.ProductId)
+                                {
+                                    SelectedProduct = null;
+                                }
+
                                 Debug.WriteLine("Product removed from collection");
                             }
                             break;
@@ -1193,6 +1290,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
 
                     CalculateAggregatedValues();
+
+                    // Only filter if search is active
                     if (!string.IsNullOrWhiteSpace(SearchText))
                     {
                         FilterProducts();
@@ -1201,7 +1300,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Product refresh error: {ex.Message}");
+                Debug.WriteLine($"Product change handling error: {ex.Message}");
             }
         }
 

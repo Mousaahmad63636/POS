@@ -23,6 +23,7 @@
         <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
         <converters:StockToBoxesConverter x:Key="StockToBoxesConverter"/>
         <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -38,8 +39,11 @@
                         </Grid.RowDefinitions>
 
                         <!-- Header Row -->
+                        <!-- Updated Header Row for ProductView.xaml -->
+                        <!-- Replace the existing Header Row (Grid.Row="0") with this updated version -->
                         <Grid Grid.Row="0" Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -52,13 +56,13 @@
                             <!-- Search Box -->
                             <Grid Grid.Column="0" Margin="0,0,8,0">
                                 <TextBox x:Name="searchBox" 
-                                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
-                                         Width="180"
-                                         Margin="0"/>
+                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
+                 Width="180"
+                 Margin="0"/>
                                 <TextBlock IsHitTestVisible="False" 
-                                           Text="Search products..." 
-                                           VerticalAlignment="Center" 
-                                           Margin="10,0,0,0">
+                   Text="Search products..." 
+                   VerticalAlignment="Center" 
+                   Margin="10,0,0,0">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -75,69 +79,79 @@
                             <!-- Stock Controls -->
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center">
                                 <TextBox Width="60"
-                                        Text="{Binding StockIncrement, UpdateSourceTrigger=PropertyChanged}"
-                                        Margin="0,0,4,0"
-                                        VerticalContentAlignment="Center"/>
+                Text="{Binding StockIncrement, UpdateSourceTrigger=PropertyChanged}"
+                Margin="0,0,4,0"
+                VerticalContentAlignment="Center"/>
                                 <Button Content="Add to Stock"
-                                        Command="{Binding UpdateStockCommand}"
-                                        Padding="8,0"/>
+                Command="{Binding UpdateStockCommand}"
+                Padding="8,0"/>
                             </StackPanel>
 
-                            <!-- Generate Barcode Button -->
+                            <!-- Edit Product Button -->
                             <Button Grid.Column="2"
-                                    Content="Generate Barcode"
-                                    Command="{Binding GenerateBarcodeCommand}"
-                                    Padding="12,0"
-                                    Margin="8,0"
-                                    Background="#4CAF50"
-                                    Foreground="White"
-                                    ToolTip="Generate barcode image for the selected product"/>
+            Content="Edit Product"
+            Command="{Binding EditProductCommand}"
+            Padding="12,0"
+            Margin="8,0"
+            Background="#2196F3"
+            Foreground="White"
+            ToolTip="Edit the selected product"
+            IsEnabled="{Binding SelectedProduct, Converter={x:Static converters:NullToBoolConverter.Instance}}"/>
+
+                            <!-- Generate Barcode Button -->
+                            <Button Grid.Column="3"
+            Content="Generate Barcode"
+            Command="{Binding GenerateBarcodeCommand}"
+            Padding="12,0"
+            Margin="8,0"
+            Background="#4CAF50"
+            Foreground="White"
+            ToolTip="Generate barcode image for the selected product"/>
 
                             <!-- Print Barcode Controls -->
-                            <StackPanel Grid.Column="3" Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="8,0" VerticalAlignment="Center">
                                 <TextBlock Text="Number of Labels:" 
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,8,0"/>
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"/>
                                 <TextBox Width="60"
-                                        Text="{Binding LabelsPerProduct, UpdateSourceTrigger=PropertyChanged}"
-                                        VerticalAlignment="Center"
-                                        VerticalContentAlignment="Center"
-                                        Margin="0,0,8,0"/>
+                Text="{Binding LabelsPerProduct, UpdateSourceTrigger=PropertyChanged}"
+                VerticalAlignment="Center"
+                VerticalContentAlignment="Center"
+                Margin="0,0,8,0"/>
                                 <Button Content="Print Barcode"
-                                        Command="{Binding PrintBarcodeCommand}"
-                                        Padding="8,0"/>
+                Command="{Binding PrintBarcodeCommand}"
+                Padding="8,0"/>
                             </StackPanel>
 
                             <!-- Sync with MainStock Button -->
-                            <Button Grid.Column="5"
-                                    Content="Sync with MainStock"
-                                    Command="{Binding SyncWithMainStockCommand}"
-                                    HorizontalAlignment="Right"
-                                    Padding="12,0"
-                                    Margin="0,0,10,0"/>
+                            <Button Grid.Column="6"
+            Content="Sync with MainStock"
+            Command="{Binding SyncWithMainStockCommand}"
+            HorizontalAlignment="Right"
+            Padding="12,0"
+            Margin="0,0,10,0"/>
 
                             <!-- Financial Metrics -->
-                            <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
+                            <StackPanel Grid.Column="7" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0">
                                 <TextBlock Text="Purchase: " 
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,4,0"/>
+                  VerticalAlignment="Center"
+                  Margin="0,0,4,0"/>
                                 <TextBlock Text="{Binding TotalPurchaseValue, StringFormat=C2}"
-                                          VerticalAlignment="Center"/>
+                  VerticalAlignment="Center"/>
 
                                 <TextBlock Text="   Sales: " 
-                                          VerticalAlignment="Center"
-                                          Margin="10,0,4,0"/>
+                  VerticalAlignment="Center"
+                  Margin="10,0,4,0"/>
                                 <TextBlock Text="{Binding TotalSaleValue, StringFormat=C2}"
-                                          VerticalAlignment="Center"/>
+                  VerticalAlignment="Center"/>
 
                                 <TextBlock Text="   Profit: " 
-                                          VerticalAlignment="Center"
-                                          Margin="10,0,4,0"/>
+                  VerticalAlignment="Center"
+                  Margin="10,0,4,0"/>
                                 <TextBlock Text="{Binding TotalProfit, StringFormat=C2}"
-                                          VerticalAlignment="Center"/>
+                  VerticalAlignment="Center"/>
                             </StackPanel>
                         </Grid>
-
                         <!-- Product DataGrid -->
                         <DataGrid Grid.Row="1"
                                 x:Name="ProductsDataGrid"
