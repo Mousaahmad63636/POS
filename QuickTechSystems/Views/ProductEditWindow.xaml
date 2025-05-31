@@ -7,59 +7,69 @@
         xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
         mc:Ignorable="d"
         Title="Edit Product"
-        Height="700"
         Width="900"
-        WindowStartupLocation="CenterOwner"
-        ResizeMode="CanResize"
+        Height="700"
+        MinWidth="800"
         MinHeight="600"
-        MinWidth="800">
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize">
 
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <!-- Converters -->
+        <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <converters:CurrencyConverter x:Key="CurrencyConverter"/>
 
-        <!-- Style for validation errors -->
-        <Style x:Key="ValidatedTextBox" TargetType="TextBox">
-            <Setter Property="Padding" Value="5"/>
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Style.Triggers>
-                <Trigger Property="Validation.HasError" Value="True">
-                    <Setter Property="BorderBrush" Value="Red"/>
-                    <Setter Property="BorderThickness" Value="2"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <Style x:Key="ValidatedComboBox" TargetType="ComboBox">
-            <Setter Property="Padding" Value="5"/>
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#CCCCCC"/>
-            <Style.Triggers>
-                <Trigger Property="Validation.HasError" Value="True">
-                    <Setter Property="BorderBrush" Value="Red"/>
-                    <Setter Property="BorderThickness" Value="2"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Label style -->
-        <Style x:Key="FieldLabel" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Margin" Value="0,8,0,2"/>
-            <Setter Property="VerticalAlignment" Value="Bottom"/>
-        </Style>
-
-        <!-- Section header style -->
-        <Style x:Key="SectionHeader" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
+        <!-- Styles -->
+        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="0,20,0,10"/>
             <Setter Property="Foreground" Value="#2196F3"/>
+            <Setter Property="Margin" Value="0,15,0,10"/>
+        </Style>
+
+        <Style x:Key="LabelStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="MinWidth" Value="120"/>
+        </Style>
+
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+        </Style>
+
+        <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+        </Style>
+
+        <Style x:Key="ButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="15,8"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonStyle}">
+            <Setter Property="Background" Value="#2196F3"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2196F3"/>
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonStyle}">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#666666"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
         </Style>
     </Window.Resources>
 
@@ -71,284 +81,341 @@
         </Grid.RowDefinitions>
 
         <!-- Main Content Area -->
-        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="20">
-            <StackPanel>
-                <!-- Basic Information Section -->
-                <TextBlock Text="Basic Information" Style="{StaticResource SectionHeader}"/>
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <Border Padding="20">
+                <StackPanel>
+                    <!-- Product Information Section -->
+                    <TextBlock Text="Product Information" Style="{StaticResource SectionHeaderStyle}"/>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="20"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                    <!-- Left Column -->
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Product Name *" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.Name, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 1: Name and Barcode -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Product Name*:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" 
+                             x:Name="NameTextBox"
+                             Text="{Binding EditableProduct.Name, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Description" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.Description, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 Height="60"
-                                 TextWrapping="Wrap"
-                                 AcceptsReturn="True"
-                                 VerticalScrollBarVisibility="Auto"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Item Barcode*:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="4" 
+                             Text="{Binding EditableProduct.Barcode, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Category *" Style="{StaticResource FieldLabel}"/>
-                        <ComboBox ItemsSource="{Binding Categories}"
-                                  DisplayMemberPath="Name"
-                                  SelectedValuePath="CategoryId"
-                                  SelectedValue="{Binding EditableProduct.CategoryId, UpdateSourceTrigger=PropertyChanged}"
-                                  Style="{StaticResource ValidatedComboBox}"
-                                  IsEnabled="{Binding IsNotSaving}"
-                                  SelectionChanged="OnCategorySelectionChanged"/>
+                        <!-- Row 2: Category and Supplier -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Category*:" Style="{StaticResource LabelStyle}"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1" 
+                              ItemsSource="{Binding Categories}"
+                              SelectedValue="{Binding EditableProduct.CategoryId}"
+                              SelectedValuePath="CategoryId"
+                              DisplayMemberPath="Name"
+                              Style="{StaticResource ComboBoxStyle}"
+                              SelectionChanged="OnCategorySelectionChanged"/>
 
-                        <TextBlock Text="Supplier" Style="{StaticResource FieldLabel}"/>
-                        <ComboBox ItemsSource="{Binding Suppliers}"
-                                  DisplayMemberPath="Name"
-                                  SelectedValuePath="SupplierId"
-                                  SelectedValue="{Binding EditableProduct.SupplierId, UpdateSourceTrigger=PropertyChanged}"
-                                  Style="{StaticResource ValidatedComboBox}"
-                                  IsEnabled="{Binding IsNotSaving}"
-                                  SelectionChanged="OnSupplierSelectionChanged">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Name}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="Supplier:" Style="{StaticResource LabelStyle}"/>
+                        <ComboBox Grid.Row="1" Grid.Column="4" 
+                              ItemsSource="{Binding Suppliers}"
+                              SelectedValue="{Binding EditableProduct.SupplierId}"
+                              SelectedValuePath="SupplierId"
+                              DisplayMemberPath="Name"
+                              Style="{StaticResource ComboBoxStyle}"
+                              SelectionChanged="OnSupplierSelectionChanged"/>
 
-                        <TextBlock Text="Speed Category" Style="{StaticResource FieldLabel}"/>
-                        <ComboBox SelectedValue="{Binding EditableProduct.Speed, UpdateSourceTrigger=PropertyChanged}"
-                                  Style="{StaticResource ValidatedComboBox}"
-                                  IsEnabled="{Binding IsNotSaving}"
-                                  IsEditable="True">
-                            <ComboBoxItem Content="Fast Moving"/>
-                            <ComboBoxItem Content="Medium Moving"/>
-                            <ComboBoxItem Content="Slow Moving"/>
-                            <ComboBoxItem Content="Non Moving"/>
-                        </ComboBox>
-                    </StackPanel>
+                        <!-- Row 3: Description -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Description:" Style="{StaticResource LabelStyle}" VerticalAlignment="Top" Margin="0,8,10,0"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4"
+                             Text="{Binding EditableProduct.Description, UpdateSourceTrigger=PropertyChanged}"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             Height="60"
+                             VerticalContentAlignment="Top"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                    <!-- Right Column -->
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Item Barcode *" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.Barcode, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 4: Speed and Active Status -->
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Speed:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" 
+                             Text="{Binding EditableProduct.Speed, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Box Barcode" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.BoxBarcode, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <TextBlock Grid.Row="3" Grid.Column="3" Text="Active:" Style="{StaticResource LabelStyle}"/>
+                        <CheckBox Grid.Row="3" Grid.Column="4" 
+                              IsChecked="{Binding EditableProduct.IsActive}"
+                              VerticalAlignment="Center"
+                              Margin="0,2"/>
 
-                        <TextBlock Text="Image Path" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.ImagePath, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 5: Image Path -->
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Image Path:" Style="{StaticResource LabelStyle}"/>
+                        <Grid Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                 Text="{Binding EditableProduct.ImagePath, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource TextBoxStyle}"/>
+                            <Button Grid.Column="1" Content="Browse..." 
+                                Margin="5,2,0,2" Padding="10,6"
+                                Click="BrowseImage_Click"/>
+                        </Grid>
+                    </Grid>
 
-                        <CheckBox Content="Active Product"
-                                  IsChecked="{Binding EditableProduct.IsActive, UpdateSourceTrigger=PropertyChanged}"
-                                  Margin="0,10,0,0"
-                                  IsEnabled="{Binding IsNotSaving}"/>
-                    </StackPanel>
-                </Grid>
+                    <!-- Stock Information Section -->
+                    <TextBlock Text="Stock Information" Style="{StaticResource SectionHeaderStyle}"/>
 
-                <!-- Pricing Information Section -->
-                <TextBlock Text="Pricing Information" Style="{StaticResource SectionHeader}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="20"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="20"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                        <!-- Row 1: Current Stock and Minimum Stock -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Current Stock:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" 
+                             x:Name="CurrentStockTextBox"
+                             Text="{Binding EditableProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                    <!-- Individual Item Prices -->
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Individual Item Prices" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Minimum Stock:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="4" 
+                             x:Name="MinimumStockTextBox"
+                             Text="{Binding EditableProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Purchase Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 2: Items per Box -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Items per Box:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" 
+                             x:Name="ItemsPerBoxTextBox"
+                             Text="{Binding EditableProduct.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             Style="{StaticResource TextBoxStyle}"/>
+                    </Grid>
 
-                        <TextBlock Text="Wholesale Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                    <!-- Pricing Information Section -->
+                    <TextBlock Text="Pricing Information" Style="{StaticResource SectionHeaderStyle}"/>
 
-                        <TextBlock Text="Sale Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                    <!-- Box Configuration -->
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Box Configuration" FontWeight="Bold" Margin="0,0,0,10"/>
+                        <!-- Row 1: Purchase Price and Sale Price -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Purchase Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" 
+                             x:Name="PurchasePriceTextBox"
+                             Text="{Binding EditableProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Items Per Box *" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Sale Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="4" 
+                             x:Name="SalePriceTextBox"
+                             Text="{Binding EditableProduct.SalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Number of Boxes" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 2: Wholesale Price -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Wholesale Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" 
+                             x:Name="WholesalePriceTextBox"
+                             Text="{Binding EditableProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
+                    </Grid>
 
-                        <TextBlock Text="Minimum Box Stock" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.MinimumBoxStock, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
-                    </StackPanel>
+                    <!-- Box Information Section -->
+                    <TextBlock Text="Box Information" Style="{StaticResource SectionHeaderStyle}"/>
 
-                    <!-- Box Prices -->
-                    <StackPanel Grid.Column="4">
-                        <TextBlock Text="Box Prices" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <TextBlock Text="Box Purchase Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <!-- Row 1: Box Barcode and Number of Boxes -->
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Box Barcode:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" 
+                             Text="{Binding EditableProduct.BoxBarcode, UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Box Wholesale Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="Number of Boxes:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="0" Grid.Column="4" 
+                             x:Name="NumberOfBoxesTextBox"
+                             Text="{Binding EditableProduct.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                        <TextBlock Text="Box Sale Price" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=F2}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
-                    </StackPanel>
-                </Grid>
+                        <!-- Row 2: Box Purchase Price and Box Sale Price -->
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Box Purchase Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" 
+                             x:Name="BoxPurchasePriceTextBox"
+                             Text="{Binding EditableProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                <!-- Stock Information Section -->
-                <TextBlock Text="Stock Information" Style="{StaticResource SectionHeader}"/>
+                        <TextBlock Grid.Row="1" Grid.Column="3" Text="Box Sale Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="1" Grid.Column="4" 
+                             x:Name="BoxSalePriceTextBox"
+                             Text="{Binding EditableProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="20"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
+                        <!-- Row 3: Box Wholesale Price and Minimum Box Stock -->
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Box Wholesale Price:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" 
+                             x:Name="BoxWholesalePriceTextBox"
+                             Text="{Binding EditableProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource CurrencyConverter}}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             GotFocus="TextBox_GotFocus"
+                             Style="{StaticResource TextBoxStyle}"/>
 
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Current Stock" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
+                        <TextBlock Grid.Row="2" Grid.Column="3" Text="Minimum Box Stock:" Style="{StaticResource LabelStyle}"/>
+                        <TextBox Grid.Row="2" Grid.Column="4" 
+                             x:Name="MinimumBoxStockTextBox"
+                             Text="{Binding EditableProduct.MinimumBoxStock, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewTextInput="TextBox_PreviewTextInput"
+                             Style="{StaticResource TextBoxStyle}"/>
+                    </Grid>
 
-                        <TextBlock Text="Minimum Stock Level" Style="{StaticResource FieldLabel}"/>
-                        <TextBox Text="{Binding EditableProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource ValidatedTextBox}"
-                                 IsEnabled="{Binding IsNotSaving}"/>
-                    </StackPanel>
+                    <!-- Calculated Values Section (Read-only with action buttons) -->
+                    <TextBlock Text="Calculated Values" Style="{StaticResource SectionHeaderStyle}"/>
 
-                    <StackPanel Grid.Column="2">
-                        <!-- Stock Summary Display -->
-                        <TextBlock Text="Stock Summary" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <Border BorderBrush="#DDDDDD" BorderThickness="1" Margin="0,5">
+                        <DataGrid ItemsSource="{Binding CalculatedValues}" 
+                              AutoGenerateColumns="False" 
+                              IsReadOnly="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              AlternatingRowBackground="#F9F9F9">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Property" Binding="{Binding PropertyName}" Width="200" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="150" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" IsReadOnly="True"/>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,5">
-                            <TextBlock Text="Total Individual Items: " FontWeight="SemiBold"/>
-                            <TextBlock Text="{Binding EditableProduct.CurrentStock}"/>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Margin="0,5">
-                            <TextBlock Text="Complete Boxes: " FontWeight="SemiBold"/>
-                            <TextBlock>
-                                <TextBlock.Text>
-                                    <MultiBinding StringFormat="{}{0:N0}">
-                                        <Binding Path="EditableProduct.CurrentStock"/>
-                                        <Binding Path="EditableProduct.ItemsPerBox"/>
-                                        <Binding Converter="{StaticResource MultiValueStockToBoxesConverter}"/>
-                                    </MultiBinding>
-                                </TextBlock.Text>
-                            </TextBlock>
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </StackPanel>
+                                <!-- Action Buttons Column -->
+                                <DataGridTemplateColumn Header="Actions" Width="150">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="Copy" 
+                                                    Padding="8,4" 
+                                                    Margin="2"
+                                                    FontSize="11"
+                                                    Click="CopyValue_Click"
+                                                    CommandParameter="{Binding Value}"/>
+                                                <Button Content="Recalc" 
+                                                    Padding="8,4" 
+                                                    Margin="2"
+                                                    FontSize="11"
+                                                    Click="Recalculate_Click"
+                                                    CommandParameter="{Binding PropertyName}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+                </StackPanel>
+            </Border>
         </ScrollViewer>
 
-        <!-- Status Message Area -->
-        <Border Grid.Row="1" 
-                Background="#F5F5F5" 
-                BorderThickness="0,1,0,0" 
-                BorderBrush="#E0E0E0"
-                Visibility="{Binding StatusMessage, Converter={StaticResource StringToVisibilityConverter}}"
-                Padding="20,10">
-            <TextBlock Text="{Binding StatusMessage}" 
-                       FontWeight="SemiBold"
-                       HorizontalAlignment="Center"/>
-        </Border>
+        <!-- Status Message -->
+        <TextBlock Grid.Row="1" 
+                   Text="{Binding StatusMessage}"
+                   Visibility="{Binding StatusMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                   Foreground="Red"
+                   Margin="20,5"
+                   TextWrapping="Wrap"/>
 
         <!-- Button Panel -->
-        <Border Grid.Row="2" 
-                Background="#F9F9F9" 
-                BorderThickness="0,1,0,0" 
-                BorderBrush="#E0E0E0"
-                Padding="20,15">
-            <StackPanel Orientation="Horizontal" 
-                        HorizontalAlignment="Right">
+        <Border Grid.Row="2" Background="#F5F5F5" Padding="20,15">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                <Button Content="Reset"
-                        Command="{Binding ResetCommand}"
-                        Width="80"
-                        Height="35"
-                        Margin="0,0,10,0"
-                        Background="#FFC107"
-                        Foreground="White"
-                        BorderThickness="0"
-                        IsEnabled="{Binding IsNotSaving}"/>
+                <!-- Action Buttons on the Left -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <Button Content="Reset to Original" 
+                            Command="{Binding ResetCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button Content="Generate Barcode" 
+                            Click="GenerateBarcode_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button Content="Preview Changes" 
+                            Click="PreviewChanges_Click"
+                            Style="{StaticResource SecondaryButtonStyle}"/>
+                </StackPanel>
 
-                <Button Content="Cancel"
-                        Command="{Binding CancelCommand}"
-                        Width="80"
-                        Height="35"
-                        Margin="0,0,10,0"
-                        Background="#6C757D"
-                        Foreground="White"
-                        BorderThickness="0"
-                        IsCancel="True"
-                        IsEnabled="{Binding IsNotSaving}"/>
-
-                <Button Content="Save"
-                        Command="{Binding SaveCommand}"
-                        Width="80"
-                        Height="35"
-                        Background="#28A745"
-                        Foreground="White"
-                        BorderThickness="0"
-                        IsDefault="True"
-                        IsEnabled="{Binding CanSave}"/>
-            </StackPanel>
+                <!-- Save/Cancel Buttons on the Right -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Cancel" 
+                            Command="{Binding CancelCommand}"
+                            Style="{StaticResource SecondaryButtonStyle}"/>
+                    <Button Content="Save Changes" 
+                            Command="{Binding SaveCommand}"
+                            IsEnabled="{Binding CanSave}"
+                            Style="{StaticResource PrimaryButtonStyle}"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Loading Overlay -->
-        <Border Grid.Row="0" 
-                Grid.RowSpan="3"
+        <Border Grid.Row="0" Grid.RowSpan="3"
                 Background="#80000000"
                 Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" 
-                             Width="200" 
-                             Height="20"
-                             Margin="0,0,0,15"/>
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20" Margin="0,0,0,15"/>
                 <TextBlock Text="{Binding StatusMessage}"
-                           HorizontalAlignment="Center"
-                           Foreground="White"
-                           FontSize="14"
-                           FontWeight="SemiBold"/>
+                          HorizontalAlignment="Center"
+                          Foreground="White"
+                          FontSize="14"/>
             </StackPanel>
         </Border>
     </Grid>

@@ -629,14 +629,16 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Create and show the edit window using the parent ViewModel approach
+                // Create and show the edit window with the correct constructor parameters
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     try
                     {
                         var editWindow = new Views.ProductEditWindow(
                             SelectedProduct,
-                            this) // Pass the current ViewModel instead of individual services
+                            _productService,      // Pass the service
+                            _categoryService,     // Pass the service
+                            _supplierService)     // Pass the service
                         {
                             Owner = GetOwnerWindow()
                         };
