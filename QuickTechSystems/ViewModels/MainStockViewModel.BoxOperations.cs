@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
+using QuickTechSystems.Application.Events;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -13,9 +14,14 @@ namespace QuickTechSystems.WPF.ViewModels
         /// Converts a box to individual items for the selected product.
         /// Decreases box count by 1 and increases individual items by ItemsPerBox.
         /// </summary>
+        /// <summary>
+        /// Converts a box to individual items for the selected product.
+        /// </summary>
+        /// <summary>
+        /// Converts a box to individual items for the selected product.
+        /// </summary>
         private async Task ConvertBoxToIndividualAsync()
         {
-            // Use reasonable timeout instead of 0
             if (!await _operationLock.WaitAsync(DEFAULT_LOCK_TIMEOUT_MS))
             {
                 ShowTemporaryErrorMessage("Operation already in progress. Please wait.");
@@ -45,21 +51,20 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Converting box to individual items...";
 
-                // Store original values for error handling and validation
+                // Store original values
                 int mainStockId = SelectedItem.MainStockId;
                 int originalBoxCount = SelectedItem.NumberOfBoxes;
-                decimal originalIndividualCount = SelectedItem.CurrentStock;
+                decimal originalCurrentStock = SelectedItem.CurrentStock;
                 int itemsPerBox = SelectedItem.ItemsPerBox;
 
-                // First step: Get current item data
+                // Get current item data
                 var currentItem = await _mainStockService.GetByIdAsync(mainStockId);
-
                 if (currentItem == null || currentItem.NumberOfBoxes <= 0)
                 {
                     throw new InvalidOperationException("Item not found or no boxes available");
                 }
 
-                // Second step: Create a modified copy with updated values
+                // Create updated item
                 var updatedItem = new Application.DTOs.MainStockDTO
                 {
                     MainStockId = currentItem.MainStockId,
@@ -77,12 +82,8 @@ namespace QuickTechSystems.WPF.ViewModels
                     BoxPurchasePrice = currentItem.BoxPurchasePrice,
                     BoxWholesalePrice = currentItem.BoxWholesalePrice,
                     BoxSalePrice = currentItem.BoxSalePrice,
-
-                    // Update these values
                     NumberOfBoxes = currentItem.NumberOfBoxes - 1,
                     CurrentStock = currentItem.CurrentStock + currentItem.ItemsPerBox,
-
-                    // Keep these the same
                     ItemsPerBox = currentItem.ItemsPerBox,
                     MinimumStock = currentItem.MinimumStock,
                     MinimumBoxStock = currentItem.MinimumBoxStock,
@@ -94,55 +95,80 @@ namespace QuickTechSystems.WPF.ViewModels
                     UpdatedAt = DateTime.Now
                 };
 
-                // Third step: Update the item using the service
+                // Update in database
                 var result = await _mainStockService.UpdateAsync(updatedItem);
-
                 if (result == null)
                 {
                     throw new InvalidOperationException("Failed to update stock.");
                 }
 
-                // Get updated stock from database to ensure we have accurate data
-                var refreshedItem = await GetUpdatedMainStockItemAsync(mainStockId);
-
-                if (refreshedItem != null)
+                // IMPROVED: Update UI immediately with proper null checks
+                await SafeDispatcherOperation(() =>
                 {
-                    // Capture the itemsPerBox value before dispatcher operation
-                    int displayItemsPerBox = refreshedItem.ItemsPerBox;
-                    decimal newCurrentStock = refreshedItem.CurrentStock;
-                    int newBoxCount = refreshedItem.NumberOfBoxes;
-
-                    // Store display values separately in case SelectedItem becomes null
-                    decimal displayCurrentStock = refreshedItem.CurrentStock;
-                    int displayBoxCount = refreshedItem.NumberOfBoxes;
-
-                    // Update the UI model with fresh data - WITH EXTRA NULL CHECKS
-                    await SafeDispatcherOperation(() =>
+                    try
                     {
-                        // Check if SelectedItem is still not null when we update it
                         if (SelectedItem != null)
                         {
-                            SelectedItem.NumberOfBoxes = newBoxCount;
-                            SelectedItem.CurrentStock = newCurrentStock;
-
-                            // Raise property changed notification for derived properties
+                            SelectedItem.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                            SelectedItem.CurrentStock = updatedItem.CurrentStock;
                             OnPropertyChanged(nameof(SelectedItemBoxCount));
                         }
-                    });
 
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        // FIXED: Add proper null checks for collections
+                        if (Items != null)
+                        {
+                            var itemInCollection = Items.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                            if (itemInCollection != null)
+                            {
+                                itemInCollection.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                                itemInCollection.CurrentStock = updatedItem.CurrentStock;
+                            }
+                        }
+
+                        if (FilteredItems != null)
+                        {
+                            var itemInFilteredCollection = FilteredItems.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                            if (itemInFilteredCollection != null)
+                            {
+                                itemInFilteredCollection.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                                itemInFilteredCollection.CurrentStock = updatedItem.CurrentStock;
+                            }
+                        }
+                    }
+                    catch (Exception uiEx)
                     {
-                        MessageBox.Show($"Successfully converted 1 box to {displayItemsPerBox} individual items.\nNew stock: {displayCurrentStock} items, {displayBoxCount} boxes.",
-                            "Conversion Successful", MessageBoxButton.OK, MessageBoxImage.Information);
-                    });
+                        Debug.WriteLine($"Error updating UI after box conversion: {uiEx.Message}");
+                        // Don't throw here, the conversion was successful
+                    }
+                });
 
-                    // Refresh the view to show updated data
-                    await RefreshFromDatabaseDirectly();
-                }
-                else
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    throw new InvalidOperationException("Could not retrieve updated item data.");
-                }
+                    try
+                    {
+                        MessageBox.Show($"Successfully converted 1 box to {itemsPerBox} individual items.\nNew stock: {updatedItem.CurrentStock} items, {updatedItem.NumberOfBoxes} boxes.",
+                            "Conversion Successful", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception msgEx)
+                    {
+                        Debug.WriteLine($"Error showing success message: {msgEx.Message}");
+                    }
+                });
+
+                // Background refresh for consistency
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(300);
+                        await RefreshCurrentViewAsync();
+                        _eventAggregator.Publish(new GlobalDataRefreshEvent());
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Background refresh error after box conversion: {ex.Message}");
+                    }
+                });
             }
             catch (Exception ex)
             {

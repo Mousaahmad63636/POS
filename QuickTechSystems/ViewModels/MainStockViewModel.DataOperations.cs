@@ -83,6 +83,85 @@ namespace QuickTechSystems.WPF.ViewModels
         /// <summary>
         /// Load store products from the database
         /// </summary>
+        /// 
+
+
+
+        /// <summary>
+        /// Forces an immediate refresh of the current view without changing pagination
+        /// </summary>
+        /// <summary>
+        /// Forces an immediate refresh of the current view without changing pagination
+        /// </summary>
+        private async Task RefreshCurrentViewAsync()
+        {
+            try
+            {
+                Debug.WriteLine("MainStockViewModel: Performing current view refresh");
+
+                // Get fresh data for current page
+                var allItems = await _mainStockService.GetAllAsync();
+                var categories = await _categoryService.GetActiveAsync();
+                var suppliers = await _supplierService.GetActiveAsync();
+
+                // Ensure we have valid collections
+                if (allItems == null) allItems = new List<MainStockDTO>();
+                if (categories == null) categories = new List<CategoryDTO>();
+                if (suppliers == null) suppliers = new List<SupplierDTO>();
+
+                // Update category and supplier names
+                foreach (var item in allItems.Where(i => i != null))
+                {
+                    if (string.IsNullOrEmpty(item.CategoryName) && item.CategoryId > 0)
+                    {
+                        var category = categories.FirstOrDefault(c => c != null && c.CategoryId == item.CategoryId);
+                        if (category != null)
+                            item.CategoryName = category.Name;
+                    }
+
+                    if (string.IsNullOrEmpty(item.SupplierName) && item.SupplierId > 0)
+                    {
+                        var supplier = suppliers.FirstOrDefault(s => s != null && s.SupplierId == item.SupplierId);
+                        if (supplier != null)
+                            item.SupplierName = supplier.Name;
+                    }
+                }
+
+                // Apply current filters and pagination
+                var filteredItems = FilterMainStockItems(allItems, SearchText);
+                var pagedItems = filteredItems
+                    .Skip((CurrentPage - 1) * PageSize)
+                    .Take(PageSize)
+                    .ToList();
+
+                await SafeDispatcherOperation(() =>
+                {
+                    try
+                    {
+                        // Update collections with null checks
+                        Items = new ObservableCollection<MainStockDTO>(pagedItems ?? new List<MainStockDTO>());
+                        FilteredItems = new ObservableCollection<MainStockDTO>(pagedItems ?? new List<MainStockDTO>());
+                        Categories = new ObservableCollection<CategoryDTO>(categories ?? new List<CategoryDTO>());
+                        Suppliers = new ObservableCollection<SupplierDTO>(suppliers ?? new List<SupplierDTO>());
+
+                        // Update pagination info
+                        TotalItems = filteredItems?.Count() ?? 0;
+                        TotalPages = (int)Math.Ceiling(TotalItems / (double)PageSize);
+                        UpdateVisiblePageNumbers();
+
+                        Debug.WriteLine($"Current view refresh complete. Updated {Items?.Count ?? 0} items.");
+                    }
+                    catch (Exception uiEx)
+                    {
+                        Debug.WriteLine($"Error updating UI during refresh: {uiEx.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during current view refresh: {ex.Message}");
+            }
+        }
         private async Task LoadStoreProductsAsync()
         {
             try

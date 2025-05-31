@@ -47,53 +47,31 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         /// <summary>
-        /// Handle global refresh event
+        /// Handle global refresh event with improved responsiveness
         /// </summary>
-        // Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.Events.cs
-        // Replace the existing HandleGlobalRefresh method with this improved version
-
         private async void HandleGlobalRefresh(GlobalDataRefreshEvent evt)
         {
             Debug.WriteLine("MainStockViewModel: Handling global refresh event");
 
-            // Wait for any in-progress operations to stabilize
-            await Task.Delay(300);
-
-            // Use a separate flag to track refresh state since semaphore may be in complex state
-            bool _refreshInProgress = false;
-
             try
             {
-                _refreshInProgress = true;
+                // Use a shorter delay for transfers
+                await Task.Delay(100);
 
-                // Reset to page 1 to ensure we see new items
-                await SafeDispatcherOperation(() =>
-                {
-                    _currentPage = 1;
-                    OnPropertyChanged(nameof(CurrentPage));
-                });
+                // Try current view refresh first (faster)
+                await RefreshCurrentViewAsync();
 
-                // Force a direct database refresh without using the regular UI loading pathway
-                await RefreshFromDatabaseDirectly();
-
-                Debug.WriteLine("MainStockViewModel: Global refresh successfully completed");
+                Debug.WriteLine("MainStockViewModel: Global refresh completed successfully");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"MainStockViewModel: Error during global refresh: {ex.Message}");
 
-                // Last-ditch attempt to refresh through regular channel
+                // Fallback to full refresh
                 try
                 {
-                    // Force-release the lock in case it's stuck
-                    if (_operationLock.CurrentCount == 0)
-                    {
-                        _operationLock.Release();
-                        await Task.Delay(100);
-                    }
-
-                    // Standard loading
-                    await LoadDataAsync();
+                    await Task.Delay(200);
+                    await RefreshFromDatabaseDirectly();
                 }
                 catch (Exception fallbackEx)
                 {
@@ -102,10 +80,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     await Task.Delay(2000);
                     StatusMessage = "";
                 }
-            }
-            finally
-            {
-                _refreshInProgress = false;
             }
         }
 

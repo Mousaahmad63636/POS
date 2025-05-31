@@ -24,7 +24,7 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(SelectedItemBoxCount));
             IsTransferPopupOpen = true;
         }
-
+        // Path: QuickTechSystems.WPF.ViewModels/MainStockViewModel.TransferOperations.cs
         private async Task TransferToStoreAsync()
         {
             if (!await _operationLock.WaitAsync(DEFAULT_LOCK_TIMEOUT_MS))
@@ -76,12 +76,13 @@ namespace QuickTechSystems.WPF.ViewModels
                 int mainStockId = SelectedItem.MainStockId;
                 int productId = SelectedStoreProduct.ProductId;
                 string itemName = SelectedItem.Name;
+                decimal originalCurrentStock = SelectedItem.CurrentStock;
+                int originalNumberOfBoxes = SelectedItem.NumberOfBoxes;
 
                 IsSaving = true;
                 StatusMessage = "Processing transfer...";
 
                 string transferredBy = "System User";
-
                 bool transferSuccessful = false;
 
                 try
@@ -106,23 +107,151 @@ namespace QuickTechSystems.WPF.ViewModels
                     throw new InvalidOperationException("Transfer failed. Please try again.");
                 }
 
-                // Close the transfer popup
+                // Close the transfer popup immediately
                 IsTransferPopupOpen = false;
 
-                // Force a full UI refresh after small delay to ensure transaction is complete
-                await Task.Delay(300);
-                await RefreshFromDatabaseDirectly();
-                _eventAggregator.Publish(new GlobalDataRefreshEvent());
+                // IMPROVED: Update the UI immediately with calculated values and proper null checks
+                await SafeDispatcherOperation(() =>
+                {
+                    try
+                    {
+                        if (SelectedItem != null)
+                        {
+                            if (TransferByBoxes)
+                            {
+                                SelectedItem.NumberOfBoxes = Math.Max(0, originalNumberOfBoxes - (int)TransferQuantity);
+                            }
+                            else
+                            {
+                                SelectedItem.CurrentStock = Math.Max(0, originalCurrentStock - TransferQuantity);
+                            }
 
+                            // Update the box count display
+                            OnPropertyChanged(nameof(SelectedItemBoxCount));
+                        }
+
+                        // FIXED: Add proper null checks for collections
+                        if (Items != null)
+                        {
+                            var itemInCollection = Items.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                            if (itemInCollection != null)
+                            {
+                                if (TransferByBoxes)
+                                {
+                                    itemInCollection.NumberOfBoxes = SelectedItem?.NumberOfBoxes ?? 0;
+                                }
+                                else
+                                {
+                                    itemInCollection.CurrentStock = SelectedItem?.CurrentStock ?? 0;
+                                }
+                            }
+                        }
+
+                        // FIXED: Add proper null checks for filtered items
+                        if (FilteredItems != null)
+                        {
+                            var itemInFilteredCollection = FilteredItems.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                            if (itemInFilteredCollection != null)
+                            {
+                                if (TransferByBoxes)
+                                {
+                                    itemInFilteredCollection.NumberOfBoxes = SelectedItem?.NumberOfBoxes ?? 0;
+                                }
+                                else
+                                {
+                                    itemInFilteredCollection.CurrentStock = SelectedItem?.CurrentStock ?? 0;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception uiEx)
+                    {
+                        Debug.WriteLine($"Error updating UI after transfer: {uiEx.Message}");
+                        // Don't throw here, the transfer was successful
+                    }
+                });
+
+                // Show success message immediately
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    string unitType = TransferByBoxes ? "boxes" : "units";
-                    MessageBox.Show(
-                        $"Successfully transferred {TransferQuantity} {unitType} of {itemName} from MainStock to Store inventory.",
-                        "Transfer Successful",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
+                    try
+                    {
+                        string unitType = TransferByBoxes ? "boxes" : "units";
+                        MessageBox.Show(
+                            $"Successfully transferred {TransferQuantity} {unitType} of {itemName} from MainStock to Store inventory.",
+                            "Transfer Successful",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information
+                        );
+                    }
+                    catch (Exception msgEx)
+                    {
+                        Debug.WriteLine($"Error showing success message: {msgEx.Message}");
+                    }
+                });
+
+                // IMPROVED: Perform background refresh to ensure database consistency
+                // This happens after the UI is already updated, so user sees immediate feedback
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(500); // Small delay to ensure database transaction is complete
+
+                        // Get fresh data from database
+                        var updatedItem = await GetUpdatedMainStockItemAsync(mainStockId);
+                        if (updatedItem != null)
+                        {
+                            await SafeDispatcherOperation(() =>
+                            {
+                                try
+                                {
+                                    // Update with actual database values (in case of any discrepancies)
+                                    if (SelectedItem != null && SelectedItem.MainStockId == mainStockId)
+                                    {
+                                        SelectedItem.CurrentStock = updatedItem.CurrentStock;
+                                        SelectedItem.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                                        OnPropertyChanged(nameof(SelectedItemBoxCount));
+                                    }
+
+                                    // Update collections with null checks
+                                    if (Items != null)
+                                    {
+                                        var itemInCollection = Items.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                                        if (itemInCollection != null)
+                                        {
+                                            itemInCollection.CurrentStock = updatedItem.CurrentStock;
+                                            itemInCollection.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                                        }
+                                    }
+
+                                    if (FilteredItems != null)
+                                    {
+                                        var itemInFilteredCollection = FilteredItems.FirstOrDefault(i => i != null && i.MainStockId == mainStockId);
+                                        if (itemInFilteredCollection != null)
+                                        {
+                                            itemInFilteredCollection.CurrentStock = updatedItem.CurrentStock;
+                                            itemInFilteredCollection.NumberOfBoxes = updatedItem.NumberOfBoxes;
+                                        }
+                                    }
+                                }
+                                catch (Exception backgroundUiEx)
+                                {
+                                    Debug.WriteLine($"Error in background UI update: {backgroundUiEx.Message}");
+                                }
+                            });
+                        }
+
+                        // Publish events for other parts of the system
+                        _eventAggregator.Publish(new GlobalDataRefreshEvent());
+
+                        Debug.WriteLine("Background refresh completed after transfer");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Background refresh error after transfer: {ex.Message}");
+                        // Don't show error to user since the transfer was successful
+                    }
                 });
             }
             catch (Exception ex)
