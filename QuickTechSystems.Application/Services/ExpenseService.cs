@@ -52,6 +52,76 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
+        // New pagination methods
+        public async Task<PagedResult<ExpenseDTO>> GetPagedAsync(int pageNumber, int pageSize, string? category = null, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = _repository.Query().AsQueryable();
+
+                // Apply filters
+                if (!string.IsNullOrEmpty(category) && category != "All")
+                {
+                    query = query.Where(e => e.Category == category);
+                }
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(e => e.Date >= startDate.Value);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(e => e.Date <= endDate.Value);
+                }
+
+                // Get total count for pagination
+                var totalCount = await query.CountAsync();
+
+                // Apply pagination and ordering
+                var expenses = await query
+                    .OrderByDescending(e => e.Date)
+                    .ThenByDescending(e => e.CreatedAt)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return new PagedResult<ExpenseDTO>
+                {
+                    Items = _mapper.Map<IEnumerable<ExpenseDTO>>(expenses),
+                    TotalCount = totalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+            });
+        }
+
+        public async Task<int> GetTotalCountAsync(string? category = null, DateTime? startDate = null, DateTime? endDate = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = _repository.Query().AsQueryable();
+
+                // Apply filters
+                if (!string.IsNullOrEmpty(category) && category != "All")
+                {
+                    query = query.Where(e => e.Category == category);
+                }
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(e => e.Date >= startDate.Value);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(e => e.Date <= endDate.Value);
+                }
+
+                return await query.CountAsync();
+            });
+        }
+
         public async Task CreateEmployeeSalaryExpenseAsync(int employeeId, decimal amount, string employeeName)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
