@@ -5,6 +5,7 @@
 
     <UserControl.Resources>
         <converters:UsdToLbpConverter x:Key="UsdToLbpConverter"/>
+        <converters:CardSizeConverter x:Key="CardSizeConverter"/>
     </UserControl.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" 
@@ -23,55 +24,110 @@
                     <Border Background="White" 
                             BorderBrush="#E5E7EB"
                             BorderThickness="1"
-                            CornerRadius="8"
-                            Margin="8"
-                            Width="150"
-                            Height="180"
+                            Width="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='width'}"
+                            Height="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='height'}"
+                            CornerRadius="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='cornerradius'}"
+                            Margin="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='margin'}"
                             MouseLeftButtonDown="Product_MouseLeftButtonDown"
                             Cursor="Hand">
+
                         <Grid>
                             <!-- Background Image -->
-                            <Border Background="#F9FAFB" 
-                                    CornerRadius="8">
+                            <Border Background="#F9FAFB"
+                                    CornerRadius="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='cornerradius'}">
                                 <Image Source="{Binding ImagePath, Converter={StaticResource FilePathToImageConverter}, ConverterParameter=150}" 
                                        Stretch="UniformToFill"
-                                       Height="180"/>
+                                       Height="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='height'}"/>
                             </Border>
 
                             <!-- Semi-transparent Gradient Overlay -->
-                            <Border Height="90"
-                                    VerticalAlignment="Bottom"
-                                    CornerRadius="0,0,8,8">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                        <GradientStop Color="#00000000" Offset="0"/>
-                                        <GradientStop Color="#CC000000" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Border.Background>
+                            <Border VerticalAlignment="Bottom">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Background">
+                                            <Setter.Value>
+                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                    <GradientStop Color="#00000000" Offset="0"/>
+                                                    <GradientStop Color="#CC000000" Offset="1"/>
+                                                </LinearGradientBrush>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Setter Property="CornerRadius" Value="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='cornerradius'}"/>
+                                        <Setter Property="Height" Value="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='overlayheight'}"/>
+                                        <Style.Triggers>
+                                            <!-- Hide gradient when cards are very small -->
+                                            <DataTrigger Binding="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='showoverlay'}" Value="False">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
                             </Border>
 
                             <!-- Product Info Overlay -->
                             <StackPanel VerticalAlignment="Bottom"
-                                      Margin="12,0,12,12">
+                                      Margin="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='padding'}">
+
                                 <TextBlock Text="{Binding Name}"
-                                         Foreground="White"
                                          FontWeight="SemiBold"
-                                         FontSize="13"
+                                         FontSize="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='fontsize'}"
                                          TextWrapping="Wrap"
-                                         MaxHeight="36"
-                                         TextTrimming="CharacterEllipsis"/>
+                                         TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Style.Triggers>
+                                                <!-- Show dark text for very small cards -->
+                                                <DataTrigger Binding="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='showoverlay'}" Value="False">
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                    <Setter Property="Background" Value="#F0F0F0"/>
+                                                    <Setter Property="Opacity" Value="0.9"/>
+                                                    <Setter Property="Padding" Value="2"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <TextBlock Text="{Binding SalePrice, StringFormat='{}{0:C}'}"
-                                         Foreground="White"
-                                         FontSize="14"
+                                         FontSize="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='pricefontsize'}"
                                          FontWeight="Bold"
-                                         Margin="0,4,0,0"/>
+                                         Margin="0,2,0,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="White"/>
+                                            <Style.Triggers>
+                                                <!-- Hide price for very small cards -->
+                                                <DataTrigger Binding="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='showprice'}" Value="False">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <!-- Show dark text for small cards -->
+                                                <DataTrigger Binding="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='showoverlay'}" Value="False">
+                                                    <Setter Property="Foreground" Value="Black"/>
+                                                    <Setter Property="Background" Value="#F0F0F0"/>
+                                                    <Setter Property="Opacity" Value="0.9"/>
+                                                    <Setter Property="Padding" Value="2"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
 
                                 <TextBlock Text="{Binding SalePrice, Converter={StaticResource UsdToLbpConverter}}"
-                                         Foreground="#E0E0E0"
-                                         FontSize="12"
-                                         FontWeight="SemiBold"
-                                         Margin="0,0,0,0"/>
+                                         FontSize="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='fontsize'}"
+                                         FontWeight="SemiBold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="#E0E0E0"/>
+                                            <Style.Triggers>
+                                                <!-- Hide LBP price for cards smaller than 60% -->
+                                                <DataTrigger Binding="{Binding DataContext.CardSizePercentage, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource CardSizeConverter}, ConverterParameter='showlbpprice'}" Value="False">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
                             </StackPanel>
                         </Grid>
                     </Border>

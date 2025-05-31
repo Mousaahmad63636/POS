@@ -86,6 +86,10 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
 		</None>
+		<None Update="Properties\Settings.settings">
+		  <Generator>SettingsSingleFileGenerator</Generator>
+		  <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
 		<None Update="Resources\**\*">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
@@ -93,6 +97,13 @@
 	</ItemGroup>
 	<ItemGroup>
 	  <Folder Include="ViewModels\TransactionParts\" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Compile Update="Properties\Settings.Designer.cs">
+	    <DesignTimeSharedInput>True</DesignTimeSharedInput>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Settings.settings</DependentUpon>
+	  </Compile>
 	</ItemGroup>
 
 	<!-- Add Target to ensure files are copied -->

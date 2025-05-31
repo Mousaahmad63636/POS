@@ -45,7 +45,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public Visibility EditModeIndicatorVisibility =>
             IsEditingTransaction ? Visibility.Visible : Visibility.Collapsed;
         private readonly IBusinessSettingsService _businessSettingsService;
-
+        private double _cardSizePercentage = 75;
         // Thread synchronization
         private readonly SemaphoreSlim _transactionOperationLock = new SemaphoreSlim(1, 1);
         private bool _operationInProgress = false;
@@ -71,6 +71,18 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 _customerSpecificPrices = value;
                 OnPropertyChanged(nameof(CustomerSpecificPrices));
+            }
+        }
+        public double CardSizePercentage
+        {
+            get => _cardSizePercentage;
+            set
+            {
+                if (SetProperty(ref _cardSizePercentage, value))
+                {
+                    // Save preference
+                    SaveCardSizePreference(value);
+                }
             }
         }
         public RestaurantTableDTO SelectedTable
@@ -180,7 +192,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 throw; // Re-throw to allow the calling code to handle the error
             }
         }
+        private void SaveCardSizePreference(double percentage)
+        {
+            try
+            {
+                // Save to user settings or configuration file
+                Properties.Settings.Default.CardSizePercentage = percentage;
+                Properties.Settings.Default.Save();
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't interrupt user experience
+                Debug.WriteLine($"Failed to save card size preference: {ex.Message}");
+            }
+        }
 
+        private void LoadCardSizePreference()
+        {
+            try
+            {
+                _cardSizePercentage = Properties.Settings.Default.CardSizePercentage;
+                if (_cardSizePercentage < 0 || _cardSizePercentage > 100)
+                    _cardSizePercentage = 75; // Default fallback
+
+                OnPropertyChanged(nameof(CardSizePercentage));
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to load card size preference: {ex.Message}");
+                _cardSizePercentage = 75; // Default fallback
+            }
+        }
         // Proper async initialization to replace direct calls in constructor
         private async Task InitializeAsync(IBusinessSettingsService businessSettingsService)
         {
