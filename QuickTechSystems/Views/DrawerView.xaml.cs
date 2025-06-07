@@ -23,6 +23,10 @@ namespace QuickTechSystems.WPF.Views
         {
             if (ViewModel != null)
             {
+                // Use Execute instead of ExecuteAsync since we're dealing with ICommand interface
+                ViewModel.LoadDrawerSessionsCommand.Execute(null);
+
+                // Then load current session data
                 await ViewModel.RefreshDrawerDataAsync();
                 ViewModel.LoadFinancialDataCommand.Execute(null);
             }

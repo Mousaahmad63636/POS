@@ -15,6 +15,9 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand CloseDrawerCommand { get; }
         public ICommand PrintReportCommand { get; }
         public ICommand LoadFinancialDataCommand { get; }
+        public ICommand LoadDrawerSessionsCommand { get; }
+        public ICommand ApplySessionFilterCommand { get; }
+        public ICommand ViewCurrentSessionCommand { get; }
 
         private async Task OpenDrawerAsync()
         {
@@ -51,7 +54,129 @@ namespace QuickTechSystems.WPF.ViewModels
                 await ShowErrorMessageAsync($"Error opening drawer: {ex.Message}");
             }
         }
+        private async Task LoadDrawerSessionsAsync()
+        {
+            try
+            {
+                IsProcessing = true;
 
+                var sessions = await _drawerService.GetAllDrawerSessionsAsync(SessionStartDate, SessionEndDate);
+
+                var sessionItems = sessions.Select(s => new DrawerSessionItem
+                {
+                    DrawerId = s.DrawerId,
+                    OpenedAt = s.OpenedAt,
+                    ClosedAt = s.ClosedAt,
+                    CashierName = s.CashierName,
+                    CashierId = s.CashierId,
+                    Status = s.Status
+                }).ToList();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    DrawerSessions = new ObservableCollection<DrawerSessionItem>(sessionItems);
+
+                    // Auto-select current session if it exists
+                    var currentSession = sessionItems.FirstOrDefault(s => s.Status == "Open");
+                    if (currentSession != null)
+                    {
+                        SelectedDrawerSession = currentSession;
+                        IsViewingHistoricalSession = false;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error loading drawer sessions: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
+        private async Task ApplySessionFilterAsync()
+        {
+            try
+            {
+                if (SessionStartDate > SessionEndDate)
+                {
+                    await ShowErrorMessageAsync("Start date cannot be after end date");
+                    return;
+                }
+
+                await LoadDrawerSessionsAsync();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error applying session filter: {ex.Message}");
+            }
+        }
+
+        private async Task LoadSelectedSessionAsync()
+        {
+            if (SelectedDrawerSession == null) return;
+
+            try
+            {
+                IsProcessing = true;
+
+                // Load the selected drawer session
+                var drawer = await _drawerService.GetDrawerSessionByIdAsync(SelectedDrawerSession.DrawerId);
+                if (drawer != null)
+                {
+                    CurrentDrawer = drawer;
+                    IsViewingHistoricalSession = drawer.Status != "Open";
+
+                    // Load transaction history for this session
+                    await LoadDrawerHistoryAsync();
+                    await LoadFinancialOverviewAsync();
+                    UpdateStatus();
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error loading selected session: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
+
+        private async Task ViewCurrentSessionAsync()
+        {
+            try
+            {
+                IsProcessing = true;
+
+                // Load current drawer
+                CurrentDrawer = await _drawerService.GetCurrentDrawerAsync();
+                IsViewingHistoricalSession = false;
+
+                if (CurrentDrawer != null)
+                {
+                    // Find and select current session in dropdown
+                    var currentSessionItem = DrawerSessions?.FirstOrDefault(s => s.DrawerId == CurrentDrawer.DrawerId);
+                    if (currentSessionItem != null)
+                    {
+                        SelectedDrawerSession = currentSessionItem;
+                    }
+                }
+
+                await LoadDrawerHistoryAsync();
+                await LoadFinancialOverviewAsync();
+                UpdateStatus();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorMessageAsync($"Error loading current session: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
         public async Task CloseDrawerWithCurrentBalance()
         {
             try

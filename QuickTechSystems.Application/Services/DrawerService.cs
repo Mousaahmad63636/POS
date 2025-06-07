@@ -63,6 +63,49 @@ namespace QuickTechSystems.Infrastructure.Services
         // Path: QuickTechSystems.Application.Services/DrawerService.cs
         // Add this method implementation:
 
+
+        public async Task<IEnumerable<DrawerDTO>> GetAllDrawerSessionsAsync(DateTime? startDate = null, DateTime? endDate = null)
+        {
+            try
+            {
+                var query = _repository.Query().AsQueryable();
+
+                if (startDate.HasValue)
+                {
+                    query = query.Where(d => d.OpenedAt.Date >= startDate.Value.Date);
+                }
+
+                if (endDate.HasValue)
+                {
+                    query = query.Where(d => d.OpenedAt.Date <= endDate.Value.Date);
+                }
+
+                var sessions = await query
+                    .OrderByDescending(d => d.OpenedAt)
+                    .ToListAsync();
+
+                return _mapper.Map<IEnumerable<DrawerDTO>>(sessions);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error getting drawer sessions: {ex.Message}");
+                throw;
+            }
+        }
+
+        public async Task<DrawerDTO?> GetDrawerSessionByIdAsync(int drawerId)
+        {
+            try
+            {
+                var drawer = await _repository.GetByIdAsync(drawerId);
+                return drawer != null ? _mapper.Map<DrawerDTO>(drawer) : null;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error getting drawer session by ID: {ex.Message}");
+                return null;
+            }
+        }
         public async Task<bool> ProcessSupplierInvoiceAsync(decimal amount, string supplierName, string reference)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

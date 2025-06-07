@@ -43,6 +43,8 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _drawerService = drawerService;
             _windowService = windowService;
+            _drawerSessions = new ObservableCollection<DrawerSessionItem>();
+
             ProfitViewModel = profitViewModel;
             _drawerHistory = new ObservableCollection<DrawerTransactionDTO>();
             TransactionHistoryViewModel = transactionHistoryViewModel;
@@ -55,7 +57,9 @@ namespace QuickTechSystems.WPF.ViewModels
             PrintReportCommand = new AsyncRelayCommand(async _ => await PrintReportAsync(), _ => IsDrawerOpen && !IsProcessing);
             LoadFinancialDataCommand = new AsyncRelayCommand(async _ => await LoadFinancialOverviewAsync());
             ApplyDateFilterCommand = new AsyncRelayCommand(async _ => await ApplyDateFilterAsync());
-
+            LoadDrawerSessionsCommand = new AsyncRelayCommand(async _ => await LoadDrawerSessionsAsync());
+            ApplySessionFilterCommand = new AsyncRelayCommand(async _ => await ApplySessionFilterAsync());
+            ViewCurrentSessionCommand = new AsyncRelayCommand(async _ => await ViewCurrentSessionAsync());
             // Initialize date range
             StartDate = DateTime.Today;
             EndDate = DateTime.Today;
@@ -85,7 +89,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
-
+     
         private async Task LoadDataSequentiallyAsync()
         {
             int maxRetries = 3;

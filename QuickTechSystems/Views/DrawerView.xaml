@@ -9,6 +9,7 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <converters:InvertBooleanConverter x:Key="InvertBooleanConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -17,78 +18,120 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Single Header Row with All Controls -->
         <Grid Grid.Row="0" Margin="10">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <!-- Summary Button -->
-            <Button Grid.Column="0" 
-                    Name="SummaryButton"
-                    Click="SummaryButton_Click"
-                    Margin="0,0,16,0"
-                    Width="100">
-                <TextBlock Text="Summary"/>
-            </Button>
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <!-- Inline Tabs -->
-            <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <Button x:Name="TabCurrentDrawer" 
-                        Tag="Selected" 
-                        Click="TabButton_Click">
-                    <TextBlock Text="Current Drawer"/>
-                </Button>
-
-                <Button x:Name="TabTransactionHistory" 
-                        Click="TabButton_Click">
-                    <TextBlock Text="Transaction History"/>
-                </Button>
-
-                <Button x:Name="TabProfitAnalysis" 
-                        Click="TabButton_Click">
-                    <TextBlock Text="Profit Analysis"/>
-                </Button>
-            </StackPanel>
-
-            <!-- Date Range Controls -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0">
-                <TextBlock Text="Date Range" 
-                          VerticalAlignment="Center" 
-                          Margin="0,0,8,0"/>
-                <DatePicker SelectedDate="{Binding StartDate}"
-                           Width="120"
-                           Margin="0,0,4,0"/>
-                <TextBlock Text="to" 
-                          VerticalAlignment="Center" 
-                          Margin="0,0,4,0"/>
-                <DatePicker SelectedDate="{Binding EndDate}"
-                           Width="120"
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
+                    <TextBlock Text="Drawer Session:" 
+                              VerticalAlignment="Center" 
+                              Margin="0,0,8,0"/>
+                    <ComboBox ItemsSource="{Binding DrawerSessions}"
+                             SelectedItem="{Binding SelectedDrawerSession}"
+                             DisplayMemberPath="DisplayText"
+                             Width="400"
+                             Margin="0,0,8,0"/>
+                    <Button Content="Current" 
+                           Command="{Binding ViewCurrentSessionCommand}"
+                           Width="80"
                            Margin="0,0,8,0"/>
-                <Button Command="{Binding ApplyDateFilterCommand}"
-                        Width="120">
-                    <TextBlock Text="Apply Filter"/>
-                </Button>
-            </StackPanel>
+                </StackPanel>
 
-            <!-- Action Button -->
-            <Button Grid.Column="4" 
-                    Name="ActionsButton"
-                    Click="ActionsButton_Click"
-                    Width="100">
-                <TextBlock Text="Actions"/>
-            </Button>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Session Filter:" 
+                              VerticalAlignment="Center" 
+                              Margin="0,0,8,0"/>
+                    <DatePicker SelectedDate="{Binding SessionStartDate}"
+                               Width="120"
+                               Margin="0,0,4,0"/>
+                    <TextBlock Text="to" 
+                              VerticalAlignment="Center" 
+                              Margin="0,0,4,0"/>
+                    <DatePicker SelectedDate="{Binding SessionEndDate}"
+                               Width="120"
+                               Margin="0,0,8,0"/>
+                    <Button Command="{Binding ApplySessionFilterCommand}"
+                            Content="Load Sessions"
+                            Width="100"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" 
+                        Name="SummaryButton"
+                        Click="SummaryButton_Click"
+                        Margin="0,0,16,0"
+                        Width="100">
+                    <TextBlock Text="Summary"/>
+                </Button>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="TabCurrentDrawer" 
+                            Tag="Selected" 
+                            Click="TabButton_Click">
+                        <TextBlock Text="Current Drawer"/>
+                    </Button>
+
+                    <Button x:Name="TabTransactionHistory" 
+                            Click="TabButton_Click">
+                        <TextBlock Text="Transaction History"/>
+                    </Button>
+
+                    <Button x:Name="TabProfitAnalysis" 
+                            Click="TabButton_Click">
+                        <TextBlock Text="Profit Analysis"/>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0">
+                    <TextBlock Text="Transaction Range:" 
+                              VerticalAlignment="Center" 
+                              Margin="0,0,8,0"/>
+                    <DatePicker SelectedDate="{Binding StartDate}"
+                               Width="120"
+                               Margin="0,0,4,0"/>
+                    <TextBlock Text="to" 
+                              VerticalAlignment="Center" 
+                              Margin="0,0,4,0"/>
+                    <DatePicker SelectedDate="{Binding EndDate}"
+                               Width="120"
+                               Margin="0,0,8,0"/>
+                    <Button Command="{Binding ApplyDateFilterCommand}"
+                            Width="120">
+                        <TextBlock Text="Apply Filter"/>
+                    </Button>
+                </StackPanel>
+
+                <Button Grid.Column="4" 
+                        Name="ActionsButton"
+                        Click="ActionsButton_Click"
+                        Width="100"
+                        IsEnabled="{Binding IsViewingHistoricalSession, Converter={StaticResource InvertBooleanConverter}}">
+                    <TextBlock Text="Actions"/>
+                </Button>
+            </Grid>
         </Grid>
 
-        <!-- Main Content Area -->
         <Border Grid.Row="1" Margin="10" BorderThickness="1" BorderBrush="Gray">
-            <!-- Content Views (only one visible at a time based on selected tab) -->
             <Grid>
-                <!-- Current Drawer View -->
                 <ScrollViewer x:Name="CurrentDrawerView" 
                              VerticalScrollBarVisibility="Auto" 
                              HorizontalScrollBarVisibility="Auto"
@@ -119,21 +162,16 @@
                     </DataGrid>
                 </ScrollViewer>
 
-                <!-- Transaction History View -->
                 <ContentControl x:Name="TransactionHistoryView" 
                                Content="{Binding TransactionHistoryViewModel}"
                                Visibility="Collapsed"/>
 
-                <!-- Profit Analysis View -->
                 <ContentControl x:Name="ProfitAnalysisView" 
                                Content="{Binding ProfitViewModel}"
                                Visibility="Collapsed"/>
             </Grid>
         </Border>
 
-        <!-- ===== POPUPS ===== -->
-
-        <!-- Actions Popup (Menu Style) -->
         <Popup x:Name="ActionsPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -179,7 +217,6 @@
             </Border>
         </Popup>
 
-        <!-- Add Cash Form -->
         <Popup x:Name="AddCashPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -227,7 +264,6 @@
             </Border>
         </Popup>
 
-        <!-- Remove Cash Form -->
         <Popup x:Name="RemoveCashPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -275,7 +311,6 @@
             </Border>
         </Popup>
 
-        <!-- Open Drawer Form -->
         <Popup x:Name="OpenDrawerPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -316,7 +351,6 @@
             </Border>
         </Popup>
 
-        <!-- Close Drawer Form -->
         <Popup x:Name="CloseDrawerPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -363,7 +397,6 @@
             </Border>
         </Popup>
 
-        <!-- Print Report Form -->
         <Popup x:Name="PrintReportPopup" 
                PlacementTarget="{Binding ElementName=ActionsButton}"
                Placement="Bottom"
@@ -409,7 +442,6 @@
             </Border>
         </Popup>
 
-        <!-- Loading Overlay -->
         <Border Visibility="{Binding IsProcessing, Converter={StaticResource BooleanToVisibilityConverter}}"
                 Grid.RowSpan="2"
                 Background="#80000000">
@@ -430,7 +462,6 @@
             </Border>
         </Border>
 
-        <!-- Error Message -->
         <TextBlock Text="{Binding ErrorMessage}"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Top"

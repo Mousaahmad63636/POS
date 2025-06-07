@@ -19,6 +19,11 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _includeTransactionDetails = true;
         private bool _includeFinancialSummary = true;
         private bool _printCashierCopy = false;
+        private ObservableCollection<DrawerSessionItem> _drawerSessions;
+        private DrawerSessionItem? _selectedDrawerSession;
+        private DateTime _sessionStartDate = DateTime.Today.AddDays(-30);
+        private DateTime _sessionEndDate = DateTime.Today;
+        private bool _isViewingHistoricalSession;
 
         public bool IncludeTransactionDetails
         {
@@ -66,7 +71,55 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+        public ObservableCollection<DrawerSessionItem> DrawerSessions
+        {
+            get => _drawerSessions;
+            set => SetProperty(ref _drawerSessions, value);
+        }
 
+        public DrawerSessionItem? SelectedDrawerSession
+        {
+            get => _selectedDrawerSession;
+            set
+            {
+                if (SetProperty(ref _selectedDrawerSession, value))
+                {
+                    _ = LoadSelectedSessionAsync();
+                }
+            }
+        }
+
+        public DateTime SessionStartDate
+        {
+            get => _sessionStartDate;
+            set => SetProperty(ref _sessionStartDate, value);
+        }
+
+        public DateTime SessionEndDate
+        {
+            get => _sessionEndDate;
+            set => SetProperty(ref _sessionEndDate, value);
+        }
+
+        public bool IsViewingHistoricalSession
+        {
+            get => _isViewingHistoricalSession;
+            set => SetProperty(ref _isViewingHistoricalSession, value);
+        }
+
+        // Helper class for dropdown items
+        public class DrawerSessionItem
+        {
+            public int DrawerId { get; set; }
+            public DateTime OpenedAt { get; set; }
+            public DateTime? ClosedAt { get; set; }
+            public string CashierName { get; set; } = string.Empty;
+            public string CashierId { get; set; } = string.Empty;
+            public string Status { get; set; } = string.Empty;
+
+            public string DisplayText =>
+                $"Drawer {DrawerId}. {OpenedAt:MM/dd/yyyy}, Opened By: {CashierId}, {OpenedAt:MM/dd/yyyy}, {CashierName}";
+        }
         public decimal DrawerClosingDifference =>
             CurrentDrawer != null ? FinalCashAmount - CurrentDrawer.CurrentBalance : 0;
         public decimal CurrentBalance => CurrentDrawer?.CurrentBalance ?? 0;
