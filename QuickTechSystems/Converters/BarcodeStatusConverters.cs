@@ -15,6 +15,10 @@ namespace QuickTechSystems.WPF.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            // Handle null DataContext case
+            if (value == null)
+                return Colors.Gray; // Default color when no data is available
+
             bool hasBarcode = false;
 
             if (value is byte[] byteArray)
@@ -41,6 +45,10 @@ namespace QuickTechSystems.WPF.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            // Handle null DataContext case
+            if (value == null)
+                return "N/A"; // Default text when no data is available
+
             bool hasBarcode = false;
 
             if (value is byte[] byteArray)
