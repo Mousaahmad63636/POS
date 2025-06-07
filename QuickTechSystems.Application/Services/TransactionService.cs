@@ -146,8 +146,78 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
+
+        public async Task<IEnumerable<TransactionDTO>> GetByEmployeeAsync(int employeeId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var transactions = await _repository.Query()
+                    .Include(t => t.Customer)
+                    .Include(t => t.TransactionDetails)
+                        .ThenInclude(td => td.Product)
+                    .Where(t => t.CashierId == employeeId.ToString())
+                    .OrderByDescending(t => t.TransactionDate)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+            });
+        }
+
+        public async Task<IEnumerable<TransactionDTO>> GetByEmployeeAndDateRangeAsync(int employeeId, DateTime startDate, DateTime endDate)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                try
+                {
+                    // Normalize dates to start and end of day
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+                    var transactions = await _repository.Query()
+                        .Include(t => t.Customer)
+                        .Include(t => t.TransactionDetails)
+                            .ThenInclude(td => td.Product)
+                                .ThenInclude(p => p.Category)
+                        .Where(t => t.CashierId == employeeId.ToString() &&
+                                   t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
+                                   t.Status == TransactionStatus.Completed)
+                        .OrderByDescending(t => t.TransactionDate)
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    if (transactions == null || !transactions.Any())
+                    {
+                        Debug.WriteLine($"No transactions found for employee {employeeId} between {normalizedStartDate:d} and {normalizedEndDate:d}");
+                        return new List<TransactionDTO>();
+                    }
+
+                    var dtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
+
+                    // Calculate detailed information for each transaction
+                    foreach (var dto in dtos)
+                    {
+                        if (dto.Details != null)
+                        {
+                            foreach (var detail in dto.Details)
+                            {
+                                // Ensure proper calculations
+                                detail.UpdateTotal();
+                            }
+                        }
+                    }
+
+                    return dtos;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error in GetByEmployeeAndDateRangeAsync: {ex.Message}");
+                    Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                    throw new InvalidOperationException($"Error retrieving transactions for employee {employeeId} by date range", ex);
+                }
+            });
+        }
         public async Task<decimal> GetTransactionProfitByDateRangeAsync(
-    DateTime startDate, DateTime endDate, int? categoryId = null)
+        DateTime startDate, DateTime endDate, int? categoryId = null, int? employeeId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -171,6 +241,12 @@ namespace QuickTechSystems.Application.Services
                     {
                         transactionsQuery = transactionsQuery.Where(t =>
                             t.TransactionDetails.Any(d => d.Product.CategoryId == categoryId.Value));
+                    }
+
+                    // Apply employee filter if specified
+                    if (employeeId.HasValue && employeeId.Value > 0)
+                    {
+                        transactionsQuery = transactionsQuery.Where(t => t.CashierId == employeeId.Value.ToString());
                     }
 
                     var transactions = await transactionsQuery.ToListAsync();
@@ -582,9 +658,8 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
         public async Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(
-            DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null)
+            DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null, int? employeeId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -617,6 +692,12 @@ namespace QuickTechSystems.Application.Services
                     {
                         query = query.Where(t => t.TransactionDetails
                             .Any(d => d.Product.CategoryId == categoryId.Value));
+                    }
+
+                    // Apply employee filter if specified
+                    if (employeeId.HasValue && employeeId.Value > 0)
+                    {
+                        query = query.Where(t => t.CashierId == employeeId.Value.ToString());
                     }
 
                     // Get total count for pagination
@@ -659,7 +740,6 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
         public async Task<int> GetTransactionCountByDateRangeAsync(DateTime startDate, DateTime endDate)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

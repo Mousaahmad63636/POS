@@ -36,6 +36,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private TransactionDTO _selectedTransaction;
         private bool _isDisposed;
         private CancellationTokenSource _cts;
+        private readonly IEmployeeService _employeeService;
+        private ObservableCollection<EmployeeDTO> _employees;
+        private EmployeeDTO? _selectedEmployee;
 
         private ObservableCollection<TransactionDTO> _transactions;
         private ObservableCollection<CategoryDTO> _categories;
@@ -81,7 +84,25 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _categories;
             private set => SetProperty(ref _categories, value);
         }
+        public ObservableCollection<EmployeeDTO> Employees
+        {
+            get => _employees;
+            private set => SetProperty(ref _employees, value);
+        }
 
+        public EmployeeDTO? SelectedEmployee
+        {
+            get => _selectedEmployee;
+            set
+            {
+                if (SetProperty(ref _selectedEmployee, value))
+                {
+                    _currentPage = 1; // Reset to first page when changing employee
+                    OnPropertyChanged(nameof(CurrentPage));
+                    _ = SafeLoadDataAsync();
+                }
+            }
+        }
         public CategoryDTO? SelectedCategory
         {
             get => _selectedCategory;
@@ -283,6 +304,7 @@ namespace QuickTechSystems.WPF.ViewModels
      ICategoryService categoryService,
      IBusinessSettingsService businessSettingsService,
      IDbContextFactory<ApplicationDbContext> dbContextFactory,
+     IEmployeeService employeeService,
      IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _instance = this;
@@ -290,9 +312,11 @@ namespace QuickTechSystems.WPF.ViewModels
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
             _businessSettingsService = businessSettingsService ?? throw new ArgumentNullException(nameof(businessSettingsService));
+            _employeeService = employeeService ?? throw new ArgumentNullException(nameof(employeeService));
             _transactions = new ObservableCollection<TransactionDTO>();
             _filteredTransactions = new ObservableCollection<TransactionDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
+            _employees = new ObservableCollection<EmployeeDTO>();
             _transactionChangedHandler = HandleTransactionChanged;
             _cts = new CancellationTokenSource();
             _pageNumbers = new ObservableCollection<int>();
@@ -387,11 +411,50 @@ namespace QuickTechSystems.WPF.ViewModels
             try
             {
                 await LoadCategoriesAsync();
+                await LoadEmployeesAsync();
                 await SafeLoadDataAsync();
             }
             catch (Exception ex)
             {
                 HandleError("Initialization error", ex);
+            }
+        }
+
+        private async Task LoadEmployeesAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+            {
+                Debug.WriteLine("LoadEmployeesAsync skipped - operation in progress");
+                return;
+            }
+
+            try
+            {
+                IsLoading = true;
+                ErrorMessage = string.Empty;
+
+                try
+                {
+                    var employees = await _employeeService.GetAllAsync();
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        Employees = new ObservableCollection<EmployeeDTO>(
+                            new[] { new EmployeeDTO { EmployeeId = 0, FirstName = "All", LastName = "Employees" } }
+                            .Concat(employees.Where(e => e.IsActive))
+                        );
+                        SelectedEmployee = Employees.First();
+                    });
+                }
+                catch (Exception ex)
+                {
+                    HandleError("Error loading employees", ex);
+                }
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
             }
         }
 
@@ -634,9 +697,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Get the category ID filter
                     int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
 
+                    // Get the employee ID filter
+                    int? employeeId = SelectedEmployee?.EmployeeId > 0 ? SelectedEmployee.EmployeeId : null;
+
                     // Retrieve paginated transactions
                     var (transactions, totalCount) = await _transactionService.GetByDateRangePagedAsync(
-                        StartDate, EndDate, CurrentPage, PageSize, categoryId);
+                        StartDate, EndDate, CurrentPage, PageSize, categoryId, employeeId);
 
                     if (linkedCts.Token.IsCancellationRequested) return;
 
@@ -649,7 +715,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     // Calculate profit for the entire date range
                     var totalProfit = await _transactionService.GetTransactionProfitByDateRangeAsync(
-                        StartDate, EndDate, categoryId);
+                        StartDate, EndDate, categoryId, employeeId);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
                     // Calculate total pages
@@ -716,6 +782,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SearchText = string.Empty;
             SelectedCategory = Categories.First();
+            SelectedEmployee = Employees.First();
             StartDate = DateTime.Today;
             EndDate = DateTime.Today;
             CurrentPage = 1;

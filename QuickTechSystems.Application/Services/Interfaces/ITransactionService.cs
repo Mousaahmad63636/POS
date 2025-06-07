@@ -23,13 +23,15 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<decimal> GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate);
         Task<int> GetTransactionCountByDateRangeAsync(DateTime startDate, DateTime endDate);
         Task<Dictionary<string, decimal>> GetCategorySalesByDateRangeAsync(DateTime startDate, DateTime endDate);
-        Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null);
-        Task<decimal> GetTransactionProfitByDateRangeAsync(DateTime startDate, DateTime endDate, int? categoryId = null);
+        Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null, int? employeeId = null);
+        Task<decimal> GetTransactionProfitByDateRangeAsync(DateTime startDate, DateTime endDate, int? categoryId = null, int? employeeId = null);
         Task<IEnumerable<TransactionDTO>> GetByTypeAsync(TransactionType type);
         Task<bool> UpdateStatusAsync(int id, TransactionStatus status);
         Task<decimal> GetTotalSalesAsync(DateTime startDate, DateTime endDate);
-
-        // Add the missing method
         Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate);
+
+        // New methods for employee filtering
+        Task<IEnumerable<TransactionDTO>> GetByEmployeeAsync(int employeeId);
+        Task<IEnumerable<TransactionDTO>> GetByEmployeeAndDateRangeAsync(int employeeId, DateTime startDate, DateTime endDate);
     }
 }
