@@ -1136,7 +1136,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     document.Blocks.Add(countInfo);
 
                     // Currency Notice
-                    var currencyNotice = new Paragraph(new Run("All amounts in Lebanese Pounds (LBP)"))
+                    var currencyNotice = new Paragraph(new Run("All amounts in US Dollars (USD)"))
                     {
                         FontSize = 10,
                         FontWeight = FontWeights.Normal,
@@ -1163,24 +1163,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
                         .Sum(d => d.Discount);
 
-                    // Calculate total profit
-                    decimal totalProfit = transactionsForReport.Sum(t =>
-                    {
-                        if (t.Details == null || !t.Details.Any() || t.TotalAmount == 0)
-                            return 0;
-
-                        decimal purchaseCost = t.Details.Sum(d => d.PurchasePrice * d.Quantity);
-                        return t.TotalAmount - purchaseCost;
-                    });
-
-                    // Calculate LBP values
+                    // Calculate LBP values for totals only
                     decimal lbpTotalSales = CurrencyHelper.ConvertToLBP(totalSalesAmount);
-                    decimal lbpTotalProfit = CurrencyHelper.ConvertToLBP(totalProfit);
-                    decimal lbpDiscountedSales = CurrencyHelper.ConvertToLBP(discountedSalesTotal);
-                    decimal lbpNonDiscountedSales = CurrencyHelper.ConvertToLBP(nonDiscountedSalesTotal);
-                    decimal lbpTotalDiscountAmount = CurrencyHelper.ConvertToLBP(totalDiscountAmount);
-
-                    // Rest of the code remains the same, using the proper transaction sets
 
                     // Add a section for non-discounted transactions
                     if (nonDiscountedTransactions.Any())
@@ -1214,9 +1198,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         nonDiscountedSummary.Inlines.Add(new LineBreak());
 
-                        // Sales with bold text
+                        // Sales with bold text in USD
                         nonDiscountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
-                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"{lbpNonDiscountedSales:N0} LBP")
+                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"${nonDiscountedSalesTotal:N2}")
                         {
                             FontSize = 12,
                             Foreground = Brushes.DarkGreen
@@ -1225,7 +1209,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         nonDiscountedSection.Blocks.Add(nonDiscountedSummary);
 
                         // Create a table for non-discounted transactions by product
-                        CreateProductTable(nonDiscountedSection, nonDiscountedTransactions);
+                        CreateProductTableUSD(nonDiscountedSection, nonDiscountedTransactions);
 
                         document.Blocks.Add(nonDiscountedSection);
                     }
@@ -1262,9 +1246,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         discountedSummary.Inlines.Add(new LineBreak());
 
-                        // Sales with bold text
+                        // Sales with bold text in USD
                         discountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
-                        discountedSummary.Inlines.Add(new Bold(new Run($"{lbpDiscountedSales:N0} LBP")
+                        discountedSummary.Inlines.Add(new Bold(new Run($"${discountedSalesTotal:N2}")
                         {
                             FontSize = 12,
                             Foreground = Brushes.DarkGreen
@@ -1272,8 +1256,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
                         discountedSummary.Inlines.Add(new LineBreak());
 
-                        // Discount amount - regular size
-                        discountedSummary.Inlines.Add(new Run($"Total Discount: {lbpTotalDiscountAmount:N0} LBP")
+                        // Discount amount in USD
+                        discountedSummary.Inlines.Add(new Run($"Total Discount: ${totalDiscountAmount:N2}")
                         {
                             FontSize = 10,
                             Foreground = Brushes.Crimson
@@ -1282,13 +1266,12 @@ namespace QuickTechSystems.WPF.ViewModels
                         discountedSection.Blocks.Add(discountedSummary);
 
                         // Create a table for discounted transactions by product
-                        CreateProductTable(discountedSection, discountedTransactions);
+                        CreateProductTableUSD(discountedSection, discountedTransactions);
 
-                        // Just add the section to the document (without adding the summary again)
                         document.Blocks.Add(discountedSection);
                     }
 
-                    // TOTAL SALES SECTION - Added at the end as requested
+                    // TOTAL SALES SECTION - Show both USD and LBP
                     var totalSalesSection = new Section() { Margin = new Thickness(0, 10, 0, 15) };
 
                     // Add a divider
@@ -1299,7 +1282,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         Margin = new Thickness(0, 0, 0, 10)
                     });
 
-                    // Total sales paragraph
+                    // Total sales paragraph - USD and LBP
                     var totalSalesParagraph = new Paragraph
                     {
                         TextAlignment = TextAlignment.Center,
@@ -1312,7 +1295,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         Foreground = Brushes.Black
                     }));
 
-                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalSales:N0} LBP")
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"${totalSalesAmount:N2}")
                     {
                         FontSize = 12,
                         Foreground = Brushes.DarkGreen
@@ -1320,16 +1303,16 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     totalSalesParagraph.Inlines.Add(new LineBreak());
 
-                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL PROFIT: ")
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL SALES (LBP): ")
                     {
                         FontSize = 12,
                         Foreground = Brushes.Black
                     }));
 
-                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalProfit:N0} LBP")
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalSales:N0} LBP")
                     {
                         FontSize = 12,
-                        Foreground = Brushes.DarkBlue
+                        Foreground = Brushes.DarkGreen
                     }));
 
                     totalSalesSection.Blocks.Add(totalSalesParagraph);
@@ -1359,6 +1342,99 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = false;
                 _operationLock.Release();
             }
+        }
+
+        // Helper method to create product summary tables in USD
+        private void CreateProductTableUSD(Section section, List<TransactionDTO> transactions)
+        {
+            // Create a flattened list of transaction details
+            var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice,
+                decimal Total, decimal DiscountAmount)>();
+
+            foreach (var transaction in transactions)
+            {
+                if (transaction.Details == null) continue;
+
+                foreach (var detail in transaction.Details)
+                {
+                    // Calculate the actual unit price after discount
+                    decimal actualUnitPrice = detail.Quantity > 0
+                        ? (detail.Total / detail.Quantity)
+                        : 0;
+
+                    transactionItems.Add((
+                        detail.ProductName,
+                        (int)detail.Quantity,
+                        actualUnitPrice,
+                        detail.Total,
+                        detail.Discount
+                    ));
+                }
+            }
+
+            // Group the flattened items by product name
+            var groupedProducts = transactionItems
+                .GroupBy(item => item.ProductName)
+                .Select(g => new
+                {
+                    ProductName = g.Key,
+                    TotalQuantity = g.Sum(item => item.Quantity),
+                    AverageUnitPrice = g.Sum(item => item.Total) / g.Sum(item => item.Quantity),
+                    TotalAmount = g.Sum(item => item.Total),
+                    TotalDiscount = g.Sum(item => item.DiscountAmount)
+                })
+                .OrderByDescending(g => g.TotalQuantity)
+                .ToList();
+
+            var table = new Table { CellSpacing = 0 };
+
+            // Define columns with proportional widths
+            table.Columns.Add(new TableColumn { Width = new GridLength(2.5, GridUnitType.Star) }); // Product
+            table.Columns.Add(new TableColumn { Width = new GridLength(0.8, GridUnitType.Star) }); // Qty
+            table.Columns.Add(new TableColumn { Width = new GridLength(1.5, GridUnitType.Star) }); // Total (USD)
+
+            // Add header row
+            var tableHeaderRow = new TableRow { Background = Brushes.LightGray };
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Product"))) { FontSize = 9 }));
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Qty")))
+            { FontSize = 9, TextAlignment = TextAlignment.Center }));
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total (USD)")))
+            { FontSize = 9, TextAlignment = TextAlignment.Right }));
+
+            var rowGroup = new TableRowGroup();
+            rowGroup.Rows.Add(tableHeaderRow);
+
+            // Add grouped product rows
+            foreach (var product in groupedProducts)
+            {
+                var row = new TableRow();
+
+                // Product name cell
+                var nameCell = new TableCell();
+                var nameParagraph = new Paragraph { FontSize = 9 };
+                nameParagraph.Inlines.Add(new Run(product.ProductName ?? "Unknown"));
+                nameCell.Blocks.Add(nameParagraph);
+                row.Cells.Add(nameCell);
+
+                // Quantity cell
+                var qtyCell = new TableCell();
+                var qtyParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Center };
+                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString()));
+                qtyCell.Blocks.Add(qtyParagraph);
+                row.Cells.Add(qtyCell);
+
+                // Total amount cell - USD only
+                var totalCell = new TableCell();
+                var totalParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Right };
+                totalParagraph.Inlines.Add(new Run($"${product.TotalAmount:N2}"));
+                totalCell.Blocks.Add(totalParagraph);
+                row.Cells.Add(totalCell);
+
+                rowGroup.Rows.Add(row);
+            }
+
+            table.RowGroups.Add(rowGroup);
+            section.Blocks.Add(table);
         }
 
         private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
