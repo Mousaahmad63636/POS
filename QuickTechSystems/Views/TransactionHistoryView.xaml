@@ -9,113 +9,11 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-
-        <!-- Professional Button Style -->
-        <Style x:Key="ProfessionalButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#F8F9FA"/>
-            <Setter Property="BorderBrush" Value="#DEE2E6"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#E9ECEF"/>
-                    <Setter Property="BorderBrush" Value="#ADB5BD"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#DEE2E6"/>
-                </Trigger>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Opacity" Value="0.6"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Primary Button Style -->
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#0D6EFD"/>
-            <Setter Property="BorderBrush" Value="#0D6EFD"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#0B5ED7"/>
-                    <Setter Property="BorderBrush" Value="#0A58CA"/>
-                </Trigger>
-                <Trigger Property="IsPressed" Value="True">
-                    <Setter Property="Background" Value="#0A58CA"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Danger Button Style -->
-        <Style x:Key="DangerButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#DC3545"/>
-            <Setter Property="BorderBrush" Value="#DC3545"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#BB2D3B"/>
-                    <Setter Property="BorderBrush" Value="#B02A37"/>
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
-        <!-- Card Style -->
-        <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#DEE2E6"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
-            <Setter Property="Padding" Value="20"/>
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" Opacity="0.1" BlurRadius="8" ShadowDepth="2"/>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Section Header Style -->
-        <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="#495057"/>
-            <Setter Property="Margin" Value="0,0,0,12"/>
-        </Style>
-
-        <!-- Filter Label Style -->
-        <Style x:Key="FilterLabelStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Foreground" Value="#6C757D"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="Margin" Value="0,0,8,0"/>
-        </Style>
-
-        <!-- Input Control Style -->
-        <Style x:Key="InputControlStyle" TargetType="Control">
-            <Setter Property="MinHeight" Value="40"/>
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="BorderBrush" Value="#CED4DA"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
     </UserControl.Resources>
 
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <Grid x:Name="ContentGrid" Margin="24">
+            <Grid x:Name="ContentGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -125,348 +23,214 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- Page Header -->
-                <Border Grid.Row="0" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                <!-- Filter Controls Row -->
+                <Grid Grid.Row="1" Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Transaction History" Style="{StaticResource SectionHeaderStyle}" FontSize="20"/>
-                            <TextBlock Text="View and manage all transaction records" 
-                                     FontSize="14" Foreground="#6C757D"/>
-                        </StackPanel>
+                    <!-- Period label -->
+                    <TextBlock Grid.Column="0" Text="Period:" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,5,0"/>
 
-                        <!-- Search Box in Header -->
-                        <Grid Grid.Column="1" Margin="0,0,20,0" MinWidth="280">
-                            <TextBox x:Name="searchTextBox"
-                                    Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                                    TextChanged="SearchBox_TextChanged"
-                                    Style="{StaticResource InputControlStyle}"/>
-                            <TextBlock Text="🔍 Search transactions..." 
-                                      Foreground="#ADB5BD" 
-                                      Margin="16,0,0,0"
-                                      VerticalAlignment="Center"
-                                      IsHitTestVisible="False"
-                                      Visibility="{Binding Text.IsEmpty, ElementName=searchTextBox, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                        </Grid>
+                    <!-- Start Date -->
+                    <DatePicker Grid.Column="1" SelectedDate="{Binding StartDate}" 
+                                Margin="0,0,5,0" MinHeight="36" Width="120"/>
 
-                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Button Content="🔄 Refresh" Command="{Binding RefreshCommand}"
-                                    Style="{StaticResource ProfessionalButtonStyle}" Margin="0,0,8,0"/>
-                            <Button Content="📊 Export" Command="{Binding ExportCommand}"
-                                    Style="{StaticResource ProfessionalButtonStyle}" Margin="0,0,8,0"/>
-                            <Button Content="🖨️ Print" Command="{Binding PrintReportCommand}"
-                                    Style="{StaticResource PrimaryButtonStyle}"/>
-                        </StackPanel>
+                    <!-- to -->
+                    <TextBlock Grid.Column="2" Text="to" VerticalAlignment="Center" 
+                               Margin="0,0,5,0"/>
+
+                    <!-- End Date -->
+                    <DatePicker Grid.Column="3" SelectedDate="{Binding EndDate}" 
+                                Margin="0,0,15,0" MinHeight="36" Width="120"/>
+
+                    <!-- Category label -->
+                    <TextBlock Grid.Column="5" Text="Category:" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,5,0"/>
+
+                    <!-- Category dropdown -->
+                    <ComboBox Grid.Column="6" ItemsSource="{Binding Categories}"
+                              SelectedItem="{Binding SelectedCategory}"
+                              DisplayMemberPath="Name"
+                              MinHeight="36" Width="150"
+                              Margin="0,0,15,0"/>
+
+                    <!-- Search Box -->
+                    <Grid Grid.Column="7" Margin="0,0,15,0">
+                        <TextBlock Text="search" Foreground="Gray" Margin="5,0,0,0" 
+                                   Visibility="{Binding Text.IsEmpty, ElementName=searchTextBox, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <TextBox x:Name="searchTextBox"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 TextChanged="SearchBox_TextChanged"
+                                 MinHeight="36"
+                                 VerticalContentAlignment="Center"/>
                     </Grid>
-                </Border>
 
-                <!-- Filter Controls -->
-                <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
-                    <StackPanel>
-                        <TextBlock Text="Filters" Style="{StaticResource SectionHeaderStyle}"/>
-
-                        <!-- Single Row of Filters -->
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="140"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="180"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="180"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Date Range -->
-                            <TextBlock Grid.Column="0" Text="Period:" Style="{StaticResource FilterLabelStyle}"/>
-                            <DatePicker Grid.Column="1" SelectedDate="{Binding StartDate}" 
-                                       Style="{StaticResource InputControlStyle}" Margin="0,0,12,0"/>
-
-                            <TextBlock Grid.Column="2" Text="to" Style="{StaticResource FilterLabelStyle}"/>
-                            <DatePicker Grid.Column="3" SelectedDate="{Binding EndDate}" 
-                                       Style="{StaticResource InputControlStyle}" Margin="0,0,20,0"/>
-
-                            <!-- Category Filter -->
-                            <TextBlock Grid.Column="4" Text="Category:" Style="{StaticResource FilterLabelStyle}"/>
-                            <ComboBox Grid.Column="5" ItemsSource="{Binding Categories, Mode=OneWay}"
-                                     SelectedItem="{Binding SelectedCategory}"
-                                     DisplayMemberPath="Name"
-                                     Style="{StaticResource InputControlStyle}" Margin="0,0,20,0"/>
-
-                            <!-- Employee Filter -->
-                            <TextBlock Grid.Column="6" Text="Employee:" Style="{StaticResource FilterLabelStyle}"/>
-                            <ComboBox Grid.Column="7" ItemsSource="{Binding Employees, Mode=OneWay}"
-                                     SelectedItem="{Binding SelectedEmployee}"
-                                     Style="{StaticResource InputControlStyle}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding FullName}"/>
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
-
-                            <!-- Clear Filters -->
-                            <Button Grid.Column="9" Content="Clear Filters" Command="{Binding ClearFiltersCommand}"
-                                   Style="{StaticResource ProfessionalButtonStyle}" Margin="20,0,0,0"/>
-                        </Grid>
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Column="8" Orientation="Horizontal">
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}"
+                                Width="80" Height="36" Margin="0,0,5,0"/>
+                        <Button Content="Export" Command="{Binding ExportCommand}"
+                                Width="80" Height="36" Margin="0,0,5,0"/>
+                        <Button Content="Print" Command="{Binding PrintReportCommand}"
+                                Width="80" Height="36"/>
                     </StackPanel>
-                </Border>
+                </Grid>
 
-                <!-- Financial Summary -->
-                <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                <!-- Financial Summary Card -->
+                <Grid Grid.Row="2" Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Total Sales -->
-                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
-                            <TextBlock Text="TOTAL SALES" 
-                                      FontSize="11" FontWeight="Medium" 
-                                      Foreground="#6C757D" Margin="0,0,0,4"/>
-                            <TextBlock Text="{Binding TotalSales, StringFormat={}{0:C2}, Mode=OneWay}"
-                                      FontSize="24" FontWeight="Bold" 
-                                      Foreground="#198754"/>
-                        </StackPanel>
+                    <!-- Sales Summary -->
+                    <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                        <TextBlock Text="TOTAL SALES" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding TotalSales, StringFormat={}{0:C2}, Mode=OneWay}"/>
+                    </StackPanel>
 
-                        <!-- Total Profit -->
-                        <StackPanel Grid.Column="1" Margin="0,0,20,0">
-                            <TextBlock Text="TOTAL PROFIT" 
-                                      FontSize="11" FontWeight="Medium" 
-                                      Foreground="#6C757D" Margin="0,0,0,4"/>
-                            <TextBlock Text="{Binding TotalProfit, StringFormat={}{0:C2}, Mode=OneWay}"
-                                      FontSize="24" FontWeight="Bold" 
-                                      Foreground="#0D6EFD"/>
-                        </StackPanel>
+                    <!-- Profit Summary -->
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="TOTAL PROFIT" Margin="0,0,0,6"/>
+                        <TextBlock Text="{Binding TotalProfit, StringFormat={}{0:C2}, Mode=OneWay}"/>
+                    </StackPanel>
+                </Grid>
 
-                        <!-- Transaction Count -->
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="TRANSACTIONS" 
-                                      FontSize="11" FontWeight="Medium" 
-                                      Foreground="#6C757D" Margin="0,0,0,4"/>
-                            <TextBlock Text="{Binding TotalTransactions, StringFormat={}{0:N0}, Mode=OneWay}"
-                                      FontSize="24" FontWeight="Bold" 
-                                      Foreground="#6F42C1"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- Data Table -->
-                <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Table Header -->
-                        <TextBlock Grid.Row="0" Text="Transaction Records" 
-                                  Style="{StaticResource SectionHeaderStyle}"/>
-
-                        <!-- DataGrid -->
-                        <DataGrid Grid.Row="1"
-                                 ItemsSource="{Binding FilteredTransactions, Mode=OneWay}"
-                                 x:Name="TransactionsDataGrid"
-                                 AutoGenerateColumns="False"
-                                 RowHeight="56"
-                                 HeadersVisibility="Column"
-                                 GridLinesVisibility="Horizontal"
-                                 HorizontalGridLinesBrush="#F8F9FA"
-                                 AlternatingRowBackground="#FAFBFC"
-                                 SelectionMode="Single"
-                                 CanUserAddRows="False"
-                                 CanUserDeleteRows="False"
-                                 CanUserReorderColumns="True"
-                                 CanUserResizeColumns="True"
-                                 CanUserSortColumns="True">
-
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="#F8F9FA"/>
-                                    <Setter Property="Foreground" Value="#495057"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="FontSize" Value="13"/>
-                                    <Setter Property="Padding" Value="12,8"/>
-                                    <Setter Property="BorderBrush" Value="#DEE2E6"/>
-                                    <Setter Property="BorderThickness" Value="0,0,1,1"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
-
-                            <DataGrid.CellStyle>
-                                <Style TargetType="DataGridCell">
-                                    <Setter Property="Padding" Value="12,8"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Setter Property="FontSize" Value="13"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#E3F2FD"/>
-                                            <Setter Property="Foreground" Value="#1976D2"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.CellStyle>
-
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="ID" 
-                                                   Binding="{Binding TransactionId}" 
-                                                   Width="80"/>
-                                <DataGridTextColumn Header="Date &amp; Time" 
-                                                   Binding="{Binding TransactionDate, StringFormat=g}" 
-                                                   Width="140"/>
-                                <DataGridTextColumn Header="Customer" 
-                                                   Binding="{Binding CustomerName}" 
-                                                   Width="*" 
-                                                   MinWidth="120"/>
-                                <DataGridTextColumn Header="Type" 
-                                                   Binding="{Binding TransactionType}" 
-                                                   Width="100"/>
-                                <DataGridTextColumn Header="Items" 
-                                                   Binding="{Binding Details.Count}" 
-                                                   Width="80"/>
-                                <DataGridTextColumn Header="Total Amount" 
-                                                   Binding="{Binding TotalAmount, StringFormat=C2}" 
-                                                   Width="120"/>
-                                <DataGridTextColumn Header="Status" 
-                                                   Binding="{Binding Status}" 
-                                                   Width="100"/>
-                                <DataGridTextColumn Header="Payment" 
-                                                   Binding="{Binding PaymentMethod}" 
-                                                   Width="100"/>
-                                <DataGridTextColumn Header="Processed By" 
-                                                   Binding="{Binding CashierName}" 
-                                                   Width="140"/>
-                                <DataGridTextColumn Header="Role" 
-                                                   Binding="{Binding CashierRole}" 
-                                                   Width="100"/>
-                                <DataGridTemplateColumn Header="Actions" Width="200">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal">
-                                                <Button Content="📋 Details"
-                                                       Command="{Binding DataContext.ViewTransactionDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                       CommandParameter="{Binding}"
-                                                       Style="{StaticResource ProfessionalButtonStyle}"
-                                                       MinHeight="36" MinWidth="90"
-                                                       Margin="0,0,8,0"/>
-                                                <Button Content="🗑️ Delete"
-                                                       Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                       CommandParameter="{Binding}"
-                                                       Style="{StaticResource DangerButtonStyle}"
-                                                       MinHeight="36" MinWidth="80"/>
-                                            </StackPanel>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </Grid>
-                </Border>
+                <!-- DataGrid -->
+                <DataGrid Grid.Row="3"
+                          ItemsSource="{Binding FilteredTransactions}"
+                          Margin="0,0,0,15"
+                          x:Name="TransactionsDataGrid"
+                          AutoGenerateColumns="False"
+                          RowHeight="48">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="ID" 
+                                           Binding="{Binding TransactionId}" 
+                                           Width="70"/>
+                        <DataGridTextColumn Header="Date" 
+                                           Binding="{Binding TransactionDate, StringFormat=g}" 
+                                           Width="130"/>
+                        <DataGridTextColumn Header="Customer" 
+                                           Binding="{Binding CustomerName}" 
+                                           Width="*" 
+                                           MinWidth="100"/>
+                        <DataGridTextColumn Header="Type" 
+                                           Binding="{Binding TransactionType}" 
+                                           Width="100"/>
+                        <DataGridTextColumn Header="Items" 
+                                           Binding="{Binding Details.Count}" 
+                                           Width="80"/>
+                        <DataGridTextColumn Header="Total" 
+                                           Binding="{Binding TotalAmount, StringFormat=C2}" 
+                                           Width="100"/>
+                        <DataGridTextColumn Header="Status" 
+                                           Binding="{Binding Status}" 
+                                           Width="90"/>
+                        <DataGridTextColumn Header="Payment Method" 
+                                           Binding="{Binding PaymentMethod}" 
+                                           Width="120"/>
+                        <DataGridTextColumn Header="Processed By" 
+                                           Binding="{Binding CashierName}" 
+                                           Width="120"/>
+                        <DataGridTextColumn Header="Role" 
+                                           Binding="{Binding CashierRole}" 
+                                           Width="90"/>
+                        <DataGridTemplateColumn Width="180">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="View Details"
+                                                Command="{Binding DataContext.ViewTransactionDetailsCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                MinHeight="40" MinWidth="100"
+                                                Margin="0,0,8,0"/>
+                                        <Button Content="Delete"
+                                                Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                CommandParameter="{Binding}"
+                                                MinHeight="40" MinWidth="70"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
 
                 <!-- Pagination Controls -->
-                <Border Grid.Row="4" Style="{StaticResource CardStyle}" Margin="0,0,0,20">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                <Grid Grid.Row="4" Margin="0,0,0,15">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-                        <!-- Items per page -->
-                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <TextBlock Text="Show:" Style="{StaticResource FilterLabelStyle}"/>
-                            <ComboBox ItemsSource="{Binding AvailablePageSizes, Mode=OneWay}" 
-                                     SelectedItem="{Binding PageSize}" 
-                                     Style="{StaticResource InputControlStyle}"
-                                     MinWidth="80" Margin="0,0,8,0"/>
-                            <TextBlock Text="per page" Style="{StaticResource FilterLabelStyle}"/>
-                        </StackPanel>
+                    <!-- Page Size Selector -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="Items per page:" VerticalAlignment="Center" 
+                                  Margin="0,0,8,0"/>
+                        <ComboBox ItemsSource="{Binding AvailablePageSizes}" 
+                                 SelectedItem="{Binding PageSize}" 
+                                 MinHeight="40" MinWidth="80"/>
+                    </StackPanel>
 
-                        <!-- Navigation -->
-                        <StackPanel Grid.Column="1" 
-                                   HorizontalAlignment="Center" 
-                                   Orientation="Horizontal">
-                            <Button Content="◀ Previous" 
-                                   Command="{Binding PreviousPageCommand}" 
-                                   Style="{StaticResource ProfessionalButtonStyle}"
-                                   Margin="4,0"/>
-                            <Border Background="#F8F9FA" 
-                                   BorderBrush="#DEE2E6" 
-                                   BorderThickness="1"
-                                   CornerRadius="4"
-                                   MinWidth="60" MinHeight="40" 
-                                   Margin="12,0">
-                                <TextBlock Text="{Binding CurrentPage, Mode=OneWay}" 
-                                          VerticalAlignment="Center"
-                                          HorizontalAlignment="Center"
-                                          FontWeight="Bold"
-                                          FontSize="14"/>
-                            </Border>
-                            <Button Content="Next ▶" 
-                                   Command="{Binding NextPageCommand}" 
-                                   Style="{StaticResource ProfessionalButtonStyle}"
-                                   Margin="4,0"/>
-                        </StackPanel>
+                    <!-- Page Navigation Controls -->
+                    <StackPanel Grid.Column="1" 
+                               HorizontalAlignment="Center" 
+                               Orientation="Horizontal">
+                        <Button Content="◀" 
+                               Command="{Binding PreviousPageCommand}" 
+                               MinHeight="48" MinWidth="48"
+                               Margin="4,0"/>
+                        <Border MinWidth="48" MinHeight="48" Margin="8,0">
+                            <TextBlock Text="{Binding CurrentPage}" 
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center"/>
+                        </Border>
+                        <Button Content="▶" 
+                               Command="{Binding NextPageCommand}" 
+                               MinHeight="48" MinWidth="48"
+                               Margin="4,0"/>
+                    </StackPanel>
 
-                        <!-- Page Info -->
-                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource FilterLabelStyle}">
-                                <Run Text="Page"/>
-                                <Run Text="{Binding CurrentPage, Mode=OneWay}"/>
-                                <Run Text="of"/>
-                                <Run Text="{Binding TotalPages, Mode=OneWay}"/>
-                                <Run Text="("/>
-                                <Run Text="{Binding TotalTransactions, Mode=OneWay}"/>
-                                <Run Text="total)"/>
-                            </TextBlock>
-                        </StackPanel>
-                    </Grid>
-                </Border>
+                    <!-- Page Information -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <TextBlock Text="Page " VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center"/>
+                        <TextBlock Text=" of " VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TotalPages}" VerticalAlignment="Center"/>
+                        <TextBlock Text=" (" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TotalTransactions}" VerticalAlignment="Center"/>
+                        <TextBlock Text=" total)" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
 
-                <!-- Error Message -->
-                <Border Grid.Row="5"
-                       Background="#F8D7DA" 
-                       BorderBrush="#F5C2C7" 
-                       BorderThickness="1"
-                       CornerRadius="6"
-                       Padding="16"
-                       Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
-                    <TextBlock Text="{Binding ErrorMessage}"
-                              Foreground="#721C24"
-                              FontWeight="Medium"/>
-                </Border>
+                <!-- Error Message Box -->
+                <TextBlock Grid.Row="5"
+                          Text="{Binding ErrorMessage}"
+                          Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                          Margin="0,10,0,0"
+                          Padding="10"/>
 
                 <!-- Loading Overlay -->
                 <Border Grid.Row="0" 
                        Grid.RowSpan="6" 
-                       Background="#80FFFFFF"
+                       Background="#80000000"
                        Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <Border Background="White"
-                           BorderBrush="#DEE2E6"
-                           BorderThickness="1"
-                           CornerRadius="8"
-                           Padding="32"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center">
-                        <StackPanel>
-                            <ProgressBar IsIndeterminate="True" 
-                                        Width="200" Height="4" 
-                                        Margin="0,0,0,16"/>
-                            <TextBlock Text="Loading transactions..." 
-                                      HorizontalAlignment="Center"
-                                      FontSize="14"
-                                      Foreground="#6C757D"/>
-                        </StackPanel>
-                    </Border>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" Width="150" Height="8" Margin="0,0,0,14"/>
+                        <TextBlock Text="Loading..." Foreground="White" HorizontalAlignment="Center"/>
+                    </StackPanel>
                 </Border>
             </Grid>
         </ScrollViewer>

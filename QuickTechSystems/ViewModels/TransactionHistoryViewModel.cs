@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using QuickTechSystems.WPF.Commands;
+
 using QuickTechSystems.Application.Helpers;
 
 namespace QuickTechSystems.WPF.ViewModels
@@ -35,9 +36,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private TransactionDTO _selectedTransaction;
         private bool _isDisposed;
         private CancellationTokenSource _cts;
-        private readonly IEmployeeService _employeeService;
-        private ObservableCollection<EmployeeDTO> _employees;
-        private EmployeeDTO? _selectedEmployee;
 
         private ObservableCollection<TransactionDTO> _transactions;
         private ObservableCollection<CategoryDTO> _categories;
@@ -54,6 +52,7 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool _isDateRangeValid = true;
         private int _totalTransactions;
 
+        // Pagination properties
         private int _currentPage = 1;
         private int _pageSize = 10;
         private int _totalPages;
@@ -82,25 +81,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _categories;
             private set => SetProperty(ref _categories, value);
         }
-        public ObservableCollection<EmployeeDTO> Employees
-        {
-            get => _employees;
-            private set => SetProperty(ref _employees, value);
-        }
 
-        public EmployeeDTO? SelectedEmployee
-        {
-            get => _selectedEmployee;
-            set
-            {
-                if (SetProperty(ref _selectedEmployee, value))
-                {
-                    _currentPage = 1;
-                    OnPropertyChanged(nameof(CurrentPage));
-                    _ = SafeLoadDataAsync();
-                }
-            }
-        }
         public CategoryDTO? SelectedCategory
         {
             get => _selectedCategory;
@@ -108,7 +89,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedCategory, value))
                 {
-                    _currentPage = 1;
+                    _currentPage = 1; // Reset to first page when changing category
                     OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
@@ -147,7 +128,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _startDate, value))
                 {
                     ValidateDateRange();
-                    _currentPage = 1;
+                    _currentPage = 1; // Reset to first page when changing date range
                     OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
@@ -162,7 +143,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _endDate, value))
                 {
                     ValidateDateRange();
-                    _currentPage = 1;
+                    _currentPage = 1; // Reset to first page when changing date range
                     OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
@@ -186,7 +167,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                 {
-                    _currentPage = 1;
+                    _currentPage = 1; // Reset to first page when searching
                     OnPropertyChanged(nameof(CurrentPage));
                     ApplyFilters();
                 }
@@ -211,6 +192,7 @@ namespace QuickTechSystems.WPF.ViewModels
             private set => SetProperty(ref _errorMessage, value);
         }
 
+        // Pagination properties
         public int CurrentPage
         {
             get => _currentPage;
@@ -234,7 +216,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _pageSize, value))
                 {
-                    _currentPage = 1;
+                    _currentPage = 1; // Reset to first page when changing page size
                     OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
@@ -288,6 +270,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand ClearFiltersCommand { get; }
         public ICommand DeleteTransactionCommand { get; }
 
+        // Pagination commands
         public ICommand NextPageCommand { get; }
         public ICommand PreviousPageCommand { get; }
         public ICommand GoToPageCommand { get; }
@@ -300,7 +283,6 @@ namespace QuickTechSystems.WPF.ViewModels
      ICategoryService categoryService,
      IBusinessSettingsService businessSettingsService,
      IDbContextFactory<ApplicationDbContext> dbContextFactory,
-     IEmployeeService employeeService,
      IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _instance = this;
@@ -308,11 +290,9 @@ namespace QuickTechSystems.WPF.ViewModels
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _dbContextFactory = dbContextFactory ?? throw new ArgumentNullException(nameof(dbContextFactory));
             _businessSettingsService = businessSettingsService ?? throw new ArgumentNullException(nameof(businessSettingsService));
-            _employeeService = employeeService ?? throw new ArgumentNullException(nameof(employeeService));
             _transactions = new ObservableCollection<TransactionDTO>();
             _filteredTransactions = new ObservableCollection<TransactionDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
-            _employees = new ObservableCollection<EmployeeDTO>();
             _transactionChangedHandler = HandleTransactionChanged;
             _cts = new CancellationTokenSource();
             _pageNumbers = new ObservableCollection<int>();
@@ -325,9 +305,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 async transaction => await DeleteTransactionAsync(transaction),
                 CanDeleteTransaction);
 
+
             ViewTransactionDetailsCommand = new AsyncRelayCommand<TransactionDTO>(
     async transaction => await ShowTransactionDetailsAsync(transaction),
     CanShowTransactionDetails);
+            // Pagination commands
             NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
             PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
             GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
@@ -342,20 +324,23 @@ namespace QuickTechSystems.WPF.ViewModels
             int startPage = Math.Max(1, CurrentPage - 2);
             int endPage = Math.Min(TotalPages, CurrentPage + 2);
 
+            // Always show first page
             if (startPage > 1)
             {
                 visiblePages.Add(1);
-                if (startPage > 2) visiblePages.Add(-1);
+                if (startPage > 2) visiblePages.Add(-1); // -1 represents ellipsis
             }
 
+            // Add current range
             for (int i = startPage; i <= endPage; i++)
             {
                 visiblePages.Add(i);
             }
 
+            // Always show last page
             if (endPage < TotalPages)
             {
-                if (endPage < TotalPages - 1) visiblePages.Add(-1);
+                if (endPage < TotalPages - 1) visiblePages.Add(-1); // -1 represents ellipsis
                 visiblePages.Add(TotalPages);
             }
 
@@ -368,11 +353,11 @@ namespace QuickTechSystems.WPF.ViewModels
             IsDateRangeValid = StartDate <= EndDate;
             ErrorMessage = !IsDateRangeValid ? "Start date must be before or equal to end date" : string.Empty;
         }
-
         private async Task EnsureExchangeRateLoaded()
         {
             try
             {
+                // Try to get exchange rate from business settings
                 var rateSetting = await _businessSettingsService.GetByKeyAsync("ExchangeRate");
                 if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate) && rate > 0)
                 {
@@ -381,69 +366,32 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
+                    // Use a default value as fallback
                     CurrencyHelper.UpdateExchangeRate(100000m);
                     Debug.WriteLine("Using default exchange rate: 100000");
                 }
 
+                // Force a small calculation to verify
                 decimal test = CurrencyHelper.ConvertToLBP(1);
                 Debug.WriteLine($"Verification: 1 USD = {test} LBP");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading exchange rate: {ex.Message}");
+                // Ensure a fallback value is set
                 CurrencyHelper.UpdateExchangeRate(100000m);
             }
         }
-
         private async Task InitializeAsync()
         {
             try
             {
                 await LoadCategoriesAsync();
-                await LoadEmployeesAsync();
                 await SafeLoadDataAsync();
             }
             catch (Exception ex)
             {
                 HandleError("Initialization error", ex);
-            }
-        }
-
-        private async Task LoadEmployeesAsync()
-        {
-            if (!await _operationLock.WaitAsync(0))
-            {
-                Debug.WriteLine("LoadEmployeesAsync skipped - operation in progress");
-                return;
-            }
-
-            try
-            {
-                IsLoading = true;
-                ErrorMessage = string.Empty;
-
-                try
-                {
-                    var employees = await _employeeService.GetAllAsync();
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        Employees = new ObservableCollection<EmployeeDTO>(
-                            new[] { new EmployeeDTO { EmployeeId = 0, FirstName = "All", LastName = "Employees" } }
-                            .Concat(employees.Where(e => e.IsActive))
-                        );
-                        SelectedEmployee = Employees.First();
-                    });
-                }
-                catch (Exception ex)
-                {
-                    HandleError("Error loading employees", ex);
-                }
-            }
-            finally
-            {
-                IsLoading = false;
-                _operationLock.Release();
             }
         }
 
@@ -456,33 +404,39 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = true;
                 ErrorMessage = string.Empty;
 
+                // Set the selected transaction
                 SelectedTransaction = transaction;
 
+                // Load transaction details if they're not already loaded
                 if (transaction.Details == null || !transaction.Details.Any())
                 {
                     var loadedTransaction = await _transactionService.GetByIdAsync(transaction.TransactionId);
                     if (loadedTransaction != null)
                     {
                         transaction.Details = loadedTransaction.Details;
+                        // Update the selected transaction with loaded details
                         SelectedTransaction = transaction;
                     }
                 }
 
+                // Show the transaction details popup
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     var popup = new QuickTechSystems.Views.TransactionDetailsPopup();
                     popup.DataContext = SelectedTransaction;
 
+                    // Create a container for the popup in fullscreen
                     var overlayWindow = new Window
                     {
                         Title = $"Transaction #{transaction.TransactionId} Details",
                         Content = popup,
                         WindowState = WindowState.Maximized,
-                        WindowStyle = WindowStyle.None,
+                        WindowStyle = WindowStyle.None, // Remove window chrome for fullscreen
                         ResizeMode = ResizeMode.NoResize,
                         ShowInTaskbar = false
                     };
 
+                    // Close the window with Escape key
                     overlayWindow.KeyDown += (s, e) =>
                     {
                         if (e.Key == Key.Escape)
@@ -501,12 +455,12 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = false;
             }
         }
-
         private bool CanDeleteTransaction(TransactionDTO? transaction)
         {
             return transaction != null && !IsLoading && !IsRefreshing;
         }
 
+        // Add this method to handle refresh requests with proper DbContext scope
         public static async Task SafeRefreshAsync()
         {
             await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -516,8 +470,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     var instance = _instance;
                     if (instance == null) return;
 
+                    // Wait a short delay to allow any ongoing operations to complete
                     await Task.Delay(1000);
 
+                    // Execute refresh on UI thread
+                    // Use RefreshCommand instead of directly calling methods to respect
+                    // internal locking mechanisms already in the ViewModel
                     if (instance.RefreshCommand.CanExecute(null))
                     {
                         instance.RefreshCommand.Execute(null);
@@ -529,7 +487,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             });
         }
-
         private async Task DeleteTransactionAsync(TransactionDTO? transaction)
         {
             if (transaction == null) return;
@@ -545,6 +502,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = true;
                 ErrorMessage = string.Empty;
 
+                // Confirm deletion
                 var result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     return MessageBox.Show(
@@ -560,18 +518,21 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
+                // Delete transaction
                 bool success = await _transactionService.DeleteAsync(transaction.TransactionId);
 
                 if (success)
                 {
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        // Remove from collections
                         if (Transactions.Contains(transaction))
                             Transactions.Remove(transaction);
 
                         if (FilteredTransactions.Contains(transaction))
                             FilteredTransactions.Remove(transaction);
 
+                        // Show success message
                         MessageBox.Show(
                             GetOwnerWindow(),
                             $"Transaction #{transaction.TransactionId} has been deleted successfully.",
@@ -580,6 +541,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxImage.Information);
                     });
 
+                    // Refresh data to ensure pagination is correct and update totals for entire date range
                     await SafeLoadDataAsync();
                 }
                 else
@@ -597,7 +559,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-
         private async Task LoadCategoriesAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -654,6 +615,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
+            // Create a new CancellationTokenSource for this operation
             _cts?.Cancel();
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
@@ -665,28 +627,32 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
+                    // Add a timeout for the operation
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
+                    // Get the category ID filter
                     int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
 
-                    int? employeeId = SelectedEmployee?.EmployeeId > 0 ? SelectedEmployee.EmployeeId : null;
-
+                    // Retrieve paginated transactions
                     var (transactions, totalCount) = await _transactionService.GetByDateRangePagedAsync(
-                        StartDate, EndDate, CurrentPage, PageSize, categoryId, employeeId);
+                        StartDate, EndDate, CurrentPage, PageSize, categoryId);
 
                     if (linkedCts.Token.IsCancellationRequested) return;
 
+                    // Get summary data for the entire date range (not just current page)
                     var summary = await _transactionService.GetTransactionSummaryByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
                     var categorySales = await _transactionService.GetCategorySalesByDateRangeAsync(StartDate, EndDate);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
+                    // Calculate profit for the entire date range
                     var totalProfit = await _transactionService.GetTransactionProfitByDateRangeAsync(
-                        StartDate, EndDate, categoryId, employeeId);
+                        StartDate, EndDate, categoryId);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
+                    // Calculate total pages
                     int calculatedTotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
 
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -736,6 +702,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
 
                 FilteredTransactions = new ObservableCollection<TransactionDTO>(filtered);
+
+                // Don't recalculate totals - we're using the full date range totals
+                // CalculateTotals();
             }
             catch (Exception ex)
             {
@@ -747,13 +716,13 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             SearchText = string.Empty;
             SelectedCategory = Categories.First();
-            SelectedEmployee = Employees.First();
             StartDate = DateTime.Today;
             EndDate = DateTime.Today;
             CurrentPage = 1;
             ApplyFilters();
         }
 
+        // This method is kept for reference but no longer used for main calculations
         private void CalculateTotals()
         {
             try
@@ -761,16 +730,25 @@ namespace QuickTechSystems.WPF.ViewModels
                 var filteredSales = FilteredTransactions.Sum(t => t.TotalAmount);
                 var filteredProfit = FilteredTransactions.Sum(t =>
                 {
+                    // Skip if transaction has no details
                     if (t.Details == null || !t.Details.Any())
                         return 0;
 
+                    // Skip profit calculation if total amount is zero
                     if (t.TotalAmount == 0)
                         return 0;
 
+                    // Calculate total purchase cost
                     decimal purchaseCost = t.Details.Sum(d => d.PurchasePrice * d.Quantity);
 
+                    // Use transaction total amount (already includes discounts) instead of summing details
                     return t.TotalAmount - purchaseCost;
                 });
+
+                // Only update if we're supposed to show filtered values instead of overall totals
+                // Uncomment these if you want to show filtered values instead
+                // TotalSales = filteredSales;
+                // TotalProfit = filteredProfit;
             }
             catch (Exception ex)
             {
@@ -805,38 +783,45 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private Window GetOwnerWindow()
         {
+            // Try to get the active window first
             var activeWindow = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive);
             if (activeWindow != null)
                 return activeWindow;
 
+            // Fall back to the main window
             var mainWindow = System.Windows.Application.Current.MainWindow;
             if (mainWindow != null && mainWindow.IsLoaded)
                 return mainWindow;
 
+            // Last resort, get any window that's visible
             return System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible)
                    ?? System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault();
         }
 
+        // Prevent excessive event handling with throttling
         private DateTime _lastTransactionChangedTime = DateTime.MinValue;
         private object _eventLock = new object();
 
+        // From TransactionHistoryViewModel.cs
         private async void HandleTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
         {
+            // Skip if loading or refreshing
             if (IsLoading || IsRefreshing) return;
 
+            // Throttle events
             lock (_eventLock)
             {
                 var now = DateTime.Now;
                 if ((now - _lastTransactionChangedTime).TotalMilliseconds < 500)
                 {
-                    return;
+                    return; // Ignore events that come too quickly
                 }
                 _lastTransactionChangedTime = now;
             }
 
             try
             {
-                await Task.Delay(200);
+                await Task.Delay(200); // Small delay to group multiple quick changes
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
                     await SafeLoadDataAsync();
@@ -852,6 +837,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             Debug.WriteLine($"{message}: {ex}");
 
+            // Handle specific database errors
             if (ex.Message.Contains("A second operation was started") ||
                 (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
             {
@@ -867,6 +853,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 ErrorMessage = $"{message}: {ex.Message}";
             }
 
+            // Clear error after delay
             Task.Run(async () =>
             {
                 await Task.Delay(5000);
@@ -879,6 +866,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 });
             });
 
+            // If this is a critical error that shows a dialog, ensure it has a proper owner
             if (message.Contains("critical", StringComparison.OrdinalIgnoreCase))
             {
                 var ownerWindow = GetOwnerWindow();
@@ -954,6 +942,7 @@ namespace QuickTechSystems.WPF.ViewModels
                     FileName = $"Transaction_History_{DateTime.Now:yyyyMMdd}"
                 };
 
+                // Use InvokeAsync to show the dialog on the UI thread
                 bool? result = await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     saveFileDialog.ShowDialog());
 
@@ -985,6 +974,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             $"\"{transaction.CashierName}\"," +
                             $"\"{categories}\"");
 
+                        // Add detailed items if present
                         if (transaction.Details != null)
                         {
                             foreach (var detail in transaction.Details)
@@ -1038,39 +1028,326 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = true;
                 ErrorMessage = string.Empty;
 
-                decimal totalSales = 0;
-                int transactionCount = 0;
+                // Ensure exchange rate is loaded
+                await EnsureExchangeRateLoaded();
 
-                try
+                // Get all transactions for the selected date range - not just the current page
+                int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
+                var allTransactionsInRange = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
+
+                // Apply category filter if needed
+                if (categoryId.HasValue && categoryId.Value > 0)
                 {
-                    totalSales = await _transactionService.GetTransactionSummaryByDateRangeAsync(StartDate, EndDate);
-                    transactionCount = await _transactionService.GetTransactionCountByDateRangeAsync(StartDate, EndDate);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error loading summary data: {ex.Message}");
-                    totalSales = TotalSales;
-                    transactionCount = TotalTransactions;
+                    allTransactionsInRange = allTransactionsInRange.Where(t =>
+                        t.Details.Any(d => d.CategoryId == categoryId.Value)).ToList();
                 }
 
+                // Apply search filter if needed
+                var reportTransactions = allTransactionsInRange.AsEnumerable();
+                if (!string.IsNullOrWhiteSpace(SearchText))
+                {
+                    reportTransactions = reportTransactions.Where(t =>
+                        (t.CustomerName?.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                        t.TransactionId.ToString().Contains(SearchText) ||
+                        (t.Details?.Any(d => d.ProductName.Contains(SearchText, StringComparison.OrdinalIgnoreCase)) ?? false) ||
+                        t.CashierName.Contains(SearchText, StringComparison.OrdinalIgnoreCase));
+                }
+
+                // Convert to list for reporting
+                var transactionsForReport = reportTransactions.ToList();
+
+                if (!transactionsForReport.Any())
+                {
+                    await ShowErrorMessageAsync("No transactions to print after applying filters");
+                    return;
+                }
+
+                // Get the owner window
+                var ownerWindow = GetOwnerWindow();
+
+                // Create print dialog
                 var printDialog = new PrintDialog();
+
                 if (await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => printDialog.ShowDialog() == true))
                 {
-                    try
+                    var document = new FlowDocument
                     {
-                        var document = CreateSimpleSummaryDocument(totalSales, transactionCount);
-                        printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, "Transaction Summary");
+                        PagePadding = new Thickness(20),
+                        FontFamily = new FontFamily("Arial"),
+                        PageWidth = 280,
+                        ColumnWidth = 280
+                    };
 
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                        {
-                            MessageBox.Show(GetOwnerWindow(), "Print completed successfully.", "Print Status", MessageBoxButton.OK, MessageBoxImage.Information);
-                        });
-                    }
-                    catch (Exception printEx)
+                    // Report Header
+                    var reportHeader = new Paragraph(new Run("Transaction Summary Report"))
                     {
-                        Debug.WriteLine($"Print error: {printEx.Message}");
-                        await ShowErrorMessageAsync("Print failed. Please try again.");
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        TextAlignment = TextAlignment.Center,
+                        Margin = new Thickness(0, 0, 0, 10)
+                    };
+                    document.Blocks.Add(reportHeader);
+
+                    // Date Range
+                    var dateRange = new Paragraph
+                    {
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 10,
+                        TextAlignment = TextAlignment.Center
+                    };
+                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
+                    document.Blocks.Add(dateRange);
+
+                    // Filter Information if any filters are applied
+                    if (!string.IsNullOrWhiteSpace(SearchText) || (categoryId.HasValue && categoryId.Value > 0))
+                    {
+                        var filterInfo = new Paragraph
+                        {
+                            Margin = new Thickness(0, 0, 0, 10),
+                            FontSize = 9,
+                            TextAlignment = TextAlignment.Center
+                        };
+
+                        var filterText = "Filters applied: ";
+                        if (!string.IsNullOrWhiteSpace(SearchText))
+                        {
+                            filterText += $"Search: \"{SearchText}\"";
+                        }
+
+                        if (categoryId.HasValue && categoryId.Value > 0)
+                        {
+                            if (filterText.Length > "Filters applied: ".Length)
+                                filterText += ", ";
+                            filterText += $"Category: {SelectedCategory?.Name}";
+                        }
+
+                        filterInfo.Inlines.Add(new Run(filterText));
+                        document.Blocks.Add(filterInfo);
                     }
+
+                    // Transaction Count
+                    var countInfo = new Paragraph
+                    {
+                        Margin = new Thickness(0, 0, 0, 10),
+                        FontSize = 9,
+                        TextAlignment = TextAlignment.Center
+                    };
+                    countInfo.Inlines.Add(new Run($"Showing {transactionsForReport.Count} of {TotalTransactions} total transactions"));
+                    document.Blocks.Add(countInfo);
+
+                    // Currency Notice
+                    var currencyNotice = new Paragraph(new Run("All amounts in Lebanese Pounds (LBP)"))
+                    {
+                        FontSize = 10,
+                        FontWeight = FontWeights.Normal,
+                        TextAlignment = TextAlignment.Center,
+                        Margin = new Thickness(0, 0, 0, 10),
+                        Foreground = Brushes.DarkGreen
+                    };
+                    document.Blocks.Add(currencyNotice);
+
+                    // Split transactions into discounted and non-discounted
+                    var discountedTransactions = transactionsForReport.Where(t =>
+                        t.Details?.Any(d => d.Discount > 0) == true).ToList();
+
+                    var nonDiscountedTransactions = transactionsForReport.Where(t =>
+                        t.Details?.All(d => d.Discount <= 0) == true || t.Details == null).ToList();
+
+                    // Calculate totals for different transaction types
+                    decimal discountedSalesTotal = discountedTransactions.Sum(t => t.TotalAmount);
+                    decimal nonDiscountedSalesTotal = nonDiscountedTransactions.Sum(t => t.TotalAmount);
+                    decimal totalSalesAmount = transactionsForReport.Sum(t => t.TotalAmount);
+
+                    // Calculate total discount amount
+                    decimal totalDiscountAmount = discountedTransactions
+                        .SelectMany(t => t.Details ?? Enumerable.Empty<TransactionDetailDTO>())
+                        .Sum(d => d.Discount);
+
+                    // Calculate total profit
+                    decimal totalProfit = transactionsForReport.Sum(t =>
+                    {
+                        if (t.Details == null || !t.Details.Any() || t.TotalAmount == 0)
+                            return 0;
+
+                        decimal purchaseCost = t.Details.Sum(d => d.PurchasePrice * d.Quantity);
+                        return t.TotalAmount - purchaseCost;
+                    });
+
+                    // Calculate LBP values
+                    decimal lbpTotalSales = CurrencyHelper.ConvertToLBP(totalSalesAmount);
+                    decimal lbpTotalProfit = CurrencyHelper.ConvertToLBP(totalProfit);
+                    decimal lbpDiscountedSales = CurrencyHelper.ConvertToLBP(discountedSalesTotal);
+                    decimal lbpNonDiscountedSales = CurrencyHelper.ConvertToLBP(nonDiscountedSalesTotal);
+                    decimal lbpTotalDiscountAmount = CurrencyHelper.ConvertToLBP(totalDiscountAmount);
+
+                    // Rest of the code remains the same, using the proper transaction sets
+
+                    // Add a section for non-discounted transactions
+                    if (nonDiscountedTransactions.Any())
+                    {
+                        var nonDiscountedSection = new Section() { Margin = new Thickness(0, 0, 0, 15) };
+
+                        var nonDiscountedHeader = new Paragraph(new Bold(new Run("REGULAR PRICE TRANSACTIONS")))
+                        {
+                            FontSize = 12,
+                            Background = Brushes.LightGray,
+                            Padding = new Thickness(5),
+                            TextAlignment = TextAlignment.Center,
+                            Margin = new Thickness(0, 0, 0, 10)
+                        };
+                        nonDiscountedSection.Blocks.Add(nonDiscountedHeader);
+
+                        // Add summary for non-discounted with bold values
+                        var nonDiscountedSummary = new Paragraph
+                        {
+                            Margin = new Thickness(0, 0, 0, 10),
+                            TextAlignment = TextAlignment.Center
+                        };
+
+                        // Count with bold text
+                        nonDiscountedSummary.Inlines.Add(new Run("Count: ") { FontSize = 10 });
+                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"{nonDiscountedTransactions.Count}")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkBlue
+                        }));
+
+                        nonDiscountedSummary.Inlines.Add(new LineBreak());
+
+                        // Sales with bold text
+                        nonDiscountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
+                        nonDiscountedSummary.Inlines.Add(new Bold(new Run($"{lbpNonDiscountedSales:N0} LBP")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkGreen
+                        }));
+
+                        nonDiscountedSection.Blocks.Add(nonDiscountedSummary);
+
+                        // Create a table for non-discounted transactions by product
+                        CreateProductTable(nonDiscountedSection, nonDiscountedTransactions);
+
+                        document.Blocks.Add(nonDiscountedSection);
+                    }
+
+                    // Add a section for discounted transactions
+                    if (discountedTransactions.Any())
+                    {
+                        var discountedSection = new Section() { Margin = new Thickness(0, 0, 0, 15) };
+
+                        var discountedHeader = new Paragraph(new Bold(new Run("DISCOUNTED TRANSACTIONS")))
+                        {
+                            FontSize = 12,
+                            Background = Brushes.LightGray,
+                            Padding = new Thickness(5),
+                            TextAlignment = TextAlignment.Center,
+                            Margin = new Thickness(0, 0, 0, 10)
+                        };
+                        discountedSection.Blocks.Add(discountedHeader);
+
+                        // Add summary for discounted with bold values
+                        var discountedSummary = new Paragraph
+                        {
+                            Margin = new Thickness(0, 0, 0, 10),
+                            TextAlignment = TextAlignment.Center
+                        };
+
+                        // Count with bold text
+                        discountedSummary.Inlines.Add(new Run("Count: ") { FontSize = 10 });
+                        discountedSummary.Inlines.Add(new Bold(new Run($"{discountedTransactions.Count}")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkBlue
+                        }));
+
+                        discountedSummary.Inlines.Add(new LineBreak());
+
+                        // Sales with bold text
+                        discountedSummary.Inlines.Add(new Run("Sales: ") { FontSize = 10 });
+                        discountedSummary.Inlines.Add(new Bold(new Run($"{lbpDiscountedSales:N0} LBP")
+                        {
+                            FontSize = 12,
+                            Foreground = Brushes.DarkGreen
+                        }));
+
+                        discountedSummary.Inlines.Add(new LineBreak());
+
+                        // Discount amount - regular size
+                        discountedSummary.Inlines.Add(new Run($"Total Discount: {lbpTotalDiscountAmount:N0} LBP")
+                        {
+                            FontSize = 10,
+                            Foreground = Brushes.Crimson
+                        });
+
+                        discountedSection.Blocks.Add(discountedSummary);
+
+                        // Create a table for discounted transactions by product
+                        CreateProductTable(discountedSection, discountedTransactions);
+
+                        // Just add the section to the document (without adding the summary again)
+                        document.Blocks.Add(discountedSection);
+                    }
+
+                    // TOTAL SALES SECTION - Added at the end as requested
+                    var totalSalesSection = new Section() { Margin = new Thickness(0, 10, 0, 15) };
+
+                    // Add a divider
+                    totalSalesSection.Blocks.Add(new Paragraph(new Run(""))
+                    {
+                        BorderBrush = Brushes.DarkGray,
+                        BorderThickness = new Thickness(0, 1, 0, 0),
+                        Margin = new Thickness(0, 0, 0, 10)
+                    });
+
+                    // Total sales paragraph
+                    var totalSalesParagraph = new Paragraph
+                    {
+                        TextAlignment = TextAlignment.Center,
+                        Margin = new Thickness(0, 5, 0, 5),
+                    };
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL SALES: ")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.Black
+                    }));
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalSales:N0} LBP")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.DarkGreen
+                    }));
+
+                    totalSalesParagraph.Inlines.Add(new LineBreak());
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run("TOTAL PROFIT: ")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.Black
+                    }));
+
+                    totalSalesParagraph.Inlines.Add(new Bold(new Run($"{lbpTotalProfit:N0} LBP")
+                    {
+                        FontSize = 12,
+                        Foreground = Brushes.DarkBlue
+                    }));
+
+                    totalSalesSection.Blocks.Add(totalSalesParagraph);
+                    document.Blocks.Add(totalSalesSection);
+
+                    // Footer
+                    var footer = new Paragraph(new Run($"Generated: {DateTime.Now:g}"))
+                    {
+                        FontStyle = FontStyles.Italic,
+                        TextAlignment = TextAlignment.Right,
+                        Margin = new Thickness(0, 10, 0, 0),
+                        FontSize = 8
+                    };
+                    document.Blocks.Add(footer);
+
+                    // Print the document
+                    printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator,
+                        "Transaction Summary Report");
                 }
             }
             catch (Exception ex)
@@ -1084,63 +1361,154 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        private FlowDocument CreateSimpleSummaryDocument(decimal totalSales, int transactionCount)
+        private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
+            bool isBold = false, Brush? foreground = null)
         {
-            var document = new FlowDocument
+            var row = new TableRow();
+
+            // Label cell
+            var labelCell = new TableCell();
+            var labelParagraph = new Paragraph { FontSize = fontSize };
+            var labelRun = new Run(label);
+            if (isBold) labelRun.FontWeight = FontWeights.Bold;
+            labelParagraph.Inlines.Add(labelRun);
+            labelCell.Blocks.Add(labelParagraph);
+            row.Cells.Add(labelCell);
+
+            // Value cell
+            var valueCell = new TableCell();
+            var valueParagraph = new Paragraph
             {
-                PagePadding = new Thickness(40),
-                FontFamily = new FontFamily("Arial"),
-                FontSize = 12
+                FontSize = fontSize,
+                TextAlignment = TextAlignment.Right
             };
+            var valueRun = new Run(value);
+            if (isBold) valueRun.FontWeight = FontWeights.Bold;
+            if (foreground != null) valueRun.Foreground = foreground;
+            valueParagraph.Inlines.Add(valueRun);
+            valueCell.Blocks.Add(valueParagraph);
+            row.Cells.Add(valueCell);
 
-            var header = new Paragraph(new Run("Sales Summary Report"))
-            {
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 30)
-            };
-            document.Blocks.Add(header);
-
-            var dateInfo = new Paragraph(new Run($"Period: {StartDate:MMM dd, yyyy} to {EndDate:MMM dd, yyyy}"))
-            {
-                FontSize = 14,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 20)
-            };
-            document.Blocks.Add(dateInfo);
-
-            var summaryTable = new Table { CellSpacing = 0, Margin = new Thickness(0, 20, 0, 0) };
-            summaryTable.Columns.Add(new TableColumn { Width = new GridLength(2, GridUnitType.Star) });
-            summaryTable.Columns.Add(new TableColumn { Width = new GridLength(1, GridUnitType.Star) });
-
-            var rowGroup = new TableRowGroup();
-
-            var salesRow = new TableRow();
-            salesRow.Cells.Add(new TableCell(new Paragraph(new Run("Total Sales:")) { FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(5) }));
-            salesRow.Cells.Add(new TableCell(new Paragraph(new Run($"${totalSales:F2} USD")) { FontSize = 14, FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Right, Foreground = Brushes.DarkGreen, Margin = new Thickness(5) }));
-            rowGroup.Rows.Add(salesRow);
-
-            var countRow = new TableRow();
-            countRow.Cells.Add(new TableCell(new Paragraph(new Run("Total Transactions:")) { FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(5) }));
-            countRow.Cells.Add(new TableCell(new Paragraph(new Run(transactionCount.ToString())) { FontSize = 14, FontWeight = FontWeights.Bold, TextAlignment = TextAlignment.Right, Foreground = Brushes.DarkBlue, Margin = new Thickness(5) }));
-            rowGroup.Rows.Add(countRow);
-
-            summaryTable.RowGroups.Add(rowGroup);
-            document.Blocks.Add(summaryTable);
-
-            var footer = new Paragraph(new Run($"Generated: {DateTime.Now:g}"))
-            {
-                FontStyle = FontStyles.Italic,
-                TextAlignment = TextAlignment.Right,
-                Margin = new Thickness(0, 40, 0, 0),
-                FontSize = 10
-            };
-            document.Blocks.Add(footer);
-
-            return document;
+            table.RowGroups[0].Rows.Add(row);
         }
 
+        // Helper method to create product summary tables
+        private void CreateProductTable(Section section, List<TransactionDTO> transactions)
+        {
+            // Create a flattened list of transaction details
+            var transactionItems = new List<(string ProductName, int Quantity, decimal FinalUnitPrice,
+                decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
+
+            foreach (var transaction in transactions)
+            {
+                if (transaction.Details == null) continue;
+
+                foreach (var detail in transaction.Details)
+                {
+                    // Calculate the actual unit price after discount
+                    decimal actualUnitPrice = detail.Quantity > 0
+                        ? (detail.Total / detail.Quantity)
+                        : 0;
+
+                    // Calculate profit per unit (after discount)
+                    decimal profitPerUnit = actualUnitPrice - detail.PurchasePrice;
+
+                    transactionItems.Add((
+                        detail.ProductName,
+                        (int)detail.Quantity, // Explicit cast here
+                        actualUnitPrice,
+                        detail.Total,
+                        profitPerUnit,
+                        detail.Discount
+                    ));
+                }
+            }
+
+            // Group the flattened items by product name
+            var groupedProducts = transactionItems
+                .GroupBy(item => item.ProductName)
+                .Select(g => new
+                {
+                    ProductName = g.Key,
+                    TotalQuantity = g.Sum(item => item.Quantity),
+                    AverageUnitPrice = g.Sum(item => item.Total) / g.Sum(item => item.Quantity),
+                    TotalAmount = g.Sum(item => item.Total),
+                    TotalProfit = g.Sum(item => item.Quantity * item.ProfitPerUnit),
+                    TotalDiscount = g.Sum(item => item.DiscountAmount)
+                })
+                .OrderByDescending(g => g.TotalQuantity)
+                .ToList();
+
+            var topProducts = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
+
+            foreach (var product in groupedProducts)
+            {
+                string productName = product.ProductName;
+                // Use explicit cast from decimal to int for TotalQuantity
+                int totalQuantity = (int)product.TotalQuantity; // Fixed error line 1346
+                decimal avgPrice = product.AverageUnitPrice;
+                decimal total = product.TotalAmount;
+                decimal profitPerUnit = product.TotalProfit / product.TotalQuantity;
+                decimal discountAmount = product.TotalDiscount;
+
+                topProducts.Add((productName, totalQuantity, avgPrice, total, profitPerUnit, discountAmount));
+            }
+
+
+            var table = new Table { CellSpacing = 0 };
+
+            // Define columns with proportional widths
+            table.Columns.Add(new TableColumn { Width = new GridLength(2.5, GridUnitType.Star) }); // Product
+            table.Columns.Add(new TableColumn { Width = new GridLength(0.8, GridUnitType.Star) }); // Qty
+            table.Columns.Add(new TableColumn { Width = new GridLength(1.5, GridUnitType.Star) }); // Total (LBP)
+
+            // Add header row
+            var tableHeaderRow = new TableRow { Background = Brushes.LightGray };
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Product"))) { FontSize = 9 }));
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Qty")))
+            { FontSize = 9, TextAlignment = TextAlignment.Center }));
+            tableHeaderRow.Cells.Add(new TableCell(new Paragraph(new Bold(new Run("Total (LBP)")))
+            { FontSize = 9, TextAlignment = TextAlignment.Right }));
+
+            var rowGroup = new TableRowGroup();
+            rowGroup.Rows.Add(tableHeaderRow);
+
+            // Add grouped product rows
+            foreach (var product in groupedProducts)
+            {
+                var row = new TableRow();
+
+                // Product name cell
+                var nameCell = new TableCell();
+                var nameParagraph = new Paragraph { FontSize = 9 };
+                nameParagraph.Inlines.Add(new Run(product.ProductName ?? "Unknown"));
+                nameCell.Blocks.Add(nameParagraph);
+                row.Cells.Add(nameCell);
+
+                // Quantity cell
+                var qtyCell = new TableCell();
+                var qtyParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Center };
+                qtyParagraph.Inlines.Add(new Run(product.TotalQuantity.ToString()));
+                qtyCell.Blocks.Add(qtyParagraph);
+                row.Cells.Add(qtyCell);
+
+                // Total amount cell - LBP only
+                var totalCell = new TableCell();
+                var totalParagraph = new Paragraph { FontSize = 9, TextAlignment = TextAlignment.Right };
+
+                // Convert and format in LBP
+                decimal lbpAmount = CurrencyHelper.ConvertToLBP(product.TotalAmount);
+                totalParagraph.Inlines.Add(new Run($"{lbpAmount:N0} LBP"));
+
+                totalCell.Blocks.Add(totalParagraph);
+                row.Cells.Add(totalCell);
+
+                rowGroup.Rows.Add(row);
+            }
+
+            table.RowGroups.Add(rowGroup);
+            section.Blocks.Add(table);
+        }
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
