@@ -312,10 +312,10 @@
         </Popup>
 
         <Popup x:Name="OpenDrawerPopup" 
-               PlacementTarget="{Binding ElementName=ActionsButton}"
-               Placement="Bottom"
-               Width="400" 
-               StaysOpen="False">
+       PlacementTarget="{Binding ElementName=ActionsButton}"
+       Placement="Bottom"
+       Width="400" 
+       StaysOpen="False">
             <Border BorderThickness="1" BorderBrush="Gray" Background="White">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
@@ -325,25 +325,27 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                               Text="Open Drawer" 
-                               Margin="0,0,0,16"/>
+                       Text="Open Drawer" 
+                       FontWeight="Bold"
+                       FontSize="16"
+                       Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
                         <TextBlock Text="Initial Cash Amount:" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
-                                 Text="{Binding InitialCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
+                         Text="{Binding InitialCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" 
-                                Orientation="Horizontal" 
-                                HorizontalAlignment="Right">
-                        <Button Click="ClosePopup_Click">
+                        Orientation="Horizontal" 
+                        HorizontalAlignment="Right">
+                        <Button Click="ClosePopup_Click"
+                        Width="80"
+                        Margin="0,0,8,0">
                             <TextBlock Text="Cancel"/>
                         </Button>
-                        <Button Margin="8,0,0,0"
-                                Width="120"
-                                Command="{Binding OpenDrawerCommand}"
-                                Click="OpenDrawerConfirm_Click">
+                        <Button Width="120"
+                        Click="OpenDrawerConfirm_Click">
                             <TextBlock Text="Open Drawer"/>
                         </Button>
                     </StackPanel>
@@ -387,10 +389,9 @@
                             <TextBlock Text="Cancel"/>
                         </Button>
                         <Button Margin="8,0,0,0"
-                                Width="120"
-                                Command="{Binding CloseDrawerCommand}"
-                                Click="CloseDrawerConfirm_Click">
-                            <TextBlock Text="Close Drawer"/>
+        Width="120"
+        Click="RemoveCashConfirm_Click">
+                            <TextBlock Text="Remove Cash"/>
                         </Button>
                     </StackPanel>
                 </Grid>
