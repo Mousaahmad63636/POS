@@ -125,6 +125,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _startDate;
             set
             {
+                Debug.WriteLine($"TransactionHistoryViewModel - StartDate changing from {_startDate:yyyy-MM-dd} to {value:yyyy-MM-dd}");
                 if (SetProperty(ref _startDate, value))
                 {
                     ValidateDateRange();
@@ -140,6 +141,7 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _endDate;
             set
             {
+                Debug.WriteLine($"TransactionHistoryViewModel - EndDate changing from {_endDate:yyyy-MM-dd} to {value:yyyy-MM-dd}");
                 if (SetProperty(ref _endDate, value))
                 {
                     ValidateDateRange();
@@ -1028,18 +1030,37 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsLoading = true;
                 ErrorMessage = string.Empty;
 
+                // Debug: Log the current date range being used
+                Debug.WriteLine($"PrintTransactionReportAsync - Using date range: {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}");
+
+                // Validate date range before proceeding
+                if (!IsDateRangeValid)
+                {
+                    await ShowErrorMessageAsync("Please select a valid date range before printing.");
+                    return;
+                }
+
                 // Ensure exchange rate is loaded
                 await EnsureExchangeRateLoaded();
 
-                // Get all transactions for the selected date range - not just the current page
+                // Get the current filter settings
                 int? categoryId = SelectedCategory?.CategoryId > 0 ? SelectedCategory.CategoryId : null;
+
+                Debug.WriteLine($"PrintTransactionReportAsync - Category filter: {(categoryId.HasValue ? $"ID {categoryId.Value}" : "All categories")}");
+                Debug.WriteLine($"PrintTransactionReportAsync - Search filter: '{SearchText}'");
+
+                // Get all transactions for the selected date range - not just the current page
                 var allTransactionsInRange = await _transactionService.GetByDateRangeAsync(StartDate, EndDate);
+
+                Debug.WriteLine($"PrintTransactionReportAsync - Found {allTransactionsInRange.Count()} transactions in date range");
 
                 // Apply category filter if needed
                 if (categoryId.HasValue && categoryId.Value > 0)
                 {
                     allTransactionsInRange = allTransactionsInRange.Where(t =>
-                        t.Details.Any(d => d.CategoryId == categoryId.Value)).ToList();
+                        t.Details?.Any(d => d.CategoryId == categoryId.Value) == true).ToList();
+
+                    Debug.WriteLine($"PrintTransactionReportAsync - After category filter: {allTransactionsInRange.Count()} transactions");
                 }
 
                 // Apply search filter if needed
@@ -1056,9 +1077,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 // Convert to list for reporting
                 var transactionsForReport = reportTransactions.ToList();
 
+                Debug.WriteLine($"PrintTransactionReportAsync - Final transactions for report: {transactionsForReport.Count}");
+
                 if (!transactionsForReport.Any())
                 {
-                    await ShowErrorMessageAsync("No transactions to print after applying filters");
+                    await ShowErrorMessageAsync($"No transactions found for the selected criteria.\nDate range: {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}\nTotal transactions in range: {allTransactionsInRange.Count()}");
                     return;
                 }
 
@@ -1088,14 +1111,14 @@ namespace QuickTechSystems.WPF.ViewModels
                     };
                     document.Blocks.Add(reportHeader);
 
-                    // Date Range
+                    // Date Range - Use the actual dates from the view model
                     var dateRange = new Paragraph
                     {
                         Margin = new Thickness(0, 0, 0, 10),
                         FontSize = 10,
                         TextAlignment = TextAlignment.Center
                     };
-                    dateRange.Inlines.Add(new Run($"Period: {StartDate:d} to {EndDate:d}"));
+                    dateRange.Inlines.Add(new Run($"Period: {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}"));
                     document.Blocks.Add(dateRange);
 
                     // Filter Information if any filters are applied
@@ -1132,7 +1155,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         FontSize = 9,
                         TextAlignment = TextAlignment.Center
                     };
-                    countInfo.Inlines.Add(new Run($"Showing {transactionsForReport.Count} of {TotalTransactions} total transactions"));
+                    countInfo.Inlines.Add(new Run($"Showing {transactionsForReport.Count} transactions"));
                     document.Blocks.Add(countInfo);
 
                     // Currency Notice
@@ -1331,10 +1354,13 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Print the document
                     printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator,
                         "Transaction Summary Report");
+
+                    Debug.WriteLine("PrintTransactionReportAsync - Print completed successfully");
                 }
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"PrintTransactionReportAsync - Error: {ex.Message}");
                 HandleError("Error printing report", ex);
             }
             finally
@@ -1343,6 +1369,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+        // Helper method to create product summary tables in USD
+
 
         // Helper method to create product summary tables in USD
         private void CreateProductTableUSD(Section section, List<TransactionDTO> transactions)
@@ -1357,10 +1385,11 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 foreach (var detail in transaction.Details)
                 {
+                    // Skip items with zero or negative quantity
+                    if (detail.Quantity <= 0) continue;
+
                     // Calculate the actual unit price after discount
-                    decimal actualUnitPrice = detail.Quantity > 0
-                        ? (detail.Total / detail.Quantity)
-                        : 0;
+                    decimal actualUnitPrice = detail.Total / detail.Quantity;
 
                     transactionItems.Add((
                         detail.ProductName,
@@ -1379,12 +1408,29 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     ProductName = g.Key,
                     TotalQuantity = g.Sum(item => item.Quantity),
-                    AverageUnitPrice = g.Sum(item => item.Total) / g.Sum(item => item.Quantity),
+                    AverageUnitPrice = g.Sum(item => item.Quantity) > 0
+                        ? g.Sum(item => item.Total) / g.Sum(item => item.Quantity)
+                        : 0m,
                     TotalAmount = g.Sum(item => item.Total),
                     TotalDiscount = g.Sum(item => item.DiscountAmount)
                 })
+                .Where(g => g.TotalQuantity > 0) // Only include products with positive quantities
                 .OrderByDescending(g => g.TotalQuantity)
                 .ToList();
+
+            // If no valid products, add a message and return
+            if (!groupedProducts.Any())
+            {
+                var noDataParagraph = new Paragraph(new Run("No product data available for this period."))
+                {
+                    FontSize = 10,
+                    TextAlignment = TextAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 10),
+                    FontStyle = FontStyles.Italic
+                };
+                section.Blocks.Add(noDataParagraph);
+                return;
+            }
 
             var table = new Table { CellSpacing = 0 };
 
@@ -1437,38 +1483,7 @@ namespace QuickTechSystems.WPF.ViewModels
             section.Blocks.Add(table);
         }
 
-        private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
-            bool isBold = false, Brush? foreground = null)
-        {
-            var row = new TableRow();
-
-            // Label cell
-            var labelCell = new TableCell();
-            var labelParagraph = new Paragraph { FontSize = fontSize };
-            var labelRun = new Run(label);
-            if (isBold) labelRun.FontWeight = FontWeights.Bold;
-            labelParagraph.Inlines.Add(labelRun);
-            labelCell.Blocks.Add(labelParagraph);
-            row.Cells.Add(labelCell);
-
-            // Value cell
-            var valueCell = new TableCell();
-            var valueParagraph = new Paragraph
-            {
-                FontSize = fontSize,
-                TextAlignment = TextAlignment.Right
-            };
-            var valueRun = new Run(value);
-            if (isBold) valueRun.FontWeight = FontWeights.Bold;
-            if (foreground != null) valueRun.Foreground = foreground;
-            valueParagraph.Inlines.Add(valueRun);
-            valueCell.Blocks.Add(valueParagraph);
-            row.Cells.Add(valueCell);
-
-            table.RowGroups[0].Rows.Add(row);
-        }
-
-        // Helper method to create product summary tables
+        // Helper method to create product summary tables in LBP
         private void CreateProductTable(Section section, List<TransactionDTO> transactions)
         {
             // Create a flattened list of transaction details
@@ -1481,17 +1496,18 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 foreach (var detail in transaction.Details)
                 {
+                    // Skip items with zero or negative quantity
+                    if (detail.Quantity <= 0) continue;
+
                     // Calculate the actual unit price after discount
-                    decimal actualUnitPrice = detail.Quantity > 0
-                        ? (detail.Total / detail.Quantity)
-                        : 0;
+                    decimal actualUnitPrice = detail.Total / detail.Quantity;
 
                     // Calculate profit per unit (after discount)
                     decimal profitPerUnit = actualUnitPrice - detail.PurchasePrice;
 
                     transactionItems.Add((
                         detail.ProductName,
-                        (int)detail.Quantity, // Explicit cast here
+                        (int)detail.Quantity,
                         actualUnitPrice,
                         detail.Total,
                         profitPerUnit,
@@ -1507,29 +1523,30 @@ namespace QuickTechSystems.WPF.ViewModels
                 {
                     ProductName = g.Key,
                     TotalQuantity = g.Sum(item => item.Quantity),
-                    AverageUnitPrice = g.Sum(item => item.Total) / g.Sum(item => item.Quantity),
+                    AverageUnitPrice = g.Sum(item => item.Quantity) > 0
+                        ? g.Sum(item => item.Total) / g.Sum(item => item.Quantity)
+                        : 0m,
                     TotalAmount = g.Sum(item => item.Total),
                     TotalProfit = g.Sum(item => item.Quantity * item.ProfitPerUnit),
                     TotalDiscount = g.Sum(item => item.DiscountAmount)
                 })
+                .Where(g => g.TotalQuantity > 0) // Only include products with positive quantities
                 .OrderByDescending(g => g.TotalQuantity)
                 .ToList();
 
-            var topProducts = new List<(string ProductName, int Quantity, decimal FinalUnitPrice, decimal Total, decimal ProfitPerUnit, decimal DiscountAmount)>();
-
-            foreach (var product in groupedProducts)
+            // If no valid products, add a message and return
+            if (!groupedProducts.Any())
             {
-                string productName = product.ProductName;
-                // Use explicit cast from decimal to int for TotalQuantity
-                int totalQuantity = (int)product.TotalQuantity; // Fixed error line 1346
-                decimal avgPrice = product.AverageUnitPrice;
-                decimal total = product.TotalAmount;
-                decimal profitPerUnit = product.TotalProfit / product.TotalQuantity;
-                decimal discountAmount = product.TotalDiscount;
-
-                topProducts.Add((productName, totalQuantity, avgPrice, total, profitPerUnit, discountAmount));
+                var noDataParagraph = new Paragraph(new Run("No product data available for this period."))
+                {
+                    FontSize = 10,
+                    TextAlignment = TextAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 10),
+                    FontStyle = FontStyles.Italic
+                };
+                section.Blocks.Add(noDataParagraph);
+                return;
             }
-
 
             var table = new Table { CellSpacing = 0 };
 
@@ -1585,6 +1602,38 @@ namespace QuickTechSystems.WPF.ViewModels
             table.RowGroups.Add(rowGroup);
             section.Blocks.Add(table);
         }
+        private void AddMetricRow(Table table, string label, string value, double fontSize = 10,
+            bool isBold = false, Brush? foreground = null)
+        {
+            var row = new TableRow();
+
+            // Label cell
+            var labelCell = new TableCell();
+            var labelParagraph = new Paragraph { FontSize = fontSize };
+            var labelRun = new Run(label);
+            if (isBold) labelRun.FontWeight = FontWeights.Bold;
+            labelParagraph.Inlines.Add(labelRun);
+            labelCell.Blocks.Add(labelParagraph);
+            row.Cells.Add(labelCell);
+
+            // Value cell
+            var valueCell = new TableCell();
+            var valueParagraph = new Paragraph
+            {
+                FontSize = fontSize,
+                TextAlignment = TextAlignment.Right
+            };
+            var valueRun = new Run(value);
+            if (isBold) valueRun.FontWeight = FontWeights.Bold;
+            if (foreground != null) valueRun.Foreground = foreground;
+            valueParagraph.Inlines.Add(valueRun);
+            valueCell.Blocks.Add(valueParagraph);
+            row.Cells.Add(valueCell);
+
+            table.RowGroups[0].Rows.Add(row);
+        }
+
+
         private async Task ShowErrorMessageAsync(string message)
         {
             ErrorMessage = message;
