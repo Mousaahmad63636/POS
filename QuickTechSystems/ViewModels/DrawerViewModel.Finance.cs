@@ -36,114 +36,33 @@ namespace QuickTechSystems.WPF.ViewModels
                     .ToList();
 
                 Debug.WriteLine($"Found {todayTransactions.Count} transactions for today");
-                foreach (var t in todayTransactions)
-                {
-                    Debug.WriteLine($"Transaction: Type={t.Type}, ActionType={t.ActionType}, Amount={t.Amount}, Balance={t.Balance}, Description={t.Description}");
-                }
 
-                // Track debt payments separately for debugging
-                var debtPayments = todayTransactions
-                    .Where(t =>
-                        // Match on Type "Cash Receipt" 
-                        (t.Type?.Equals("Cash Receipt", StringComparison.OrdinalIgnoreCase) == true) ||
-                        // Match on ActionType "Increase" with description containing "Debt payment"
-                        (t.ActionType?.Equals("Increase", StringComparison.OrdinalIgnoreCase) == true &&
-                         t.Description != null && t.Description.Contains("Debt payment", StringComparison.OrdinalIgnoreCase)) ||
-                        // Match on Type "Increase" with description containing "Debt payment"
-                        (t.Type?.Equals("Increase", StringComparison.OrdinalIgnoreCase) == true &&
-                         t.Description != null && t.Description.Contains("Debt payment", StringComparison.OrdinalIgnoreCase))
-                    )
-                    .ToList();
+                TotalSales = CalculateTotalSales(todayTransactions);
+                TotalExpenses = CalculateTotalExpenses(todayTransactions);
 
-                // Log all detected debt payments
-                Debug.WriteLine($"Found {debtPayments.Count} debt payment transactions");
-                foreach (var payment in debtPayments)
-                {
-                    Debug.WriteLine($"Debt payment: Type={payment.Type}, ActionType={payment.ActionType}, Amount={payment.Amount}, Description={payment.Description}");
-                }
-
-                // Calculate regular cash sales
-                var regularSales = todayTransactions
-                    .Where(t => t.Type?.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase) == true &&
-                           t.ActionType != "Transaction Modification")
-                    .Sum(t => Math.Abs(t.Amount));
-
-                var salesModifications = todayTransactions
-                    .Where(t => t.Type?.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase) == true &&
-                           t.ActionType == "Transaction Modification")
-                    .Sum(t => t.Amount);
-
-                // Add all debt payments to total sales
-                var debtPaymentTotal = debtPayments.Sum(t => Math.Abs(t.Amount));
-
-                // Calculate total sales
-                TotalSales = regularSales + salesModifications + debtPaymentTotal;
-
-                Debug.WriteLine($"Sales breakdown: Regular={regularSales}, Modifications={salesModifications}, DebtPayments={debtPaymentTotal}");
-                Debug.WriteLine($"TotalSales calculated: {TotalSales}");
+                var cashMovements = CalculateCashMovements(todayTransactions);
+                var totalCashIn = cashMovements.CashIn;
+                var totalCashOut = cashMovements.CashOut;
 
                 TotalReturns = todayTransactions
                     .Where(t => t.Type?.Equals("Return", StringComparison.OrdinalIgnoreCase) == true)
                     .Sum(t => Math.Abs(t.Amount));
-                Debug.WriteLine($"TotalReturns calculated: {TotalReturns}");
 
-                // Calculate expenses with same approach
-                var regularExpenses = todayTransactions
-                    .Where(t => t.Type?.Equals("Expense", StringComparison.OrdinalIgnoreCase) == true &&
-                           t.ActionType != "Transaction Modification")
-                    .Sum(t => Math.Abs(t.Amount)) +
-                    todayTransactions
-                    .Where(t => t.Type?.Equals("Expense", StringComparison.OrdinalIgnoreCase) == true &&
-                           t.ActionType == "Transaction Modification")
-                    .Sum(t => t.Amount);
-                Debug.WriteLine($"RegularExpenses calculated: {regularExpenses}");
-
-                var salaryWithdrawals = todayTransactions
-                    .Where(t => t.Type?.Equals("Salary Withdrawal", StringComparison.OrdinalIgnoreCase) == true)
-                    .Sum(t => Math.Abs(t.Amount));
-                Debug.WriteLine($"SalaryWithdrawals calculated: {salaryWithdrawals}");
-
-                var supplierPayments = todayTransactions
-                    .Where(t => t.Type?.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase) == true &&
-                               t.ActionType != "Transaction Modification")
-                    .Sum(t => Math.Abs(t.Amount)) +
-                    todayTransactions
-                    .Where(t => t.Type?.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase) == true &&
-                               t.ActionType == "Transaction Modification")
-                    .Sum(t => t.Amount);
-                Debug.WriteLine($"SupplierPayments calculated: {supplierPayments}");
-
-                // Sum all expenses
-                TotalExpenses = regularExpenses + salaryWithdrawals + supplierPayments;
-                Debug.WriteLine($"TotalExpenses calculated: {TotalExpenses}");
-
-                TotalSupplierPayments = supplierPayments;
-                Debug.WriteLine($"TotalSupplierPayments set: {TotalSupplierPayments}");
-
-                // Update daily totals
-                DailySales = TotalSales;
-                DailyReturns = TotalReturns;
-                DailyExpenses = TotalExpenses;
-                SupplierPayments = TotalSupplierPayments;
-
-                // Calculate net values
                 NetSales = TotalSales - TotalReturns;
                 NetCashflow = TotalSales - (TotalExpenses + TotalReturns);
                 NetEarnings = NetSales - TotalExpenses;
 
-                Debug.WriteLine($"Net calculations completed:");
-                Debug.WriteLine($"NetSales: {NetSales}");
-                Debug.WriteLine($"NetCashflow: {NetCashflow}");
-                Debug.WriteLine($"NetEarnings: {NetEarnings}");
+                DailySales = TotalSales;
+                DailyReturns = TotalReturns;
+                DailyExpenses = TotalExpenses;
 
-                // Update balance calculations
                 if (CurrentDrawer != null)
                 {
                     var calculatedBalance = CalculateCurrentBalance();
                     Debug.WriteLine($"Calculated balance: {calculatedBalance}");
                     Debug.WriteLine($"Current drawer balance: {CurrentDrawer.CurrentBalance}");
 
-                    if (CurrentDrawer.CurrentBalance != calculatedBalance)
+                    if (Math.Abs(CurrentDrawer.CurrentBalance - calculatedBalance) > 0.01m)
                     {
                         Debug.WriteLine($"Updating drawer balance from {CurrentDrawer.CurrentBalance} to {calculatedBalance}");
                         CurrentDrawer.CurrentBalance = calculatedBalance;
@@ -166,6 +85,67 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Stack trace: {ex.StackTrace}");
                 await ShowErrorMessageAsync("Error updating financial summary");
             }
+        }
+
+        private decimal CalculateTotalSales(List<DrawerTransactionDTO> transactions)
+        {
+            var regularSales = transactions
+                .Where(t => t.Type?.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase) == true &&
+                       t.ActionType != "Transaction Modification")
+                .Sum(t => Math.Abs(t.Amount));
+
+            var salesModifications = transactions
+                .Where(t => t.Type?.Equals("Cash Sale", StringComparison.OrdinalIgnoreCase) == true &&
+                       t.ActionType == "Transaction Modification")
+                .Sum(t => t.Amount);
+
+            var debtPayments = transactions
+                .Where(t => (t.Type?.Equals("Cash Receipt", StringComparison.OrdinalIgnoreCase) == true) ||
+                       (t.ActionType?.Equals("Increase", StringComparison.OrdinalIgnoreCase) == true &&
+                        t.Description != null && t.Description.Contains("Debt payment", StringComparison.OrdinalIgnoreCase)))
+                .Sum(t => Math.Abs(t.Amount));
+
+            return regularSales + salesModifications + debtPayments;
+        }
+
+        private decimal CalculateTotalExpenses(List<DrawerTransactionDTO> transactions)
+        {
+            var regularExpenses = transactions
+                .Where(t => t.Type?.Equals("Expense", StringComparison.OrdinalIgnoreCase) == true &&
+                       t.ActionType != "Transaction Modification")
+                .Sum(t => Math.Abs(t.Amount)) +
+                transactions
+                .Where(t => t.Type?.Equals("Expense", StringComparison.OrdinalIgnoreCase) == true &&
+                       t.ActionType == "Transaction Modification")
+                .Sum(t => t.Amount);
+
+            var salaryWithdrawals = transactions
+                .Where(t => t.Type?.Equals("Salary Withdrawal", StringComparison.OrdinalIgnoreCase) == true)
+                .Sum(t => Math.Abs(t.Amount));
+
+            var supplierPayments = transactions
+                .Where(t => t.Type?.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase) == true &&
+                           t.ActionType != "Transaction Modification")
+                .Sum(t => Math.Abs(t.Amount)) +
+                transactions
+                .Where(t => t.Type?.Equals("Supplier Payment", StringComparison.OrdinalIgnoreCase) == true &&
+                           t.ActionType == "Transaction Modification")
+                .Sum(t => t.Amount);
+
+            return regularExpenses + salaryWithdrawals + supplierPayments;
+        }
+
+        private (decimal CashIn, decimal CashOut) CalculateCashMovements(List<DrawerTransactionDTO> transactions)
+        {
+            var cashIn = transactions
+                .Where(t => t.Type?.Equals("Cash In", StringComparison.OrdinalIgnoreCase) == true)
+                .Sum(t => Math.Abs(t.Amount));
+
+            var cashOut = transactions
+                .Where(t => t.Type?.Equals("Cash Out", StringComparison.OrdinalIgnoreCase) == true)
+                .Sum(t => Math.Abs(t.Amount));
+
+            return (cashIn, cashOut);
         }
         public async Task ApplyDateFilterAsync()
         {

@@ -73,6 +73,31 @@ namespace QuickTechSystems.WPF.ViewModels
             _ = LoadDataAsync();
         }
 
+        private async Task ExecuteOperationSafelyAsync(
+    Func<Task> operation,
+    string operationName,
+    string operationType = "General")
+        {
+            try
+            {
+                IsProcessing = true;
+                StatusMessage = $"Starting {operationName}...";
+                OnPropertyChanged(nameof(StatusMessage));
+
+                await operation.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"{operationType} error: {ex.Message}");
+                StatusMessage = $"{operationName} failed";
+                OnPropertyChanged(nameof(StatusMessage));
+                await ShowErrorMessageAsync($"{operationName} failed. Error: {ex.Message}");
+            }
+            finally
+            {
+                IsProcessing = false;
+            }
+        }
         protected override async Task LoadDataAsync()
         {
             try
