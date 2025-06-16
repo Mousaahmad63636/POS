@@ -865,90 +865,94 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = false;
             }
         }
+        // Update the EnsureConsistentPricing method in EditMainStockViewModel.cs
+        // Remove ALL rounding - keep user values exactly as entered
 
         /// <summary>
         /// Ensures consistent pricing for the item, respecting manually entered values
         /// </summary>
         private void EnsureConsistentPricing(MainStockDTO item)
         {
-            // If user has entered both Box Purchase Price and Purchase Price directly
-            // We don't adjust either one - respect both user inputs
+            // Handle Purchase Prices - NO ROUNDING, keep exact user values
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
             {
-                // Do nothing - respect both values as the user entered them
+                // Do nothing - respect both values exactly as the user entered them
             }
             // Calculate purchase price from box price if needed
             else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
+                // Calculate but don't round - keep full precision
+                item.PurchasePrice = item.BoxPurchasePrice / item.ItemsPerBox;
             }
             // Calculate box purchase price from item price if needed (only if ItemsPerBox is set)
             else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                // Calculate but don't round - keep full precision
+                item.BoxPurchasePrice = item.PurchasePrice * item.ItemsPerBox;
             }
 
-            // Handle Wholesale Price similarly - only if ItemsPerBox > 0
+            // Handle Wholesale Price - NO ROUNDING
             if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
             {
-                // Respect both user inputs
+                // Respect both user inputs exactly
             }
             // Calculate wholesale price from box wholesale price if needed
             else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
+                item.WholesalePrice = item.BoxWholesalePrice / item.ItemsPerBox;
             }
             // Calculate box wholesale price from item wholesale price if needed (only if ItemsPerBox is set)
             else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                item.BoxWholesalePrice = item.WholesalePrice * item.ItemsPerBox;
             }
 
-            // Handle Sale Price similarly - only if ItemsPerBox > 0
+            // Handle Sale Price - NO ROUNDING, keep exact user values
             if (item.BoxSalePrice > 0 && item.SalePrice > 0)
             {
-                // Respect both user inputs
+                // Respect both user inputs exactly
             }
             // Calculate sale price from box sale price if needed
             else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
+                // Calculate but don't round - keep full precision
+                item.SalePrice = item.BoxSalePrice / item.ItemsPerBox;
             }
             // Calculate box sale price from item sale price if needed (only if ItemsPerBox is set)
             else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                // Calculate but don't round - keep full precision
+                item.BoxSalePrice = item.SalePrice * item.ItemsPerBox;
             }
 
-            // Ensure we have a valid wholesale price (default to purchase price + 10% if not set)
+            // Ensure we have a valid wholesale price (default to purchase price + 10% if not set) - NO ROUNDING
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
-                item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
+                item.WholesalePrice = item.PurchasePrice * 1.1m;
             }
 
-            // Ensure we have a valid sale price (default to purchase price + 20% if not set)
+            // Ensure we have a valid sale price (default to purchase price + 20% if not set) - NO ROUNDING
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
-                item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
+                item.SalePrice = item.PurchasePrice * 1.2m;
             }
 
-            // Only set box prices from item prices if ItemsPerBox is valid
+            // Only set box prices from item prices if ItemsPerBox is valid - NO ROUNDING
             if (item.ItemsPerBox > 0)
             {
-                // Ensure we have a valid box wholesale price (default to wholesale price * ItemsPerBox if not set)
+                // Ensure we have a valid box wholesale price (default to wholesale price * ItemsPerBox if not set) - NO ROUNDING
                 if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
                 {
-                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                    item.BoxWholesalePrice = item.WholesalePrice * item.ItemsPerBox;
                 }
 
-                // Ensure we have a valid box sale price (default to sale price * ItemsPerBox if not set)
+                // Ensure we have a valid box sale price (default to sale price * ItemsPerBox if not set) - NO ROUNDING
                 if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
                 {
-                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                    item.BoxSalePrice = item.SalePrice * item.ItemsPerBox;
                 }
             }
         }
-
         private bool ValidateItem()
         {
             var errors = new List<string>();

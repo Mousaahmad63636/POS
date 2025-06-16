@@ -11,7 +11,6 @@ namespace QuickTechSystems.WPF.Views
 {
     public partial class BulkMainStockDialog : Window
     {
-        private static readonly Regex _decimalRegex = new Regex(@"^[0-9]*(?:\.[0-9]*)?$");
         private static readonly Regex _integerRegex = new Regex(@"^[0-9]*$");
 
         public BulkMainStockDialog()
@@ -107,16 +106,31 @@ namespace QuickTechSystems.WPF.Views
 
         private void DecimalTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            var textBox = sender as TextBox;
-            var newText = textBox.Text.Insert(textBox.CaretIndex, e.Text);
-            e.Handled = !_decimalRegex.IsMatch(newText);
+            // Allow all digits and decimal point - NO RESTRICTIONS
+            if (char.IsDigit(e.Text, 0) || e.Text == ".")
+            {
+                var textBox = sender as TextBox;
+
+                // Only prevent multiple decimal points
+                if (e.Text == "." && textBox.Text.Contains("."))
+                {
+                    e.Handled = true;
+                }
+                else
+                {
+                    e.Handled = false; // Allow everything else
+                }
+            }
+            else
+            {
+                e.Handled = true; // Block non-numeric characters
+            }
         }
 
         private void IntegerTextBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
-            var textBox = sender as TextBox;
-            var newText = textBox.Text.Insert(textBox.CaretIndex, e.Text);
-            e.Handled = !_integerRegex.IsMatch(newText);
+            // Only allow digits for integer fields
+            e.Handled = !char.IsDigit(e.Text, 0);
         }
 
         private void NumericTextBox_Pasting(object sender, DataObjectPastingEventArgs e)
@@ -126,11 +140,22 @@ namespace QuickTechSystems.WPF.Views
                 string text = (string)e.DataObject.GetData(typeof(string));
                 var textBox = sender as TextBox;
                 var isInteger = (string)textBox.Tag == "integer";
-                var regex = isInteger ? _integerRegex : _decimalRegex;
 
-                if (!regex.IsMatch(text))
+                if (isInteger)
                 {
-                    e.CancelCommand();
+                    // For integer fields, only allow digits
+                    if (!_integerRegex.IsMatch(text))
+                    {
+                        e.CancelCommand();
+                    }
+                }
+                else
+                {
+                    // For decimal fields, allow numbers and one decimal point
+                    if (!IsValidDecimalText(text))
+                    {
+                        e.CancelCommand();
+                    }
                 }
             }
             else
@@ -139,48 +164,40 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
+        private bool IsValidDecimalText(string text)
+        {
+            // Simple check: allow digits and at most one decimal point
+            if (string.IsNullOrEmpty(text)) return true;
+
+            int decimalCount = 0;
+            foreach (char c in text)
+            {
+                if (c == '.')
+                {
+                    decimalCount++;
+                    if (decimalCount > 1) return false;
+                }
+                else if (!char.IsDigit(c))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         private void PriceTextBox_GotFocus(object sender, RoutedEventArgs e)
         {
             if (sender is TextBox textBox)
             {
-                if (textBox.Text == "0.00" || textBox.Text == "0,00")
-                {
-                    textBox.Text = string.Empty;
-                }
+                // Simply select all text - no clearing, no forcing
                 textBox.SelectAll();
             }
         }
 
         private void PriceTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (sender is TextBox textBox)
-            {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(textBox.Text))
-                    {
-                        textBox.Text = "0.00";
-                        return;
-                    }
-
-                    if (decimal.TryParse(textBox.Text.Replace(",", "."),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out decimal value))
-                    {
-                        textBox.Text = value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)
-                            .Replace(",", ".");
-                    }
-                    else
-                    {
-                        textBox.Text = "0.00";
-                    }
-                }
-                catch
-                {
-                    textBox.Text = "0.00";
-                }
-            }
+            // DO NOTHING - Let user input remain exactly as they typed it
+            // No formatting, no forcing values, no changes
         }
 
         private void Window_Closed(object sender, EventArgs e)

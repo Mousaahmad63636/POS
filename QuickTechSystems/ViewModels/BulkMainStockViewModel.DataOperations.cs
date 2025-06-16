@@ -639,74 +639,83 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        // Update the EnsureConsistentPricing method in BulkMainStockViewModel.DataOperations.cs
+        // Remove ALL rounding - keep user values exactly as entered
+
         private void EnsureConsistentPricing(MainStockDTO item)
         {
+            // Handle Purchase Prices - NO ROUNDING, keep exact user values
             if (item.BoxPurchasePrice > 0 && item.PurchasePrice > 0)
             {
-                // Both values are set, no automatic calculation needed
+                // Both values are set, keep both exactly as user entered
             }
             else if (item.PurchasePrice <= 0 && item.BoxPurchasePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.PurchasePrice = Math.Round(item.BoxPurchasePrice / item.ItemsPerBox, 2);
+                // Calculate but don't round - keep precision
+                item.PurchasePrice = item.BoxPurchasePrice / item.ItemsPerBox;
             }
             else if (item.BoxPurchasePrice <= 0 && item.PurchasePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxPurchasePrice = Math.Round(item.PurchasePrice * item.ItemsPerBox, 2);
+                // Calculate but don't round - keep precision
+                item.BoxPurchasePrice = item.PurchasePrice * item.ItemsPerBox;
             }
 
+            // Handle Wholesale Prices - NO ROUNDING
             if (item.BoxWholesalePrice > 0 && item.WholesalePrice > 0)
             {
-                // Both values are set, no automatic calculation needed
+                // Both values are set, keep both exactly as user entered
             }
             else if (item.WholesalePrice <= 0 && item.BoxWholesalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.WholesalePrice = Math.Round(item.BoxWholesalePrice / item.ItemsPerBox, 2);
+                item.WholesalePrice = item.BoxWholesalePrice / item.ItemsPerBox;
             }
             else if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                item.BoxWholesalePrice = item.WholesalePrice * item.ItemsPerBox;
             }
 
+            // Handle Sale Prices - NO ROUNDING, keep exact user values
             if (item.BoxSalePrice > 0 && item.SalePrice > 0)
             {
-                // Both values are set, no automatic calculation needed
+                // Both values are set, keep both exactly as user entered
             }
             else if (item.SalePrice <= 0 && item.BoxSalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.SalePrice = Math.Round(item.BoxSalePrice / item.ItemsPerBox, 2);
+                // Calculate but don't round - keep precision
+                item.SalePrice = item.BoxSalePrice / item.ItemsPerBox;
             }
             else if (item.BoxSalePrice <= 0 && item.SalePrice > 0 && item.ItemsPerBox > 0)
             {
-                item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                // Calculate but don't round - keep precision
+                item.BoxSalePrice = item.SalePrice * item.ItemsPerBox;
             }
 
-            // Set default wholesale price as 10% markup from purchase price
+            // Set default wholesale price as 10% markup from purchase price - NO ROUNDING
             if (item.WholesalePrice <= 0 && item.PurchasePrice > 0)
             {
-                item.WholesalePrice = Math.Round(item.PurchasePrice * 1.1m, 2);
+                item.WholesalePrice = item.PurchasePrice * 1.1m;
             }
 
-            // Set default sale price as 20% markup from purchase price
+            // Set default sale price as 20% markup from purchase price - NO ROUNDING
             if (item.SalePrice <= 0 && item.PurchasePrice > 0)
             {
-                item.SalePrice = Math.Round(item.PurchasePrice * 1.2m, 2);
+                item.SalePrice = item.PurchasePrice * 1.2m;
             }
 
-            // Calculate box prices only if ItemsPerBox > 0 (meaning the item is sold in boxes)
+            // Calculate box prices only if ItemsPerBox > 0 - NO ROUNDING
             if (item.ItemsPerBox > 0)
             {
                 if (item.BoxWholesalePrice <= 0 && item.WholesalePrice > 0)
                 {
-                    item.BoxWholesalePrice = Math.Round(item.WholesalePrice * item.ItemsPerBox, 2);
+                    item.BoxWholesalePrice = item.WholesalePrice * item.ItemsPerBox;
                 }
 
                 if (item.BoxSalePrice <= 0 && item.SalePrice > 0)
                 {
-                    item.BoxSalePrice = Math.Round(item.SalePrice * item.ItemsPerBox, 2);
+                    item.BoxSalePrice = item.SalePrice * item.ItemsPerBox;
                 }
             }
         }
-
         private (bool IsValid, List<string> ValidationErrors) ValidateItems()
         {
             var validationErrors = new List<string>();
