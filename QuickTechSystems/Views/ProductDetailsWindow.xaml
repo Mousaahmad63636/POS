@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
         mc:Ignorable="d"
         Title="Product Details"
-        Height="650" Width="1100"
+        Height="700" Width="900"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
@@ -15,9 +15,19 @@
         BorderBrush="#DDDDDD">
 
     <Window.Resources>
+        <CollectionViewSource x:Key="PlantsHardscapeCategoriesViewSource" 
+                           Source="{Binding PlantsHardscapeCategories}"/>
+        <CollectionViewSource x:Key="LocalImportedCategoriesViewSource" 
+                           Source="{Binding LocalImportedCategories}"/>
+        <CollectionViewSource x:Key="IndoorOutdoorCategoriesViewSource" 
+                           Source="{Binding IndoorOutdoorCategories}"/>
+        <CollectionViewSource x:Key="PlantFamilyCategoriesViewSource" 
+                           Source="{Binding PlantFamilyCategories}"/>
+        <CollectionViewSource x:Key="DetailCategoriesViewSource" 
+                           Source="{Binding DetailCategories}"/>
+
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <!-- Text Input Field Style -->
         <Style x:Key="TextInputStyle" TargetType="TextBox">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="10,0"/>
@@ -49,7 +59,6 @@
             </Setter>
         </Style>
 
-        <!-- ComboBox Style -->
         <Style x:Key="ComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="8,0"/>
@@ -59,39 +68,7 @@
             <Setter Property="Background" Value="White"/>
         </Style>
 
-        <!-- Add Button Style -->
-        <Style x:Key="AddButtonStyle" TargetType="Button">
-            <Setter Property="Width" Value="32"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Background" Value="#4CAF50"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                               BorderThickness="0"
-                               CornerRadius="3">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                            VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#388E3C"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#2E7D32"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Primary Button Style (Blue) -->
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Style x:Key="ActionButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Background" Value="#007BFF"/>
@@ -120,8 +97,7 @@
             </Setter>
         </Style>
 
-        <!-- Secondary Button Style (Gray) -->
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Style x:Key="SecondaryButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Background" Value="#6C757D"/>
@@ -150,8 +126,7 @@
             </Setter>
         </Style>
 
-        <!-- Success Button Style (Green) -->
-        <Style x:Key="SuccessButtonStyle" TargetType="Button">
+        <Style x:Key="SuccessButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Background" Value="#4CAF50"/>
@@ -180,8 +155,7 @@
             </Setter>
         </Style>
 
-        <!-- Danger Button Style (Red) -->
-        <Style x:Key="DangerButtonStyle" TargetType="Button">
+        <Style x:Key="DangerButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Padding" Value="16,0"/>
             <Setter Property="Background" Value="#DC3545"/>
@@ -210,17 +184,15 @@
             </Setter>
         </Style>
 
-        <!-- Section Style -->
         <Style x:Key="SectionStyle" TargetType="Border">
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="BorderBrush" Value="#E0E0E0"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="5"/>
-            <Setter Property="Padding" Value="15"/>
+            <Setter Property="Padding" Value="20"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
         </Style>
 
-        <!-- Section Title Style -->
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
@@ -228,25 +200,15 @@
             <Setter Property="Margin" Value="0,0,0,15"/>
         </Style>
 
-        <!-- Field Label Style -->
         <Style x:Key="FieldLabelStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="#333333"/>
             <Setter Property="Margin" Value="0,0,0,5"/>
         </Style>
-
-        <!-- Helper Text Style -->
-        <Style x:Key="HelperTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#666666"/>
-            <Setter Property="Margin" Value="0,3,0,8"/>
-            <Setter Property="TextWrapping" Value="Wrap"/>
-        </Style>
     </Window.Resources>
 
-    <Grid Margin="0,0,0,-2">
-        <!-- Header -->
+    <Grid>
         <Border Height="50" VerticalAlignment="Top" Background="White" BorderThickness="0,0,0,1" BorderBrush="#DDDDDD" MouseDown="Border_MouseDown">
             <Grid>
                 <TextBlock Text="Product Details" 
@@ -269,115 +231,25 @@
             </Grid>
         </Border>
 
-        <!-- Main Content -->
-        <ScrollViewer Margin="0,50,0,92" VerticalScrollBarVisibility="Auto">
-            <Grid Margin="20">
+        <ScrollViewer Margin="0,50,0,60" VerticalScrollBarVisibility="Auto">
+            <Grid Margin="30">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="15"/>
-                    <!-- Spacer -->
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="15"/>
-                    <!-- Spacer -->
+                    <ColumnDefinition Width="20"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Left Column -->
                 <StackPanel Grid.Column="0">
-                    <!-- Basic Information -->
                     <Border Style="{StaticResource SectionStyle}">
                         <StackPanel>
                             <TextBlock Text="Basic Information" Style="{StaticResource SectionTitleStyle}"/>
 
-                            <!-- Name Field -->
-                            <TextBlock Text="Name *" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock Text="Product Name *" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged}" 
                                     Style="{StaticResource TextInputStyle}" 
-                                    Margin="0,0,0,15"/>
+                                    Margin="0,0,0,20"/>
 
-                            <!-- Category Field -->
-                            <TextBlock Text="Category *" Style="{StaticResource FieldLabelStyle}"/>
-                            <Grid Margin="0,0,0,15">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox Grid.Column="0" 
-                                        ItemsSource="{Binding Categories}"
-                                        DisplayMemberPath="Name"
-                                        SelectedValuePath="CategoryId"
-                                        SelectedValue="{Binding SelectedProduct.CategoryId}"
-                                        Style="{StaticResource ComboBoxStyle}"/>
-                                <Button Grid.Column="1" 
-                                        Content="+" 
-                                        Click="AddCategoryButton_Click"
-                                        Style="{StaticResource AddButtonStyle}"
-                                        Margin="5,0,0,0"/>
-                            </Grid>
-
-                            <!-- Supplier Field -->
-                            <TextBlock Text="Supplier" Style="{StaticResource FieldLabelStyle}"/>
-                            <Grid Margin="0,0,0,15">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox Grid.Column="0" 
-                                        ItemsSource="{Binding Suppliers}"
-                                        DisplayMemberPath="Name"
-                                        SelectedValuePath="SupplierId"
-                                        SelectedValue="{Binding SelectedProduct.SupplierId}"
-                                        Style="{StaticResource ComboBoxStyle}"/>
-                                <Button Grid.Column="1" 
-                                        Content="+" 
-                                        Click="AddSupplierButton_Click"
-                                        Style="{StaticResource AddButtonStyle}"
-                                        Margin="5,0,0,0"/>
-                            </Grid>
-
-                            <!-- Is Active Checkbox -->
-                            <CheckBox Content="Is Active" 
-                                    IsChecked="{Binding SelectedProduct.IsActive}" 
-                                    Margin="0,5,0,0"
-                                    VerticalContentAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-
-                <!-- Middle Column -->
-                <StackPanel Grid.Column="2">
-                    <!-- Stock Information -->
-                    <Border Style="{StaticResource SectionStyle}">
-                        <StackPanel>
-                            <TextBlock Text="Stock Information" Style="{StaticResource SectionTitleStyle}"/>
-
-                            <!-- Current Stock Field -->
-                            <TextBlock Text="Current Stock" Style="{StaticResource FieldLabelStyle}"/>
-                            <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
-                                    Style="{StaticResource TextInputStyle}" 
-                                    Tag="integer"
-                                    PreviewTextInput="IntegerTextBox_PreviewTextInput"
-                                    DataObject.Pasting="NumericTextBox_Pasting"
-                                    Margin="0,0,0,15"/>
-
-                            <!-- Minimum Stock Field -->
-                            <TextBlock Text="Minimum Stock" Style="{StaticResource FieldLabelStyle}"/>
-                            <TextBox Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                    Style="{StaticResource TextInputStyle}" 
-                                    Tag="integer"
-                                    PreviewTextInput="IntegerTextBox_PreviewTextInput"
-                                    DataObject.Pasting="NumericTextBox_Pasting"
-                                    Margin="0,0,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Price Information -->
-                    <Border Style="{StaticResource SectionStyle}">
-                        <StackPanel>
-                            <TextBlock Text="Price Information" Style="{StaticResource SectionTitleStyle}"/>
-
-                            <!-- Purchase Price Field -->
-                            <TextBlock Text="Purchase Price" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock Text="Purchase Price *" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox Text="{Binding SelectedProduct.PurchasePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
                                     Style="{StaticResource TextInputStyle}" 
                                     Tag="decimal"
@@ -385,10 +257,9 @@
                                     DataObject.Pasting="NumericTextBox_Pasting"
                                     GotFocus="PriceTextBox_GotFocus"
                                     LostFocus="PriceTextBox_LostFocus"
-                                    Margin="0,0,0,15"/>
+                                    Margin="0,0,0,20"/>
 
-                            <!-- Sale Price Field -->
-                            <TextBlock Text="Sale Price" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBlock Text="Sale Price *" Style="{StaticResource FieldLabelStyle}"/>
                             <TextBox Text="{Binding SelectedProduct.SalePrice, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}" 
                                     Style="{StaticResource TextInputStyle}" 
                                     Tag="decimal"
@@ -396,103 +267,139 @@
                                     DataObject.Pasting="NumericTextBox_Pasting"
                                     GotFocus="PriceTextBox_GotFocus"
                                     LostFocus="PriceTextBox_LostFocus"
-                                    Margin="0,0,0,0"/>
+                                    Margin="0,0,0,20"/>
+
+                            <TextBlock Text="Current Stock" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
+                                    Style="{StaticResource TextInputStyle}" 
+                                    Tag="integer"
+                                    PreviewTextInput="IntegerTextBox_PreviewTextInput"
+                                    DataObject.Pasting="NumericTextBox_Pasting"
+                                    Margin="0,0,0,20"/>
+
+                            <CheckBox Content="Is Active" 
+                                    IsChecked="{Binding SelectedProduct.IsActive}" 
+                                    Margin="0,0,0,0"
+                                    VerticalContentAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource SectionStyle}">
+                        <StackPanel>
+                            <TextBlock Text="Barcode Management" Style="{StaticResource SectionTitleStyle}"/>
+
+                            <TextBlock Text="Barcode" Style="{StaticResource FieldLabelStyle}"/>
+                            <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                    Style="{StaticResource TextInputStyle}" 
+                                    Margin="0,0,0,15"/>
+
+                            <Grid Margin="0,0,0,15">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0"
+                                        Content="Generate from Input"
+                                        Command="{Binding GenerateBarcodeCommand}"
+                                        Style="{StaticResource ActionButton}"/>
+                                <Button Grid.Column="2"
+                                        Content="Auto-Generate"
+                                        Command="{Binding GenerateAutomaticBarcodeCommand}"
+                                        Style="{StaticResource SecondaryButton}"/>
+                            </Grid>
+
+                            <TextBlock Text="Barcode Preview" Style="{StaticResource FieldLabelStyle}"/>
+                            <Border BorderBrush="#DDDDDD"
+                                    BorderThickness="1"
+                                    Padding="10"
+                                    Background="#F8F9FA"
+                                    Height="80">
+                                <Image Source="{Binding BarcodeImage}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </Border>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
-                <!-- Right Column -->
-                <StackPanel Grid.Column="4">
-                    <!-- Barcode Information -->
+                <StackPanel Grid.Column="2">
                     <Border Style="{StaticResource SectionStyle}">
                         <StackPanel>
-                            <TextBlock Text="Barcode Information" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="Category Classifications" Style="{StaticResource SectionTitleStyle}"/>
 
-                            <!-- Option 1: Use Existing Barcode -->
-                            <TextBlock Text="Option 1: Use Existing Barcode" 
-                                       FontWeight="SemiBold" 
-                                       Margin="0,0,0,5"/>
-                            <TextBlock Text="Enter an existing barcode and generate its image" 
-                                       Style="{StaticResource HelperTextStyle}"/>
+                            <TextBlock Text="Plants/Hardscape" Style="{StaticResource FieldLabelStyle}"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource PlantsHardscapeCategoriesViewSource}}"
+                                     DisplayMemberPath="Name"
+                                     SelectedValuePath="CategoryId"
+                                     SelectedValue="{Binding SelectedProduct.PlantsHardscapeId, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ComboBoxStyle}"
+                                     Margin="0,0,0,15"/>
 
-                            <!-- Barcode Field -->
-                            <TextBlock Text="Barcode" Style="{StaticResource FieldLabelStyle}"/>
-                            <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                    Style="{StaticResource TextInputStyle}" 
-                                    Margin="0,0,0,8"/>
+                            <TextBlock Text="Local/Imported" Style="{StaticResource FieldLabelStyle}"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource LocalImportedCategoriesViewSource}}"
+                                     DisplayMemberPath="Name"
+                                     SelectedValuePath="CategoryId"
+                                     SelectedValue="{Binding SelectedProduct.LocalImportedId, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ComboBoxStyle}"
+                                     Margin="0,0,0,15"/>
 
-                            <!-- Generate Barcode from Input Button -->
-                            <Button Content="Generate Image from Barcode"
-                                    Command="{Binding GenerateBarcodeCommand}"
-                                    Style="{StaticResource PrimaryButtonStyle}"
-                                    HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,15"/>
+                            <TextBlock Text="Indoor/Outdoor" Style="{StaticResource FieldLabelStyle}"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource IndoorOutdoorCategoriesViewSource}}"
+                                     DisplayMemberPath="Name"
+                                     SelectedValuePath="CategoryId"
+                                     SelectedValue="{Binding SelectedProduct.IndoorOutdoorId, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ComboBoxStyle}"
+                                     Margin="0,0,0,15"/>
 
-                            <!-- Option 2: Auto-Generate Barcode -->
-                            <TextBlock Text="Option 2: Auto-Generate New Barcode" 
-                                       FontWeight="SemiBold" 
-                                       Margin="0,0,0,5"/>
-                            <TextBlock Text="Create a new unique barcode automatically" 
-                                       Style="{StaticResource HelperTextStyle}"/>
+                            <TextBlock Text="Plant Family" Style="{StaticResource FieldLabelStyle}"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource PlantFamilyCategoriesViewSource}}"
+                                     DisplayMemberPath="Name"
+                                     SelectedValuePath="CategoryId"
+                                     SelectedValue="{Binding SelectedProduct.PlantFamilyId, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ComboBoxStyle}"
+                                     Margin="0,0,0,15"/>
 
-                            <!-- Auto-Generate Barcode Button -->
-                            <Button Content="Auto-Generate New Barcode"
-                                    Command="{Binding GenerateAutomaticBarcodeCommand}"
-                                    Style="{StaticResource SecondaryButtonStyle}"
-                                    HorizontalAlignment="Stretch"
-                                    Margin="0,0,0,15"/>
-
-                            <!-- Barcode Image Display -->
-                            <TextBlock Text="Barcode Image Preview" 
-                                       Style="{StaticResource FieldLabelStyle}"/>
-                            <Border BorderBrush="#DDDDDD"
-                                    BorderThickness="1"
-                                    Padding="10"
-                                    Background="#F8F9FA">
-                                <Image Source="{Binding BarcodeImage}"
-                                       Height="60"
-                                       HorizontalAlignment="Left"
-                                       VerticalAlignment="Top"
-                                       Stretch="Uniform"
-                                       RenderOptions.BitmapScalingMode="HighQuality"
-                                       Margin="0,0,0,0"/>
-                            </Border>
+                            <TextBlock Text="Detail Category" Style="{StaticResource FieldLabelStyle}"/>
+                            <ComboBox ItemsSource="{Binding Source={StaticResource DetailCategoriesViewSource}}"
+                                     DisplayMemberPath="Name"
+                                     SelectedValuePath="CategoryId"
+                                     SelectedValue="{Binding SelectedProduct.DetailId, UpdateSourceTrigger=PropertyChanged}"
+                                     Style="{StaticResource ComboBoxStyle}"
+                                     Margin="0,0,0,0"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Product Image -->
                     <Border Style="{StaticResource SectionStyle}">
                         <StackPanel>
-                            <TextBlock Text="Image" Style="{StaticResource SectionTitleStyle}"/>
+                            <TextBlock Text="Product Image" Style="{StaticResource SectionTitleStyle}"/>
 
-                            <!-- Image Upload/Clear Buttons -->
                             <Grid Margin="0,0,0,15">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0"
                                         Content="Upload Image"
                                         Command="{Binding UploadImageCommand}"
-                                        Style="{StaticResource PrimaryButtonStyle}"
-                                        Margin="0,0,5,0"/>
-                                <Button Grid.Column="1"
+                                        Style="{StaticResource ActionButton}"/>
+                                <Button Grid.Column="2"
                                         Content="Clear Image"
                                         Command="{Binding ClearImageCommand}"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Margin="5,0,0,0"/>
+                                        Style="{StaticResource SecondaryButton}"/>
                             </Grid>
 
-                            <!-- Image Display Area -->
                             <Border BorderBrush="#DDDDDD"
                                     BorderThickness="1"
                                     Height="180"
-                                    HorizontalAlignment="Stretch"
                                     Background="#F8F9FA">
                                 <Image Source="{Binding ProductImage}"
-       Stretch="Uniform"
-       RenderOptions.BitmapScalingMode="HighQuality"
-       Margin="5"/>
+                                       Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"
+                                       Margin="5"/>
                             </Border>
                         </StackPanel>
                     </Border>
@@ -500,21 +407,20 @@
             </Grid>
         </ScrollViewer>
 
-        <!-- Footer with Buttons -->
         <Border Height="60" VerticalAlignment="Bottom" Background="White" BorderThickness="0,1,0,0" BorderBrush="#DDDDDD">
             <Grid>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,30,0">
                     <Button Content="Delete"
                             Command="{Binding DeleteCommand}"
                             Click="DeleteButton_Click"
-                            Style="{StaticResource DangerButtonStyle}"
+                            Style="{StaticResource DangerButton}"
                             Width="100"
-                            Margin="0,0,10,0"
+                            Margin="0,0,15,0"
                             Visibility="{Binding IsNewProduct, Converter={StaticResource BooleanToVisibilityConverter}, ConverterParameter=Inverse}"/>
                     <Button Content="Save"
                             Command="{Binding SaveCommand}"
                             Click="SaveButton_Click"
-                            Style="{StaticResource SuccessButtonStyle}"
+                            Style="{StaticResource SuccessButton}"
                             Width="100"/>
                 </StackPanel>
             </Grid>

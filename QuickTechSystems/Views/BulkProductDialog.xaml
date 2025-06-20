@@ -3,15 +3,11 @@
        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
        Title="{DynamicResource Product_BulkAdd}" 
        Height="600" 
-       Width="1600"
+       Width="1200"
        WindowStartupLocation="CenterOwner"
        Background="White">
 
     <Window.Resources>
-        <CollectionViewSource x:Key="CategoriesViewSource" 
-                           Source="{Binding Categories}"/>
-        <CollectionViewSource x:Key="SuppliersViewSource" 
-                           Source="{Binding Suppliers}"/>
         <CollectionViewSource x:Key="PlantsHardscapeCategoriesViewSource" 
                            Source="{Binding PlantsHardscapeCategories}"/>
         <CollectionViewSource x:Key="LocalImportedCategoriesViewSource" 
@@ -71,7 +67,6 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -113,87 +108,9 @@
                    Command="{Binding ClearAllCommand}"
                    Style="{StaticResource ActionButton}"
                    Width="80"/>
-
-            <Separator Width="1" 
-                     Background="#E0E0E0" 
-                     Margin="15,0"/>
-
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="{DynamicResource Product_BulkAdd_QuickFill}" 
-                        VerticalAlignment="Center"
-                        Margin="0,0,10,0"/>
-                <ComboBox Width="150" 
-                        Height="30"
-                        Margin="0,0,10,0"
-                        SelectedValue="{Binding SelectedQuickFillOption}">
-                    <ComboBoxItem Content="{DynamicResource Product_Category}"/>
-                    <ComboBoxItem Content="{DynamicResource Product_Supplier}"/>
-                    <ComboBoxItem Content="{DynamicResource Product_PurchasePrice}"/>
-                    <ComboBoxItem Content="{DynamicResource Product_SalePrice}"/>
-                    <ComboBoxItem Content="{DynamicResource Product_BulkAdd_StockValues}"/>
-                    <ComboBoxItem Content="{DynamicResource Product_BulkAdd_Speed}"/>
-                </ComboBox>
-                <TextBox Width="100"
-                        Height="30"
-                        Margin="0,0,10,0"
-                        Text="{Binding QuickFillValue, UpdateSourceTrigger=PropertyChanged}"/>
-                <Button Content="{DynamicResource Product_BulkAdd_ApplyToSelected}"
-                       Command="{Binding ApplyQuickFillCommand}"
-                       Style="{StaticResource ActionButton}"
-                       Width="120"/>
-            </StackPanel>
         </StackPanel>
 
         <Border Grid.Row="2" 
-               BorderBrush="#E0E0E0" 
-               BorderThickness="1" 
-               Margin="0,0,0,10"
-               Padding="10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Orientation="Horizontal" Grid.Column="0">
-                    <CheckBox Content="{DynamicResource Product_BulkAdd_SelectAllForPrinting}" 
-                             IsChecked="{Binding SelectAllForPrinting}"
-                             VerticalAlignment="Center"
-                             Margin="0,0,20,0"/>
-
-                    <TextBlock Text="{DynamicResource Product_BulkAdd_LabelsPerProduct}" 
-                             VerticalAlignment="Center"
-                             Margin="0,0,10,0"/>
-
-                    <TextBox Text="{Binding LabelsPerProduct, UpdateSourceTrigger=PropertyChanged}"
-                            Width="50"
-                            VerticalAlignment="Center"
-                            Margin="0,0,20,0"/>
-                </StackPanel>
-
-                <Button Grid.Column="1"
-                       Content="{DynamicResource Product_BulkAdd_PrintSelectedBarcodes}"
-                       Command="{Binding PrintBarcodesCommand}"
-                       Style="{StaticResource ActionButton}"
-                       Background="#6c757d"
-                       Margin="0,0,10,0"/>
-
-                <TextBlock Grid.Column="2"
-                          VerticalAlignment="Center"
-                          Margin="10,0,0,0">
-                    <TextBlock.Text>
-                        <MultiBinding StringFormat="{}{0} {1}">
-                            <Binding Path="SelectedForPrintingCount"/>
-                            <Binding Source="{StaticResource Product_BulkAdd_SelectedProducts}" />
-                        </MultiBinding>
-                    </TextBlock.Text>
-                </TextBlock>
-            </Grid>
-        </Border>
-
-        <Border Grid.Row="3" 
                BorderBrush="#E0E0E0" 
                BorderThickness="1" 
                Margin="0,0,0,20">
@@ -209,14 +126,8 @@
                         RowHeaderWidth="0"
                         CanUserDeleteRows="True"
                         IsEnabled="{Binding IsNotSaving}"
-                        MinWidth="1400">
+                        MinWidth="1000">
                     <DataGrid.Columns>
-                        <DataGridCheckBoxColumn Header="{DynamicResource Product_BulkAdd_Select}" 
-                                             Binding="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="60"/>
-                        <DataGridCheckBoxColumn Header="{DynamicResource Product_BulkAdd_Print}" 
-                                             Binding="{Binding IsSelectedForPrinting, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="60"/>
                         <DataGridTemplateColumn Header="{DynamicResource Product_BulkAdd_BarcodeTools}" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -237,18 +148,6 @@
                         <DataGridTextColumn Header="{DynamicResource Product_Name}" 
                                          Binding="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                          Width="*"/>
-                        <DataGridComboBoxColumn Header="{DynamicResource Product_Category}"
-                                             ItemsSource="{Binding Source={StaticResource CategoriesViewSource}}"
-                                             DisplayMemberPath="Name"
-                                             SelectedValuePath="CategoryId"
-                                             SelectedValueBinding="{Binding CategoryId, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="120"/>
-                        <DataGridComboBoxColumn Header="{DynamicResource Product_Supplier}"
-                                             ItemsSource="{Binding Source={StaticResource SuppliersViewSource}}"
-                                             DisplayMemberPath="Name"
-                                             SelectedValuePath="SupplierId"
-                                             SelectedValueBinding="{Binding SupplierId, UpdateSourceTrigger=PropertyChanged}"
-                                             Width="120"/>
                         <DataGridTextColumn Header="{DynamicResource Product_PurchasePrice}" 
                                          Binding="{Binding PurchasePrice, UpdateSourceTrigger=PropertyChanged,
                                                   StringFormat=C2}"
@@ -259,12 +158,6 @@
                                          Width="120"/>
                         <DataGridTextColumn Header="{DynamicResource Product_CurrentStock}" 
                                          Binding="{Binding CurrentStock, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="100"/>
-                        <DataGridTextColumn Header="{DynamicResource Product_MinimumStock}" 
-                                         Binding="{Binding MinimumStock, UpdateSourceTrigger=PropertyChanged}"
-                                         Width="100"/>
-                        <DataGridTextColumn Header="{DynamicResource Product_BulkAdd_Speed}" 
-                                         Binding="{Binding Speed, UpdateSourceTrigger=PropertyChanged}"
                                          Width="100"/>
                         <DataGridComboBoxColumn Header="Plants/Hardscape"
                                              ItemsSource="{Binding Source={StaticResource PlantsHardscapeCategoriesViewSource}}"
@@ -301,7 +194,7 @@
             </ScrollViewer>
         </Border>
 
-        <DockPanel Grid.Row="4" LastChildFill="False">
+        <DockPanel Grid.Row="3" LastChildFill="False">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
                 <TextBlock Text="{DynamicResource Product_BulkAdd_TotalItems}"
                          VerticalAlignment="Center"/>
@@ -340,7 +233,7 @@
             </StackPanel>
         </DockPanel>
 
-        <Grid Grid.RowSpan="5" 
+        <Grid Grid.RowSpan="4" 
              Background="#80000000"
              Visibility="{Binding IsSaving, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border Background="White"

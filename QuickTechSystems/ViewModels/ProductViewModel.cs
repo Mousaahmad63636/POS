@@ -39,6 +39,11 @@ namespace QuickTechSystems.WPF.ViewModels
         private ObservableCollection<ProductDTO> _filteredProducts;
         private ObservableCollection<CategoryDTO> _categories;
         private ObservableCollection<SupplierDTO> _suppliers;
+        private ObservableCollection<CategoryDTO> _plantsHardscapeCategories;
+        private ObservableCollection<CategoryDTO> _localImportedCategories;
+        private ObservableCollection<CategoryDTO> _indoorOutdoorCategories;
+        private ObservableCollection<CategoryDTO> _plantFamilyCategories;
+        private ObservableCollection<CategoryDTO> _detailCategories;
         private ProductDTO? _selectedProduct;
         private bool _isEditing;
         private BitmapImage? _barcodeImage;
@@ -57,26 +62,24 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _totalProfit;
         private CancellationTokenSource _cts;
         private readonly IImagePathService _imagePathService;
-        // Pagination properties
         private int _currentPage = 1;
         private int _pageSize = 10;
         private int _totalPages;
         private ObservableCollection<int> _pageNumbers;
         private List<int> _visiblePageNumbers = new List<int>();
         private int _totalProducts;
-
-        public decimal TotalProfit
-        {
-            get => _totalProfit;
-            set => SetProperty(ref _totalProfit, value);
-        }
-        // New properties for aggregated values
         private decimal _totalPurchaseValue;
         private decimal _totalSaleValue;
         private decimal _selectedProductTotalCost;
         private decimal _selectedProductTotalValue;
         private decimal _selectedProductProfitMargin;
         private decimal _selectedProductProfitPercentage;
+
+        public decimal TotalProfit
+        {
+            get => _totalProfit;
+            set => SetProperty(ref _totalProfit, value);
+        }
 
         public decimal TotalPurchaseValue
         {
@@ -89,11 +92,13 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _totalSaleValue;
             set => SetProperty(ref _totalSaleValue, value);
         }
+
         public FlowDirection FlowDirection
         {
             get => _flowDirection;
             set => SetProperty(ref _flowDirection, value);
         }
+
         public decimal SelectedProductTotalCost
         {
             get => _selectedProductTotalCost;
@@ -166,6 +171,36 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _suppliers, value);
         }
 
+        public ObservableCollection<CategoryDTO> PlantsHardscapeCategories
+        {
+            get => _plantsHardscapeCategories;
+            set => SetProperty(ref _plantsHardscapeCategories, value);
+        }
+
+        public ObservableCollection<CategoryDTO> LocalImportedCategories
+        {
+            get => _localImportedCategories;
+            set => SetProperty(ref _localImportedCategories, value);
+        }
+
+        public ObservableCollection<CategoryDTO> IndoorOutdoorCategories
+        {
+            get => _indoorOutdoorCategories;
+            set => SetProperty(ref _indoorOutdoorCategories, value);
+        }
+
+        public ObservableCollection<CategoryDTO> PlantFamilyCategories
+        {
+            get => _plantFamilyCategories;
+            set => SetProperty(ref _plantFamilyCategories, value);
+        }
+
+        public ObservableCollection<CategoryDTO> DetailCategories
+        {
+            get => _detailCategories;
+            set => SetProperty(ref _detailCategories, value);
+        }
+
         public ProductDTO? SelectedProduct
         {
             get => _selectedProduct;
@@ -173,7 +208,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (_selectedProduct != null)
                 {
-                    // Unsubscribe from property changes on the old selected product
                     _selectedProduct.PropertyChanged -= SelectedProduct_PropertyChanged;
                 }
 
@@ -182,7 +216,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 if (value != null)
                 {
-                    // Subscribe to property changes on the new selected product
                     value.PropertyChanged += SelectedProduct_PropertyChanged;
 
                     if (value.BarcodeImage != null)
@@ -194,10 +227,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         BarcodeImage = null;
                     }
 
-                    // Update to load image from path instead of byte array
                     ProductImage = value.ImagePath != null ? LoadImageFromPath(value.ImagePath) : null;
-
-                    // Calculate selected product values immediately
                     CalculateSelectedProductValues();
                 }
                 else
@@ -211,6 +241,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         private BitmapImage? LoadImageFromPath(string? imagePath)
         {
             if (string.IsNullOrEmpty(imagePath))
@@ -226,7 +257,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
-                    // Fallback if service not available
                     if (Path.IsPathRooted(imagePath))
                     {
                         fullPath = imagePath;
@@ -247,12 +277,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     return null;
                 }
 
-                // Properly create a file URI
                 BitmapImage image = new BitmapImage();
                 image.BeginInit();
                 image.CacheOption = BitmapCacheOption.OnLoad;
 
-                // Use the file:// protocol with proper URI creation
                 Uri fileUri = new Uri("file:///" + fullPath.Replace('\\', '/'));
                 image.UriSource = fileUri;
 
@@ -264,10 +292,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 Debug.WriteLine($"Error loading image from path: {ex.Message}");
 
-                // The fallback method has scope issues - let's fix the implementation:
                 try
                 {
-                    // Get the path again since we lost scope
                     string retryPath;
                     if (_imagePathService != null)
                     {
@@ -286,10 +312,8 @@ namespace QuickTechSystems.WPF.ViewModels
                         );
                     }
 
-                    // Fallback to stream-based loading with correct parameters
                     BitmapImage fallbackImage = new BitmapImage();
 
-                    // Use using statement with proper FileStream parameters
                     using (var stream = new FileStream(retryPath, FileMode.Open, FileAccess.Read))
                     {
                         fallbackImage.BeginInit();
@@ -308,14 +332,89 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
+
         private void SelectedProduct_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            // When price properties or stock change, recalculate values
             if (e.PropertyName == nameof(ProductDTO.PurchasePrice) ||
                 e.PropertyName == nameof(ProductDTO.SalePrice) ||
                 e.PropertyName == nameof(ProductDTO.CurrentStock))
             {
                 CalculateSelectedProductValues();
+            }
+            else if (e.PropertyName == nameof(ProductDTO.PlantsHardscapeId))
+            {
+                UpdatePlantsHardscapeName(sender as ProductDTO);
+            }
+            else if (e.PropertyName == nameof(ProductDTO.LocalImportedId))
+            {
+                UpdateLocalImportedName(sender as ProductDTO);
+            }
+            else if (e.PropertyName == nameof(ProductDTO.IndoorOutdoorId))
+            {
+                UpdateIndoorOutdoorName(sender as ProductDTO);
+            }
+            else if (e.PropertyName == nameof(ProductDTO.PlantFamilyId))
+            {
+                UpdatePlantFamilyName(sender as ProductDTO);
+            }
+            else if (e.PropertyName == nameof(ProductDTO.DetailId))
+            {
+                UpdateDetailName(sender as ProductDTO);
+            }
+        }
+
+        private void UpdatePlantsHardscapeName(ProductDTO product)
+        {
+            if (product == null || !product.PlantsHardscapeId.HasValue || product.PlantsHardscapeId <= 0) return;
+
+            var category = PlantsHardscapeCategories?.FirstOrDefault(c => c.CategoryId == product.PlantsHardscapeId);
+            if (category != null)
+            {
+                product.PlantsHardscapeName = category.Name;
+            }
+        }
+
+        private void UpdateLocalImportedName(ProductDTO product)
+        {
+            if (product == null || !product.LocalImportedId.HasValue || product.LocalImportedId <= 0) return;
+
+            var category = LocalImportedCategories?.FirstOrDefault(c => c.CategoryId == product.LocalImportedId);
+            if (category != null)
+            {
+                product.LocalImportedName = category.Name;
+            }
+        }
+
+        private void UpdateIndoorOutdoorName(ProductDTO product)
+        {
+            if (product == null || !product.IndoorOutdoorId.HasValue || product.IndoorOutdoorId <= 0) return;
+
+            var category = IndoorOutdoorCategories?.FirstOrDefault(c => c.CategoryId == product.IndoorOutdoorId);
+            if (category != null)
+            {
+                product.IndoorOutdoorName = category.Name;
+            }
+        }
+
+        private void UpdatePlantFamilyName(ProductDTO product)
+        {
+            if (product == null || !product.PlantFamilyId.HasValue || product.PlantFamilyId <= 0) return;
+
+            var category = PlantFamilyCategories?.FirstOrDefault(c => c.CategoryId == product.PlantFamilyId);
+            if (category != null)
+            {
+                product.PlantFamilyName = category.Name;
+            }
+        }
+
+        private void UpdateDetailName(ProductDTO product)
+        {
+            if (product == null || !product.DetailId.HasValue || product.DetailId <= 0) return;
+
+            var category = DetailCategories?.FirstOrDefault(c => c.CategoryId == product.DetailId);
+            if (category != null)
+            {
+                product.DetailName = category.Name;
             }
         }
 
@@ -345,7 +444,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _searchText, value))
                 {
-                    _currentPage = 1; // Reset to first page when searching
+                    _currentPage = 1;
                     OnPropertyChanged(nameof(CurrentPage));
                     FilterProducts();
                 }
@@ -382,7 +481,6 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _validationErrors, value);
         }
 
-        // Pagination properties
         public int CurrentPage
         {
             get => _currentPage;
@@ -406,7 +504,7 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _pageSize, value))
                 {
-                    _currentPage = 1; // Reset to first page when changing page size
+                    _currentPage = 1;
                     OnPropertyChanged(nameof(CurrentPage));
                     _ = SafeLoadDataAsync();
                 }
@@ -462,20 +560,18 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand GenerateMissingBarcodesCommand { get; private set; }
         public ICommand UploadImageCommand { get; private set; }
         public ICommand ClearImageCommand { get; private set; }
-
-        // Pagination commands
         public ICommand NextPageCommand { get; private set; }
         public ICommand PreviousPageCommand { get; private set; }
         public ICommand GoToPageCommand { get; private set; }
         public ICommand ChangePageSizeCommand { get; private set; }
 
         public ProductViewModel(
-     IProductService productService,
-     ICategoryService categoryService,
-     IBarcodeService barcodeService,
-     ISupplierService supplierService,
-     IImagePathService imagePathService,
-     IEventAggregator eventAggregator) : base(eventAggregator)
+            IProductService productService,
+            ICategoryService categoryService,
+            IBarcodeService barcodeService,
+            ISupplierService supplierService,
+            IImagePathService imagePathService,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
             Debug.WriteLine("Initializing ProductViewModel");
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
@@ -488,6 +584,11 @@ namespace QuickTechSystems.WPF.ViewModels
             _filteredProducts = new ObservableCollection<ProductDTO>();
             _categories = new ObservableCollection<CategoryDTO>();
             _suppliers = new ObservableCollection<SupplierDTO>();
+            _plantsHardscapeCategories = new ObservableCollection<CategoryDTO>();
+            _localImportedCategories = new ObservableCollection<CategoryDTO>();
+            _indoorOutdoorCategories = new ObservableCollection<CategoryDTO>();
+            _plantFamilyCategories = new ObservableCollection<CategoryDTO>();
+            _detailCategories = new ObservableCollection<CategoryDTO>();
             _validationErrors = new Dictionary<int, List<string>>();
             _productChangedHandler = HandleProductChanged;
             _categoryChangedHandler = HandleCategoryChanged;
@@ -507,23 +608,20 @@ namespace QuickTechSystems.WPF.ViewModels
             int startPage = Math.Max(1, CurrentPage - 2);
             int endPage = Math.Min(TotalPages, CurrentPage + 2);
 
-            // Always show first page
             if (startPage > 1)
             {
                 visiblePages.Add(1);
-                if (startPage > 2) visiblePages.Add(-1); // -1 represents ellipsis
+                if (startPage > 2) visiblePages.Add(-1);
             }
 
-            // Add current range
             for (int i = startPage; i <= endPage; i++)
             {
                 visiblePages.Add(i);
             }
 
-            // Always show last page
             if (endPage < TotalPages)
             {
-                if (endPage < TotalPages - 1) visiblePages.Add(-1); // -1 represents ellipsis
+                if (endPage < TotalPages - 1) visiblePages.Add(-1);
                 visiblePages.Add(TotalPages);
             }
 
@@ -531,7 +629,6 @@ namespace QuickTechSystems.WPF.ViewModels
             OnPropertyChanged(nameof(VisiblePageNumbers));
         }
 
-        // Calculate values for the selected product
         private void CalculateSelectedProductValues()
         {
             try
@@ -545,16 +642,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Calculate total cost (purchase price × stock)
                 SelectedProductTotalCost = SelectedProduct.PurchasePrice * SelectedProduct.CurrentStock;
-
-                // Calculate total value (sale price × stock)
                 SelectedProductTotalValue = SelectedProduct.SalePrice * SelectedProduct.CurrentStock;
-
-                // Calculate profit margin (sale value - purchase value)
                 SelectedProductProfitMargin = SelectedProductTotalValue - SelectedProductTotalCost;
 
-                // Calculate profit percentage
                 if (SelectedProductTotalCost > 0)
                 {
                     SelectedProductProfitPercentage = (SelectedProductProfitMargin / SelectedProductTotalCost) * 100;
@@ -574,7 +665,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Method to calculate aggregated values for all products
         private void CalculateAggregatedValues()
         {
             try
@@ -600,7 +690,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error calculating values for product {product.Name}: {ex.Message}");
-                        // Continue with other products even if one fails
                     }
                 }
 
@@ -632,7 +721,6 @@ namespace QuickTechSystems.WPF.ViewModels
             ClearImageCommand = new RelayCommand(_ => ClearImage());
             GenerateMissingBarcodesCommand = new AsyncRelayCommand(async _ => await GenerateMissingBarcodeImages(), _ => !IsSaving);
 
-            // Pagination commands
             NextPageCommand = new RelayCommand(_ => CurrentPage++, _ => !IsLastPage);
             PreviousPageCommand = new RelayCommand(_ => CurrentPage--, _ => !IsFirstPage);
             GoToPageCommand = new RelayCommand<int>(page => CurrentPage = page);
@@ -655,23 +743,17 @@ namespace QuickTechSystems.WPF.ViewModels
             _eventAggregator.Unsubscribe<EntityChangedEvent<SupplierDTO>>(_supplierChangedHandler);
         }
 
-        // Update these methods in the ProductViewModel.cs file
-
         public void ShowProductPopup()
         {
             try
             {
-                // Create a new instance of the ProductDetailsWindow
                 var productWindow = new ProductDetailsWindow
                 {
                     DataContext = this,
                     Owner = GetOwnerWindow()
                 };
 
-                // Subscribe to save completed event
                 productWindow.SaveCompleted += ProductDetailsWindow_SaveCompleted;
-
-                // Show the window as dialog
                 productWindow.ShowDialog();
             }
             catch (Exception ex)
@@ -683,14 +765,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private void ProductDetailsWindow_SaveCompleted(object sender, RoutedEventArgs e)
         {
-            // When save is completed, close the window
-            // The window itself already handles closing through the DialogResult
         }
 
         public void CloseProductPopup()
         {
-            // This is no longer needed with Window approach, as the window handles its own closing
-            // But we'll keep it for backward compatibility
             IsProductPopupOpen = false;
         }
 
@@ -703,11 +781,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 ShowProductPopup();
             }
         }
+
         public async Task RefreshTransactionProductLists()
         {
             try
             {
-                // Publish an event to refresh product lists in other viewmodels
                 var product = SelectedProduct;
                 if (product != null)
                 {
@@ -720,12 +798,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 Debug.WriteLine($"Error refreshing transaction product lists: {ex.Message}");
             }
         }
+
         private void UploadImage()
         {
-            // Store current popup state
             bool wasPopupOpen = IsProductPopupOpen;
 
-            // Temporarily close the popup
             if (wasPopupOpen)
             {
                 IsProductPopupOpen = false;
@@ -739,26 +816,18 @@ namespace QuickTechSystems.WPF.ViewModels
                     Title = "Select product image"
                 };
 
-                // Get the current owner window
                 var ownerWindow = GetOwnerWindow();
 
-                // Show dialog with proper owner
                 bool? result = openFileDialog.ShowDialog(ownerWindow);
 
                 if (result == true && SelectedProduct != null)
                 {
                     try
                     {
-                        // Get the source path
                         string sourcePath = openFileDialog.FileName;
-
-                        // Save the image and get the relative path
                         string savedPath = _imagePathService.SaveProductImage(sourcePath);
 
-                        // Set the ImagePath property (not the old Image property)
                         SelectedProduct.ImagePath = savedPath;
-
-                        // Use your local method instead of calling the service
                         ProductImage = LoadImageFromPath(savedPath);
 
                         Debug.WriteLine($"Image saved at: {savedPath}");
@@ -771,18 +840,17 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                // Restore popup state
                 if (wasPopupOpen)
                 {
                     IsProductPopupOpen = true;
                 }
             }
         }
+
         private void ClearImage()
         {
             if (SelectedProduct != null)
             {
-                // If there's an existing image, attempt to delete the file
                 if (!string.IsNullOrEmpty(SelectedProduct.ImagePath))
                 {
                     _imagePathService.DeleteProductImage(SelectedProduct.ImagePath);
@@ -792,7 +860,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 ProductImage = null;
             }
         }
-
 
         private BitmapImage? LoadImage(byte[]? imageData)
         {
@@ -816,6 +883,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null;
             }
         }
+
         private async Task PrintBarcodeAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -841,7 +909,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = "Preparing barcode...";
                 IsSaving = true;
 
-                // Generate barcode image if needed
                 if (SelectedProduct.BarcodeImage == null)
                 {
                     try
@@ -856,7 +923,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         SelectedProduct.BarcodeImage = barcodeData;
                         BarcodeImage = LoadBarcodeImage(barcodeData);
 
-                        // Save updated product with barcode image
                         var productCopy = new ProductDTO
                         {
                             ProductId = SelectedProduct.ProductId,
@@ -888,7 +954,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     }
                 }
 
-                // Print the labels in a single document
                 bool printerCancelled = false;
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
                 {
@@ -903,42 +968,34 @@ namespace QuickTechSystems.WPF.ViewModels
                             return;
                         }
 
-                        // Configure print ticket for label printing
                         printDialog.PrintTicket.PageMediaSize = new PageMediaSize(
-                            (int)(5.5 * 39.37), // Width in hundredths of an inch
-                            (int)(4.0 * 39.37)  // Height in hundredths of an inch
+                            (int)(5.5 * 39.37),
+                            (int)(4.0 * 39.37)
                         );
                         printDialog.PrintTicket.PageBorderless = PageBorderless.Borderless;
                         printDialog.PrintTicket.PageMediaType = PageMediaType.Label;
 
-                        // Create a single document with multiple pages (one for each label)
                         var fixedDocument = new FixedDocument();
 
                         StatusMessage = $"Creating document with {LabelsPerProduct} labels...";
 
-                        // Add each label as a separate page in the document
                         for (int i = 0; i < LabelsPerProduct; i++)
                         {
                             var pageContent = new PageContent();
                             var fixedPage = new FixedPage();
 
-                            // Set page dimensions
                             fixedPage.Width = printDialog.PrintableAreaWidth;
                             fixedPage.Height = printDialog.PrintableAreaHeight;
 
-                            // Create visual for this label
                             var labelVisual = CreateBarcodeLabelVisual(SelectedProduct,
                                 printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight);
 
-                            // Add to page
                             fixedPage.Children.Add(labelVisual);
 
-                            // Add page to document
                             ((IAddChild)pageContent).AddChild(fixedPage);
                             fixedDocument.Pages.Add(pageContent);
                         }
 
-                        // Print the entire document in one operation
                         StatusMessage = "Sending to printer...";
                         printDialog.PrintDocument(fixedDocument.DocumentPaginator,
                             $"Barcode Labels - {SelectedProduct.Name} ({LabelsPerProduct})");
@@ -971,9 +1028,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
-        private UIElement CreateHighQualityBarcodeLabel(ProductDTO product, double width, double height)
+
+        private UIElement CreateBarcodeLabelVisual(ProductDTO product, double width, double height)
         {
-            // Create a container for the label content with top padding
             var outerCanvas = new Canvas
             {
                 Width = width,
@@ -981,20 +1038,17 @@ namespace QuickTechSystems.WPF.ViewModels
                 Background = Brushes.White
             };
 
-            // Create inner canvas for content that will be shifted down
             var canvas = new Canvas
             {
                 Width = width,
                 Height = height - 15
             };
 
-            // Position the inner canvas with top padding to shift everything down
             Canvas.SetTop(canvas, 15);
             outerCanvas.Children.Add(canvas);
 
-            // Position the barcode image - use most of the available space
-            double barcodeWidth = Math.Min(width * 0.9, 600);
-            double barcodeHeight = Math.Min(height * 0.5, 200);
+            double barcodeWidth = width * 0.9;
+            double barcodeHeight = height * 0.5;
 
             try
             {
@@ -1009,7 +1063,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     Debug.WriteLine($"Warning: Barcode '{displayBarcode}' exceeds 12 digits. It may not scan correctly.");
                 }
 
-                // Add product name with improved text quality
                 var nameText = product.Name ?? "Unknown Product";
                 var nameTextBlock = new TextBlock
                 {
@@ -1023,10 +1076,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     MaxHeight = height * 0.15
                 };
 
-                // High-quality text rendering
-                TextOptions.SetTextRenderingMode(nameTextBlock, TextRenderingMode.ClearType);
-                TextOptions.SetTextFormattingMode(nameTextBlock, TextFormattingMode.Display);
-
                 Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
                 Canvas.SetTop(nameTextBlock, 0);
                 canvas.Children.Add(nameTextBlock);
@@ -1036,12 +1085,11 @@ namespace QuickTechSystems.WPF.ViewModels
                 BitmapImage bitmapSource = null;
                 if (product.BarcodeImage != null)
                 {
-                    bitmapSource = LoadHighQualityBarcodeImage(product.BarcodeImage);
+                    bitmapSource = LoadBarcodeImage(product.BarcodeImage);
                 }
 
                 if (bitmapSource == null)
                 {
-                    // Create a placeholder for missing barcode image
                     var placeholder = new Border
                     {
                         Width = barcodeWidth,
@@ -1070,28 +1118,23 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
-                    // Create and position barcode image with enhanced quality settings
                     var barcodeImage = new Image
                     {
                         Source = bitmapSource,
                         Width = barcodeWidth,
                         Height = barcodeHeight,
                         Stretch = Stretch.Uniform,
-                        SnapsToDevicePixels = true,
-                        UseLayoutRounding = true // Ensures pixel-perfect rendering
+                        SnapsToDevicePixels = true
                     };
 
-                    // Critical: Use NearestNeighbor for barcodes to prevent smoothing
-                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.NearestNeighbor);
+                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.HighQuality);
                     RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
-                    RenderOptions.SetClearTypeHint(barcodeImage, ClearTypeHint.Enabled);
 
                     Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
                     Canvas.SetTop(barcodeImage, barcodeTop);
                     canvas.Children.Add(barcodeImage);
                 }
 
-                // Add barcode text
                 var barcodeTextBlock = new TextBlock
                 {
                     Text = displayBarcode,
@@ -1101,15 +1144,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     Width = width * 0.9
                 };
 
-                TextOptions.SetTextRenderingMode(barcodeTextBlock, TextRenderingMode.ClearType);
-                TextOptions.SetTextFormattingMode(barcodeTextBlock, TextFormattingMode.Display);
-
                 double barcodeImageBottom = barcodeTop + barcodeHeight;
                 Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
                 Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
                 canvas.Children.Add(barcodeTextBlock);
 
-                // Add price if needed
                 if (product.SalePrice > 0)
                 {
                     var priceTextBlock = new TextBlock
@@ -1122,9 +1161,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         Width = width * 0.9
                     };
 
-                    TextOptions.SetTextRenderingMode(priceTextBlock, TextRenderingMode.ClearType);
-                    TextOptions.SetTextFormattingMode(priceTextBlock, TextFormattingMode.Display);
-
                     Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
                     Canvas.SetTop(priceTextBlock, height * 0.75);
                     canvas.Children.Add(priceTextBlock);
@@ -1132,220 +1168,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error creating high-quality barcode label: {ex.Message}");
-
-                var errorTextBlock = new TextBlock
-                {
-                    Text = $"Error: {ex.Message}",
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 8,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = width * 0.9,
-                    Foreground = Brushes.Red
-                };
-
-                Canvas.SetLeft(errorTextBlock, (width - errorTextBlock.Width) / 2);
-                Canvas.SetTop(errorTextBlock, height * 0.7);
-                canvas.Children.Add(errorTextBlock);
-            }
-
-            return outerCanvas;
-        }
-        private BitmapImage LoadHighQualityBarcodeImage(byte[] imageData)
-        {
-            if (imageData == null) return null;
-
-            var image = new BitmapImage();
-            try
-            {
-                using (var ms = new MemoryStream(imageData))
-                {
-                    image.BeginInit();
-
-                    // High quality loading settings
-                    image.CacheOption = BitmapCacheOption.OnLoad;
-                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat |
-                                          BitmapCreateOptions.IgnoreImageCache |
-                                          BitmapCreateOptions.IgnoreColorProfile;
-
-                    // Load at full resolution - don't decode at a different size
-                    // This preserves the sharp edges of the barcode
-
-                    image.StreamSource = ms;
-                    image.EndInit();
-                    image.Freeze(); // Important for cross-thread usage
-                }
-                return image;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error loading high-quality barcode image: {ex.Message}");
-                return null;
-            }
-        }
-        private UIElement CreateBarcodeLabelVisual(ProductDTO product, double width, double height)
-        {
-            // Create a container for the label content with top padding
-            var outerCanvas = new Canvas
-            {
-                Width = width,
-                Height = height,
-                Background = Brushes.White
-            };
-
-            // Create inner canvas for content that will be shifted down
-            var canvas = new Canvas
-            {
-                Width = width,
-                // Use slightly reduced height to accommodate the top padding
-                Height = height - 15
-            };
-
-            // Position the inner canvas with top padding to shift everything down
-            Canvas.SetTop(canvas, 15); // Add 15 pixels of top padding
-            outerCanvas.Children.Add(canvas);
-
-            // Position the barcode image - use most of the available space
-            double barcodeWidth = width * 0.9;
-            double barcodeHeight = height * 0.5;
-
-            try
-            {
-                // Check if product is null
-                if (product == null)
-                {
-                    throw new ArgumentNullException("product", "Product cannot be null");
-                }
-
-                // Verify barcode is within limits (12 digits max)
-                string displayBarcode = product.Barcode ?? "N/A";
-                if (!string.IsNullOrEmpty(displayBarcode) && displayBarcode.Length > 12)
-                {
-                    Debug.WriteLine($"Warning: Barcode '{displayBarcode}' exceeds 12 digits. It may not scan correctly.");
-                }
-
-                // Add product name (with null check)
-                var nameText = product.Name ?? "Unknown Product";
-                var nameTextBlock = new TextBlock
-                {
-                    Text = nameText,
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = width * 0.9,
-                    MaxHeight = height * 0.15
-                };
-
-                // Position product name at top of inner canvas
-                Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
-                Canvas.SetTop(nameTextBlock, 0); // Position at top of inner canvas
-                canvas.Children.Add(nameTextBlock);
-
-                // Standard position for barcode relative to inner canvas
-                double barcodeTop = height * 0.15;
-
-                // Load barcode image with null check
-                BitmapImage bitmapSource = null;
-                if (product.BarcodeImage != null)
-                {
-                    bitmapSource = LoadBarcodeImage(product.BarcodeImage);
-                }
-
-                // Handle case where image didn't load
-                if (bitmapSource == null)
-                {
-                    // Create a placeholder for missing barcode image
-                    var placeholder = new Border
-                    {
-                        Width = barcodeWidth,
-                        Height = barcodeHeight,
-                        Background = Brushes.LightGray,
-                        BorderBrush = Brushes.Gray,
-                        BorderThickness = new Thickness(1)
-                    };
-
-                    // Add text to placeholder
-                    var placeholderText = new TextBlock
-                    {
-                        Text = "Barcode Image\nNot Available",
-                        FontFamily = new FontFamily("Arial"),
-                        FontSize = 10,
-                        TextAlignment = TextAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap
-                    };
-
-                    placeholder.Child = placeholderText;
-
-                    // Position placeholder
-                    Canvas.SetLeft(placeholder, (width - barcodeWidth) / 2);
-                    Canvas.SetTop(placeholder, barcodeTop);
-                    canvas.Children.Add(placeholder);
-                }
-                else
-                {
-                    // Create and position barcode image with high-quality rendering
-                    var barcodeImage = new Image
-                    {
-                        Source = bitmapSource,
-                        Width = barcodeWidth,
-                        Height = barcodeHeight,
-                        Stretch = Stretch.Uniform,
-                        SnapsToDevicePixels = true
-                    };
-
-                    // Set high-quality rendering options
-                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.HighQuality);
-                    RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
-
-                    Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
-                    Canvas.SetTop(barcodeImage, barcodeTop);
-                    canvas.Children.Add(barcodeImage);
-                }
-
-                // Add barcode text (with null check)
-                var barcodeTextBlock = new TextBlock
-                {
-                    Text = displayBarcode,
-                    FontFamily = new FontFamily("Consolas, Courier New, Monospace"), // Monospace is better for barcodes
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                    Width = width * 0.9
-                };
-
-                // Position barcode text below where the barcode image would be
-                double barcodeImageBottom = barcodeTop + barcodeHeight;
-                Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
-                Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
-                canvas.Children.Add(barcodeTextBlock);
-
-                // Add price if needed
-                if (product.SalePrice > 0)
-                {
-                    var priceTextBlock = new TextBlock
-                    {
-                        Text = $"${product.SalePrice:N2}", // Only show price without duplicating barcode
-                        FontFamily = new FontFamily("Arial"),
-                        FontSize = 12,
-                        FontWeight = FontWeights.Bold,
-                        TextAlignment = TextAlignment.Center,
-                        Width = width * 0.9
-                    };
-
-                    // Position price at bottom with better spacing
-                    Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
-                    Canvas.SetTop(priceTextBlock, height * 0.75); // Adjusted for top padding
-                    canvas.Children.Add(priceTextBlock);
-                }
-            }
-            catch (Exception ex)
-            {
                 Debug.WriteLine($"Error creating barcode visual: {ex.Message}");
 
-                // Add error message if there's an exception
                 var errorTextBlock = new TextBlock
                 {
                     Text = $"Error: {ex.Message}",
@@ -1362,160 +1186,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
 
             return outerCanvas;
-        }
-        private FixedDocument CreateBarcodeDocument(ProductDTO product, int numberOfLabels)
-        {
-            var document = new FixedDocument();
-            var pageSize = new Size(96 * 8.5, 96 * 11); // Letter size at 96 DPI
-            var labelSize = new Size(96 * 2, 96); // 2 inches x 1 inch at 96 DPI
-            var margin = new Thickness(96 * 0.5); // 0.5 inch margins
-
-            var labelsPerRow = (int)((pageSize.Width - margin.Left - margin.Right) / labelSize.Width);
-            var labelsPerColumn = (int)((pageSize.Height - margin.Top - margin.Bottom) / labelSize.Height);
-            var labelsPerPage = labelsPerRow * labelsPerColumn;
-
-            var currentPage = CreateNewPage(pageSize, margin);
-            var currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-            var currentLabelCount = 0;
-
-            for (int i = 0; i < numberOfLabels; i++)
-            {
-                if (currentLabelCount >= labelsPerPage)
-                {
-                    document.Pages.Add(currentPage);
-                    currentPage = CreateNewPage(pageSize, margin);
-                    currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-                    currentLabelCount = 0;
-                }
-
-                var label = CreateBarcodeLabel(product, labelSize);
-                currentPanel.Children.Add(label);
-                currentLabelCount++;
-            }
-
-            if (currentLabelCount > 0)
-            {
-                document.Pages.Add(currentPage);
-            }
-
-            return document;
-        }
-
-        private PageContent CreateNewPage(Size pageSize, Thickness margin)
-        {
-            var page = new FixedPage
-            {
-                Width = pageSize.Width,
-                Height = pageSize.Height
-            };
-
-            var panel = new WrapPanel
-            {
-                Margin = margin,
-                Width = pageSize.Width - margin.Left - margin.Right
-            };
-
-            page.Children.Add(panel);
-
-            var pageContent = new PageContent();
-            ((IAddChild)pageContent).AddChild(page);
-
-            return pageContent;
-        }
-        private UIElement CreateBarcodeLabel(ProductDTO product, Size labelSize)
-        {
-            // Create outer grid with top padding
-            var outerGrid = new Grid
-            {
-                Width = labelSize.Width,
-                Height = labelSize.Height,
-                Margin = new Thickness(2),
-                Background = Brushes.White
-            };
-
-            // Define rows for the outer grid
-            outerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(15) }); // Top padding
-            outerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Content area
-
-            // Create inner grid for actual content
-            var contentGrid = new Grid
-            {
-                Width = labelSize.Width,
-                VerticalAlignment = VerticalAlignment.Top
-            };
-
-            // Set the inner grid to be in the second row (after top padding)
-            Grid.SetRow(contentGrid, 1);
-            outerGrid.Children.Add(contentGrid);
-
-            // Define rows for the content grid
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Auto) });  // Product name
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) });  // Barcode image
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                       // Barcode text
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });  // Price (optional)
-
-            // Add product name
-            var nameText = new TextBlock
-            {
-                Text = product.Name ?? "Unknown Product",
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(2),
-                FontWeight = FontWeights.Bold,
-                FontSize = 10
-            };
-            Grid.SetRow(nameText, 0);
-            contentGrid.Children.Add(nameText);
-
-            // Create and add barcode image
-            BitmapImage bitmapSource = null;
-            if (product.BarcodeImage != null)
-            {
-                bitmapSource = LoadBarcodeImage(product.BarcodeImage);
-            }
-
-            var image = new Image
-            {
-                Source = bitmapSource,
-                Stretch = Stretch.Uniform,
-                Margin = new Thickness(5)
-            };
-
-            // Set high-quality settings
-            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
-            RenderOptions.SetEdgeMode(image, EdgeMode.Aliased);
-
-            Grid.SetRow(image, 1);
-            contentGrid.Children.Add(image);
-
-            // Add barcode text
-            var barcodeText = new TextBlock
-            {
-                Text = product.Barcode ?? "No Barcode",
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 2, 0, 5),
-                FontFamily = new FontFamily("Consolas, Courier New, Monospace"), // Monospace for barcode text
-                FontSize = 9
-            };
-            Grid.SetRow(barcodeText, 2);
-            contentGrid.Children.Add(barcodeText);
-
-            // Add price (if available)
-            if (product.SalePrice > 0)
-            {
-                var priceText = new TextBlock
-                {
-                    Text = $"${product.SalePrice:N2}",
-                    TextAlignment = TextAlignment.Center,
-                    Margin = new Thickness(0, 5, 0, 2),
-                    FontWeight = FontWeights.Bold,
-                    FontSize = 12
-                };
-                Grid.SetRow(priceText, 3);
-                contentGrid.Children.Add(priceText);
-            }
-
-            return outerGrid;
         }
 
         private async Task ShowBulkAddDialog()
@@ -1538,7 +1208,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     _barcodeService,
                     _eventAggregator);
 
-                // Get the current owner window
                 var ownerWindow = GetOwnerWindow();
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
@@ -1611,7 +1280,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 StockIncrement = 0;
 
-                // Recalculate values after stock update
                 CalculateSelectedProductValues();
                 CalculateAggregatedValues();
             }
@@ -1629,17 +1297,14 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private Window GetOwnerWindow()
         {
-            // Try to get the active window first
             var activeWindow = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive);
             if (activeWindow != null)
                 return activeWindow;
 
-            // Fall back to the main window
             var mainWindow = System.Windows.Application.Current.MainWindow;
             if (mainWindow != null && mainWindow.IsLoaded)
                 return mainWindow;
 
-            // Last resort, get any window that's visible
             return System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsVisible)
                    ?? System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault();
         }
@@ -1654,7 +1319,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     switch (evt.Action)
                     {
                         case "Create":
-                            // Only add if the supplier is active
                             if (evt.Entity.IsActive && !Suppliers.Any(s => s.SupplierId == evt.Entity.SupplierId))
                             {
                                 Suppliers.Add(evt.Entity);
@@ -1667,20 +1331,17 @@ namespace QuickTechSystems.WPF.ViewModels
                             {
                                 if (evt.Entity.IsActive)
                                 {
-                                    // Update the existing supplier if it's active
                                     Suppliers[existingIndex] = evt.Entity;
                                     Debug.WriteLine($"Updated supplier {evt.Entity.Name}");
                                 }
                                 else
                                 {
-                                    // Remove the supplier if it's now inactive
                                     Suppliers.RemoveAt(existingIndex);
                                     Debug.WriteLine($"Removed inactive supplier {evt.Entity.Name}");
                                 }
                             }
                             else if (evt.Entity.IsActive)
                             {
-                                // This is a supplier that wasn't in our list but is now active
                                 Suppliers.Add(evt.Entity);
                                 Debug.WriteLine($"Added newly active supplier {evt.Entity.Name}");
                             }
@@ -1712,11 +1373,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     switch (evt.Action)
                     {
                         case "Create":
-                            // Only add if the category is active
                             if (evt.Entity.IsActive && !Categories.Any(c => c.CategoryId == evt.Entity.CategoryId))
                             {
                                 Categories.Add(evt.Entity);
                                 Debug.WriteLine($"Added new category {evt.Entity.Name}");
+
+                                LoadSpecializedCategoryCollections();
                             }
                             break;
                         case "Update":
@@ -1725,22 +1387,21 @@ namespace QuickTechSystems.WPF.ViewModels
                             {
                                 if (evt.Entity.IsActive)
                                 {
-                                    // Update the existing category if it's active
                                     Categories[existingIndex] = evt.Entity;
                                     Debug.WriteLine($"Updated category {evt.Entity.Name}");
                                 }
                                 else
                                 {
-                                    // Remove the category if it's now inactive
                                     Categories.RemoveAt(existingIndex);
                                     Debug.WriteLine($"Removed inactive category {evt.Entity.Name}");
                                 }
+                                LoadSpecializedCategoryCollections();
                             }
                             else if (evt.Entity.IsActive)
                             {
-                                // This is a category that wasn't in our list but is now active
                                 Categories.Add(evt.Entity);
                                 Debug.WriteLine($"Added newly active category {evt.Entity.Name}");
+                                LoadSpecializedCategoryCollections();
                             }
                             break;
                         case "Delete":
@@ -1748,6 +1409,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             if (categoryToRemove != null)
                             {
                                 Categories.Remove(categoryToRemove);
+                                LoadSpecializedCategoryCollections();
                                 Debug.WriteLine($"Removed category {categoryToRemove.Name}");
                             }
                             break;
@@ -1800,10 +1462,8 @@ namespace QuickTechSystems.WPF.ViewModels
                             break;
                     }
 
-                    // Update calculations when products change
                     CalculateAggregatedValues();
 
-                    // Refresh filtered products if we're using search
                     if (!string.IsNullOrWhiteSpace(SearchText))
                     {
                         FilterProducts();
@@ -1824,7 +1484,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 return;
             }
 
-            // Create a new CancellationTokenSource for this operation
             _cts?.Cancel();
             _cts = new CancellationTokenSource();
             var token = _cts.Token;
@@ -1836,28 +1495,22 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
-                    // Add a timeout for the operation
                     using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
 
-                    // Get categories and suppliers (these are always fetched in full)
                     var categoriesTask = _categoryService.GetActiveAsync();
                     var suppliersTask = _supplierService.GetActiveAsync();
 
-                    // Get total count of products
                     var totalCount = await GetTotalProductCount();
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    // Calculate total pages
                     int calculatedTotalPages = (int)Math.Ceiling(totalCount / (double)PageSize);
                     TotalPages = calculatedTotalPages;
                     TotalProducts = totalCount;
 
-                    // Get paginated products
                     var products = await GetPagedProducts(CurrentPage, PageSize, SearchText);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
-                    // Wait for categories and suppliers to complete
                     await Task.WhenAll(categoriesTask, suppliersTask);
                     if (linkedCts.Token.IsCancellationRequested) return;
 
@@ -1873,7 +1526,8 @@ namespace QuickTechSystems.WPF.ViewModels
                             Categories = new ObservableCollection<CategoryDTO>(categories);
                             Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
 
-                            // Calculate values after loading products
+                            LoadSpecializedCategoryCollections();
+
                             CalculateAggregatedValues();
 
                             if (SelectedProduct != null)
@@ -1900,11 +1554,110 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private void LoadSpecializedCategoryCollections()
+        {
+            if (Categories == null) return;
+
+            var categoryList = Categories.ToList();
+
+            PlantsHardscapeCategories = new ObservableCollection<CategoryDTO>(
+                FilterCategoriesByType(categoryList, "PlantsHardscape")
+            );
+
+            LocalImportedCategories = new ObservableCollection<CategoryDTO>(
+                FilterCategoriesByType(categoryList, "LocalImported")
+            );
+
+            IndoorOutdoorCategories = new ObservableCollection<CategoryDTO>(
+                FilterCategoriesByType(categoryList, "IndoorOutdoor")
+            );
+
+            PlantFamilyCategories = new ObservableCollection<CategoryDTO>(
+                FilterCategoriesByType(categoryList, "PlantFamily")
+            );
+
+            DetailCategories = new ObservableCollection<CategoryDTO>(
+                FilterCategoriesByType(categoryList, "Detail")
+            );
+
+            Debug.WriteLine($"Loaded specialized categories: PH={PlantsHardscapeCategories.Count}, LI={LocalImportedCategories.Count}, IO={IndoorOutdoorCategories.Count}, PF={PlantFamilyCategories.Count}, D={DetailCategories.Count}");
+        }
+
+        private List<CategoryDTO> FilterCategoriesByType(List<CategoryDTO> categories, string categoryType)
+        {
+            var filteredCategories = new List<CategoryDTO>();
+
+            switch (categoryType)
+            {
+                case "PlantsHardscape":
+                    filteredCategories = categories.Where(c =>
+                        c.Name.Contains("Plant", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Hardscape", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Landscape", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Garden", StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                    break;
+
+                case "LocalImported":
+                    filteredCategories = categories.Where(c =>
+                        c.Name.Contains("Local", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Import", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Domestic", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Foreign", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("International", StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                    break;
+
+                case "IndoorOutdoor":
+                    filteredCategories = categories.Where(c =>
+                        c.Name.Contains("Indoor", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Outdoor", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Interior", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Exterior", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("House", StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                    break;
+
+                case "PlantFamily":
+                    filteredCategories = categories.Where(c =>
+                        c.Name.Contains("Flower", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Foliage", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Succulent", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Tree", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Shrub", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Herb", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Fern", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Vine", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Grass", StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                    break;
+
+                case "Detail":
+                    filteredCategories = categories.Where(c =>
+                        c.Name.Contains("Season", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Perennial", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Annual", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Rare", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Common", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Special", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Premium", StringComparison.OrdinalIgnoreCase) ||
+                        c.Name.Contains("Standard", StringComparison.OrdinalIgnoreCase)
+                    ).ToList();
+                    break;
+            }
+
+            if (!filteredCategories.Any())
+            {
+                return categories.Take(Math.Min(10, categories.Count)).ToList();
+            }
+
+            return filteredCategories.OrderBy(c => c.Name).ToList();
+        }
+
         private async Task<int> GetTotalProductCount()
         {
             if (!string.IsNullOrWhiteSpace(SearchText))
             {
-                // If searching, we need to get all products and count filtered ones
                 var allProducts = await _productService.GetAllAsync();
                 return allProducts.Count(p =>
                     p.Name.Contains(SearchText, StringComparison.OrdinalIgnoreCase) ||
@@ -1915,7 +1668,6 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             else
             {
-                // If not searching, we can just get the total count
                 var allProducts = await _productService.GetAllAsync();
                 return allProducts.Count();
             }
@@ -1923,10 +1675,8 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task<List<ProductDTO>> GetPagedProducts(int page, int pageSize, string searchText)
         {
-            // Get all products (in a real implementation, this should be done in the backend)
             var allProducts = await _productService.GetAllAsync();
 
-            // Filter if needed
             IEnumerable<ProductDTO> filteredProducts = allProducts;
             if (!string.IsNullOrWhiteSpace(searchText))
             {
@@ -1938,7 +1688,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     (p.Speed?.Contains(searchText, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
-            // Apply pagination
             return filteredProducts
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -1983,24 +1732,20 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsSaving = true;
                 StatusMessage = "Validating product...";
 
-                // Store reference to product before any operations that might clear it
                 var productToUpdate = SelectedProduct;
 
-                // Check if barcode is empty and generate one if needed
                 if (string.IsNullOrWhiteSpace(productToUpdate.Barcode))
                 {
                     Debug.WriteLine("No barcode provided, generating automatic barcode");
 
-                    // Generate a unique barcode based on category, timestamp, and random number
-                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8); // Use ticks for uniqueness
+                    var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
                     var random = new Random();
                     var randomDigits = random.Next(1000, 9999).ToString();
-                    var categoryPrefix = productToUpdate.CategoryId.ToString().PadLeft(3, '0');
+                    var categoryPrefix = "001";
 
                     productToUpdate.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
                 }
 
-                // Always ensure barcode image exists before saving
                 if (productToUpdate.BarcodeImage == null && !string.IsNullOrWhiteSpace(productToUpdate.Barcode))
                 {
                     Debug.WriteLine("Generating barcode image for product");
@@ -2008,14 +1753,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         productToUpdate.BarcodeImage = _barcodeService.GenerateBarcode(productToUpdate.Barcode);
 
-                        // Update the UI image
                         BarcodeImage = LoadBarcodeImage(productToUpdate.BarcodeImage);
                         Debug.WriteLine("Barcode image generated successfully");
                     }
                     catch (Exception ex)
                     {
                         Debug.WriteLine($"Error generating barcode image: {ex.Message}");
-                        // Continue despite this error - we can still save without the image
                     }
                 }
 
@@ -2024,7 +1767,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     return;
                 }
 
-                // Check for duplicate barcode
                 try
                 {
                     var existingProduct = await _productService.FindProductByBarcodeAsync(
@@ -2047,18 +1789,16 @@ namespace QuickTechSystems.WPF.ViewModels
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"Error checking for duplicate barcode: {ex.Message}");
-                    // Continue despite this error, as it's better to attempt the save
                 }
 
                 StatusMessage = "Saving product...";
 
-                // Create a copy of the product to ensure we have the latest values
                 var productCopy = new ProductDTO
                 {
                     ProductId = productToUpdate.ProductId,
                     Name = productToUpdate.Name,
                     Barcode = productToUpdate.Barcode,
-                    CategoryId = productToUpdate.CategoryId,
+                    CategoryId = 1,
                     CategoryName = productToUpdate.CategoryName,
                     SupplierId = productToUpdate.SupplierId,
                     SupplierName = productToUpdate.SupplierName,
@@ -2070,7 +1810,17 @@ namespace QuickTechSystems.WPF.ViewModels
                     BarcodeImage = productToUpdate.BarcodeImage,
                     Speed = productToUpdate.Speed,
                     IsActive = productToUpdate.IsActive,
-                    ImagePath = productToUpdate.ImagePath, // Changed from Image to ImagePath
+                    ImagePath = productToUpdate.ImagePath,
+                    PlantsHardscapeId = productToUpdate.PlantsHardscapeId,
+                    PlantsHardscapeName = productToUpdate.PlantsHardscapeName,
+                    LocalImportedId = productToUpdate.LocalImportedId,
+                    LocalImportedName = productToUpdate.LocalImportedName,
+                    IndoorOutdoorId = productToUpdate.IndoorOutdoorId,
+                    IndoorOutdoorName = productToUpdate.IndoorOutdoorName,
+                    PlantFamilyId = productToUpdate.PlantFamilyId,
+                    PlantFamilyName = productToUpdate.PlantFamilyName,
+                    DetailId = productToUpdate.DetailId,
+                    DetailName = productToUpdate.DetailName,
                     CreatedAt = productToUpdate.CreatedAt,
                     UpdatedAt = DateTime.Now
                 };
@@ -2081,12 +1831,10 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         var result = await _productService.CreateAsync(productCopy);
 
-                        // Update SelectedProduct reference
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
                             SelectedProduct = result;
                         });
 
-                        // Use the result for updating UI
                         productToUpdate = result;
                     }
                     else
@@ -2100,19 +1848,13 @@ namespace QuickTechSystems.WPF.ViewModels
                             MessageBoxButton.OK, MessageBoxImage.Information);
                     });
 
-                    // Recalculate totals after saving
                     CalculateAggregatedValues();
                     CalculateSelectedProductValues();
 
                     CloseProductPopup();
 
-                    // Refresh specific product
                     await RefreshSpecificProduct(productToUpdate.ProductId);
-
-                    // NEW LINE: Explicitly publish the event for the new product to update TransactionViewModel
                     await RefreshTransactionProductLists();
-
-                    // Refresh the data
                     await SafeLoadDataAsync();
 
                     Debug.WriteLine("Save completed, product refreshed");
@@ -2142,7 +1884,6 @@ namespace QuickTechSystems.WPF.ViewModels
             var sb = new StringBuilder();
             sb.Append(ex.Message);
 
-            // Collect inner exception details
             var currentEx = ex;
             while (currentEx.InnerException != null)
             {
@@ -2150,7 +1891,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 sb.Append($"\n→ {currentEx.Message}");
             }
 
-            // Add Entity Framework validation errors if available
             if (ex is DbUpdateException dbEx && dbEx.Entries != null && dbEx.Entries.Any())
             {
                 sb.Append("\nValidation errors:");
@@ -2169,6 +1909,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
             return sb.ToString();
         }
+
         private async Task GenerateMissingBarcodeImages()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -2219,18 +1960,16 @@ namespace QuickTechSystems.WPF.ViewModels
                                 await _productService.UpdateAsync(productCopy);
                                 generatedCount++;
 
-                                // Update status message periodically
                                 if (generatedCount % 5 == 0)
                                 {
                                     StatusMessage = $"Generated {generatedCount} barcode images...";
-                                    await Task.Delay(10); // Allow UI to update
+                                    await Task.Delay(10);
                                 }
                             }
                         }
                         catch (Exception ex)
                         {
                             Debug.WriteLine($"Error generating barcode for product {product.Name}: {ex.Message}");
-                            // Continue with next product
                         }
                     }
                 }
@@ -2238,7 +1977,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 StatusMessage = $"Successfully generated {generatedCount} barcode images.";
                 await Task.Delay(2000);
 
-                // Refresh products to ensure we have the latest data
                 await LoadDataAsync();
             }
             catch (Exception ex)
@@ -2252,6 +1990,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+
         private async Task RefreshSpecificProduct(int productId)
         {
             try
@@ -2260,7 +1999,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (updatedProduct != null)
                 {
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => {
-                        // Find and update the product in the collection
                         for (int i = 0; i < Products.Count; i++)
                         {
                             if (Products[i].ProductId == productId)
@@ -2286,13 +2024,9 @@ namespace QuickTechSystems.WPF.ViewModels
             if (string.IsNullOrWhiteSpace(product.Name))
                 errors.Add("Product name is required");
 
-            if (product.CategoryId <= 0)
-                errors.Add("Please select a category");
-
             if (product.SalePrice <= 0)
                 errors.Add("Sale price must be greater than zero");
 
-            // Modified validation: allows purchase price of 0 but prevents negative values
             if (product.PurchasePrice < 0)
                 errors.Add("Purchase price cannot be negative");
 
@@ -2355,7 +2089,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         await _productService.DeleteAsync(productId);
 
-                        // Remove from the local collection
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             var productToRemove = Products.FirstOrDefault(p => p.ProductId == productId);
@@ -2365,13 +2098,11 @@ namespace QuickTechSystems.WPF.ViewModels
                             }
                         });
 
-                        // Close popup if it's open
                         if (IsProductPopupOpen)
                         {
                             CloseProductPopup();
                         }
 
-                        // Recalculate totals after deletion
                         CalculateAggregatedValues();
 
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -2380,10 +2111,8 @@ namespace QuickTechSystems.WPF.ViewModels
                                 "Success", MessageBoxButton.OK, MessageBoxImage.Information);
                         });
 
-                        // Clear the selected product
                         SelectedProduct = null;
 
-                        // Refresh the data
                         await SafeLoadDataAsync();
                     }
                     catch (Exception ex)
@@ -2404,6 +2133,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 _operationLock.Release();
             }
         }
+
         private void GenerateBarcode()
         {
             if (SelectedProduct == null || string.IsNullOrWhiteSpace(SelectedProduct.Barcode))
@@ -2414,11 +2144,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-                // Ensure barcode is within 12 digits
                 var barcode = SelectedProduct.Barcode;
                 if (barcode.Length > 12)
                 {
-                    // Truncate to 12 digits if longer
                     barcode = barcode.Substring(0, 12);
                     SelectedProduct.Barcode = barcode;
                     ShowTemporaryErrorMessage("Barcode was truncated to 12 digits.");
@@ -2456,23 +2184,13 @@ namespace QuickTechSystems.WPF.ViewModels
 
             try
             {
-                // Format: [Category(2)][Sequential(4)][Random(2)] = Total 8 digits
-                // This ensures we stay well below the 12 digit limit
-
-                // Category prefix (2 digits max)
-                var categoryPrefix = (SelectedProduct.CategoryId % 100).ToString().PadLeft(2, '0');
-
-                // Sequential number (4 digits)
+                var categoryPrefix = "01";
                 var sequential = DateTime.Now.ToString("mmss");
-
-                // Random digits (2 digits)
                 var random = new Random();
                 var randomDigits = random.Next(10, 99).ToString();
 
-                // Combine to create a unique barcode (8 digits total)
                 SelectedProduct.Barcode = $"{categoryPrefix}{sequential}{randomDigits}";
 
-                // Generate barcode image
                 var barcodeData = _barcodeService.GenerateBarcode(SelectedProduct.Barcode);
 
                 if (barcodeData != null)
@@ -2495,6 +2213,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 ShowTemporaryErrorMessage($"Error generating automatic barcode: {ex.Message}");
             }
         }
+
         private BitmapImage LoadBarcodeImage(byte[] imageData)
         {
             if (imageData == null) return null;
@@ -2508,12 +2227,11 @@ namespace QuickTechSystems.WPF.ViewModels
                     image.CacheOption = BitmapCacheOption.OnLoad;
                     image.StreamSource = ms;
 
-                    // Add these lines for higher quality
-                    image.DecodePixelWidth = 600; // Higher resolution decoding
+                    image.DecodePixelWidth = 600;
                     image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
 
                     image.EndInit();
-                    image.Freeze(); // Important for cross-thread usage
+                    image.Freeze();
                 }
                 return image;
             }
@@ -2523,6 +2241,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 return null;
             }
         }
+
         private void ShowTemporaryErrorMessage(string message)
         {
             StatusMessage = message;
@@ -2533,13 +2252,12 @@ namespace QuickTechSystems.WPF.ViewModels
                     MessageBoxButton.OK, MessageBoxImage.Error);
             });
 
-            // Automatically clear error after delay
             Task.Run(async () =>
             {
                 await Task.Delay(5000);
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    if (StatusMessage == message) // Only clear if still the same message
+                    if (StatusMessage == message)
                     {
                         StatusMessage = string.Empty;
                     }
@@ -2551,7 +2269,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             if (!_isDisposed)
             {
-                // Unsubscribe from the property changed event of the selected product
                 if (SelectedProduct != null)
                 {
                     SelectedProduct.PropertyChanged -= SelectedProduct_PropertyChanged;

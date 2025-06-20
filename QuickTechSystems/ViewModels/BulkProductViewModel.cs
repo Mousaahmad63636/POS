@@ -8,23 +8,16 @@ using System.Windows.Input;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
+using System.Data;
+using System.Globalization;
+using OfficeOpenXml;
 using Microsoft.Win32;
-using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
-using System.Windows.Markup;
 using System.Text;
 using System.Threading;
-using System.Printing;
-using System.Data;
-using System.Globalization;
-using OfficeOpenXml;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -32,24 +25,16 @@ namespace QuickTechSystems.WPF.ViewModels
     {
         private readonly IProductService _productService;
         private readonly ICategoryService _categoryService;
-        private readonly ISupplierService _supplierService;
         private readonly IBarcodeService _barcodeService;
         private ObservableCollection<ProductDTO> _products;
-        private ObservableCollection<CategoryDTO> _categories;
-        private ObservableCollection<SupplierDTO> _suppliers;
         private ObservableCollection<CategoryDTO> _plantsHardscapeCategories;
         private ObservableCollection<CategoryDTO> _localImportedCategories;
         private ObservableCollection<CategoryDTO> _indoorOutdoorCategories;
         private ObservableCollection<CategoryDTO> _plantFamilyCategories;
         private ObservableCollection<CategoryDTO> _detailCategories;
         private bool? _dialogResult;
-        private string _selectedQuickFillOption;
-        private string _quickFillValue;
         private string _statusMessage;
         private bool _isSaving;
-        private bool _selectAllForPrinting;
-        private int _labelsPerProduct = 1;
-        private int _selectedForPrintingCount;
         private Dictionary<int, List<string>> _validationErrors;
         private CancellationTokenSource _cancellationTokenSource;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
@@ -65,18 +50,6 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             get => _products;
             set => SetProperty(ref _products, value);
-        }
-
-        public ObservableCollection<CategoryDTO> Categories
-        {
-            get => _categories;
-            set => SetProperty(ref _categories, value);
-        }
-
-        public ObservableCollection<SupplierDTO> Suppliers
-        {
-            get => _suppliers;
-            set => SetProperty(ref _suppliers, value);
         }
 
         public ObservableCollection<CategoryDTO> PlantsHardscapeCategories
@@ -109,18 +82,6 @@ namespace QuickTechSystems.WPF.ViewModels
             set => SetProperty(ref _detailCategories, value);
         }
 
-        public string SelectedQuickFillOption
-        {
-            get => _selectedQuickFillOption;
-            set => SetProperty(ref _selectedQuickFillOption, value);
-        }
-
-        public string QuickFillValue
-        {
-            get => _quickFillValue;
-            set => SetProperty(ref _quickFillValue, value);
-        }
-
         public string StatusMessage
         {
             get => _statusMessage;
@@ -139,28 +100,6 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public bool IsNotSaving => !IsSaving;
 
-        public bool SelectAllForPrinting
-        {
-            get => _selectAllForPrinting;
-            set
-            {
-                SetProperty(ref _selectAllForPrinting, value);
-                UpdatePrintSelection(value);
-            }
-        }
-
-        public int LabelsPerProduct
-        {
-            get => _labelsPerProduct;
-            set => SetProperty(ref _labelsPerProduct, Math.Max(1, value));
-        }
-
-        public int SelectedForPrintingCount
-        {
-            get => _selectedForPrintingCount;
-            set => SetProperty(ref _selectedForPrintingCount, value);
-        }
-
         public Dictionary<int, List<string>> ValidationErrors
         {
             get => _validationErrors;
@@ -172,13 +111,10 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand AddTenRowsCommand { get; }
         public ICommand ClearEmptyRowsCommand { get; }
         public ICommand ClearAllCommand { get; }
-        public ICommand ApplyQuickFillCommand { get; }
-        public ICommand GenerateBarcodeCommand { get; }
         public ICommand ImportFromExcelCommand { get; }
-        public ICommand PrintBarcodesCommand { get; }
-        public ICommand SelectAllCommand { get; }
         public ICommand AddOneRowCommand { get; }
         public ICommand CancelOperationCommand { get; }
+        public ICommand GenerateBarcodeCommand { get; }
 
         public BulkProductViewModel(
             IProductService productService,
@@ -189,20 +125,15 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
-            _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
             _barcodeService = barcodeService ?? throw new ArgumentNullException(nameof(barcodeService));
 
             _products = new ObservableCollection<ProductDTO>();
-            _categories = new ObservableCollection<CategoryDTO>();
-            _suppliers = new ObservableCollection<SupplierDTO>();
             _plantsHardscapeCategories = new ObservableCollection<CategoryDTO>();
             _localImportedCategories = new ObservableCollection<CategoryDTO>();
             _indoorOutdoorCategories = new ObservableCollection<CategoryDTO>();
             _plantFamilyCategories = new ObservableCollection<CategoryDTO>();
             _detailCategories = new ObservableCollection<CategoryDTO>();
             _validationErrors = new Dictionary<int, List<string>>();
-            _selectedQuickFillOption = "Category";
-            _quickFillValue = string.Empty;
             _statusMessage = string.Empty;
             _cancellationTokenSource = new CancellationTokenSource();
 
@@ -212,11 +143,8 @@ namespace QuickTechSystems.WPF.ViewModels
             AddTenRowsCommand = new RelayCommand(_ => AddEmptyRows(10), _ => !IsSaving);
             ClearEmptyRowsCommand = new RelayCommand(_ => ClearEmptyRows(), _ => !IsSaving);
             ClearAllCommand = new RelayCommand(_ => ClearAllRows(), _ => !IsSaving);
-            ApplyQuickFillCommand = new RelayCommand(ApplyQuickFill, _ => !IsSaving);
-            GenerateBarcodeCommand = new RelayCommand(GenerateBarcode, _ => !IsSaving);
             ImportFromExcelCommand = new AsyncRelayCommand(async _ => await ImportFromExcelAsync(), _ => !IsSaving);
-            PrintBarcodesCommand = new AsyncRelayCommand(async _ => await PrintBarcodesAsync(), _ => !IsSaving);
-            SelectAllCommand = new RelayCommand(_ => SelectAllProducts());
+            GenerateBarcodeCommand = new RelayCommand(GenerateBarcode, _ => !IsSaving);
             CancelOperationCommand = new RelayCommand(_ => CancelCurrentOperation(), _ => IsSaving);
 
             LoadInitialData();
@@ -241,202 +169,19 @@ namespace QuickTechSystems.WPF.ViewModels
             };
         }
 
-        private async Task PrintBarcodesAsync()
-        {
-            if (!await _operationLock.WaitAsync(0))
-            {
-                ShowTemporaryMessage("Another operation is in progress. Please wait.", MessageBoxImage.Warning);
-                return;
-            }
-
-            try
-            {
-                var selectedProducts = Products.Where(p => p.IsSelectedForPrinting).ToList();
-
-                if (!selectedProducts.Any())
-                {
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        MessageBox.Show("Please select at least one product for printing.",
-                            "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                    return;
-                }
-
-                if (LabelsPerProduct < 1)
-                {
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        MessageBox.Show("Number of labels must be at least 1.",
-                            "Invalid Input", MessageBoxButton.OK, MessageBoxImage.Warning);
-                    });
-                    return;
-                }
-
-                StatusMessage = "Preparing barcodes for printing...";
-                IsSaving = true;
-
-                int generatedCount = 0;
-                foreach (var product in selectedProducts)
-                {
-                    if (string.IsNullOrWhiteSpace(product.Barcode))
-                    {
-                        var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
-                        var random = new Random();
-                        var randomDigits = random.Next(1000, 9999).ToString();
-                        var categoryPrefix = product.CategoryId.ToString().PadLeft(3, '0');
-                        product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
-                        generatedCount++;
-                        StatusMessage = $"Generated {generatedCount} barcodes...";
-                    }
-
-                    if (product.BarcodeImage == null)
-                    {
-                        product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode, 600, 200);
-                    }
-                }
-
-                bool printerCancelled = false;
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    var printDialog = new PrintDialog();
-                    if (printDialog.ShowDialog() != true)
-                    {
-                        printerCancelled = true;
-                        return;
-                    }
-
-                    printDialog.PrintTicket.PageMediaSize = new PageMediaSize(
-                        (int)(5.5 * 39.37),
-                        (int)(4.0 * 39.37)
-                    );
-                    printDialog.PrintTicket.PageBorderless = PageBorderless.Borderless;
-                    printDialog.PrintTicket.PageMediaType = PageMediaType.Label;
-
-                    var document = CreateBarcodeDocument(selectedProducts, LabelsPerProduct, printDialog);
-                    printDialog.PrintDocument(document.DocumentPaginator, "Product Barcodes");
-                });
-
-                if (printerCancelled)
-                {
-                    StatusMessage = "Printing cancelled by user.";
-                    await Task.Delay(1000);
-                }
-                else
-                {
-                    StatusMessage = "Barcodes printed successfully.";
-                    await Task.Delay(2000);
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error printing barcodes: {ex.Message}");
-                Debug.WriteLine($"Error printing barcodes: {ex}");
-            }
-            finally
-            {
-                IsSaving = false;
-                StatusMessage = string.Empty;
-                _operationLock.Release();
-            }
-        }
-
-        private FixedDocument CreateBarcodeDocument(List<ProductDTO> products, int labelsPerProduct, PrintDialog printDialog)
-        {
-            var document = new FixedDocument();
-            var pageSize = new Size(printDialog.PrintableAreaWidth, printDialog.PrintableAreaHeight);
-
-            double deviceIndependentFactor = 96.0;
-
-            var labelWidth = 2 * deviceIndependentFactor;
-            var labelHeight = 1 * deviceIndependentFactor;
-
-            var margin = new Thickness(0.1 * deviceIndependentFactor);
-
-            var labelsPerRow = Math.Max(1, (int)Math.Floor((pageSize.Width - margin.Left - margin.Right) / labelWidth));
-            var labelsPerColumn = Math.Max(1, (int)Math.Floor((pageSize.Height - margin.Top - margin.Bottom) / labelHeight));
-            var labelsPerPage = labelsPerRow * labelsPerColumn;
-
-            Debug.WriteLine($"Page can fit {labelsPerRow}x{labelsPerColumn} = {labelsPerPage} labels");
-
-            var currentPage = CreateNewPage(pageSize, margin);
-            var currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-            var labelCount = 0;
-
-            foreach (var product in products)
-            {
-                for (int i = 0; i < labelsPerProduct; i++)
-                {
-                    if (labelCount >= labelsPerPage)
-                    {
-                        document.Pages.Add(currentPage);
-                        currentPage = CreateNewPage(pageSize, margin);
-                        currentPanel = (WrapPanel)((FixedPage)currentPage.Child).Children[0];
-                        labelCount = 0;
-                    }
-
-                    var labelVisual = CreateBarcodeLabelVisual(product, labelWidth, labelHeight);
-                    currentPanel.Children.Add(labelVisual);
-                    labelCount++;
-                }
-            }
-
-            if (labelCount > 0)
-            {
-                document.Pages.Add(currentPage);
-            }
-
-            return document;
-        }
-
-        private PageContent CreateNewPage(Size pageSize, Thickness margin)
-        {
-            var page = new FixedPage
-            {
-                Width = pageSize.Width,
-                Height = pageSize.Height
-            };
-
-            var panel = new WrapPanel
-            {
-                Margin = margin,
-                Width = pageSize.Width - margin.Left - margin.Right
-            };
-
-            page.Children.Add(panel);
-
-            var pageContent = new PageContent();
-            ((IAddChild)pageContent).AddChild(page);
-
-            return pageContent;
-        }
-
         private ProductDTO CreateEmptyProduct()
         {
             return new ProductDTO
             {
                 IsActive = true,
                 CreatedAt = DateTime.Now,
-                MinimumStock = 0,
                 CurrentStock = 0
             };
         }
 
         private void Product_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ProductDTO.IsSelectedForPrinting))
-            {
-                UpdateSelectedForPrintingCount();
-            }
-            else if (e.PropertyName == nameof(ProductDTO.CategoryId))
-            {
-                UpdateCategoryName(sender as ProductDTO);
-            }
-            else if (e.PropertyName == nameof(ProductDTO.SupplierId))
-            {
-                UpdateSupplierName(sender as ProductDTO);
-            }
-            else if (e.PropertyName == nameof(ProductDTO.PlantsHardscapeId))
+            if (e.PropertyName == nameof(ProductDTO.PlantsHardscapeId))
             {
                 UpdatePlantsHardscapeName(sender as ProductDTO);
             }
@@ -455,28 +200,6 @@ namespace QuickTechSystems.WPF.ViewModels
             else if (e.PropertyName == nameof(ProductDTO.DetailId))
             {
                 UpdateDetailName(sender as ProductDTO);
-            }
-        }
-
-        private void UpdateCategoryName(ProductDTO product)
-        {
-            if (product == null || product.CategoryId <= 0) return;
-
-            var category = Categories.FirstOrDefault(c => c.CategoryId == product.CategoryId);
-            if (category != null)
-            {
-                product.CategoryName = category.Name;
-            }
-        }
-
-        private void UpdateSupplierName(ProductDTO product)
-        {
-            if (product == null || !product.SupplierId.HasValue || product.SupplierId <= 0) return;
-
-            var supplier = Suppliers.FirstOrDefault(s => s.SupplierId == product.SupplierId);
-            if (supplier != null)
-            {
-                product.SupplierName = supplier.Name;
             }
         }
 
@@ -540,13 +263,9 @@ namespace QuickTechSystems.WPF.ViewModels
             try
             {
                 var categories = await _categoryService.GetActiveAsync();
-                var suppliers = await _supplierService.GetActiveAsync();
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    Categories = new ObservableCollection<CategoryDTO>(categories);
-                    Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
-
                     var categoryList = categories.ToList();
 
                     PlantsHardscapeCategories = new ObservableCollection<CategoryDTO>(
@@ -569,7 +288,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         FilterCategoriesByType(categoryList, "Detail")
                     );
 
-                    Debug.WriteLine($"Loaded {categories.Count()} categories and {suppliers.Count()} suppliers");
+                    Debug.WriteLine($"Loaded {categories.Count()} categories");
                     Debug.WriteLine($"Categorized: PH={PlantsHardscapeCategories.Count}, LI={LocalImportedCategories.Count}, IO={IndoorOutdoorCategories.Count}, PF={PlantFamilyCategories.Count}, D={DetailCategories.Count}");
                 });
             }
@@ -651,14 +370,6 @@ namespace QuickTechSystems.WPF.ViewModels
             return filteredCategories.OrderBy(c => c.Name).ToList();
         }
 
-        private void SelectAllProducts()
-        {
-            foreach (var product in Products)
-            {
-                product.IsSelected = true;
-            }
-        }
-
         private void CancelCurrentOperation()
         {
             try
@@ -673,250 +384,6 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error cancelling operation: {ex.Message}");
-            }
-        }
-
-        private void UpdatePrintSelection(bool selectAll)
-        {
-            foreach (var product in Products)
-            {
-                product.IsSelectedForPrinting = selectAll;
-            }
-            UpdateSelectedForPrintingCount();
-        }
-
-        private void UpdateSelectedForPrintingCount()
-        {
-            SelectedForPrintingCount = Products.Count(p => p.IsSelectedForPrinting);
-        }
-
-        private UIElement CreateBarcodeLabelVisual(ProductDTO product, double width, double height)
-        {
-            var canvas = new Canvas
-            {
-                Width = width,
-                Height = height,
-                Background = Brushes.White
-            };
-
-            double barcodeWidth = width * 0.9;
-            double barcodeHeight = height * 0.5;
-
-            try
-            {
-                if (product == null)
-                {
-                    throw new ArgumentNullException("product", "Product cannot be null");
-                }
-
-                BitmapImage bitmapSource = null;
-                if (product.BarcodeImage != null)
-                {
-                    bitmapSource = LoadBarcodeImage(product.BarcodeImage);
-                }
-
-                if (bitmapSource == null)
-                {
-                    var placeholder = new Border
-                    {
-                        Width = barcodeWidth,
-                        Height = barcodeHeight,
-                        Background = Brushes.LightGray,
-                        BorderBrush = Brushes.Gray,
-                        BorderThickness = new Thickness(1)
-                    };
-
-                    var placeholderText = new TextBlock
-                    {
-                        Text = "Barcode Image\nNot Available",
-                        FontFamily = new FontFamily("Arial"),
-                        FontSize = 10,
-                        TextAlignment = TextAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        TextWrapping = TextWrapping.Wrap
-                    };
-
-                    placeholder.Child = placeholderText;
-                    Canvas.SetLeft(placeholder, (width - barcodeWidth) / 2);
-                    Canvas.SetTop(placeholder, height * 0.15);
-                    canvas.Children.Add(placeholder);
-                }
-                else
-                {
-                    var barcodeImage = new Image
-                    {
-                        Source = bitmapSource,
-                        Width = barcodeWidth,
-                        Height = barcodeHeight,
-                        Stretch = Stretch.Uniform,
-                        SnapsToDevicePixels = true
-                    };
-
-                    RenderOptions.SetBitmapScalingMode(barcodeImage, BitmapScalingMode.HighQuality);
-                    RenderOptions.SetEdgeMode(barcodeImage, EdgeMode.Aliased);
-                    TextOptions.SetTextRenderingMode(barcodeImage, TextRenderingMode.ClearType);
-                    TextOptions.SetTextFormattingMode(barcodeImage, TextFormattingMode.Display);
-
-                    Canvas.SetLeft(barcodeImage, (width - barcodeWidth) / 2);
-                    Canvas.SetTop(barcodeImage, height * 0.15);
-                    canvas.Children.Add(barcodeImage);
-                }
-
-                var nameText = product.Name ?? "Unknown Product";
-                var nameTextBlock = new TextBlock
-                {
-                    Text = nameText,
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 10,
-                    FontWeight = FontWeights.Bold,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = width * 0.9,
-                    MaxHeight = height * 0.15
-                };
-
-                Canvas.SetLeft(nameTextBlock, (width - nameTextBlock.Width) / 2);
-                Canvas.SetTop(nameTextBlock, height * 0.02);
-                canvas.Children.Add(nameTextBlock);
-
-                var barcodeText = product.Barcode ?? "No Barcode";
-                var barcodeTextBlock = new TextBlock
-                {
-                    Text = barcodeText,
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 9,
-                    TextAlignment = TextAlignment.Center,
-                    Width = width * 0.9
-                };
-
-                double barcodeImageBottom = height * 0.15 + barcodeHeight;
-                Canvas.SetLeft(barcodeTextBlock, (width - barcodeTextBlock.Width) / 2);
-                Canvas.SetTop(barcodeTextBlock, barcodeImageBottom + 5);
-                canvas.Children.Add(barcodeTextBlock);
-
-                if (product.SalePrice > 0)
-                {
-                    var priceTextBlock = new TextBlock
-                    {
-                        Text = $"${product.SalePrice:N2}",
-                        FontFamily = new FontFamily("Arial"),
-                        FontSize = 12,
-                        FontWeight = FontWeights.Bold,
-                        TextAlignment = TextAlignment.Center,
-                        Width = width * 0.9
-                    };
-
-                    Canvas.SetLeft(priceTextBlock, (width - priceTextBlock.Width) / 2);
-                    Canvas.SetTop(priceTextBlock, height * 0.8);
-                    canvas.Children.Add(priceTextBlock);
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error creating barcode visual: {ex.Message}");
-
-                var errorTextBlock = new TextBlock
-                {
-                    Text = $"Error: {ex.Message}",
-                    FontFamily = new FontFamily("Arial"),
-                    FontSize = 8,
-                    TextWrapping = TextWrapping.Wrap,
-                    Width = width * 0.9,
-                    Foreground = Brushes.Red
-                };
-
-                Canvas.SetLeft(errorTextBlock, (width - errorTextBlock.Width) / 2);
-                Canvas.SetTop(errorTextBlock, height * 0.8);
-                canvas.Children.Add(errorTextBlock);
-            }
-
-            return canvas;
-        }
-
-        private UIElement CreateBarcodeLabel(ProductDTO product, Size labelSize)
-        {
-            var grid = new Grid
-            {
-                Width = labelSize.Width,
-                Height = labelSize.Height,
-                Margin = new Thickness(2)
-            };
-
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            if (product.BarcodeImage == null && !string.IsNullOrWhiteSpace(product.Barcode))
-            {
-                try
-                {
-                    product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error generating barcode image: {ex.Message}");
-                }
-            }
-
-            var image = new Image
-            {
-                Source = LoadBarcodeImage(product.BarcodeImage),
-                Stretch = Stretch.Uniform
-            };
-            Grid.SetRow(image, 0);
-
-            var barcodeText = new TextBlock
-            {
-                Text = product.Barcode,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 2, 0, 0),
-                FontSize = 10
-            };
-            Grid.SetRow(barcodeText, 1);
-
-            var nameText = new TextBlock
-            {
-                Text = product.Name,
-                TextAlignment = TextAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 2, 0, 0),
-                FontSize = 9
-            };
-            Grid.SetRow(nameText, 2);
-
-            grid.Children.Add(image);
-            grid.Children.Add(barcodeText);
-            grid.Children.Add(nameText);
-
-            return grid;
-        }
-
-        private BitmapImage LoadBarcodeImage(byte[] imageData)
-        {
-            if (imageData == null) return null;
-
-            var image = new BitmapImage();
-            try
-            {
-                using (var ms = new MemoryStream(imageData))
-                {
-                    image.BeginInit();
-                    image.CacheOption = BitmapCacheOption.OnLoad;
-                    image.StreamSource = ms;
-
-                    image.DecodePixelWidth = 600;
-                    image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
-
-                    image.EndInit();
-                    image.Freeze();
-                }
-                return image;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error loading barcode image: {ex.Message}");
-                return null;
             }
         }
 
@@ -1060,13 +527,6 @@ namespace QuickTechSystems.WPF.ViewModels
                                 var product = productsToSave[i];
                                 ((IProgress<string>)progress).Report($"Processing product {i + 1} of {productsToSave.Count}: {product.Name}");
 
-                                var existingProduct = await _productService.FindProductByBarcodeAsync(product.Barcode);
-                                if (existingProduct != null)
-                                {
-                                    errors.Add($"Skipped '{product.Name}': Barcode '{product.Barcode}' is already used by '{existingProduct.Name}'");
-                                    continue;
-                                }
-
                                 await _productService.CreateAsync(product);
                                 successCount++;
                             }
@@ -1155,16 +615,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 sb.Append($"\n→ {currentEx.Message}");
             }
 
-            if (ex is DbUpdateException dbEx && dbEx.Entries != null && dbEx.Entries.Any())
-            {
-                sb.Append("\nEntity validation errors:");
-                foreach (var entry in dbEx.Entries)
-                {
-                    var entity = entry.Entity;
-                    sb.Append($"\n- {entity.GetType().Name}");
-                }
-            }
-
             return sb.ToString();
         }
 
@@ -1182,9 +632,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (string.IsNullOrWhiteSpace(product.Name))
                     productErrors.Add("Name is required");
 
-                if (product.CategoryId <= 0)
-                    productErrors.Add("Category is required");
-
                 if (product.SalePrice <= 0)
                     productErrors.Add("Sale price must be greater than zero");
 
@@ -1194,19 +641,8 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (product.CurrentStock < 0)
                     productErrors.Add("Current stock cannot be negative");
 
-                if (product.MinimumStock < 0)
-                    productErrors.Add("Minimum stock cannot be negative");
-
                 if (product.SalePrice < product.PurchasePrice)
                     productErrors.Add("Sale price should not be less than purchase price");
-
-                if (!string.IsNullOrWhiteSpace(product.Speed))
-                {
-                    if (!decimal.TryParse(product.Speed, out _))
-                    {
-                        productErrors.Add("Speed must be a valid number");
-                    }
-                }
 
                 if (!string.IsNullOrWhiteSpace(product.Barcode))
                 {
@@ -1290,7 +726,7 @@ namespace QuickTechSystems.WPF.ViewModels
             var timestamp = DateTime.Now.Ticks.ToString().Substring(10, 8);
             var random = new Random();
             var randomDigits = random.Next(1000, 9999).ToString();
-            var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "000").PadLeft(3, '0');
+            var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "001").PadLeft(3, '0');
 
             product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
             try
@@ -1303,15 +739,42 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+        private void GenerateBarcode(object? parameter)
+        {
+            try
+            {
+                if (parameter is not ProductDTO product) return;
+
+                var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
+                var random = new Random();
+                var randomDigits = random.Next(1000, 9999).ToString();
+                var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "001").PadLeft(3, '0');
+
+                product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
+                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
+
+                OnPropertyChanged(nameof(Products));
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                });
+            }
+            catch (Exception ex)
+            {
+                ShowTemporaryMessage($"Error generating barcode: {ex.Message}", MessageBoxImage.Error);
+                Debug.WriteLine($"Error generating barcode: {ex}");
+            }
+        }
+
         private void NormalizeProductData(ProductDTO product)
         {
             product.Name = product.Name?.Trim() ?? string.Empty;
             product.Barcode = product.Barcode?.Trim() ?? string.Empty;
             product.Description = product.Description?.Trim();
-            product.Speed = product.Speed?.Trim();
 
             product.CurrentStock = Math.Max(0, product.CurrentStock);
-            product.MinimumStock = Math.Max(0, product.MinimumStock);
             product.SalePrice = Math.Max(0, product.SalePrice);
             product.PurchasePrice = Math.Max(0, product.PurchasePrice);
 
@@ -1322,11 +785,9 @@ namespace QuickTechSystems.WPF.ViewModels
                 product.CreatedAt = DateTime.Now;
 
             product.UpdatedAt = DateTime.Now;
-
             product.IsActive = true;
+            product.CategoryId = 1;
 
-            UpdateCategoryName(product);
-            UpdateSupplierName(product);
             UpdatePlantsHardscapeName(product);
             UpdateLocalImportedName(product);
             UpdateIndoorOutdoorName(product);
@@ -1337,14 +798,9 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool IsEmptyProduct(ProductDTO product)
         {
             return string.IsNullOrWhiteSpace(product.Name) &&
-                   string.IsNullOrWhiteSpace(product.Barcode) &&
-                   product.CategoryId <= 0 &&
-                   !product.SupplierId.HasValue &&
                    product.PurchasePrice == 0 &&
                    product.SalePrice == 0 &&
                    product.CurrentStock == 0 &&
-                   product.MinimumStock == 0 &&
-                   string.IsNullOrWhiteSpace(product.Speed) &&
                    !product.PlantsHardscapeId.HasValue &&
                    !product.LocalImportedId.HasValue &&
                    !product.IndoorOutdoorId.HasValue &&
@@ -1391,197 +847,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     OnPropertyChanged(nameof(Products));
                 }
             });
-        }
-
-        private void ApplyQuickFill(object? parameter)
-        {
-            var selectedProducts = Products.Where(p => p.IsSelected).ToList();
-            if (!selectedProducts.Any())
-            {
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show("Please select at least one row to apply quick fill.",
-                        "No Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
-                });
-                return;
-            }
-
-            try
-            {
-                switch (SelectedQuickFillOption)
-                {
-                    case "Category":
-                        if (int.TryParse(QuickFillValue, out int categoryId))
-                        {
-                            var category = Categories.FirstOrDefault(c => c.CategoryId == categoryId);
-                            if (category != null)
-                            {
-                                foreach (var product in selectedProducts)
-                                {
-                                    product.CategoryId = category.CategoryId;
-                                    product.CategoryName = category.Name;
-                                }
-                            }
-                            else
-                            {
-                                ShowTemporaryMessage($"Category ID {categoryId} not found.", MessageBoxImage.Warning);
-                            }
-                        }
-                        else
-                        {
-                            var category = Categories.FirstOrDefault(c =>
-                                c.Name.Equals(QuickFillValue, StringComparison.OrdinalIgnoreCase));
-
-                            if (category != null)
-                            {
-                                foreach (var product in selectedProducts)
-                                {
-                                    product.CategoryId = category.CategoryId;
-                                    product.CategoryName = category.Name;
-                                }
-                            }
-                            else
-                            {
-                                ShowTemporaryMessage("Please enter a valid category ID or name.", MessageBoxImage.Warning);
-                            }
-                        }
-                        break;
-
-                    case "Supplier":
-                        if (int.TryParse(QuickFillValue, out int supplierId))
-                        {
-                            var supplier = Suppliers.FirstOrDefault(s => s.SupplierId == supplierId);
-                            if (supplier != null)
-                            {
-                                foreach (var product in selectedProducts)
-                                {
-                                    product.SupplierId = supplier.SupplierId;
-                                    product.SupplierName = supplier.Name;
-                                }
-                            }
-                            else
-                            {
-                                ShowTemporaryMessage($"Supplier ID {supplierId} not found.", MessageBoxImage.Warning);
-                            }
-                        }
-                        else
-                        {
-                            var supplier = Suppliers.FirstOrDefault(s =>
-                                s.Name.Equals(QuickFillValue, StringComparison.OrdinalIgnoreCase));
-
-                            if (supplier != null)
-                            {
-                                foreach (var product in selectedProducts)
-                                {
-                                    product.SupplierId = supplier.SupplierId;
-                                    product.SupplierName = supplier.Name;
-                                }
-                            }
-                            else
-                            {
-                                ShowTemporaryMessage("Please enter a valid supplier ID or name.", MessageBoxImage.Warning);
-                            }
-                        }
-                        break;
-
-                    case "Purchase Price":
-                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal purchasePrice))
-                        {
-                            foreach (var product in selectedProducts)
-                            {
-                                product.PurchasePrice = Math.Max(0, purchasePrice);
-                                if (product.SalePrice < purchasePrice)
-                                {
-                                    product.SalePrice = purchasePrice;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            ShowTemporaryMessage("Please enter a valid number for purchase price.", MessageBoxImage.Warning);
-                        }
-                        break;
-
-                    case "Sale Price":
-                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal salePrice))
-                        {
-                            foreach (var product in selectedProducts)
-                            {
-                                product.SalePrice = Math.Max(product.PurchasePrice, salePrice);
-                            }
-                        }
-                        else
-                        {
-                            ShowTemporaryMessage("Please enter a valid number for sale price.", MessageBoxImage.Warning);
-                        }
-                        break;
-
-                    case "Stock Values":
-                        if (int.TryParse(QuickFillValue, out int stockValue))
-                        {
-                            foreach (var product in selectedProducts)
-                            {
-                                product.CurrentStock = Math.Max(0, stockValue);
-                                product.MinimumStock = Math.Max(0, stockValue / 2);
-                            }
-                        }
-                        else
-                        {
-                            ShowTemporaryMessage("Please enter a valid number for stock value.", MessageBoxImage.Warning);
-                        }
-                        break;
-
-                    case "Speed":
-                        if (decimal.TryParse(QuickFillValue, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal speedValue))
-                        {
-                            foreach (var product in selectedProducts)
-                            {
-                                product.Speed = speedValue.ToString(CultureInfo.InvariantCulture);
-                            }
-                        }
-                        else
-                        {
-                            ShowTemporaryMessage("Please enter a valid number for speed.", MessageBoxImage.Warning);
-                        }
-                        break;
-                }
-
-                OnPropertyChanged(nameof(Products));
-            }
-            catch (Exception ex)
-            {
-                ShowTemporaryMessage($"Error applying quick fill: {ex.Message}", MessageBoxImage.Error);
-                Debug.WriteLine($"Error applying quick fill: {ex}");
-            }
-        }
-
-        private void GenerateBarcode(object? parameter)
-        {
-            try
-            {
-                if (parameter is not ProductDTO product) return;
-
-                var timestamp = DateTime.Now.ToString("yyMMddHHmmss");
-                var random = new Random();
-                var randomDigits = random.Next(1000, 9999).ToString();
-                var categoryPrefix = (product.CategoryId > 0 ? product.CategoryId.ToString() : "000").PadLeft(3, '0');
-
-                product.Barcode = $"{categoryPrefix}-{timestamp}-{randomDigits}";
-                product.BarcodeImage = _barcodeService.GenerateBarcode(product.Barcode);
-
-                OnPropertyChanged(nameof(Products));
-
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MessageBox.Show($"Barcode generated: {product.Barcode}", "Success",
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                });
-            }
-            catch (Exception ex)
-            {
-                ShowTemporaryMessage($"Error generating barcode: {ex.Message}", MessageBoxImage.Error);
-                Debug.WriteLine($"Error generating barcode: {ex}");
-            }
         }
 
         private async Task ImportFromExcelAsync()
@@ -1668,7 +933,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         columnMappings[headers[i]] = i;
                     }
 
-                    var requiredColumns = new[] { "name", "category", "purchase price", "sale price" };
+                    var requiredColumns = new[] { "name", "purchase price", "sale price" };
                     var missingColumns = requiredColumns.Where(col => !columnMappings.Keys.Any(key => key.Contains(col))).ToList();
 
                     if (missingColumns.Any())
@@ -1775,7 +1040,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             }
                         }
 
-                        var requiredColumns = new[] { "name", "category", "purchase price", "sale price" };
+                        var requiredColumns = new[] { "name", "purchase price", "sale price" };
                         var missingColumns = requiredColumns.Where(col => !columnMappings.Keys.Any(key => key.Contains(col))).ToList();
 
                         if (missingColumns.Any())
@@ -1848,56 +1113,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 case var col when col.Contains("description"):
                     product.Description = value;
                     break;
-                case var col when col.Contains("category"):
-                    var category = System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        Categories.FirstOrDefault(c => c.Name.Equals(value, StringComparison.OrdinalIgnoreCase)));
-
-                    if (category != null)
-                    {
-                        product.CategoryId = category.CategoryId;
-                        product.CategoryName = category.Name;
-                    }
-                    else if (int.TryParse(value, out int categoryId))
-                    {
-                        category = System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                            Categories.FirstOrDefault(c => c.CategoryId == categoryId));
-
-                        if (category != null)
-                        {
-                            product.CategoryId = category.CategoryId;
-                            product.CategoryName = category.Name;
-                        }
-                        else
-                        {
-                            errors.Add($"Row {rowIndex}: Category '{value}' not found");
-                        }
-                    }
-                    else
-                    {
-                        errors.Add($"Row {rowIndex}: Category '{value}' not found");
-                    }
-                    break;
-                case var col when col.Contains("supplier"):
-                    var supplier = System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                        Suppliers.FirstOrDefault(s => s.Name.Equals(value, StringComparison.OrdinalIgnoreCase)));
-
-                    if (supplier != null)
-                    {
-                        product.SupplierId = supplier.SupplierId;
-                        product.SupplierName = supplier.Name;
-                    }
-                    else if (int.TryParse(value, out int supplierId))
-                    {
-                        supplier = System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                            Suppliers.FirstOrDefault(s => s.SupplierId == supplierId));
-
-                        if (supplier != null)
-                        {
-                            product.SupplierId = supplier.SupplierId;
-                            product.SupplierName = supplier.Name;
-                        }
-                    }
-                    break;
                 case var col when col.Contains("purchase price"):
                     if (decimal.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out decimal purchasePrice))
                     {
@@ -1927,19 +1142,6 @@ namespace QuickTechSystems.WPF.ViewModels
                     {
                         errors.Add($"Row {rowIndex}: Invalid current stock '{value}'");
                     }
-                    break;
-                case var col when col.Contains("minimum stock"):
-                    if (int.TryParse(value, out int minimumStock))
-                    {
-                        product.MinimumStock = Math.Max(0, minimumStock);
-                    }
-                    else
-                    {
-                        errors.Add($"Row {rowIndex}: Invalid minimum stock '{value}'");
-                    }
-                    break;
-                case var col when col.Contains("speed"):
-                    product.Speed = value;
                     break;
                 case var col when col.Contains("plants") || col.Contains("hardscape"):
                     var plantsHardscape = System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -1992,7 +1194,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private bool IsValidImportedProduct(ProductDTO product, int rowIndex, List<string> errors)
         {
             if (!string.IsNullOrWhiteSpace(product.Name) &&
-                product.CategoryId > 0 &&
                 product.PurchasePrice > 0 &&
                 product.SalePrice > 0)
             {
@@ -2001,7 +1202,6 @@ namespace QuickTechSystems.WPF.ViewModels
             else if (!string.IsNullOrWhiteSpace(product.Name))
             {
                 var missingFields = new List<string>();
-                if (product.CategoryId <= 0) missingFields.Add("Category");
                 if (product.PurchasePrice <= 0) missingFields.Add("Purchase Price");
                 if (product.SalePrice <= 0) missingFields.Add("Sale Price");
 
