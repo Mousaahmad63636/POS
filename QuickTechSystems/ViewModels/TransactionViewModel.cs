@@ -835,7 +835,18 @@ namespace QuickTechSystems.WPF.ViewModels
                 _ = CacheProductImagesAsync(activeProducts);
 
                 _allProducts = new ObservableCollection<ProductDTO>(activeProducts);
-                FilterProductsForDropdown(string.Empty);
+
+                // Apply current filter or show all products if no filter is active
+                if (IsRestaurantMode && CurrentProductFilter.HasAnyFilter())
+                {
+                    await ApplyAdvancedFilter();
+                    UpdateFilterStatusText();
+                }
+                else
+                {
+                    FilterProductsForDropdown(string.Empty);
+                }
+
                 Debug.WriteLine($"Initialized {_allProducts.Count} active products");
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
@@ -845,7 +856,6 @@ namespace QuickTechSystems.WPF.ViewModels
                 });
             });
         }
-
         private async Task LoadExchangeRate(IBusinessSettingsService businessSettingsService)
         {
             await ExecuteOperationSafelyAsync(async () =>

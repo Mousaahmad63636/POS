@@ -10,6 +10,8 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
 using QuickTechSystems.WPF.Views.Dialogs;
+using System.Windows;
+
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -34,7 +36,8 @@ namespace QuickTechSystems.WPF.ViewModels
         public ICommand? PrintReceiptCommand { get; private set; }
         public ICommand AddToCustomerBalanceCommand { get; private set; }
         public ICommand CloseDrawerCommand { get; private set; }
-
+        public ICommand OpenAdvancedFilterCommand { get; private set; }
+        public ICommand ClearAdvancedFilterCommand { get; private set; }
         public ICommand ChangePriceCommand { get; private set; }
         public ICommand SaveAsQuoteCommand { get; private set; }
         public ICommand SelectCategoryCommand { get; private set; }
@@ -196,7 +199,35 @@ namespace QuickTechSystems.WPF.ViewModels
             ClearCustomerCommand = new RelayCommand(_ => ClearCustomerSelection());
         }
 
+        private void InitializeCommandsAdvancedFilter()
+        {
+            OpenAdvancedFilterCommand = new AsyncRelayCommand(async _ => await OpenAdvancedFilterDialog());
+            ClearAdvancedFilterCommand = new AsyncRelayCommand(async _ => await ClearAdvancedFilter());
+        }
 
+        // Add these methods at the end of the Commands.cs file
+        private async Task OpenAdvancedFilterDialog()
+        {
+            try
+            {
+                var dialog = new ProductFilterDialog(_categoryService, CurrentProductFilter)
+                {
+                    Owner = System.Windows.Application.Current.MainWindow
+                };
+
+                if (dialog.ShowDialog() == true && dialog.FilterApplied)
+                {
+                    CurrentProductFilter = dialog.FilterModel;
+                    await ApplyAdvancedFilter();
+                    UpdateFilterStatusText();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error opening advanced filter dialog: {ex.Message}");
+                MessageBox.Show("Error opening filter dialog. Please try again.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
         private async Task ChangePrice()
         {
             await ExecuteOperationSafelyAsync(async () =>

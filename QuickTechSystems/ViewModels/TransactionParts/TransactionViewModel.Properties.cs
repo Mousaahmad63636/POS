@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.Windows.Media.Imaging;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.WPF.Services;
+using QuickTechSystems.WPF.ViewModels;
+using System.Windows;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -35,6 +37,8 @@ namespace QuickTechSystems.WPF.ViewModels
         private decimal _dailyReturns;
         private decimal _netSales;
         private decimal _supplierPayments;
+        private ProductFilterModel _currentProductFilter = new ProductFilterModel();
+        private string _filterStatusText = string.Empty;
         private decimal _dailyExpenses;
         private decimal _netCashflow;
         private QuickTechSystems.WPF.Services.ITransactionWindowManager _transactionWindowManager;
@@ -56,10 +60,22 @@ namespace QuickTechSystems.WPF.ViewModels
         private string _searchMessage = string.Empty;
         private bool _isSearchMessageVisible;
 
+
+        public ProductFilterModel CurrentProductFilter
+        {
+            get => _currentProductFilter;
+            set => SetProperty(ref _currentProductFilter, value);
+        }
+
         public bool IsSearching
         {
             get => _isSearching;
             set => SetProperty(ref _isSearching, value);
+        }
+        public string FilterStatusText
+        {
+            get => _filterStatusText;
+            set => SetProperty(ref _filterStatusText, value);
         }
 
         public string SearchMessage
@@ -67,7 +83,9 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _searchMessage;
             set => SetProperty(ref _searchMessage, value);
         }
+        public bool HasActiveFilter => CurrentProductFilter.HasAnyFilter();
 
+        public Visibility FilterStatusVisibility => HasActiveFilter ? Visibility.Visible : Visibility.Collapsed;
         public bool IsSearchMessageVisible
         {
             get => _isSearchMessageVisible;

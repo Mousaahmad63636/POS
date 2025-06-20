@@ -391,56 +391,65 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Combined Categories and Totals in a single row -->
+            <!-- Combined Filter Controls and Totals in a single row -->
             <Grid Grid.Row="1" Margin="0,10,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Category Tabs on the Left - Only visible in restaurant mode -->
-                <Border Grid.Column="0" 
-        Background="#1A2235" 
-        Padding="5,5,5,2"
-        Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" 
-                  VerticalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding ProductCategories}">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <StackPanel Orientation="Horizontal"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Button Content="{Binding Name}"
-                            Command="{Binding DataContext.SelectCategoryCommand, 
-                                     RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                            CommandParameter="{Binding}"
-                            Margin="3,0" Padding="15,5"
-                            Background="#3B4559"
-                            Foreground="White"
-                            BorderThickness="0">
-                                        <Button.Resources>
-                                            <Style TargetType="Border">
-                                                <Setter Property="CornerRadius" Value="4"/>
-                                            </Style>
-                                        </Button.Resources>
-                                        <Button.Style>
-                                            <Style TargetType="Button">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="True">
-                                                        <Setter Property="Background" Value="#2196F3"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Button.Style>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-                </Border>
+                <!-- Advanced Filter Controls on the Left - Only visible in restaurant mode -->
+                <StackPanel Grid.Column="0" 
+                           Orientation="Vertical"
+                           Visibility="{Binding IsRestaurantMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                    <!-- Filter Button and Clear Button -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                        <Button Content="🔍 Advanced Filter"
+                                Command="{Binding OpenAdvancedFilterCommand}"
+                                Height="35"
+                                Padding="15,5"
+                                Background="#2196F3"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Margin="0,0,10,0">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+
+                        <Button Content="Clear Filter"
+                                Command="{Binding ClearAdvancedFilterCommand}"
+                                Height="35"
+                                Padding="15,5"
+                                Background="#6C757D"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Visibility="{Binding FilterStatusVisibility}">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="4"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Filter Status Display -->
+                    <Border Background="#E8F5E8" 
+                            BorderBrush="#28A745"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Padding="8,4"
+                            Visibility="{Binding FilterStatusVisibility}">
+                        <TextBlock Text="{Binding FilterStatusText}"
+                                   Foreground="#155724"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+
                 <!-- Basic Totals Summary on the Right -->
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 
@@ -456,55 +465,18 @@
                                Foreground="White" 
                                FontWeight="SemiBold"
                                VerticalAlignment="Center"
-                               Margin="0,0,20,0"/>
+                               Margin="0,0,15,0"/>
 
-                    <!-- Subtotal -->
-                    <TextBlock Text="Subtotal:" 
-                               Foreground="#94A3B8" 
-                               VerticalAlignment="Center"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="{Binding SubTotal, StringFormat=C2}" 
-                               Foreground="White" 
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Margin="0,0,20,0"/>
-
-                    <!-- Discount -->
-                    <TextBlock Text="Discount:" 
-                               Foreground="#94A3B8" 
-                               VerticalAlignment="Center"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="{Binding DiscountAmount, StringFormat=C2}" 
-                               Foreground="White" 
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center"
-                               Margin="0,0,20,0"/>
-
-                    <!-- Total -->
+                    <!-- Total Amount -->
                     <TextBlock Text="Total:" 
                                Foreground="#94A3B8" 
                                VerticalAlignment="Center"
                                Margin="0,0,5,0"/>
-                    <TextBlock Text="{Binding TotalAmount, StringFormat=C2}" 
+                    <TextBlock Text="{Binding TotalAmount, StringFormat='{}{0:C}'}" 
                                Foreground="White" 
                                FontWeight="Bold"
-                               FontSize="18"
-                               VerticalAlignment="Center"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="/" 
-                               Foreground="White" 
-                               VerticalAlignment="Center"
-                               Margin="0,0,5,0"/>
-                    <TextBlock Text="{Binding TotalAmountLBP}" 
-                               Foreground="White" 
-                               FontWeight="Bold"
-                               FontSize="18"
-                               VerticalAlignment="Center"
-                               Margin="0,0,0,0"/>
-                    <TextBlock Text=" LBP" 
-                               Foreground="White" 
-                               VerticalAlignment="Center"
-                               Margin="0,0,0,0"/>
+                               FontSize="16"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
         </Grid>

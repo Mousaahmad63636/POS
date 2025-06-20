@@ -73,6 +73,110 @@ namespace QuickTechSystems.WPF.ViewModels
                 return 0.01m;
             }
         }
+
+
+
+        private async Task ApplyAdvancedFilter()
+        {
+            if (_allProducts == null)
+            {
+                FilteredProducts = new ObservableCollection<ProductDTO>();
+                Debug.WriteLine("No products available to filter");
+                return;
+            }
+
+            try
+            {
+                var filteredList = _allProducts.Where(p => p.IsActive).ToList();
+
+                if (CurrentProductFilter.SelectedCategory?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.CategoryId == CurrentProductFilter.SelectedCategory.CategoryId).ToList();
+                }
+
+                if (CurrentProductFilter.SelectedPlantsHardscape?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.PlantsHardscapeId == CurrentProductFilter.SelectedPlantsHardscape.CategoryId).ToList();
+                }
+
+                if (CurrentProductFilter.SelectedLocalImported?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.LocalImportedId == CurrentProductFilter.SelectedLocalImported.CategoryId).ToList();
+                }
+
+                if (CurrentProductFilter.SelectedIndoorOutdoor?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.IndoorOutdoorId == CurrentProductFilter.SelectedIndoorOutdoor.CategoryId).ToList();
+                }
+
+                if (CurrentProductFilter.SelectedPlantFamily?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.PlantFamilyId == CurrentProductFilter.SelectedPlantFamily.CategoryId).ToList();
+                }
+
+                if (CurrentProductFilter.SelectedDetail?.CategoryId > 0)
+                {
+                    filteredList = filteredList.Where(p => p.DetailId == CurrentProductFilter.SelectedDetail.CategoryId).ToList();
+                }
+
+                FilteredProducts = new ObservableCollection<ProductDTO>(filteredList);
+                OnPropertyChanged(nameof(FilteredProducts));
+                Debug.WriteLine($"Advanced filtered products count: {FilteredProducts.Count}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error applying advanced filter: {ex.Message}");
+                FilteredProducts = new ObservableCollection<ProductDTO>();
+                OnPropertyChanged(nameof(FilteredProducts));
+            }
+        }
+
+        private void UpdateFilterStatusText()
+        {
+            if (!CurrentProductFilter.HasAnyFilter())
+            {
+                FilterStatusText = string.Empty;
+                OnPropertyChanged(nameof(FilterStatusVisibility));
+                return;
+            }
+
+            var filters = new List<string>();
+
+            if (CurrentProductFilter.SelectedCategory?.CategoryId > 0)
+                filters.Add($"Category: {CurrentProductFilter.SelectedCategory.Name}");
+
+            if (CurrentProductFilter.SelectedPlantsHardscape?.CategoryId > 0)
+                filters.Add($"Plants/Hardscape: {CurrentProductFilter.SelectedPlantsHardscape.Name}");
+
+            if (CurrentProductFilter.SelectedLocalImported?.CategoryId > 0)
+                filters.Add($"Local/Imported: {CurrentProductFilter.SelectedLocalImported.Name}");
+
+            if (CurrentProductFilter.SelectedIndoorOutdoor?.CategoryId > 0)
+                filters.Add($"Indoor/Outdoor: {CurrentProductFilter.SelectedIndoorOutdoor.Name}");
+
+            if (CurrentProductFilter.SelectedPlantFamily?.CategoryId > 0)
+                filters.Add($"Plant Family: {CurrentProductFilter.SelectedPlantFamily.Name}");
+
+            if (CurrentProductFilter.SelectedDetail?.CategoryId > 0)
+                filters.Add($"Detail: {CurrentProductFilter.SelectedDetail.Name}");
+
+            FilterStatusText = $"Filtered by: {string.Join(", ", filters)} ({FilteredProducts?.Count ?? 0} products)";
+            OnPropertyChanged(nameof(FilterStatusVisibility));
+        }
+
+        public async Task ClearAdvancedFilter()
+        {
+            CurrentProductFilter.ClearAll();
+            if (IsRestaurantMode)
+            {
+                await ApplyAdvancedFilter();
+            }
+            else
+            {
+                FilterProductsForDropdown(string.Empty);
+            }
+            UpdateFilterStatusText();
+        }
         private void SubscribeToAllDetails()
         {
             if (CurrentTransaction?.Details == null) return;
