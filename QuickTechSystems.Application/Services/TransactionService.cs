@@ -146,78 +146,8 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
-        public async Task<IEnumerable<TransactionDTO>> GetByEmployeeAsync(int employeeId)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                var transactions = await _repository.Query()
-                    .Include(t => t.Customer)
-                    .Include(t => t.TransactionDetails)
-                        .ThenInclude(td => td.Product)
-                    .Where(t => t.CashierId == employeeId.ToString())
-                    .OrderByDescending(t => t.TransactionDate)
-                    .ToListAsync();
-                return _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
-            });
-        }
-
-        public async Task<IEnumerable<TransactionDTO>> GetByEmployeeAndDateRangeAsync(int employeeId, DateTime startDate, DateTime endDate)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                try
-                {
-                    // Normalize dates to start and end of day
-                    var normalizedStartDate = startDate.Date;
-                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
-
-                    var transactions = await _repository.Query()
-                        .Include(t => t.Customer)
-                        .Include(t => t.TransactionDetails)
-                            .ThenInclude(td => td.Product)
-                                .ThenInclude(p => p.Category)
-                        .Where(t => t.CashierId == employeeId.ToString() &&
-                                   t.TransactionDate >= normalizedStartDate &&
-                                   t.TransactionDate <= normalizedEndDate &&
-                                   t.Status == TransactionStatus.Completed)
-                        .OrderByDescending(t => t.TransactionDate)
-                        .AsNoTracking()
-                        .ToListAsync();
-
-                    if (transactions == null || !transactions.Any())
-                    {
-                        Debug.WriteLine($"No transactions found for employee {employeeId} between {normalizedStartDate:d} and {normalizedEndDate:d}");
-                        return new List<TransactionDTO>();
-                    }
-
-                    var dtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
-
-                    // Calculate detailed information for each transaction
-                    foreach (var dto in dtos)
-                    {
-                        if (dto.Details != null)
-                        {
-                            foreach (var detail in dto.Details)
-                            {
-                                // Ensure proper calculations
-                                detail.UpdateTotal();
-                            }
-                        }
-                    }
-
-                    return dtos;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in GetByEmployeeAndDateRangeAsync: {ex.Message}");
-                    Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                    throw new InvalidOperationException($"Error retrieving transactions for employee {employeeId} by date range", ex);
-                }
-            });
-        }
         public async Task<decimal> GetTransactionProfitByDateRangeAsync(
-        DateTime startDate, DateTime endDate, int? categoryId = null, int? employeeId = null)
+            DateTime startDate, DateTime endDate, int? categoryId = null, string cashierId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -243,10 +173,10 @@ namespace QuickTechSystems.Application.Services
                             t.TransactionDetails.Any(d => d.Product.CategoryId == categoryId.Value));
                     }
 
-                    // Apply employee filter if specified
-                    if (employeeId.HasValue && employeeId.Value > 0)
+                    // Apply cashier filter if specified
+                    if (!string.IsNullOrEmpty(cashierId))
                     {
-                        transactionsQuery = transactionsQuery.Where(t => t.CashierId == employeeId.Value.ToString());
+                        transactionsQuery = transactionsQuery.Where(t => t.CashierId == cashierId);
                     }
 
                     var transactions = await transactionsQuery.ToListAsync();
@@ -318,10 +248,11 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChange = detail.Quantity,
-                                Type = TransactionType.Adjustment.ToString(),
-                                Timestamp = DateTime.Now,
-                                Notes = $"Stock restored due to transaction deletion | Ref: DeleteTx-{transactionId}"
+                                QuantityChanged = detail.Quantity,
+                                OperationType = TransactionType.Adjustment,
+                                Date = DateTime.Now,
+                                Reference = $"DeleteTx-{transactionId}",
+                                Notes = $"Stock restored due to transaction deletion"
                             });
                         }
                     }
@@ -413,10 +344,11 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChange = -detail.Quantity,
-                                Type = TransactionType.Sale.ToString(),
-                                Timestamp = DateTime.Now,
-                                Notes = $"Sold in transaction by {cashier.FirstName} {cashier.LastName} | Ref: Sale-{DateTime.Now:yyyyMMddHHmmss}"
+                                QuantityChanged = -detail.Quantity,
+                                OperationType = TransactionType.Sale,
+                                Date = DateTime.Now,
+                                Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
+                                Notes = $"Sold in transaction by {cashier.FirstName} {cashier.LastName}"
                             });
                         }
                     }
@@ -599,7 +531,8 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        public async Task<IEnumerable<TransactionDTO>> GetByDateRangeAsync(DateTime startDate, DateTime endDate)
+        // Path: QuickTechSystems.Application/Services/TransactionService.cs
+        public async Task<IEnumerable<TransactionDTO>> GetByDateRangeAsync(DateTime startDate, DateTime endDate, string cashierId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
@@ -615,7 +548,7 @@ namespace QuickTechSystems.Application.Services
                         throw new ArgumentException("Start date must be before or equal to end date");
                     }
 
-                    var transactions = await _repository.Query()
+                    var query = _repository.Query()
                         .Include(t => t.Customer)
                         .Include(t => t.TransactionDetails)
                             .ThenInclude(td => td.Product)
@@ -624,8 +557,15 @@ namespace QuickTechSystems.Application.Services
                                    t.TransactionDate <= normalizedEndDate &&
                                    t.Status == TransactionStatus.Completed)
                         .OrderByDescending(t => t.TransactionDate)
-                        .AsNoTracking()  // Add this for better performance
-                        .ToListAsync();
+                        .AsNoTracking();
+
+                    // Apply cashier filter if specified
+                    if (!string.IsNullOrEmpty(cashierId))
+                    {
+                        query = query.Where(t => t.CashierId == cashierId);
+                    }
+
+                    var transactions = await query.ToListAsync();
 
                     if (transactions == null || !transactions.Any())
                     {
@@ -659,23 +599,20 @@ namespace QuickTechSystems.Application.Services
             });
         }
         public async Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(
-            DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null, int? employeeId = null)
+            DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null, string cashierId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 try
                 {
-                    // Normalize dates to start and end of day
                     var normalizedStartDate = startDate.Date;
                     var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
 
-                    // Validate date range
                     if (normalizedStartDate > normalizedEndDate)
                     {
                         throw new ArgumentException("Start date must be before or equal to end date");
                     }
 
-                    // Get base query for transactions matching the criteria
                     var query = _repository.Query()
                         .Include(t => t.Customer)
                         .Include(t => t.TransactionDetails)
@@ -685,25 +622,21 @@ namespace QuickTechSystems.Application.Services
                                    t.TransactionDate <= normalizedEndDate &&
                                    t.Status == TransactionStatus.Completed)
                         .OrderByDescending(t => t.TransactionDate)
-                        .AsNoTracking();  // For better performance
+                        .AsNoTracking();
 
-                    // Apply category filter if specified
                     if (categoryId.HasValue && categoryId.Value > 0)
                     {
                         query = query.Where(t => t.TransactionDetails
                             .Any(d => d.Product.CategoryId == categoryId.Value));
                     }
 
-                    // Apply employee filter if specified
-                    if (employeeId.HasValue && employeeId.Value > 0)
+                    if (!string.IsNullOrEmpty(cashierId))
                     {
-                        query = query.Where(t => t.CashierId == employeeId.Value.ToString());
+                        query = query.Where(t => t.CashierId == cashierId);
                     }
 
-                    // Get total count for pagination
                     int totalCount = await query.CountAsync();
 
-                    // Apply pagination
                     var transactions = await query
                         .Skip((page - 1) * pageSize)
                         .Take(pageSize)
@@ -717,14 +650,12 @@ namespace QuickTechSystems.Application.Services
 
                     var dtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions);
 
-                    // Calculate detailed information for each transaction
                     foreach (var dto in dtos)
                     {
                         if (dto.Details != null)
                         {
                             foreach (var detail in dto.Details)
                             {
-                                // Ensure proper calculations
                                 detail.UpdateTotal();
                             }
                         }
@@ -759,21 +690,29 @@ namespace QuickTechSystems.Application.Services
                 }
             });
         }
-
-        public async Task<decimal> GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate)
+        public async Task<decimal> GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate, string cashierId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 try
                 {
-                    var totalSales = await _repository.Query()
-                        .Where(t => t.TransactionDate.Date >= startDate.Date &&
-                                   t.TransactionDate.Date <= endDate.Date &&
-                                   t.Status == TransactionStatus.Completed &&
-                                   t.TransactionType == TransactionType.Sale)
-                        .SumAsync(t => t.TotalAmount);
+                    // Normalize dates to start and end of day for precise filtering
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
 
-                    return totalSales;
+                    var query = _repository.Query()
+                        .Where(t => t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
+                                   t.Status == TransactionStatus.Completed &&
+                                   t.TransactionType == TransactionType.Sale);
+
+                    // Apply cashier filter if provided
+                    if (!string.IsNullOrEmpty(cashierId))
+                    {
+                        query = query.Where(t => t.CashierId == cashierId);
+                    }
+
+                    return await query.SumAsync(t => t.TotalAmount);
                 }
                 catch (Exception ex)
                 {
@@ -784,21 +723,32 @@ namespace QuickTechSystems.Application.Services
         }
 
         public async Task<Dictionary<string, decimal>> GetCategorySalesByDateRangeAsync(
-            DateTime startDate, DateTime endDate)
+      DateTime startDate, DateTime endDate, string cashierId = null)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 try
                 {
-                    var transactions = await _repository.Query()
+                    // Normalize dates to start and end of day
+                    var normalizedStartDate = startDate.Date;
+                    var normalizedEndDate = endDate.Date.AddDays(1).AddTicks(-1);
+
+                    var query = _repository.Query()
                         .Include(t => t.TransactionDetails)
                             .ThenInclude(td => td.Product)
                                 .ThenInclude(p => p.Category)
-                        .Where(t => t.TransactionDate.Date >= startDate.Date &&
-                                   t.TransactionDate.Date <= endDate.Date &&
+                        .Where(t => t.TransactionDate >= normalizedStartDate &&
+                                   t.TransactionDate <= normalizedEndDate &&
                                    t.Status == TransactionStatus.Completed &&
-                                   t.TransactionType == TransactionType.Sale)
-                        .ToListAsync();
+                                   t.TransactionType == TransactionType.Sale);
+
+                    // Apply cashier filter if specified
+                    if (!string.IsNullOrEmpty(cashierId))
+                    {
+                        query = query.Where(t => t.CashierId == cashierId);
+                    }
+
+                    var transactions = await query.ToListAsync();
 
                     return transactions
                         .SelectMany(t => t.TransactionDetails)
@@ -907,10 +857,11 @@ namespace QuickTechSystems.Application.Services
                             await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(new InventoryHistory
                             {
                                 ProductId = detail.ProductId,
-                                QuantityChange = -detail.Quantity,
-                                Type = TransactionType.Sale.ToString(),
-                                Timestamp = DateTime.Now,
-                                Notes = $"Sold in transaction | Ref: Sale-{DateTime.Now:yyyyMMddHHmmss}"
+                                QuantityChanged = -detail.Quantity,
+                                OperationType = TransactionType.Sale,
+                                Date = DateTime.Now,
+                                Reference = $"Sale-{DateTime.Now:yyyyMMddHHmmss}",
+                                Notes = $"Sold in transaction"
                             });
                         }
                     }

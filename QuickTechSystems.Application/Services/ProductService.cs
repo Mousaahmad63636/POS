@@ -21,64 +21,18 @@ namespace QuickTechSystems.Application.Services
         {
         }
 
-        public override async Task<ProductDTO> UpdateAsync(ProductDTO dto)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                try
-                {
-                    if (dto.UpdatedAt == null)
-                        dto.UpdatedAt = DateTime.Now;
-
-                    var existingEntity = await _repository.GetByIdAsync(dto.ProductId);
-                    if (existingEntity != null)
-                    {
-                        _unitOfWork.DetachEntity(existingEntity);
-                    }
-
-                    var entity = _mapper.Map<Product>(dto);
-
-                    await _repository.UpdateAsync(entity);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    var updatedEntity = await _repository.Query()
-                        .Include(p => p.Category)
-                        .Include(p => p.Supplier)
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(p => p.ProductId == dto.ProductId);
-
-                    var resultDto = _mapper.Map<ProductDTO>(updatedEntity ?? entity);
-
-                    if (updatedEntity != null)
-                    {
-                        if (updatedEntity.Category != null)
-                            resultDto.CategoryName = updatedEntity.Category.Name;
-                        if (updatedEntity.Supplier != null)
-                            resultDto.SupplierName = updatedEntity.Supplier.Name;
-                    }
-                    else
-                    {
-                        resultDto.CategoryName = dto.CategoryName;
-                        resultDto.SupplierName = dto.SupplierName;
-                    }
-
-                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", resultDto));
-
-                    return resultDto;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error updating Product: {ex.Message}");
-                    throw;
-                }
-            });
-        }
         public async Task<IEnumerable<ProductDTO>> GetByCategoryAsync(int categoryId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 var products = await _repository.Query()
                     .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
                     .Where(p => p.CategoryId == categoryId)
                     .ToListAsync();
                 return _mapper.Map<IEnumerable<ProductDTO>>(products);
@@ -97,54 +51,15 @@ namespace QuickTechSystems.Application.Services
                 var products = await _repository.Query()
                     .Include(p => p.Category)
                     .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
                     .Where(p => p.CurrentStock <= (customThreshold ?? p.MinimumStock))
                     .ToListAsync();
 
                 return _mapper.Map<IEnumerable<ProductDTO>>(products);
-            });
-        }
-
-        public async Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                Debug.WriteLine($"Notice: CreateBatchAsync called in ProductService, which is deprecated. Use MainStockService instead.");
-
-                var savedProducts = new List<ProductDTO>();
-
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
-                {
-                    for (int i = 0; i < products.Count; i++)
-                    {
-                        var product = products[i];
-                        progress?.Report($"Saving product {i + 1} of {products.Count}: {product.Name}");
-
-                        if (product.CreatedAt == default)
-                            product.CreatedAt = DateTime.Now;
-
-                        var entity = _mapper.Map<Product>(product);
-                        var result = await _repository.AddAsync(entity);
-                        var resultDto = _mapper.Map<ProductDTO>(result);
-                        savedProducts.Add(resultDto);
-                    }
-
-                    await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    foreach (var savedProduct in savedProducts)
-                    {
-                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", savedProduct));
-                    }
-
-                    return savedProducts;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in batch save: {ex.Message}");
-                    await transaction.RollbackAsync();
-                    throw;
-                }
             });
         }
 
@@ -153,9 +68,13 @@ namespace QuickTechSystems.Application.Services
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
                 var query = _repository.Query()
-                    .AsNoTracking()
                     .Include(p => p.Category)
                     .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
                     .Where(p => p.Barcode == barcode);
 
                 if (excludeProductId > 0)
@@ -164,17 +83,7 @@ namespace QuickTechSystems.Application.Services
                 }
 
                 var product = await query.FirstOrDefaultAsync();
-                var dto = _mapper.Map<ProductDTO>(product);
-
-                if (product != null)
-                {
-                    if (product.Category != null)
-                        dto.CategoryName = product.Category.Name;
-                    if (product.Supplier != null)
-                        dto.SupplierName = product.Supplier.Name;
-                }
-
-                return dto;
+                return _mapper.Map<ProductDTO>(product);
             });
         }
 
@@ -205,7 +114,6 @@ namespace QuickTechSystems.Application.Services
 
                     var productDto = _mapper.Map<ProductDTO>(product);
                     _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
-                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, product.CurrentStock));
 
                     return true;
                 }
@@ -217,62 +125,28 @@ namespace QuickTechSystems.Application.Services
             });
         }
 
-        public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
+        public override async Task UpdateAsync(ProductDTO dto)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var product = await _repository.Query()
-                    .Include(p => p.Category)
-                    .FirstOrDefaultAsync(p => p.Barcode == barcode);
-                return _mapper.Map<ProductDTO>(product);
-            });
-        }
-
-        public async Task<bool> ReceiveInventoryAsync(int productId, decimal quantity, string source, string reference)
-        {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-            {
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    var product = await _repository.GetByIdAsync(productId);
-                    if (product == null)
+                    var existingProduct = await _repository.GetByIdAsync(dto.ProductId);
+                    if (existingProduct == null)
                     {
-                        Debug.WriteLine($"Product {productId} not found for inventory receipt");
-                        return false;
+                        throw new InvalidOperationException($"Product with ID {dto.ProductId} not found");
                     }
 
-                    decimal oldStock = product.CurrentStock;
-                    product.CurrentStock += quantity;
-                    product.UpdatedAt = DateTime.Now;
+                    _mapper.Map(dto, existingProduct);
 
-                    await _repository.UpdateAsync(product);
-
-                    var inventoryHistory = new InventoryHistory
-                    {
-                        ProductId = productId,
-                        QuantityChange = quantity,
-                        NewQuantity = product.CurrentStock,
-                        Type = "Receive",
-                        Notes = $"Received from {source}: {reference}",
-                        Timestamp = DateTime.Now
-                    };
-
-                    await _unitOfWork.InventoryHistories.AddAsync(inventoryHistory);
+                    await _repository.UpdateAsync(existingProduct);
                     await _unitOfWork.SaveChangesAsync();
-                    await transaction.CommitAsync();
 
-                    var productDto = _mapper.Map<ProductDTO>(product);
-                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
-                    _eventAggregator.Publish(new ProductStockUpdatedEvent(productId, product.CurrentStock));
-
-                    Debug.WriteLine($"Inventory received for product {productId}: {quantity} units, new stock: {product.CurrentStock}");
-                    return true;
+                    _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", dto));
                 }
                 catch (Exception ex)
                 {
-                    await transaction.RollbackAsync();
-                    Debug.WriteLine($"Error receiving inventory: {ex.Message}");
+                    Debug.WriteLine($"Error updating product: {ex}");
                     throw;
                 }
             });
@@ -282,135 +156,271 @@ namespace QuickTechSystems.Application.Services
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var product = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .FirstOrDefaultAsync(p => p.Barcode == barcode);
+                return _mapper.Map<ProductDTO>(product);
+            });
+        }
+
+        public override async Task<ProductDTO> CreateAsync(ProductDTO dto)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                Debug.WriteLine("Starting create in service");
+                var entity = _mapper.Map<Product>(dto);
+                var result = await _repository.AddAsync(entity);
+                await _unitOfWork.SaveChangesAsync();
+                var resultDto = _mapper.Map<ProductDTO>(result);
+                Debug.WriteLine("Publishing create event");
+                _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", resultDto));
+                Debug.WriteLine("Create event published");
+                return resultDto;
+            });
+        }
+
+        public async Task<List<ProductDTO>> CreateBatchAsync(List<ProductDTO> products, IProgress<string>? progress = null)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                Debug.WriteLine($"Starting batch create for {products.Count} products");
+                var savedProducts = new List<ProductDTO>();
+
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    Debug.WriteLine("ProductService: Performing complete refresh from database");
-
-                    var products = await _repository.Query()
-                        .AsNoTracking()
-                        .Include(p => p.Category)
-                        .Include(p => p.Supplier)
-                        .Include(p => p.MainStock)
-                        .ToListAsync();
-
-                    var productDtos = _mapper.Map<IEnumerable<ProductDTO>>(products);
-
-                    foreach (var productDto in productDtos)
+                    for (int i = 0; i < products.Count; i++)
                     {
-                        if (productDto.MainStockId.HasValue)
-                        {
-                            var mainStock = await _unitOfWork.MainStocks
-                                .Query()
-                                .AsNoTracking()
-                                .FirstOrDefaultAsync(m => m.MainStockId == productDto.MainStockId.Value);
+                        var product = products[i];
+                        progress?.Report($"Saving product {i + 1} of {products.Count}: {product.Name}");
 
-                            if (mainStock != null)
-                            {
-                                if (Math.Abs(productDto.PurchasePrice - mainStock.PurchasePrice) > 0.001m)
-                                {
-                                    productDto.PurchasePrice = mainStock.PurchasePrice;
-                                }
+                        var entity = _mapper.Map<Product>(product);
 
-                                if (Math.Abs(productDto.SalePrice - mainStock.SalePrice) > 0.001m)
-                                {
-                                    productDto.SalePrice = mainStock.SalePrice;
-                                }
+                        if (entity.CreatedAt == default)
+                            entity.CreatedAt = DateTime.Now;
 
-                                productDto.BoxPurchasePrice = mainStock.BoxPurchasePrice;
-                                productDto.BoxSalePrice = mainStock.BoxSalePrice;
-                                productDto.ItemsPerBox = mainStock.ItemsPerBox;
-                            }
-                        }
+                        var result = await _repository.AddAsync(entity);
+
+                        var resultDto = _mapper.Map<ProductDTO>(result);
+                        savedProducts.Add(resultDto);
                     }
 
-                    return productDtos;
+                    await _unitOfWork.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+
+                    foreach (var savedProduct in savedProducts)
+                    {
+                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", savedProduct));
+                    }
+
+                    Debug.WriteLine($"Successfully saved {savedProducts.Count} products in batch");
+                    return savedProducts;
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error in ProductService.GetAllAsync: {ex}");
+                    Debug.WriteLine($"Error in batch save: {ex.Message}");
+                    if (ex.InnerException != null)
+                    {
+                        Debug.WriteLine($"Inner exception: {ex.InnerException.Message}");
+                    }
+
+                    try
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine("Transaction rolled back successfully");
+                    }
+                    catch (Exception rollbackEx)
+                    {
+                        Debug.WriteLine($"Error rolling back transaction: {rollbackEx.Message}");
+                    }
+
                     throw;
                 }
             });
         }
 
-        public async Task SynchronizeWithMainStockAsync(int productId)
+        public override async Task<ProductDTO> GetByIdAsync(int id)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                try
+                var product = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .FirstOrDefaultAsync(p => p.ProductId == id);
+                return _mapper.Map<ProductDTO>(product);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetActiveAsync()
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> SearchProductsAsync(string searchTerm)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.IsActive);
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    var product = await _repository.GetByIdAsync(productId);
-                    if (product == null || !product.MainStockId.HasValue)
-                    {
-                        return;
-                    }
-
-                    var mainStock = await _unitOfWork.MainStocks.GetByIdAsync(product.MainStockId.Value);
-                    if (mainStock == null)
-                    {
-                        return;
-                    }
-
-                    bool updated = false;
-
-                    if (Math.Abs(product.PurchasePrice - mainStock.PurchasePrice) > 0.001m)
-                    {
-                        product.PurchasePrice = mainStock.PurchasePrice;
-                        updated = true;
-                    }
-
-                    if (Math.Abs(product.WholesalePrice - mainStock.WholesalePrice) > 0.001m)
-                    {
-                        product.WholesalePrice = mainStock.WholesalePrice;
-                        updated = true;
-                    }
-
-                    if (Math.Abs(product.SalePrice - mainStock.SalePrice) > 0.001m)
-                    {
-                        product.SalePrice = mainStock.SalePrice;
-                        updated = true;
-                    }
-
-                    if (Math.Abs(product.BoxPurchasePrice - mainStock.BoxPurchasePrice) > 0.001m)
-                    {
-                        product.BoxPurchasePrice = mainStock.BoxPurchasePrice;
-                        updated = true;
-                    }
-
-                    if (Math.Abs(product.BoxWholesalePrice - mainStock.BoxWholesalePrice) > 0.001m)
-                    {
-                        product.BoxWholesalePrice = mainStock.BoxWholesalePrice;
-                        updated = true;
-                    }
-
-                    if (Math.Abs(product.BoxSalePrice - mainStock.BoxSalePrice) > 0.001m)
-                    {
-                        product.BoxSalePrice = mainStock.BoxSalePrice;
-                        updated = true;
-                    }
-
-                    if (product.ItemsPerBox != mainStock.ItemsPerBox)
-                    {
-                        product.ItemsPerBox = mainStock.ItemsPerBox;
-                        updated = true;
-                    }
-
-                    if (updated)
-                    {
-                        product.UpdatedAt = DateTime.Now;
-                        await _repository.UpdateAsync(product);
-                        await _unitOfWork.SaveChangesAsync();
-
-                        var productDto = _mapper.Map<ProductDTO>(product);
-                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
-
-                        Debug.WriteLine($"ProductService: Synchronized product {productId} with MainStock {mainStock.MainStockId}");
-                    }
+                    searchTerm = searchTerm.ToLower();
+                    query = query.Where(p =>
+                        p.Name.ToLower().Contains(searchTerm) ||
+                        p.Barcode.ToLower().Contains(searchTerm) ||
+                        (p.Description != null && p.Description.ToLower().Contains(searchTerm)) ||
+                        (p.Category != null && p.Category.Name.ToLower().Contains(searchTerm)) ||
+                        (p.Supplier != null && p.Supplier.Name.ToLower().Contains(searchTerm)) ||
+                        (p.PlantsHardscape != null && p.PlantsHardscape.Name.ToLower().Contains(searchTerm)) ||
+                        (p.LocalImported != null && p.LocalImported.Name.ToLower().Contains(searchTerm)) ||
+                        (p.IndoorOutdoor != null && p.IndoorOutdoor.Name.ToLower().Contains(searchTerm)) ||
+                        (p.PlantFamily != null && p.PlantFamily.Name.ToLower().Contains(searchTerm)) ||
+                        (p.Detail != null && p.Detail.Name.ToLower().Contains(searchTerm))
+                    );
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error in SynchronizeWithMainStockAsync: {ex}");
-                }
+
+                var products = await query.OrderBy(p => p.Name).ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByPlantsHardscapeAsync(int plantsHardscapeId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.PlantsHardscapeId == plantsHardscapeId && p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByLocalImportedAsync(int localImportedId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.LocalImportedId == localImportedId && p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByIndoorOutdoorAsync(int indoorOutdoorId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.IndoorOutdoorId == indoorOutdoorId && p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByPlantFamilyAsync(int plantFamilyId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.PlantFamilyId == plantFamilyId && p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetProductsByDetailAsync(int detailId)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .Include(p => p.PlantsHardscape)
+                    .Include(p => p.LocalImported)
+                    .Include(p => p.IndoorOutdoor)
+                    .Include(p => p.PlantFamily)
+                    .Include(p => p.Detail)
+                    .Where(p => p.DetailId == detailId && p.IsActive)
+                    .ToListAsync();
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
             });
         }
     }

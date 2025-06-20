@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Application.DTOs/ProductDTO.cs
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace QuickTechSystems.Application.DTOs
@@ -23,49 +22,19 @@ namespace QuickTechSystems.Application.DTOs
         private bool _isSelectedForPrinting;
         private string? _speed;
         private bool _isActive;
-        // Change from byte[] to string
         private string? _imagePath;
-        private int? _mainStockId;
 
-        // Box-related fields
-        private string _boxBarcode = string.Empty;
-        private decimal _boxPurchasePrice;
-        private decimal _boxSalePrice;
-        private int _numberOfBoxes;
-        private int _itemsPerBox = 0;
-        private int _minimumBoxStock;
-        private int _individualItems;
-        public int? SupplierInvoiceId { get; set; }
-        // Update property to use ImagePath instead of Image
-        // Path: QuickTechSystems.Application.DTOs/ProductDTO.cs
+        private int? _plantsHardscapeId;
+        private string _plantsHardscapeName = string.Empty;
+        private int? _localImportedId;
+        private string _localImportedName = string.Empty;
+        private int? _indoorOutdoorId;
+        private string _indoorOutdoorName = string.Empty;
+        private int? _plantFamilyId;
+        private string _plantFamilyName = string.Empty;
+        private int? _detailId;
+        private string _detailName = string.Empty;
 
-        // Add these private fields
-        private decimal _wholesalePrice;
-        private decimal _boxWholesalePrice;
-
-        // Add these public properties
-        public decimal WholesalePrice
-        {
-            get => _wholesalePrice;
-            set
-            {
-                _wholesalePrice = value;
-                OnPropertyChanged();
-            }
-        }
-        public int TotalStock
-        {
-            get => CurrentStock;
-        }
-        public decimal BoxWholesalePrice
-        {
-            get => _boxWholesalePrice;
-            set
-            {
-                _boxWholesalePrice = value;
-                OnPropertyChanged();
-            }
-        }
         public string? ImagePath
         {
             get => _imagePath;
@@ -75,26 +44,7 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
-        public int IndividualItems
-        {
-            get => _individualItems;
-            set
-            {
-                _individualItems = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(TotalStock));
-            }
-        }
 
-        public int? MainStockId
-        {
-            get => _mainStockId;
-            set
-            {
-                _mainStockId = value;
-                OnPropertyChanged();
-            }
-        }
         public int ProductId
         {
             get => _productId;
@@ -104,6 +54,7 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
+
         public string Barcode
         {
             get => _barcode;
@@ -131,14 +82,6 @@ namespace QuickTechSystems.Application.DTOs
             {
                 _speed = value;
                 OnPropertyChanged();
-            }
-        }
-        public decimal ItemWholesalePrice
-        {
-            get
-            {
-                if (ItemsPerBox <= 0) return 0;
-                return BoxWholesalePrice / ItemsPerBox;
             }
         }
 
@@ -219,7 +162,6 @@ namespace QuickTechSystems.Application.DTOs
             {
                 _currentStock = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(TotalStock));
             }
         }
 
@@ -273,79 +215,103 @@ namespace QuickTechSystems.Application.DTOs
             }
         }
 
-        // Box-related properties
-        public string BoxBarcode
+        public int? PlantsHardscapeId
         {
-            get => _boxBarcode;
+            get => _plantsHardscapeId;
             set
             {
-                _boxBarcode = value;
+                _plantsHardscapeId = value;
                 OnPropertyChanged();
             }
         }
 
-        public int NumberOfBoxes
+        public string PlantsHardscapeName
         {
-            get => _numberOfBoxes;
+            get => _plantsHardscapeName;
             set
             {
-                _numberOfBoxes = value;
+                _plantsHardscapeName = value;
                 OnPropertyChanged();
             }
         }
 
-        public int ItemsPerBox
+        public int? LocalImportedId
         {
-            get => _itemsPerBox;
+            get => _localImportedId;
             set
             {
-                if (value <= 0) value = 1; // Ensure at least 1 item per box
-                _itemsPerBox = value;
-                OnPropertyChanged();
-                // Only recalculate item purchase price
-                OnPropertyChanged(nameof(ItemPurchasePrice));
-            }
-        }
-
-        public decimal BoxPurchasePrice
-        {
-            get => _boxPurchasePrice;
-            set
-            {
-                _boxPurchasePrice = value;
-                OnPropertyChanged();
-                // Recalculate item purchase price
-                OnPropertyChanged(nameof(ItemPurchasePrice));
-            }
-        }
-
-        public decimal BoxSalePrice
-        {
-            get => _boxSalePrice;
-            set
-            {
-                _boxSalePrice = value;
+                _localImportedId = value;
                 OnPropertyChanged();
             }
         }
 
-        public int MinimumBoxStock
+        public string LocalImportedName
         {
-            get => _minimumBoxStock;
+            get => _localImportedName;
             set
             {
-                _minimumBoxStock = value;
+                _localImportedName = value;
                 OnPropertyChanged();
             }
         }
 
-        // Calculated property - Item Purchase Price
-        public decimal ItemPurchasePrice
+        public int? IndoorOutdoorId
         {
-            get
+            get => _indoorOutdoorId;
+            set
             {
-                if (ItemsPerBox <= 0) return 0;
-                return BoxPurchasePrice / ItemsPerBox;
+                _indoorOutdoorId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string IndoorOutdoorName
+        {
+            get => _indoorOutdoorName;
+            set
+            {
+                _indoorOutdoorName = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int? PlantFamilyId
+        {
+            get => _plantFamilyId;
+            set
+            {
+                _plantFamilyId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string PlantFamilyName
+        {
+            get => _plantFamilyName;
+            set
+            {
+                _plantFamilyName = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public int? DetailId
+        {
+            get => _detailId;
+            set
+            {
+                _detailId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string DetailName
+        {
+            get => _detailName;
+            set
+            {
+                _detailName = value;
+                OnPropertyChanged();
             }
         }
 

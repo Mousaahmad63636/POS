@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Application.Services/BarcodeService.cs
-using ZXing;
+﻿using ZXing;
 using ZXing.Common;
 using ZXing.Windows.Compatibility;
 using System.Drawing.Imaging;
@@ -18,29 +17,33 @@ namespace QuickTechSystems.Application.Services
         {
             try
             {
-                // Clean the barcode but don't pad it
-                string cleanedContent = CleanBarcode(content);
-
+                // Create custom encoding options with specific settings for better rendering
                 var encodingOptions = new EncodingOptions
                 {
-                    Width = width * 3,
+                    Width = width * 3, // Generate at 3x resolution for better quality
                     Height = height * 3,
                     Margin = 10,
-                    PureBarcode = true
+                    PureBarcode = true // No text in the barcode itself
                 };
 
+                // Add hints for better quality
                 encodingOptions.Hints[EncodeHintType.ERROR_CORRECTION] = ErrorCorrectionLevel.H;
                 encodingOptions.Hints[EncodeHintType.DISABLE_ECI] = true;
 
+                // Create the barcode writer
                 var writer = new BarcodeWriter
                 {
-                    Format = BarcodeFormat.CODE_128, // Good for variable lengths
+                    Format = BarcodeFormat.CODE_128,
                     Options = encodingOptions
                 };
 
-                using var highResBitmap = writer.Write(cleanedContent);
-                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, cleanedContent, width, height);
+                // Generate the barcode bitmap at high resolution
+                using var highResBitmap = writer.Write(content);
 
+                // Create final bitmap at requested size with text
+                using var finalBitmap = CreateFinalBarcodeImage(highResBitmap, content, width, height);
+
+                // Convert to byte array
                 using var stream = new MemoryStream();
                 finalBitmap.Save(stream, ImageFormat.Png);
 
@@ -51,27 +54,6 @@ namespace QuickTechSystems.Application.Services
                 System.Diagnostics.Debug.WriteLine($"Error in barcode generation: {ex.Message}");
                 return GenerateSimpleBarcode(content, width, height);
             }
-        }
-
-        /// <summary>
-        /// Cleans the barcode by removing non-alphanumeric characters but preserves the original length and value
-        /// </summary>
-        private string CleanBarcode(string barcode)
-        {
-            if (string.IsNullOrWhiteSpace(barcode))
-                return "000000000000"; // Default only for completely empty barcodes
-
-            // Remove only whitespace and special characters, but keep alphanumeric
-            // This allows for both numeric and alphanumeric barcodes
-            string cleaned = new string(barcode.Where(c => char.IsLetterOrDigit(c)).ToArray());
-
-            // If after cleaning we have nothing, return a default
-            if (string.IsNullOrEmpty(cleaned))
-                return "000000000000";
-
-            // Return the cleaned barcode as-is, without any padding or truncation
-            // The barcode library (CODE_128) can handle variable lengths from 1 to many characters
-            return cleaned;
         }
 
         private Bitmap CreateFinalBarcodeImage(Bitmap highResBitmap, string text, int targetWidth, int targetHeight)
@@ -121,9 +103,6 @@ namespace QuickTechSystems.Application.Services
         {
             try
             {
-                // Clean the content but don't normalize length
-                string cleanedContent = CleanBarcode(content);
-
                 // Simplified fallback method
                 var writer = new BarcodeWriter
                 {
@@ -137,7 +116,7 @@ namespace QuickTechSystems.Application.Services
                     }
                 };
 
-                using var bitmap = writer.Write(cleanedContent);
+                using var bitmap = writer.Write(content);
 
                 // Apply threshold to ensure pure black and white
                 using var processedBitmap = ApplyThreshold(bitmap);

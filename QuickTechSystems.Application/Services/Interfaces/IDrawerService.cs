@@ -14,7 +14,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<DrawerDTO> CloseDrawerAsync(decimal finalBalance, string? notes);
         Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn);
         Task<decimal> GetCurrentBalanceAsync();
-        Task<bool> ProcessSupplierInvoiceAsync(decimal amount, string supplierName, string reference);
+
         // Transaction Processing
         Task<DrawerDTO> AddCashTransactionAsync(decimal amount, bool isIn, string description);
         Task<DrawerDTO> ProcessTransactionAsync(decimal amount, string transactionType, string description, string reference = "");
@@ -35,9 +35,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
             GetFinancialSummaryAsync(DateTime startDate, DateTime endDate);
 
         // Validation and Calculations
-        // Add these methods to the IDrawerService interface
-        Task<IEnumerable<DrawerDTO>> GetAllDrawerSessionsAsync(DateTime? startDate = null, DateTime? endDate = null);
-        Task<DrawerDTO?> GetDrawerSessionByIdAsync(int drawerId);
         Task<bool> ValidateTransactionAsync(decimal amount, bool isCashOut = false);
         Task RecalculateDrawerTotalsAsync(int drawerId);
 
@@ -45,7 +42,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task ResetDailyTotalsAsync(int drawerId);
         Task<(decimal Sales, decimal Expenses)> GetDailyTotalsAsync(int drawerId);
         Task UpdateDailyCalculationsAsync(int drawerId);
-        // Add these methods to the IDrawerService interface
+
         // Balance Verification
         Task<bool> VerifyDrawerBalanceAsync(int drawerId);
         Task<decimal> GetExpectedBalanceAsync(int drawerId);

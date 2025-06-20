@@ -23,10 +23,6 @@ namespace QuickTechSystems.WPF.Views
         {
             if (ViewModel != null)
             {
-                // Use Execute instead of ExecuteAsync since we're dealing with ICommand interface
-                ViewModel.LoadDrawerSessionsCommand.Execute(null);
-
-                // Then load current session data
                 await ViewModel.RefreshDrawerDataAsync();
                 ViewModel.LoadFinancialDataCommand.Execute(null);
             }
@@ -61,12 +57,7 @@ namespace QuickTechSystems.WPF.Views
 
         private void SummaryButton_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel != null)
-            {
-                var summaryWindow = new DrawerSummaryWindow(ViewModel);
-                summaryWindow.Owner = Window.GetWindow(this);
-                summaryWindow.ShowDialog();
-            }
+            SummaryPopup.IsOpen = true;
         }
 
         private void ActionsButton_Click(object sender, RoutedEventArgs e)
@@ -188,14 +179,15 @@ namespace QuickTechSystems.WPF.Views
                     case "return":
                     case "expense":
                     case "supplier payment":
-                        // Use a hardcoded color instead of looking for a resource
-                        row.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.LightPink);
+                        row.Background = (System.Windows.Media.Brush)FindResource("DangerColor");
                         break;
                 }
             }
         }
+
         private void ClosePopup_Click(object sender, RoutedEventArgs e)
         {
+            SummaryPopup.IsOpen = false;
             ActionsPopup.IsOpen = false;
             OpenDrawerPopup.IsOpen = false;
             AddCashPopup.IsOpen = false;

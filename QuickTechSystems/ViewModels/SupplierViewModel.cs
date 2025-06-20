@@ -35,7 +35,6 @@ namespace QuickTechSystems.WPF.ViewModels
         private Action<EntityChangedEvent<SupplierDTO>> _supplierChangedHandler;
         private FlowDirection _currentFlowDirection = FlowDirection.LeftToRight;
         private readonly IUnitOfWork _unitOfWork;
-        private bool _isInitialized = false;
 
         // Popup state properties
         private bool _isSupplierPopupOpen;
@@ -94,7 +93,7 @@ namespace QuickTechSystems.WPF.ViewModels
             _supplierChangedHandler = HandleSupplierChanged;
             _cts = new CancellationTokenSource();
 
-            LoadCommand = new AsyncRelayCommand(async _ => await InitializeAsync());
+            LoadCommand = new AsyncRelayCommand(async _ => await LoadDataAsync());
             AddCommand = new RelayCommand(_ => AddNew());
             SaveCommand = new AsyncRelayCommand(async _ => await SaveAsync());
             DeleteCommand = new AsyncRelayCommand(async _ => await DeleteAsync());
@@ -102,17 +101,7 @@ namespace QuickTechSystems.WPF.ViewModels
             SearchCommand = new AsyncRelayCommand(async _ => await SearchSuppliersAsync());
             ShowTransactionsHistoryCommand = new RelayCommand(_ => ShowTransactionsHistoryPopup());
 
-            // Don't load data in constructor - will be loaded on view initialization
-        }
-
-        // New method to safely initialize data on view activation
-        public async Task InitializeAsync()
-        {
-            if (_isInitialized)
-                return;
-
-            await LoadDataAsync();
-            _isInitialized = true;
+            _ = LoadDataAsync();
         }
 
         public ObservableCollection<SupplierDTO> Suppliers
@@ -135,9 +124,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 if (SetProperty(ref _selectedSupplier, value))
                 {
                     IsEditing = value != null;
-
-                    // Don't immediately load transactions - wait until explicitly requested
-                    // to avoid DbContext contention
+                    _ = LoadSupplierTransactionsAsync();
                 }
             }
         }
@@ -153,38 +140,8 @@ namespace QuickTechSystems.WPF.ViewModels
             get => _searchText;
             set
             {
-                if (SetProperty(ref _searchText, value))
-                {
-                    // Use throttling to avoid excessive database queries
-                    DebounceSearch();
-                }
-            }
-        }
-
-        // Search debouncing
-        private CancellationTokenSource _searchCts;
-        private async void DebounceSearch()
-        {
-            try
-            {
-                _searchCts?.Cancel();
-                _searchCts = new CancellationTokenSource();
-                var token = _searchCts.Token;
-
-                await Task.Delay(300, token); // Wait before executing search
-
-                if (!token.IsCancellationRequested)
-                {
-                    await SearchSuppliersAsync();
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // Search was canceled by a newer search request
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Search debounce error: {ex.Message}");
+                SetProperty(ref _searchText, value);
+                _ = SearchSuppliersAsync();
             }
         }
 
@@ -234,7 +191,7 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             try
             {
-                Debug.WriteLine($"SupplierViewModel: Handling supplier change: {evt.Action}");
+                Debug.WriteLine($"ProductViewModel: Handling supplier change: {evt.Action}");
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     switch (evt.Action)
@@ -284,55 +241,48 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"SupplierViewModel: Error handling supplier change: {ex.Message}");
+                Debug.WriteLine($"ProductViewModel: Error handling supplier change: {ex.Message}");
             }
         }
 
         #region Popup Management
         public void ShowSupplierPopup()
         {
-            // This method is now deprecated
+            IsSupplierPopupOpen = true;
         }
 
         public void CloseSupplierPopup()
         {
-            // This method is now deprecated
+            IsSupplierPopupOpen = false;
         }
 
         public void ShowTransactionPopup()
         {
-            // This is now replaced with the window approach in the view
-            var window = new SupplierPaymentWindow(this, SelectedSupplier);
-            window.ShowDialog();
+            if (SelectedSupplier == null) return;
+
+            // Reset transaction values
+            PaymentAmount = 0;
+            Notes = string.Empty;
+
+            IsTransactionPopupOpen = true;
         }
 
         public void CloseTransactionPopup()
         {
-            // This method is now deprecated
+            IsTransactionPopupOpen = false;
         }
 
         public void ShowTransactionsHistoryPopup()
         {
-            // First load transactions for the selected supplier
-            if (SelectedSupplier != null)
-            {
-                Task.Run(async () =>
-                {
-                    await LoadSupplierTransactionsAsync();
+            if (SelectedSupplier == null) return;
 
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        // This is now replaced with the window approach in the view
-                        var window = new SupplierTransactionsHistoryWindow(this, SelectedSupplier);
-                        window.ShowDialog();
-                    });
-                });
-            }
+            _ = LoadSupplierTransactionsAsync();
+            IsTransactionsHistoryPopupOpen = true;
         }
 
         public void CloseTransactionsHistoryPopup()
         {
-            // This method is now deprecated
+            IsTransactionsHistoryPopupOpen = false;
         }
 
         public void EditSupplier(SupplierDTO supplier)
@@ -341,12 +291,10 @@ namespace QuickTechSystems.WPF.ViewModels
 
             SelectedSupplier = supplier;
             IsNewSupplier = false;
-
-            // Replace ShowSupplierPopup() with the new window approach
-            var window = new SupplierDetailsWindow(this, SelectedSupplier, false);
-            window.ShowDialog();
+            ShowSupplierPopup();
         }
         #endregion
+
 
         protected override async Task LoadDataAsync()
         {
@@ -399,7 +347,8 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        public async Task LoadSupplierTransactionsAsync()
+
+        private async Task LoadSupplierTransactionsAsync()
         {
             if (SelectedSupplier == null) return;
 
@@ -454,10 +403,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 CreatedAt = DateTime.Now
             };
             IsNewSupplier = true;
-
-            // Replace ShowSupplierPopup() with the new window approach
-            var window = new SupplierDetailsWindow(this, SelectedSupplier, true);
-            window.ShowDialog();
+            ShowSupplierPopup();
         }
 
         private async Task SaveAsync()
@@ -519,8 +465,7 @@ namespace QuickTechSystems.WPF.ViewModels
                             else
                             {
                                 // If supplier not found in collection, refresh all
-                                // Don't call LoadDataAsync directly to avoid potential DbContext conflicts
-                                Task.Run(() => LoadDataAsync());
+                                LoadDataAsync();
                             }
                         });
                     }
@@ -623,6 +568,9 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task SearchSuppliersAsync()
         {
+            // Use a throttling approach for search
+            await Task.Delay(300); // Wait for user to finish typing
+
             if (!await _operationLock.WaitAsync(0))
             {
                 // Skip if another operation is in progress
@@ -660,7 +608,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
-        // Refactored AddPaymentAsync to reduce DbContext contention
+        // File: QuickTechSystems\ViewModels\SupplierViewModel.cs
         private async Task AddPaymentAsync()
         {
             if (!await _operationLock.WaitAsync(0))
@@ -682,7 +630,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                 try
                 {
-                    // First, check drawer and create transaction object - no DB operations yet
+                    // Check drawer first
                     var drawer = await _drawerService.GetCurrentDrawerAsync();
                     if (drawer == null)
                     {
@@ -697,7 +645,6 @@ namespace QuickTechSystems.WPF.ViewModels
                         return;
                     }
 
-                    // Prepare transaction data
                     var reference = $"PAY-{DateTime.Now:yyyyMMddHHmmss}";
                     var supplierTransaction = new SupplierTransactionDTO
                     {
@@ -713,60 +660,62 @@ namespace QuickTechSystems.WPF.ViewModels
                     // Store if history popup was open before
                     bool wasHistoryOpen = IsTransactionsHistoryPopupOpen;
 
-                    // Close UI elements before database operations to reduce chance of concurrent access
+                    // Process the transaction first
+                    var result = await _supplierService.AddTransactionAsync(supplierTransaction, true);
+
+                    // After successful transaction processing, close the popups
                     await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                     {
+                        // Close transaction popup first
                         CloseTransactionPopup();
+
+                        // Close history popup if open
                         if (wasHistoryOpen)
                         {
                             CloseTransactionsHistoryPopup();
                         }
                     });
 
-                    // Process the transaction - this is the main DB operation
-                    var result = await _supplierService.AddTransactionAsync(supplierTransaction, true);
+                    // Reload supplier data to update balance
+                    await LoadDataAsync();
 
-                    // Wait a brief moment to ensure transaction completes before refreshing data
-                    await Task.Delay(100);
-
-                    // Instead of loading all suppliers, just refresh the selected one
-                    var refreshedSupplier = await _supplierService.GetByIdAsync(SelectedSupplier.SupplierId);
-                    if (refreshedSupplier != null)
+                    // Refresh the selected supplier
+                    if (SelectedSupplier != null)
                     {
-                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        var refreshedSupplier = await _supplierService.GetByIdAsync(SelectedSupplier.SupplierId);
+                        if (refreshedSupplier != null)
                         {
-                            // Update the SelectedSupplier 
-                            SelectedSupplier = refreshedSupplier;
-
-                            // Update the supplier in the collection
-                            var index = -1;
-                            for (int i = 0; i < Suppliers.Count; i++)
+                            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                             {
-                                if (Suppliers[i].SupplierId == refreshedSupplier.SupplierId)
+                                // Update the SelectedSupplier 
+                                SelectedSupplier = refreshedSupplier;
+
+                                // Update the supplier in the collection
+                                var index = -1;
+                                for (int i = 0; i < Suppliers.Count; i++)
                                 {
-                                    index = i;
-                                    break;
+                                    if (Suppliers[i].SupplierId == refreshedSupplier.SupplierId)
+                                    {
+                                        index = i;
+                                        break;
+                                    }
                                 }
-                            }
 
-                            if (index != -1)
-                            {
-                                Suppliers[index] = refreshedSupplier;
-                                // Force collection change notification
-                                var temp = new ObservableCollection<SupplierDTO>(Suppliers);
-                                Suppliers = temp;
-                            }
-                        });
+                                if (index != -1)
+                                {
+                                    Suppliers[index] = refreshedSupplier;
+                                    // Force collection change notification
+                                    var temp = new ObservableCollection<SupplierDTO>(Suppliers);
+                                    Suppliers = temp;
+                                }
+                            });
+                        }
                     }
 
-                    // Reopen transactions history if it was open, with a delay
+                    // Reopen transactions history if it was open
                     if (wasHistoryOpen)
                     {
-                        await Task.Delay(300);
-
-                        // Load transactions in a separate operation
-                        await LoadSupplierTransactionsAsync();
-
+                        await Task.Delay(300); // Increased delay to ensure UI updates
                         await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                         {
                             ShowTransactionsHistoryPopup();
@@ -800,15 +749,11 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             Debug.WriteLine($"{context}: {ex}");
 
-            // Special handling for DbContext concurrency errors
+            // Special handling for known database errors
             if (ex.Message.Contains("A second operation was started") ||
                 (ex.InnerException != null && ex.InnerException.Message.Contains("A second operation was started")))
             {
                 ShowTemporaryErrorMessage("Database is busy processing another request. Please try again in a moment.");
-
-                // Cancel any pending operations to help clear the conflict
-                _cts?.Cancel();
-                await Task.Delay(500); // Brief delay to allow operations to cancel
             }
             else if (ex.Message.Contains("entity with the specified primary key") ||
                     (ex.InnerException != null && ex.InnerException.Message.Contains("entity with the specified primary key")))
@@ -826,16 +771,11 @@ namespace QuickTechSystems.WPF.ViewModels
             }
         }
 
+
+
         private void ShowTemporaryErrorMessage(string message)
         {
             ErrorMessage = message;
-
-            // Display the message in a message box
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
-            {
-                MessageBox.Show(message, "Error",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
-            });
 
             // Automatically clear error after delay
             Task.Run(async () =>
@@ -857,8 +797,6 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 _cts?.Cancel();
                 _cts?.Dispose();
-                _searchCts?.Cancel();
-                _searchCts?.Dispose();
                 _operationLock?.Dispose();
                 UnsubscribeFromEvents();
                 _isDisposed = true;

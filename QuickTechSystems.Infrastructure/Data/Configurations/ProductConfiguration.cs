@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Infrastructure.Data.Configurations/ProductConfiguration.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using QuickTechSystems.Domain.Entities;
 
@@ -15,23 +14,17 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .HasMaxLength(200);
             builder.Property(p => p.Barcode)
                 .HasMaxLength(50);
-            builder.Property(p => p.BoxBarcode)
-                .HasMaxLength(50);
             builder.Property(p => p.Description)
                 .HasMaxLength(500);
             builder.Property(p => p.PurchasePrice)
                 .HasPrecision(18, 2);
             builder.Property(p => p.SalePrice)
                 .HasPrecision(18, 2);
-            builder.Property(p => p.BoxPurchasePrice)
-                .HasPrecision(18, 2);
-            builder.Property(p => p.BoxSalePrice)
-                .HasPrecision(18, 2);
+
             builder.Property(p => p.CurrentStock);
 
             builder.HasIndex(p => p.Barcode)
                 .IsUnique();
-            builder.HasIndex(p => p.BoxBarcode);
             builder.Property(p => p.Speed)
                 .HasMaxLength(50)
                 .IsRequired(false);
@@ -45,19 +38,30 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .HasForeignKey(p => p.CategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Add the relationship to MainStock
-            builder.HasOne(p => p.MainStock)
-                .WithMany(m => m.Products)
-                .HasForeignKey(p => p.MainStockId)
-                .OnDelete(DeleteBehavior.SetNull);
-            // Path: QuickTechSystems.Infrastructure.Data.Configurations/ProductConfiguration.cs
+            builder.HasOne(p => p.PlantsHardscape)
+                .WithMany()
+                .HasForeignKey(p => p.PlantsHardscapeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            // Add inside the Configure method
-            builder.Property(p => p.WholesalePrice)
-                .HasPrecision(18, 2);
+            builder.HasOne(p => p.LocalImported)
+                .WithMany()
+                .HasForeignKey(p => p.LocalImportedId)
+                .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Property(p => p.BoxWholesalePrice)
-                .HasPrecision(18, 2);
+            builder.HasOne(p => p.IndoorOutdoor)
+                .WithMany()
+                .HasForeignKey(p => p.IndoorOutdoorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(p => p.PlantFamily)
+                .WithMany()
+                .HasForeignKey(p => p.PlantFamilyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(p => p.Detail)
+                .WithMany()
+                .HasForeignKey(p => p.DetailId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -2,8 +2,12 @@
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
 		<TargetFramework>net8.0-windows</TargetFramework>
-		<!-- Remove hardcoded RuntimeIdentifier to allow publish profile to control it -->
-		<RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<PublishSingleFile>true</PublishSingleFile>
+		<SelfContained>true</SelfContained>
+		<PublishReadyToRun>true</PublishReadyToRun>
+		<PublishReadyToRunComposite>true</PublishReadyToRunComposite>
+		<DebugType>embedded</DebugType>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UseWPF>true</UseWPF>
@@ -11,28 +15,27 @@
 		<AssemblyVersion>1.0.0.0</AssemblyVersion>
 		<FileVersion>1.0.0.0</FileVersion>
 		<Version>1.0.0</Version>
-		<!-- Keep these for general builds -->
-		<DebugType>embedded</DebugType>
-		<PreserveCompilationContext>true</PreserveCompilationContext>
-		<ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
-	</PropertyGroup>
-
-	<!-- Publishing properties - only when publishing -->
-	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
-		<PublishSingleFile>false</PublishSingleFile>
-		<SelfContained>true</SelfContained>
-		<PublishReadyToRun>false</PublishReadyToRun>
+		<!-- Added Properties -->
 		<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+		<PreserveCompilationContext>true</PreserveCompilationContext>
+		<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+		<ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<Content Include="appsettings.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
 		</Content>
 		<Content Include="Resources\**">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
 		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Remove="Resources\Dictionaries\ModernStyles.xaml" />
 	</ItemGroup>
 
 	<!-- Keep existing Page Remove section -->
@@ -40,6 +43,7 @@
 		<Page Remove="Resources\Dictionaries\Languages\ar-SA.xaml" />
 		<Page Remove="Resources\Dictionaries\Languages\en-US.xaml" />
 		<Page Remove="Resources\Dictionaries\Languages\fr-FR.xaml" />
+		<Page Remove="Resources\Dictionaries\ModernStyles.xaml" />
 	</ItemGroup>
 
 	<!-- Keep existing PackageReference section -->
@@ -60,9 +64,6 @@
 		<PackageReference Include="System.Drawing.Common" Version="8.0.0" />
 		<PackageReference Include="System.Windows.Extensions" Version="8.0.0" />
 		<PackageReference Include="TaskScheduler" Version="2.10.1" />
-		<PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.0" />
-		<PackageReference Include="PresentationFramework" Version="4.6.0" />
-		<PackageReference Include="System.Windows.Controls.DataVisualization.Toolkit" Version="4.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -74,20 +75,29 @@
 		<Resource Include="Resources\Dictionaries\Languages\ar-SA.xaml" />
 		<Resource Include="Resources\Dictionaries\Languages\en-US.xaml" />
 		<Resource Include="Resources\Dictionaries\Languages\fr-FR.xaml" />
+		<Resource Include="Resources\Dictionaries\ModernStyles.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</Resource>
 	</ItemGroup>
 
+	<!-- Ensure all required files are included -->
 	<ItemGroup>
-		<Folder Include="Resources\Images\" />
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
+		</None>
+		<None Update="Resources\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<ExcludeFromSingleFile>false</ExcludeFromSingleFile>
+		</None>
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="ViewModels\TransactionParts\" />
 	</ItemGroup>
 
-	<!-- Ensure all required files are included during publish -->
-	<Target Name="CopyCustomContent" AfterTargets="Publish">
-		<ItemGroup>
-			<CustomContentFiles Include="appsettings.json" />
-			<CustomContentFiles Include="Resources\**\*" />
-		</ItemGroup>
-		<Copy SourceFiles="@(CustomContentFiles)"
-		      DestinationFiles="@(CustomContentFiles->'$(PublishDir)%(Identity)')"
-		      SkipUnchangedFiles="true" />
+	<!-- Add Target to ensure files are copied -->
+	<Target Name="CopyCustomContent" AfterTargets="PublishBuildAllRefs">
+		<Copy SourceFiles="appsettings.json" DestinationFolder="$(PublishDir)" />
+		<Copy SourceFiles="@(ResourceFiles)" DestinationFiles="@(ResourceFiles->'$(PublishDir)Resources\%(RecursiveDir)%(Filename)%(Extension)')" />
 	</Target>
 </Project>

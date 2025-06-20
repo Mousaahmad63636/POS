@@ -9,24 +9,33 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is string stringValue)
+            // Handle string values for visibility
+            if (value is string strValue)
             {
-                bool isEmpty = string.IsNullOrWhiteSpace(stringValue);
-
-                // Check if parameter requests inverse logic
-                bool inverse = parameter?.ToString()?.ToLower() == "inverse";
-
-                if (inverse)
-                {
-                    return isEmpty ? Visibility.Visible : Visibility.Collapsed;
-                }
-                else
-                {
-                    return isEmpty ? Visibility.Collapsed : Visibility.Visible;
-                }
+                return string.IsNullOrWhiteSpace(strValue) ? Visibility.Collapsed : Visibility.Visible;
             }
 
-            return Visibility.Collapsed;
+            // Handle numeric values for color styling
+            if (value is decimal || value is double || value is float || value is int)
+            {
+                double numValue = System.Convert.ToDouble(value);
+
+                if (parameter is string param)
+                {
+                    if (param.Equals("negative", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return numValue < 0;
+                    }
+                    else if (param.Equals("positive", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return numValue > 0;
+                    }
+                }
+
+                return numValue != 0;
+            }
+
+            return value != null;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

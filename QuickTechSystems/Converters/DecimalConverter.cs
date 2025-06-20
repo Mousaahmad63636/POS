@@ -10,14 +10,9 @@ namespace QuickTechSystems.WPF.Converters
         {
             if (value is decimal decimalValue)
             {
-                // Show 0 as "0" but any other value exactly as it is
-                if (decimalValue == 0)
-                    return "0";
-
-                // Return the value exactly as it is - no formatting
-                return decimalValue.ToString(CultureInfo.InvariantCulture);
+                return decimalValue.ToString("N2", culture);
             }
-            return "0";
+            return "0.00";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -28,14 +23,13 @@ namespace QuickTechSystems.WPF.Converters
                 if (string.IsNullOrWhiteSpace(stringValue))
                     return 0m;
 
-                // Clean the string and try to parse
-                stringValue = stringValue.Replace(",", ".").Trim();
-
-                // Try parsing
-                if (decimal.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal result))
+                // Try parsing with the current culture
+                if (decimal.TryParse(stringValue, NumberStyles.Any, culture, out decimal result))
                     return result;
 
-                return 0m;
+                // Try parsing with invariant culture as fallback
+                if (decimal.TryParse(stringValue, NumberStyles.Any, CultureInfo.InvariantCulture, out result))
+                    return result;
             }
             return 0m;
         }

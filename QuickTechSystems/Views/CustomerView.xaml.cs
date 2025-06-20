@@ -8,89 +8,133 @@ namespace QuickTechSystems.WPF.Views
 {
     public partial class CustomerView : UserControl
     {
-        private CustomerViewModel ViewModel => DataContext as CustomerViewModel;
-
         public CustomerView()
         {
             InitializeComponent();
-            this.Loaded += OnLoaded;
-            this.SizeChanged += OnSizeChanged;
+            this.Loaded += CustomerView_Loaded;
+            this.SizeChanged += OnControlSizeChanged;
         }
 
-        private void OnLoaded(object sender, RoutedEventArgs e)
+        private void CustomerView_Loaded(object sender, RoutedEventArgs e)
         {
-            AdjustLayoutForWindowSize();
+            if (DataContext != null)
+            {
+            }
+
+            AdjustLayoutForSize();
         }
 
-        private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+        private void OnControlSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            AdjustLayoutForWindowSize();
+            AdjustLayoutForSize();
         }
 
-        private void AdjustLayoutForWindowSize()
+        private void AdjustLayoutForSize()
         {
             var parentWindow = Window.GetWindow(this);
-            if (parentWindow?.ActualWidth == null) return;
+            if (parentWindow == null) return;
 
-            var windowWidth = parentWindow.ActualWidth;
-            var margin = windowWidth switch
+            double windowWidth = parentWindow.ActualWidth;
+
+            var scrollViewer = MainGrid.Children[0] as ScrollViewer;
+            if (scrollViewer == null) return;
+
+            var contentGrid = scrollViewer.Content as Grid;
+            if (contentGrid == null) return;
+
+            if (windowWidth >= 1920)
             {
-                >= 1920 => new Thickness(32),
-                >= 1366 => new Thickness(24),
-                >= 800 => new Thickness(16),
-                _ => new Thickness(8)
-            };
-
-            ContentPanel.Margin = margin;
-        }
-
-        private void DataGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
-        {
-            if (e.EditAction == DataGridEditAction.Commit &&
-                e.Row.Item is CustomerDTO customer &&
-                ViewModel != null)
+                contentGrid.Margin = new Thickness(32);
+            }
+            else if (windowWidth >= 1366)
             {
-                _ = ViewModel.UpdateCustomerDirectEdit(customer);
+                contentGrid.Margin = new Thickness(24);
+            }
+            else if (windowWidth >= 800)
+            {
+                contentGrid.Margin = new Thickness(16);
+            }
+            else
+            {
+                contentGrid.Margin = new Thickness(8);
             }
         }
 
         private void DataGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is DataGrid grid &&
-                grid.SelectedItem is CustomerDTO customer &&
-                ViewModel != null)
+            if (sender is DataGrid grid && grid.SelectedItem is CustomerDTO customer &&
+                DataContext is CustomerViewModel viewModel)
             {
-                ViewModel.EditCustomer(customer);
+                viewModel.EditCustomer(customer);
             }
         }
 
         private void EditButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GetCustomerFromSender(sender) is CustomerDTO customer)
+            if (sender is Button button &&
+                button.DataContext is CustomerDTO customer &&
+                DataContext is CustomerViewModel viewModel)
             {
-                ViewModel?.EditCustomer(customer);
+                viewModel.EditCustomer(customer);
+            }
+        }
+
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button &&
+                button.DataContext is CustomerDTO customer &&
+                DataContext is CustomerViewModel viewModel)
+            {
+                viewModel.SelectedCustomer = customer;
+                if (viewModel.DeleteCommand.CanExecute(null))
+                {
+                    viewModel.DeleteCommand.Execute(null);
+                }
             }
         }
 
         private void EditMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel?.SelectedCustomer != null)
+            if (DataContext is CustomerViewModel viewModel &&
+                viewModel.SelectedCustomer != null)
             {
-                ViewModel.EditCustomer(ViewModel.SelectedCustomer);
+                viewModel.EditCustomer(viewModel.SelectedCustomer);
             }
         }
 
         private void DeleteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel?.SelectedCustomer != null && ViewModel.DeleteCommand.CanExecute(null))
+            if (DataContext is CustomerViewModel viewModel &&
+                viewModel.SelectedCustomer != null &&
+                viewModel.DeleteCommand.CanExecute(null))
             {
-                ViewModel.DeleteCommand.Execute(null);
+                viewModel.DeleteCommand.Execute(null);
             }
         }
 
-        private CustomerDTO GetCustomerFromSender(object sender)
+        private void CustomerDetailsPopup_CloseRequested(object sender, RoutedEventArgs e)
         {
-            return sender is Button button ? button.DataContext as CustomerDTO : null;
+            if (DataContext is CustomerViewModel viewModel)
+            {
+                viewModel.CloseCustomerPopup();
+            }
+        }
+
+        private void CustomerDetailsPopup_SaveCompleted(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is CustomerViewModel viewModel)
+            {
+                viewModel.CloseCustomerPopup();
+            }
+        }
+
+        private void ResetPrice_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button &&
+                button.DataContext is CustomerProductPriceViewModel priceModel)
+            {
+                priceModel.CustomPrice = priceModel.DefaultPrice;
+            }
         }
     }
 }
