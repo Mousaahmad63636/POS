@@ -1,37 +1,30 @@
-﻿// src/Backend/Application/Interfaces/ITransactionService.cs
-
-using QuickTechSystems.Application.DTOs;
-using QuickTechSystems.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.Domain.Entities;
 
 namespace QuickTechSystems.Application.Services.Interfaces
 {
     public interface ITransactionService : IBaseService<TransactionDTO>
     {
-        // Existing methods
-        Task<TransactionDTO> ProcessSaleAsync(TransactionDTO transactionDto);
-        Task<TransactionDTO> ProcessSaleAsync(TransactionDTO transactionDto, int cashierId);
-        Task<TransactionDTO> UpdateAsync(TransactionDTO transactionDto);
-        Task<bool> DeleteAsync(int transactionId);
-        Task<IEnumerable<TransactionDTO>> GetByCustomerAsync(int customerId);
-        Task<TransactionDTO> ProcessPaymentTransactionAsync(TransactionDTO transaction);
-        Task<int> GetLatestTransactionIdAsync();
-        Task<TransactionDTO?> GetLastTransactionAsync();
-        Task<IEnumerable<TransactionDTO>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
-        Task<decimal> GetTransactionSummaryByDateRangeAsync(DateTime startDate, DateTime endDate);
-        Task<int> GetTransactionCountByDateRangeAsync(DateTime startDate, DateTime endDate);
-        Task<Dictionary<string, decimal>> GetCategorySalesByDateRangeAsync(DateTime startDate, DateTime endDate);
-        Task<(IEnumerable<TransactionDTO> Transactions, int TotalCount)> GetByDateRangePagedAsync(DateTime startDate, DateTime endDate, int page, int pageSize, int? categoryId = null, int? employeeId = null);
-        Task<decimal> GetTransactionProfitByDateRangeAsync(DateTime startDate, DateTime endDate, int? categoryId = null, int? employeeId = null);
-        Task<IEnumerable<TransactionDTO>> GetByTypeAsync(TransactionType type);
-        Task<bool> UpdateStatusAsync(int id, TransactionStatus status);
-        Task<decimal> GetTotalSalesAsync(DateTime startDate, DateTime endDate);
-        Task<IEnumerable<TransactionDTO>> GetByCustomerAndDateRangeAsync(int customerId, DateTime startDate, DateTime endDate);
-
-        // New methods for employee filtering
-        Task<IEnumerable<TransactionDTO>> GetByEmployeeAsync(int employeeId);
-        Task<IEnumerable<TransactionDTO>> GetByEmployeeAndDateRangeAsync(int employeeId, DateTime startDate, DateTime endDate);
+        Task<IEnumerable<TransactionDTO>> GetTransactionsByDateRangeAsync(DateTime startDate, DateTime endDate);
+        Task<IEnumerable<TransactionDTO>> GetTransactionsByEmployeeAsync(string cashierId);
+        Task<IEnumerable<TransactionDTO>> GetTransactionsByTypeAsync(TransactionType transactionType);
+        Task<IEnumerable<TransactionDTO>> GetTransactionsByStatusAsync(TransactionStatus status);
+        Task<IEnumerable<TransactionDTO>> SearchTransactionsAsync(string searchTerm);
+        Task<TransactionDTO?> GetTransactionWithDetailsAsync(int transactionId);
+        Task<decimal> GetTotalSalesAmountAsync(DateTime? startDate = null, DateTime? endDate = null);
+        Task<decimal> GetEmployeeSalesAmountAsync(string cashierId, DateTime? startDate = null, DateTime? endDate = null);
+        Task<bool> UpdateTransactionDiscountAsync(int transactionId, decimal newDiscount);
+        Task<bool> UpdateTransactionDetailDiscountAsync(int transactionDetailId, decimal newDiscount);
+        Task<bool> RemoveTransactionDetailAsync(int transactionDetailId);
+        Task<bool> DeleteTransactionWithRestockAsync(int transactionId);
+        Task<bool> UpdateTransactionDetailQuantityAsync(int transactionDetailId, decimal newQuantity);
+        Task<IEnumerable<TransactionDTO>> GetFilteredTransactionsAsync(
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string? cashierId = null,
+            TransactionType? transactionType = null,
+            TransactionStatus? status = null,
+            string? searchTerm = null);
+        Task<Dictionary<string, decimal>> GetEmployeePerformanceAsync(DateTime? startDate = null, DateTime? endDate = null);
     }
 }

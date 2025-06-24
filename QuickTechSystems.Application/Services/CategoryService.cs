@@ -3,15 +3,19 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
-using QuickTechSystems.Application.Interfaces;
+using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
-using QuickTechSystems.Domain.Interfaces.Repositories;
+using QuickTechSystems.Domain.Interfaces;
 
 namespace QuickTechSystems.Application.Services
 {
     public class CategoryService : BaseService<Category, CategoryDTO>, ICategoryService
     {
+        private readonly Dictionary<int, DateTime> _operationTimestamps;
+        private readonly HashSet<int> _activeOperations;
+        private readonly object _operationLock = new object();
+
         public CategoryService(
             IUnitOfWork unitOfWork,
             IMapper mapper,
@@ -19,34 +23,38 @@ namespace QuickTechSystems.Application.Services
             IDbContextScopeService dbContextScopeService)
             : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
+            _operationTimestamps = new Dictionary<int, DateTime>();
+            _activeOperations = new HashSet<int>();
         }
 
         public async Task<CategoryDTO?> GetByNameAsync(string name)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
                 var category = await _repository.Query()
                     .Where(c => c.Name.Contains(name))
                     .FirstOrDefaultAsync();
+
                 return _mapper.Map<CategoryDTO>(category);
-            });
+            }, "GetByNameAsync");
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetByTypeAsync(string type)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
                 var categories = await _repository.Query()
                     .Where(c => c.Type == type)
                     .Include(c => c.Products)
                     .ToListAsync();
+
                 return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
-            });
+            }, "GetByTypeAsync");
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetActiveAsync()
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
                 try
                 {
@@ -54,6 +62,7 @@ namespace QuickTechSystems.Application.Services
                         .Where(c => c.IsActive)
                         .Include(c => c.Products)
                         .ToListAsync();
+
                     return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
                 }
                 catch (Exception ex)
@@ -61,16 +70,16 @@ namespace QuickTechSystems.Application.Services
                     Debug.WriteLine($"Error in GetActiveAsync: {ex.Message}");
                     throw;
                 }
-            });
+            }, "GetActiveAsync");
         }
 
         public override async Task<CategoryDTO> CreateAsync(CategoryDTO dto)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    // Validate unique name within type
                     var existingCategory = await _repository.Query()
                         .FirstOrDefaultAsync(c => c.Name == dto.Name && c.Type == dto.Type);
 
@@ -82,6 +91,7 @@ namespace QuickTechSystems.Application.Services
                     var entity = _mapper.Map<Category>(dto);
                     var result = await _repository.AddAsync(entity);
                     await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
                     var resultDto = _mapper.Map<CategoryDTO>(result);
                     _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Create", resultDto));
@@ -90,104 +100,143 @@ namespace QuickTechSystems.Application.Services
                 }
                 catch (Exception ex)
                 {
+                    await transaction.RollbackAsync();
                     Debug.WriteLine($"Error creating category: {ex.Message}");
                     throw;
                 }
-            });
+            }, "CreateAsync");
         }
 
         public override async Task UpdateAsync(CategoryDTO dto)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            lock (_operationLock)
             {
-                try
+                if (_activeOperations.Contains(dto.CategoryId))
                 {
-                    // Check if another category of the same type exists with the same name
-                    var existingCategory = await _repository.Query()
-                        .FirstOrDefaultAsync(c =>
-                            c.Name == dto.Name &&
-                            c.Type == dto.Type &&
-                            c.CategoryId != dto.CategoryId);
-
-                    if (existingCategory != null)
-                    {
-                        throw new InvalidOperationException($"Another {dto.Type} category with the name '{dto.Name}' already exists.");
-                    }
-
-                    var category = await _repository.GetByIdAsync(dto.CategoryId);
-                    if (category == null)
-                    {
-                        throw new InvalidOperationException($"Category with ID {dto.CategoryId} not found");
-                    }
-
-                    _mapper.Map(dto, category);
-
-                    // Explicitly set IsActive property to ensure it's tracked
-                    category.IsActive = dto.IsActive;
-
-                    // Note: Category entity doesn't have UpdatedAt property
-
-                    await _repository.UpdateAsync(category);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Update", dto));
+                    throw new InvalidOperationException("Operation already in progress for this category");
                 }
-                catch (Exception ex)
+                _activeOperations.Add(dto.CategoryId);
+                _operationTimestamps[dto.CategoryId] = DateTime.Now;
+            }
+
+            try
+            {
+                await ExecuteServiceOperationAsync(async () =>
                 {
-                    Debug.WriteLine($"Error updating category: {ex}");
-                    throw;
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var existingCategory = await _repository.Query()
+                            .FirstOrDefaultAsync(c =>
+                                c.Name == dto.Name &&
+                                c.Type == dto.Type &&
+                                c.CategoryId != dto.CategoryId);
+
+                        if (existingCategory != null)
+                        {
+                            throw new InvalidOperationException($"Another {dto.Type} category with the name '{dto.Name}' already exists.");
+                        }
+
+                        var category = await _repository.GetByIdAsync(dto.CategoryId);
+                        if (category == null)
+                        {
+                            throw new InvalidOperationException($"Category with ID {dto.CategoryId} not found");
+                        }
+
+                        _mapper.Map(dto, category);
+
+                        await _repository.UpdateAsync(category);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Update", dto));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"Error updating category: {ex}");
+                        throw;
+                    }
+                }, "UpdateAsync");
+            }
+            finally
+            {
+                lock (_operationLock)
+                {
+                    _activeOperations.Remove(dto.CategoryId);
+                    _operationTimestamps.Remove(dto.CategoryId);
                 }
-            });
+            }
         }
 
         public override async Task DeleteAsync(int id)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            lock (_operationLock)
             {
-                try
+                if (_activeOperations.Contains(id))
                 {
-                    var category = await _unitOfWork.Context.Set<Category>()
-                        .Include(c => c.Products)
-                        .FirstOrDefaultAsync(c => c.CategoryId == id);
-
-                    if (category == null)
-                    {
-                        throw new InvalidOperationException($"Category with ID {id} not found");
-                    }
-
-                    // Check if this is a product category with associated products
-                    if (category.Type == "Product" && category.Products.Any())
-                    {
-                        throw new InvalidOperationException(
-                            "Cannot delete category because it has associated products. " +
-                            "Please reassign or delete the products first.");
-                    }
-
-                    // For expense categories, or product categories without products
-                    await _repository.DeleteAsync(category);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    var categoryDto = _mapper.Map<CategoryDTO>(category);
-                    _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Delete", categoryDto));
+                    throw new InvalidOperationException("Operation already in progress for this category");
                 }
-                catch (Exception ex)
+                _activeOperations.Add(id);
+                _operationTimestamps[id] = DateTime.Now;
+            }
+
+            try
+            {
+                await ExecuteServiceOperationAsync(async () =>
                 {
-                    Debug.WriteLine($"Error deleting category: {ex}");
-                    throw;
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var category = await _repository.Query()
+                            .Include(c => c.Products)
+                            .FirstOrDefaultAsync(c => c.CategoryId == id);
+
+                        if (category == null)
+                        {
+                            throw new InvalidOperationException($"Category with ID {id} not found");
+                        }
+
+                        if (category.Type == "Product" && category.Products.Any())
+                        {
+                            throw new InvalidOperationException(
+                                "Cannot delete category because it has associated products. " +
+                                "Please reassign or delete the products first.");
+                        }
+
+                        await _repository.DeleteAsync(category);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        var categoryDto = _mapper.Map<CategoryDTO>(category);
+                        _eventAggregator.Publish(new EntityChangedEvent<CategoryDTO>("Delete", categoryDto));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"Error deleting category: {ex}");
+                        throw;
+                    }
+                }, "DeleteAsync");
+            }
+            finally
+            {
+                lock (_operationLock)
+                {
+                    _activeOperations.Remove(id);
+                    _operationTimestamps.Remove(id);
                 }
-            });
+            }
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetProductCategoriesAsync()
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
                 try
                 {
-                    // Get categories without transaction scope to avoid nested transactions
                     var categories = await _repository.Query()
                         .Where(c => c.Type == "Product")
-                        .AsNoTracking() // This prevents entity tracking issues
                         .ToListAsync();
 
                     return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
@@ -197,7 +246,7 @@ namespace QuickTechSystems.Application.Services
                     Debug.WriteLine($"Error in GetProductCategoriesAsync: {ex.Message}");
                     throw;
                 }
-            });
+            }, "GetProductCategoriesAsync");
         }
 
         public async Task<IEnumerable<CategoryDTO>> GetExpenseCategoriesAsync()
@@ -207,7 +256,7 @@ namespace QuickTechSystems.Application.Services
 
         public async Task<bool> IsNameUniqueWithinTypeAsync(string name, string type, int? excludeId = null)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            return await ExecuteServiceOperationAsync(async () =>
             {
                 var query = _repository.Query()
                     .Where(c => c.Name == name && c.Type == type);
@@ -218,7 +267,7 @@ namespace QuickTechSystems.Application.Services
                 }
 
                 return !await query.AnyAsync();
-            });
+            }, "IsNameUniqueWithinTypeAsync");
         }
     }
 }

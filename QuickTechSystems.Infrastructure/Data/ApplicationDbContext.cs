@@ -1,8 +1,9 @@
-﻿// Path: QuickTechSystems.Infrastructure.Data/ApplicationDbContext.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Infrastructure.Data.Configurations;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace QuickTechSystems.Infrastructure.Data
 {
@@ -15,8 +16,6 @@ namespace QuickTechSystems.Infrastructure.Data
 
         public DbSet<Employee> Employees => Set<Employee>();
         public DbSet<Product> Products => Set<Product>();
-        public DbSet<MainStock> MainStocks => Set<MainStock>(); // New entity
-        public DbSet<InventoryTransfer> InventoryTransfers => Set<InventoryTransfer>(); // New entity
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Customer> Customers => Set<Customer>();
         public DbSet<Transaction> Transactions => Set<Transaction>();
@@ -30,13 +29,7 @@ namespace QuickTechSystems.Infrastructure.Data
         public DbSet<Drawer> Drawers => Set<Drawer>();
         public DbSet<DrawerHistoryEntry> DrawerHistory => Set<DrawerHistoryEntry>();
         public DbSet<DrawerTransaction> DrawerTransactions => Set<DrawerTransaction>();
-        public DbSet<Quote> Quotes => Set<Quote>();
-        public DbSet<QuoteDetail> QuoteDetails => Set<QuoteDetail>();
-        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
         public DbSet<EmployeeSalaryTransaction> EmployeeSalaryTransactions => Set<EmployeeSalaryTransaction>();
-        public DbSet<CustomerProductPrice> CustomerProductPrices => Set<CustomerProductPrice>();
-        public DbSet<DamagedGoods> DamagedGoods => Set<DamagedGoods>();
-        public DbSet<LowStockHistory> LowStockHistories => Set<LowStockHistory>();
         public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
         public DbSet<SupplierInvoice> SupplierInvoices { get; set; }
         public DbSet<SupplierInvoiceDetail> SupplierInvoiceDetails { get; set; }
@@ -45,12 +38,9 @@ namespace QuickTechSystems.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
-            modelBuilder.ApplyConfiguration(new ActivityLogConfiguration());
             modelBuilder.ApplyConfiguration(new SupplierInvoiceConfiguration());
             modelBuilder.ApplyConfiguration(new SupplierInvoiceDetailConfiguration());
             modelBuilder.ApplyConfiguration(new InventoryHistoryConfiguration());
-            modelBuilder.ApplyConfiguration(new MainStockConfiguration()); // Add new configuration
-            modelBuilder.ApplyConfiguration(new InventoryTransferConfiguration()); // Add new configuration
         }
 
         public DbContextOptions<ApplicationDbContext> GetConfiguration()
@@ -58,6 +48,61 @@ namespace QuickTechSystems.Infrastructure.Data
             return (DbContextOptions<ApplicationDbContext>)this.GetType()
                 .GetProperty("ContextOptions")
                 .GetValue(this);
+        }
+    }
+
+    public static class DatabaseInitializationExtensions
+    {
+        private static readonly Dictionary<string, bool> InitializationCache = new Dictionary<string, bool>();
+        private static readonly object InitializationLock = new object();
+
+        public static async Task InitializeDatabaseAsync(this ApplicationDbContext context)
+        {
+            var connectionString = context.Database.GetConnectionString();
+            var cacheKey = $"init_{connectionString?.GetHashCode()}";
+
+            lock (InitializationLock)
+            {
+                if (InitializationCache.ContainsKey(cacheKey) && InitializationCache[cacheKey])
+                {
+                    return;
+                }
+            }
+
+            await context.Database.EnsureCreatedAsync();
+
+            lock (InitializationLock)
+            {
+                InitializationCache[cacheKey] = true;
+            }
+        }
+
+        public static async Task SeedDefaultAdministratorAsync(this ApplicationDbContext context)
+        {
+            if (!await context.Employees.AnyAsync())
+            {
+                var administratorEntity = new Employee
+                {
+                    Username = "admin",
+                    PasswordHash = HashSecurePassword("admin123"),
+                    FirstName = "System",
+                    LastName = "Administrator",
+                    Role = "Manager",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                };
+
+                await context.Employees.AddAsync(administratorEntity);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        private static string HashSecurePassword(string password)
+        {
+            using var hashAlgorithm = SHA256.Create();
+            var passwordBytes = Encoding.UTF8.GetBytes(password);
+            var hashedBytes = hashAlgorithm.ComputeHash(passwordBytes);
+            return Convert.ToBase64String(hashedBytes);
         }
     }
 }

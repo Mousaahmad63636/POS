@@ -137,25 +137,6 @@
                             VerticalScrollBarVisibility="Auto"
                             Margin="0,16,0,0">
                     <StackPanel>
-                        <TextBlock Text="{DynamicResource MainWindow_MainOperations}"
-                                 Style="{StaticResource SectionHeader}"/>
-
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                CommandParameter="Dashboard"
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📊" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Dashboard" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
 
                         <TextBlock Text="{DynamicResource MainWindow_Finance}"
                                  Style="{StaticResource SectionHeader}"/>
@@ -187,22 +168,6 @@
                                              VerticalAlignment="Center"/>
                                 </Border>
                                 <TextBlock Text="Drawer" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Quotes">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📝" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Quotes" 
                                          Foreground="White"
                                          VerticalAlignment="Center"/>
                             </StackPanel>
@@ -266,23 +231,6 @@
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="MainStock"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="🏭" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Main Stock" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
                                 CommandParameter="Categories"
                                 Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
@@ -330,40 +278,6 @@
                                              VerticalAlignment="Center"/>
                                 </Border>
                                 <TextBlock Text="Transaction History" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Profit"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📈" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Profit" 
-                                         Foreground="White"
-                                         VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </Button>
-
-                        <Button Style="{StaticResource NavButton}"
-                                Command="{Binding NavigateCommand}" 
-                                IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="LowStockHistory"
-                                Visibility="{Binding IsManager, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <Border Style="{StaticResource IconContainer}">
-                                    <TextBlock Text="📉" 
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="Low Stock History" 
                                          Foreground="White"
                                          VerticalAlignment="Center"/>
                             </StackPanel>

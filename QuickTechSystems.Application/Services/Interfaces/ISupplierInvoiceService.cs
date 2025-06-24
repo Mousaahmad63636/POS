@@ -1,6 +1,4 @@
-﻿// Path: QuickTechSystems.Application.Services.Interfaces/ISupplierInvoiceService.cs
-using Microsoft.EntityFrameworkCore.Storage;
-using QuickTechSystems.Application.DTOs;
+﻿using QuickTechSystems.Application.DTOs;
 
 namespace QuickTechSystems.Application.Services.Interfaces
 {
@@ -8,6 +6,7 @@ namespace QuickTechSystems.Application.Services.Interfaces
     {
         Task<IEnumerable<SupplierInvoiceDTO>> GetAllAsync();
         Task<IEnumerable<SupplierInvoiceDTO>> GetBySupplierAsync(int supplierId);
+        Task<IEnumerable<SupplierInvoiceDTO>> GetRecentInvoicesAsync(DateTime startDate);
         Task<SupplierInvoiceDTO?> GetByIdAsync(int invoiceId);
         Task<SupplierInvoiceDTO> CreateAsync(SupplierInvoiceDTO invoiceDto);
         Task UpdateAsync(SupplierInvoiceDTO invoiceDto);
@@ -21,6 +20,5 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task UpdateCalculatedAmountAsync(int invoiceId);
         Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto);
         Task RemoveProductFromInvoiceAsync(int detailId);
-        Task<IEnumerable<SupplierInvoiceDTO>> GetRecentInvoicesAsync(DateTime startDate);
     }
 }

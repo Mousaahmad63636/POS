@@ -5,26 +5,34 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services;
 using QuickTechSystems.Application.Services.Interfaces;
-using QuickTechSystems.Domain.Interfaces.Repositories;
 using QuickTechSystems.Infrastructure.Data;
-using QuickTechSystems.Infrastructure.Repositories;
-using QuickTechSystems.Infrastructure.Services;
-using QuickTechSystems.ViewModels;
 using QuickTechSystems.Views;
-using QuickTechSystems.WPF.ViewModels;
 using QuickTechSystems.WPF.Views;
 using QuickTechSystems.WPF.Services;
 using System;
 using System.IO;
 using System.Windows;
-using QuickTechSystems.Application.Helpers;
-using QuickTechSystems.Helpers;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using QuickTechSystems.Application.Interfaces;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Markup;
+using QuickTechSystems.Domain.Interfaces;
+using QuickTechSystems.Commands;
+using QuickTechSystems.ViewModels.Drawer;
+using QuickTechSystems.ViewModels.Customer;
+using QuickTechSystems.ViewModels.Login;
+using QuickTechSystems.ViewModels.Product;
+using QuickTechSystems.ViewModels.Supplier;
+using QuickTechSystems.ViewModels.Settings;
+using QuickTechSystems.ViewModels.Categorie;
+using QuickTechSystems.ViewModels.Employee;
+using QuickTechSystems.ViewModels.Expense;
+using QuickTechSystems.ViewModels.Restaurent;
+using QuickTechSystems.ViewModels.Welcome;
+using QuickTechSystems.ViewModels.Transaction;
+using QuickTechSystems.ViewModels;
+using System.Threading;
 
 namespace QuickTechSystems.WPF
 {
@@ -33,6 +41,9 @@ namespace QuickTechSystems.WPF
         private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _configuration;
         private readonly IEventAggregator _eventAggregator;
+        private readonly Dictionary<string, object> ApplicationProperties;
+        private static readonly SemaphoreSlim _initializationLock = new SemaphoreSlim(1, 1);
+
         public IServiceProvider ServiceProvider => _serviceProvider;
 
         public App()
@@ -41,6 +52,8 @@ namespace QuickTechSystems.WPF
 
             System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
+
+            ApplicationProperties = new Dictionary<string, object>();
 
             _configuration = new ConfigurationBuilder()
                 .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
@@ -61,17 +74,15 @@ namespace QuickTechSystems.WPF
             services.AddAutoMapper(typeof(MappingProfile));
             services.AddSingleton<IWindowService, WindowService>();
             services.AddSingleton<LanguageManager>();
-            services.AddScoped<IActivityLogger, ActivityLogger>();
-
             services.AddScoped<IPrinterService, PrinterService>();
-            services.AddScoped<ICustomerPrintService, QuickTechSystems.WPF.Services.CustomerPrintService>();
 
             services.AddDbContextPool<ApplicationDbContext>(options =>
                 options.UseSqlServer(
                     _configuration.GetConnectionString("DefaultConnection"),
                     b => b.MigrationsAssembly("QuickTechSystems.Infrastructure"))
                 .EnableSensitiveDataLogging()
-                .EnableDetailedErrors());
+                .EnableDetailedErrors(),
+                poolSize: 128);
 
             services.AddSingleton<IDbContextFactory<ApplicationDbContext>>(provider =>
                 new PooledDbContextFactory<ApplicationDbContext>(
@@ -83,10 +94,8 @@ namespace QuickTechSystems.WPF
                         .Options));
 
             services.AddScoped<IDbContextScopeService, DbContextScopeService>();
-
             services.AddTransient<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IBackupService, BackupService>();
-            services.AddSingleton<IBulkOperationQueueService, BulkOperationQueueService>();
 
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IBarcodeService, BarcodeService>();
@@ -97,46 +106,40 @@ namespace QuickTechSystems.WPF
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IExpenseService, ExpenseService>();
             services.AddScoped<IProductService, ProductService>();
-            services.AddScoped<IQuoteService, QuoteService>();
             services.AddScoped<ISupplierService, SupplierService>();
             services.AddScoped<ISystemPreferencesService, SystemPreferencesService>();
-            services.AddScoped<IMainStockService, MainStockService>();
-            services.AddScoped<IInventoryTransferService, InventoryTransferService>();
-            services.AddScoped<MainStockViewModel>();
+            services.AddScoped<ISupplierInvoiceService, SupplierInvoiceService>();
             services.AddScoped<ITransactionService, TransactionService>();
-            services.AddScoped<ILowStockHistoryService, LowStockHistoryService>();
+
             services.AddScoped<IRestaurantTableService, RestaurantTableService>();
             services.AddScoped<TableManagementViewModel>();
             services.AddTransient<TableManagementView>();
-            services.AddScoped<ISupplierInvoiceService, SupplierInvoiceService>();
 
             services.AddScoped<IGenericRepository<SupplierInvoice>>(provider =>
-       provider.GetRequiredService<IUnitOfWork>().SupplierInvoices);
+                provider.GetRequiredService<IUnitOfWork>().SupplierInvoices);
             services.AddScoped<IGenericRepository<SupplierInvoiceDetail>>(provider =>
                 provider.GetRequiredService<IUnitOfWork>().SupplierInvoiceDetails);
+            services.AddScoped<IGenericRepository<Transaction>>(provider =>
+                provider.GetRequiredService<IUnitOfWork>().Transactions);
 
             services.AddScoped<SplashScreenViewModel>();
-
             services.AddSingleton<IImagePathService, ImagePathService>();
             services.AddTransient<SplashScreenView>();
 
             services.AddScoped<MainViewModel>();
             services.AddScoped<LoginViewModel>();
-            services.AddScoped<DashboardViewModel>();
             services.AddScoped<CategoryViewModel>();
             services.AddScoped<CustomerViewModel>();
             services.AddScoped<DrawerViewModel>();
             services.AddScoped<EmployeeViewModel>();
             services.AddScoped<ExpenseViewModel>();
             services.AddScoped<ProductViewModel>();
-            services.AddScoped<ProfitViewModel>();
-            services.AddScoped<QuoteViewModel>();
             services.AddScoped<SettingsViewModel>();
             services.AddScoped<SupplierViewModel>();
             services.AddScoped<SystemPreferencesViewModel>();
+            services.AddScoped<WelcomeViewModel>();
             services.AddScoped<TransactionHistoryViewModel>();
-            services.AddScoped<IDamagedGoodsService, DamagedGoodsService>();
-            services.AddScoped<LowStockHistoryViewModel>();
+            services.AddScoped<TransactionDetailsPopupViewModel>();
             services.AddTransient<SupplierInvoiceViewModel>();
 
             services.AddTransient<MainWindow>();
@@ -147,15 +150,12 @@ namespace QuickTechSystems.WPF
             services.AddTransient<EmployeeView>();
             services.AddTransient<ExpenseView>();
             services.AddTransient<ProductView>();
-            services.AddTransient<ProfitView>();
-            services.AddTransient<QuoteView>();
             services.AddTransient<SettingsView>();
             services.AddTransient<SupplierView>();
             services.AddTransient<SystemPreferencesView>();
+            services.AddTransient<QuickTechSystems.WPF.Views.WelcomeView>();
             services.AddTransient<TransactionHistoryView>();
-
-            services.AddTransient<QuantityDialog>();
-            services.AddScoped<DamagedGoodsViewModel>();
+            services.AddTransient<QuickTechSystems.Views.TransactionDetailsPopup>();
         }
 
         protected override async void OnStartup(StartupEventArgs e)
@@ -167,117 +167,24 @@ namespace QuickTechSystems.WPF
 
             base.OnStartup(e);
 
+            await _initializationLock.WaitAsync();
             try
             {
                 var splashViewModel = _serviceProvider.GetRequiredService<SplashScreenViewModel>();
                 var splashView = _serviceProvider.GetRequiredService<SplashScreenView>();
                 splashView.Show();
 
-                var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                Directory.CreateDirectory(logPath);
-                File.WriteAllText(Path.Combine(logPath, "startup.log"), $"Application starting at {DateTime.Now}...");
+                var logDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                Directory.CreateDirectory(logDirectoryPath);
+                File.WriteAllText(Path.Combine(logDirectoryPath, "startup.log"), $"Application starting at {DateTime.Now}...");
 
                 splashViewModel.UpdateStatus("Initializing database...");
 
-                await Task.Run(async () =>
-                {
-                    using (var scope = _serviceProvider.CreateScope())
-                    {
-                        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        var businessSettingsService = scope.ServiceProvider.GetRequiredService<IBusinessSettingsService>();
-                        var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
-                        var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
-                        var eventAggregator = scope.ServiceProvider.GetRequiredService<IEventAggregator>();
+                await InitializeDatabaseAsync(splashViewModel);
+                await LoadApplicationSettingsAsync(splashViewModel);
 
-                        try
-                        {
-                            splashViewModel.UpdateStatus("Ensuring database exists...");
-                            await context.Database.EnsureCreatedAsync();
-
-                            splashViewModel.UpdateStatus("Initializing database...");
-                            DatabaseInitializer.Initialize(context);
-
-                            splashViewModel.UpdateStatus("Creating default admin account...");
-                            DatabaseInitializer.SeedDefaultAdmin(context);
-
-                            splashViewModel.UpdateStatus("Setting up system preferences...");
-                            const string userId = "default";
-                            var hasPreferences = await systemPreferencesService.GetPreferenceValueAsync(userId, "Initialized", "false");
-                            if (hasPreferences != "true")
-                            {
-                                await systemPreferencesService.InitializeUserPreferencesAsync(userId);
-                                await systemPreferencesService.SavePreferenceAsync(userId, "Initialized", "true");
-                            }
-                        }
-                        catch (Exception dbEx)
-                        {
-                            Dispatcher.Invoke(() =>
-                            {
-                                MessageBox.Show(
-                                    $"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server is installed and accessible with the provided credentials.",
-                                    "Database Error",
-                                    MessageBoxButton.OK,
-                                    MessageBoxImage.Error);
-                                Shutdown();
-                            });
-                            return;
-                        }
-
-                        try
-                        {
-                            splashViewModel.UpdateStatus("Loading business settings...");
-                            var rateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
-                            if (rateSetting != null && decimal.TryParse(rateSetting.Value, out decimal rate))
-                            {
-                                CurrencyHelper.UpdateExchangeRate(rate);
-                            }
-
-                            string restaurantModeStr = "false";
-                            bool isRestaurantMode = false;
-
-                            try
-                            {
-                                splashViewModel.UpdateStatus("Loading user preferences...");
-                                restaurantModeStr = await systemPreferencesService.GetPreferenceValueAsync("default", "RestaurantMode", "false");
-                                isRestaurantMode = bool.Parse(restaurantModeStr);
-                                Debug.WriteLine($"Loaded RestaurantMode preference: {isRestaurantMode}");
-                            }
-                            catch (Exception prefEx)
-                            {
-                                Debug.WriteLine($"Error loading restaurant mode preference: {prefEx.Message}");
-                            }
-
-                            try
-                            {
-                                splashViewModel.UpdateStatus("Setting language preferences...");
-                                var defaultLanguage = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
-
-                                await Dispatcher.Invoke(async () =>
-                                {
-                                    await languageManager.SetLanguage(defaultLanguage);
-                                });
-                            }
-                            catch (Exception langEx)
-                            {
-                                Debug.WriteLine($"Error setting language: {langEx.Message}");
-                            }
-
-                            if (isRestaurantMode)
-                            {
-                                Properties["RestaurantModeEnabled"] = true;
-                            }
-                        }
-                        catch (Exception settingsEx)
-                        {
-                            File.AppendAllText(Path.Combine(logPath, "startup.log"), $"\nSettings error: {settingsEx.Message}");
-                            Debug.WriteLine($"Settings error: {settingsEx.Message}");
-                        }
-                    }
-
-                    splashViewModel.UpdateStatus("Launching application...");
-
-                    await Task.Delay(800);
-                });
+                splashViewModel.UpdateStatus("Launching application...");
+                await Task.Delay(800);
 
                 Dispatcher.Invoke(() =>
                 {
@@ -286,33 +193,142 @@ namespace QuickTechSystems.WPF
                     splashView.Close();
                 });
             }
-            catch (Exception ex)
+            catch (Exception startupException)
             {
-                var errorMessage = $"An error occurred while starting the application: {ex.Message}\n\n" +
-                                  "Please ensure:\n" +
-                                  "1. SQL Server is installed and accessible\n" +
-                                  "2. .NET 8.0 Desktop Runtime is installed\n" +
-                                  "3. You have necessary permissions to access the application folder";
+                await HandleStartupError(startupException);
+            }
+            finally
+            {
+                _initializationLock.Release();
+            }
+        }
 
-                MessageBox.Show(errorMessage, "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        private async Task InitializeDatabaseAsync(SplashScreenViewModel splashViewModel)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+
+            try
+            {
+                splashViewModel.UpdateStatus("Setting up database infrastructure...");
+
+                using var context = contextFactory.CreateDbContext();
+                await context.InitializeDatabaseAsync();
+
+                splashViewModel.UpdateStatus("Creating default admin account...");
+                await context.SeedDefaultAdministratorAsync();
+
+                splashViewModel.UpdateStatus("Setting up system preferences...");
+                var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
+                const string defaultUserId = "default";
+                var userPreferencesInitialized = await systemPreferencesService.GetPreferenceValueAsync(defaultUserId, "Initialized", "false");
+                if (userPreferencesInitialized != "true")
+                {
+                    await systemPreferencesService.InitializeUserPreferencesAsync(defaultUserId);
+                    await systemPreferencesService.SavePreferenceAsync(defaultUserId, "Initialized", "true");
+                }
+            }
+            catch (Exception dbEx)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show(
+                        $"Database initialization error: {dbEx.Message}\n\nPlease ensure SQL Server is installed and accessible with the provided credentials.",
+                        "Database Error",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                    Shutdown();
+                });
+                throw;
+            }
+        }
+
+        private async Task LoadApplicationSettingsAsync(SplashScreenViewModel splashViewModel)
+        {
+            using var scope = _serviceProvider.CreateScope();
+
+            try
+            {
+                splashViewModel.UpdateStatus("Loading business settings...");
+                var businessSettingsService = scope.ServiceProvider.GetRequiredService<IBusinessSettingsService>();
+                var exchangeRateSetting = await businessSettingsService.GetByKeyAsync("ExchangeRate");
+                if (exchangeRateSetting != null && decimal.TryParse(exchangeRateSetting.Value, out decimal exchangeRate))
+                {
+                    CurrencyHelper.UpdateExchangeRate(exchangeRate);
+                }
+
+                var restaurantModeConfiguration = "false";
+                var isRestaurantModeEnabled = false;
 
                 try
                 {
-                    var logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-                    File.AppendAllText(Path.Combine(logPath, "error.log"),
-                        $"\n[{DateTime.Now}] Fatal startup error:\n{ex}\n");
+                    splashViewModel.UpdateStatus("Loading user preferences...");
+                    var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
+                    restaurantModeConfiguration = await systemPreferencesService.GetPreferenceValueAsync("default", "RestaurantMode", "false");
+                    isRestaurantModeEnabled = bool.Parse(restaurantModeConfiguration);
+                    Debug.WriteLine($"Loaded RestaurantMode preference: {isRestaurantModeEnabled}");
                 }
-                catch
+                catch (Exception preferenceException)
                 {
+                    Debug.WriteLine($"Error loading restaurant mode preference: {preferenceException.Message}");
                 }
 
-                Shutdown();
+                try
+                {
+                    splashViewModel.UpdateStatus("Setting language preferences...");
+                    var systemPreferencesService = scope.ServiceProvider.GetRequiredService<ISystemPreferencesService>();
+                    var languageManager = scope.ServiceProvider.GetRequiredService<LanguageManager>();
+                    var defaultLanguageConfiguration = await systemPreferencesService.GetPreferenceValueAsync("default", "Language", "en-US");
+
+                    await Dispatcher.Invoke(async () =>
+                    {
+                        await languageManager.SetLanguage(defaultLanguageConfiguration);
+                    });
+                }
+                catch (Exception languageException)
+                {
+                    Debug.WriteLine($"Error setting language: {languageException.Message}");
+                }
+
+                if (isRestaurantModeEnabled)
+                {
+                    ApplicationProperties["RestaurantModeEnabled"] = true;
+                }
             }
+            catch (Exception settingsException)
+            {
+                var logDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                File.AppendAllText(Path.Combine(logDirectoryPath, "startup.log"), $"\nSettings error: {settingsException.Message}");
+                Debug.WriteLine($"Settings error: {settingsException.Message}");
+            }
+        }
+
+        private async Task HandleStartupError(Exception startupException)
+        {
+            var errorMessage = $"An error occurred while starting the application: {startupException.Message}\n\n" +
+                              "Please ensure:\n" +
+                              "1. SQL Server is installed and accessible\n" +
+                              "2. .NET 8.0 Desktop Runtime is installed\n" +
+                              "3. You have necessary permissions to access the application folder";
+
+            MessageBox.Show(errorMessage, "Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            try
+            {
+                var logDirectoryPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+                File.AppendAllText(Path.Combine(logDirectoryPath, "error.log"),
+                    $"\n[{DateTime.Now}] Fatal startup error:\n{startupException}\n");
+            }
+            catch
+            {
+            }
+
+            Shutdown();
         }
 
         public void ApplyRestaurantModeSetting()
         {
-            if (Properties.Contains("RestaurantModeEnabled") && (bool)Properties["RestaurantModeEnabled"])
+            if (ApplicationProperties.ContainsKey("RestaurantModeEnabled") && (bool)ApplicationProperties["RestaurantModeEnabled"])
             {
                 Dispatcher.Invoke(() =>
                 {
@@ -321,9 +337,9 @@ namespace QuickTechSystems.WPF
                         _eventAggregator.Publish(new ApplicationModeChangedEvent(true));
                         Debug.WriteLine("Published ApplicationModeChangedEvent: true");
                     }
-                    catch (Exception ex)
+                    catch (Exception eventException)
                     {
-                        Debug.WriteLine($"Error publishing restaurant mode event: {ex.Message}");
+                        Debug.WriteLine($"Error publishing restaurant mode event: {eventException.Message}");
                     }
                 });
             }
@@ -333,10 +349,12 @@ namespace QuickTechSystems.WPF
         {
             base.OnExit(e);
 
-            if (_serviceProvider is IDisposable disposable)
+            if (_serviceProvider is IDisposable disposableServiceProvider)
             {
-                disposable.Dispose();
+                disposableServiceProvider.Dispose();
             }
+
+            _initializationLock?.Dispose();
         }
     }
 }

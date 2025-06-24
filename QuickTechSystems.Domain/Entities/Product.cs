@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Domain.Entities/Product.cs
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace QuickTechSystems.Domain.Entities
@@ -14,17 +13,15 @@ namespace QuickTechSystems.Domain.Entities
         public decimal PurchasePrice { get; set; }
         public decimal SalePrice { get; set; }
         public decimal CurrentStock { get; set; }
+        public decimal Storehouse { get; set; }
         public int MinimumStock { get; set; }
         public int? SupplierId { get; set; }
-        public int? MainStockId { get; set; }
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; }
-        public string? Speed { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public string? ImagePath { get; set; }
         public byte[]? BarcodeImage { get; set; }
 
-        // Box-related properties
         public string BoxBarcode { get; set; } = string.Empty;
         public int NumberOfBoxes { get; set; }
         public int ItemsPerBox { get; set; } = 1;
@@ -32,15 +29,11 @@ namespace QuickTechSystems.Domain.Entities
         public decimal BoxSalePrice { get; set; }
         public int MinimumBoxStock { get; set; }
 
-        // Path: QuickTechSystems.Domain.Entities/Product.cs
-
-        // Add these properties
         public decimal WholesalePrice { get; set; }
         public decimal BoxWholesalePrice { get; set; }
-        // Navigation properties
+
         public virtual Category Category { get; set; } = null!;
         public virtual Supplier? Supplier { get; set; }
-        public virtual MainStock? MainStock { get; set; }
         public virtual ICollection<TransactionDetail> TransactionDetails { get; set; } = new List<TransactionDetail>();
         public virtual ICollection<InventoryHistory> InventoryHistories { get; set; } = new List<InventoryHistory>();
     }

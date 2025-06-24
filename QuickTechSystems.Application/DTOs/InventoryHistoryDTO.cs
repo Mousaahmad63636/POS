@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Application.DTOs/InventoryHistoryDTO.cs
-namespace QuickTechSystems.Application.DTOs
+﻿namespace QuickTechSystems.Application.DTOs
 {
     public class InventoryHistoryDTO
     {

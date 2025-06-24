@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.Infrastructure.Data.Configurations/InventoryHistoryConfiguration.cs
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using QuickTechSystems.Domain.Entities;
 
@@ -19,7 +18,7 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
 
             builder.Property(ih => ih.Type)
                 .IsRequired()
-                .HasMaxLength(20);
+                .HasMaxLength(50);
 
             builder.Property(ih => ih.Notes)
                 .HasMaxLength(500);
@@ -31,6 +30,10 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
                 .WithMany(p => p.InventoryHistories)
                 .HasForeignKey(ih => ih.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(ih => ih.ProductId);
+            builder.HasIndex(ih => ih.Timestamp);
+            builder.HasIndex(ih => ih.Type);
         }
     }
 }

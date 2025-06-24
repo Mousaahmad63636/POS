@@ -1,118 +1,473 @@
-﻿using System.Diagnostics;
-using AutoMapper;
+﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
-using QuickTechSystems.Application.Interfaces;
+using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
-using QuickTechSystems.Domain.Interfaces.Repositories;
+using QuickTechSystems.Domain.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace QuickTechSystems.Application.Services
 {
     public class CustomerService : BaseService<Customer, CustomerDTO>, ICustomerService
     {
-        private readonly IDrawerService _drawerService;
+        private readonly Dictionary<string, IEnumerable<CustomerDTO>> _searchCache;
+        private readonly HashSet<int> _activeOperations;
+        private readonly Dictionary<int, decimal> _transactionBalanceCache;
 
-        public CustomerService(IUnitOfWork unitOfWork, IMapper mapper, IEventAggregator eventAggregator, IDbContextScopeService dbContextScopeService, IDrawerService drawerService = null) : base(unitOfWork, mapper, eventAggregator, dbContextScopeService) => _drawerService = drawerService;
-
-        public async Task<IEnumerable<CustomerDTO>> GetByNameAsync(string name) => await _dbContextScopeService.ExecuteInScopeAsync(async context => _mapper.Map<IEnumerable<CustomerDTO>>(await _repository.Query().Where(c => c.Name.Contains(name)).ToListAsync()));
-
-        public override async Task<bool> UpdateAsync(CustomerDTO entity) => await _dbContextScopeService.ExecuteInScopeAsync(async context => await UpdateCustomerAndPublish(entity));
-
-        public async Task<bool> UpdatePaymentTransactionAsync(int transactionId, decimal newAmount, string reason) => await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+        public CustomerService(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            IEventAggregator eventAggregator,
+            IDbContextScopeService dbContextScopeService)
+            : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-            try
+            _searchCache = new Dictionary<string, IEnumerable<CustomerDTO>>();
+            _activeOperations = new HashSet<int>();
+            _transactionBalanceCache = new Dictionary<int, decimal>();
+        }
+
+        public override async Task<IEnumerable<CustomerDTO>> GetAllAsync()
+        {
+            return await ExecuteServiceOperationAsync(async () =>
             {
-                var paymentTransaction = await _unitOfWork.Transactions.GetByIdAsync(transactionId);
-                if (paymentTransaction?.CustomerId == null) return false;
-                var customer = await _repository.GetByIdAsync(paymentTransaction.CustomerId.Value);
-                if (customer == null) return false;
-                var originalAmount = paymentTransaction.PaidAmount;
-                customer.Balance += originalAmount - newAmount;
-                customer.UpdatedAt = DateTime.Now;
-                await _repository.UpdateAsync(customer);
-                paymentTransaction.PaidAmount = paymentTransaction.TotalAmount = newAmount;
-                var updateInfo = $"Updated: {DateTime.Now:MM/dd/yyyy} - Original: {originalAmount:C2}, New: {newAmount:C2}";
-                if (paymentTransaction.CashierName.Length + updateInfo.Length <= 100) paymentTransaction.CashierName = $"{paymentTransaction.CashierName} | {updateInfo}";
-                else paymentTransaction.CashierRole = $"Reason: {reason} | {updateInfo}";
-                await _unitOfWork.Transactions.UpdateAsync(paymentTransaction);
-                await _unitOfWork.SaveChangesAsync();
-                await transaction.CommitAsync();
-                PublishCustomerEvent("Update", customer);
-                return true;
+                var customers = await _repository.Query()
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.Name)
+                    .ToListAsync();
+
+                var customerDtos = _mapper.Map<IEnumerable<CustomerDTO>>(customers).ToList();
+
+                foreach (var dto in customerDtos)
+                {
+                    dto.TransactionCount = await _unitOfWork.Transactions
+                        .Query()
+                        .CountAsync(t => t.CustomerId == dto.CustomerId);
+                }
+
+                return customerDtos;
+            }, "GetAllCustomers");
+        }
+
+        public async Task<IEnumerable<CustomerDTO>> SearchCustomersAsync(string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                return await GetAllAsync();
             }
-            catch { await transaction.RollbackAsync(); throw; }
-        });
 
-        public new async Task<CustomerDTO?> GetByIdAsync(int id) => await _dbContextScopeService.ExecuteInScopeAsync(async context => _mapper.Map<CustomerDTO>(await _repository.Query().AsNoTracking().FirstOrDefaultAsync(c => c.CustomerId == id)));
-
-
-
-        public async Task<bool> UpdateBalanceAsync(int customerId, decimal amount) => await _dbContextScopeService.ExecuteInScopeAsync(async context =>
-        {
-            var customer = await _repository.GetByIdAsync(customerId);
-            if (customer == null) return false;
-            customer.Balance += amount;
-            customer.UpdatedAt = DateTime.Now;
-            await _repository.UpdateAsync(customer);
-            await _unitOfWork.SaveChangesAsync();
-            PublishCustomerEvent("Update", customer);
-            return true;
-        });
-
-        public async Task<bool> ProcessPaymentAsync(int customerId, decimal amount, string reference)
-        {
-            for (int retryCount = 0; retryCount < 3; retryCount++)
+            var cacheKey = $"search_{searchTerm.ToLowerInvariant()}";
+            if (_searchCache.ContainsKey(cacheKey))
             {
+                return _searchCache[cacheKey];
+            }
+
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                var customers = await _repository.Query()
+                    .Where(c => c.IsActive && (
+                        c.Name.Contains(searchTerm) ||
+                        c.Phone.Contains(searchTerm) ||
+                        c.Email.Contains(searchTerm)
+                    ))
+                    .OrderBy(c => c.Name)
+                    .ToListAsync();
+
+                var customerDtos = _mapper.Map<IEnumerable<CustomerDTO>>(customers).ToList();
+
+                foreach (var dto in customerDtos)
+                {
+                    dto.TransactionCount = await _unitOfWork.Transactions
+                        .Query()
+                        .CountAsync(t => t.CustomerId == dto.CustomerId);
+                }
+
+                _searchCache[cacheKey] = customerDtos;
+                return customerDtos;
+            }, "SearchCustomers");
+        }
+
+        public async Task<CustomerDTO> UpdateBalanceAsync(int customerId, decimal balanceAdjustment, string reason)
+        {
+            if (_activeOperations.Contains(customerId))
+            {
+                throw new InvalidOperationException("Balance update operation already in progress for this customer");
+            }
+
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                _activeOperations.Add(customerId);
+
                 try
                 {
-                    return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                    var customer = await _repository.Query()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+                    if (customer == null)
                     {
-                        using var transaction = await _unitOfWork.BeginTransactionAsync();
-                        try
-                        {
-                            var customer = await _repository.GetByIdAsync(customerId);
-                            if (customer == null || amount <= 0 || amount > customer.Balance) return amount <= 0 ? throw new InvalidOperationException("Payment amount must be greater than zero") : amount > customer.Balance ? throw new InvalidOperationException("Payment amount cannot exceed customer balance") : false;
-                            customer.Balance -= amount;
-                            customer.UpdatedAt = DateTime.Now;
-                            await _repository.UpdateAsync(customer);
-                            await _unitOfWork.SaveChangesAsync();
-                            await _unitOfWork.Transactions.AddAsync(new Transaction { CustomerId = customerId, CustomerName = customer.Name, TotalAmount = amount, PaidAmount = amount, TransactionDate = DateTime.Now, TransactionType = Domain.Enums.TransactionType.Adjustment, Status = Domain.Enums.TransactionStatus.Completed, PaymentMethod = "Cash", CashierId = "System", CashierName = "Debt Payment" });
-                            await _unitOfWork.SaveChangesAsync();
-                            if (_drawerService != null) await _drawerService.ProcessCashReceiptAsync(amount, $"Debt payment from: {customer.Name}, Ref: {reference}");
-                            await transaction.CommitAsync();
-                            PublishCustomerEvent("Update", customer);
-                            return true;
-                        }
-                        catch { await transaction.RollbackAsync(); throw; }
-                    });
+                        throw new ArgumentException($"Customer with ID {customerId} not found");
+                    }
+
+                    customer.Balance += balanceAdjustment;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    _unitOfWork.DetachAllEntities();
+                    await _repository.UpdateAsync(customer);
+                    await _unitOfWork.SaveChangesAsync();
+
+                    var updatedDto = _mapper.Map<CustomerDTO>(customer);
+                    updatedDto.TransactionCount = await _unitOfWork.Transactions
+                        .Query()
+                        .AsNoTracking()
+                        .CountAsync(t => t.CustomerId == customerId);
+
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("BalanceUpdate", updatedDto));
+                    ClearSearchCache();
+
+                    return updatedDto;
                 }
-                catch { if (retryCount >= 2) throw; await Task.Delay(500 * (retryCount + 1)); }
-            }
-            return false;
+                finally
+                {
+                    _activeOperations.Remove(customerId);
+                }
+            }, "UpdateCustomerBalance");
         }
 
-        public async Task<decimal> GetBalanceAsync(int customerId) => await _dbContextScopeService.ExecuteInScopeAsync(async context => (await _repository.GetByIdAsync(customerId))?.Balance ?? 0);
-
-        private async Task<bool> UpdateCustomerAndPublish(CustomerDTO entity)
+        public async Task<CustomerDTO> SetBalanceAsync(int customerId, decimal newBalance, string reason)
         {
-            var customer = await _repository.GetByIdAsync(entity.CustomerId);
-            if (customer == null) return false;
-            customer.Name = entity.Name;
-            customer.Phone = entity.Phone;
-            customer.Email = entity.Email;
-            customer.Address = entity.Address;
-            customer.IsActive = entity.IsActive;
-            customer.UpdatedAt = DateTime.Now;
-            customer.Balance = entity.Balance;
-            await _repository.UpdateAsync(customer);
-            await _unitOfWork.SaveChangesAsync();
-            PublishCustomerEvent("Update", customer);
-            return true;
+            if (_activeOperations.Contains(customerId))
+            {
+                throw new InvalidOperationException("Balance update operation already in progress for this customer");
+            }
+
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                _activeOperations.Add(customerId);
+
+                try
+                {
+                    var customer = await _repository.Query()
+                        .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+                    if (customer == null)
+                    {
+                        throw new ArgumentException($"Customer with ID {customerId} not found");
+                    }
+
+                    customer.Balance = newBalance;
+                    customer.UpdatedAt = DateTime.Now;
+
+                    await _unitOfWork.SaveChangesAsync();
+
+                    var updatedDto = _mapper.Map<CustomerDTO>(customer);
+                    updatedDto.TransactionCount = await _unitOfWork.Transactions
+                        .Query()
+                        .AsNoTracking()
+                        .CountAsync(t => t.CustomerId == customerId);
+
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("BalanceSet", updatedDto));
+                    ClearSearchCache();
+
+                    return updatedDto;
+                }
+                finally
+                {
+                    _activeOperations.Remove(customerId);
+                }
+            }, "SetCustomerBalance");
         }
 
-        private void PublishCustomerEvent(string action, Customer customer) => _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>(action, _mapper.Map<CustomerDTO>(customer)));
+        public async Task<IEnumerable<TransactionDTO>> GetCustomerTransactionsAsync(int customerId)
+        {
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                var transactions = await _unitOfWork.Transactions
+                    .Query()
+                    .AsNoTracking()
+                    .Where(t => t.CustomerId == customerId)
+                    .OrderByDescending(t => t.TransactionDate)
+                    .ToListAsync();
+
+                var transactionDtos = _mapper.Map<IEnumerable<TransactionDTO>>(transactions).ToList();
+
+                foreach (var dto in transactionDtos)
+                {
+                    dto.Details = new System.Collections.ObjectModel.ObservableCollection<TransactionDetailDTO>();
+
+                    var details = await _unitOfWork.Context.Set<TransactionDetail>()
+                        .AsNoTracking()
+                        .Where(td => td.TransactionId == dto.TransactionId)
+                        .ToListAsync();
+
+                    foreach (var detail in details)
+                    {
+                        dto.Details.Add(_mapper.Map<TransactionDetailDTO>(detail));
+                    }
+                }
+
+                return transactionDtos;
+            }, "GetCustomerTransactions");
+        }
+
+        public async Task<CustomerDTO> ProcessPaymentAsync(int customerId, decimal paymentAmount, string notes)
+        {
+            if (_activeOperations.Contains(customerId))
+            {
+                throw new InvalidOperationException("Payment operation already in progress for this customer");
+            }
+
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                _activeOperations.Add(customerId);
+
+                try
+                {
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+
+                    var customer = await _repository.Query()
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+                    if (customer == null)
+                    {
+                        throw new ArgumentException($"Customer with ID {customerId} not found");
+                    }
+
+                    if (paymentAmount <= 0)
+                    {
+                        throw new ArgumentException("Payment amount must be greater than zero");
+                    }
+
+                    customer.Balance = Math.Max(0, customer.Balance - paymentAmount);
+                    customer.UpdatedAt = DateTime.Now;
+
+                    _unitOfWork.DetachAllEntities();
+                    await _repository.UpdateAsync(customer);
+
+                    var paymentTransaction = new Transaction
+                    {
+                        CustomerId = customerId,
+                        CustomerName = customer.Name,
+                        TotalAmount = paymentAmount,
+                        PaidAmount = paymentAmount,
+                        TransactionDate = DateTime.Now,
+                        TransactionType = TransactionType.Sale,
+                        Status = TransactionStatus.Completed,
+                        PaymentMethod = "Cash",
+                        CashierId = "system",
+                        CashierName = "System"
+                    };
+
+                    await _unitOfWork.Transactions.AddAsync(paymentTransaction);
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var updatedDto = _mapper.Map<CustomerDTO>(customer);
+                    updatedDto.TransactionCount = await _unitOfWork.Transactions
+                        .Query()
+                        .AsNoTracking()
+                        .CountAsync(t => t.CustomerId == customerId);
+
+                    _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("PaymentProcessed", updatedDto));
+                    ClearSearchCache();
+
+                    return updatedDto;
+                }
+                finally
+                {
+                    _activeOperations.Remove(customerId);
+                }
+            }, "ProcessCustomerPayment");
+        }
+
+        public override async Task<CustomerDTO> CreateAsync(CustomerDTO dto)
+        {
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                var customer = _mapper.Map<Customer>(dto);
+                customer.CreatedAt = DateTime.Now;
+                customer.IsActive = true;
+
+                var result = await _repository.AddAsync(customer);
+                await _unitOfWork.SaveChangesAsync();
+
+                var resultDto = _mapper.Map<CustomerDTO>(result);
+                resultDto.TransactionCount = 0;
+
+                _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Create", resultDto));
+                ClearSearchCache();
+
+                return resultDto;
+            }, "CreateCustomer");
+        }
+
+        public override async Task UpdateAsync(CustomerDTO dto)
+        {
+            await ExecuteServiceOperationAsync(async () =>
+            {
+                var customer = _mapper.Map<Customer>(dto);
+                customer.UpdatedAt = DateTime.Now;
+
+                _unitOfWork.DetachAllEntities();
+                await _repository.UpdateAsync(customer);
+                await _unitOfWork.SaveChangesAsync();
+
+                _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Update", dto));
+                ClearSearchCache();
+            }, "UpdateCustomer");
+        }
+
+        public override async Task DeleteAsync(int id)
+        {
+            await ExecuteServiceOperationAsync(async () =>
+            {
+                var customer = await _repository.Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.CustomerId == id);
+
+                if (customer == null) return;
+
+                var hasTransactions = await _unitOfWork.Transactions
+                    .Query()
+                    .AsNoTracking()
+                    .AnyAsync(t => t.CustomerId == id);
+
+                if (hasTransactions)
+                {
+                    customer.IsActive = false;
+                    customer.UpdatedAt = DateTime.Now;
+                    _unitOfWork.DetachAllEntities();
+                    await _repository.UpdateAsync(customer);
+                }
+                else
+                {
+                    _unitOfWork.DetachAllEntities();
+                    await _repository.DeleteAsync(customer);
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+
+                var dto = _mapper.Map<CustomerDTO>(customer);
+                _eventAggregator.Publish(new EntityChangedEvent<CustomerDTO>("Delete", dto));
+                ClearSearchCache();
+            }, "DeleteCustomer");
+        }
+
+        public async Task<TransactionDTO> UpdateTransactionAsync(TransactionDTO transaction)
+        {
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                using var dbTransaction = await _unitOfWork.BeginTransactionAsync();
+
+                var existingTransaction = await _unitOfWork.Transactions
+                    .Query()
+                    .FirstOrDefaultAsync(t => t.TransactionId == transaction.TransactionId);
+
+                if (existingTransaction == null)
+                {
+                    throw new ArgumentException($"Transaction with ID {transaction.TransactionId} not found");
+                }
+
+                var originalAmount = existingTransaction.TotalAmount;
+                var newAmount = transaction.TotalAmount;
+                var amountDifference = newAmount - originalAmount;
+
+                existingTransaction.TotalAmount = transaction.TotalAmount;
+                existingTransaction.PaidAmount = transaction.PaidAmount;
+                existingTransaction.PaymentMethod = transaction.PaymentMethod;
+                existingTransaction.Status = transaction.Status;
+                existingTransaction.TransactionDate = transaction.TransactionDate;
+                existingTransaction.TransactionType = transaction.TransactionType;
+
+                if (existingTransaction.CustomerId.HasValue)
+                {
+                    var customer = await _unitOfWork.Customers
+                        .Query()
+                        .FirstOrDefaultAsync(c => c.CustomerId == existingTransaction.CustomerId.Value);
+
+                    if (customer != null)
+                    {
+                        if (existingTransaction.TransactionType == TransactionType.Sale)
+                        {
+                            customer.Balance -= amountDifference;
+                        }
+                        else
+                        {
+                            customer.Balance += amountDifference;
+                        }
+
+                        customer.UpdatedAt = DateTime.Now;
+                    }
+                }
+
+                await _unitOfWork.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                var resultDto = _mapper.Map<TransactionDTO>(existingTransaction);
+                _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Update", resultDto));
+                ClearSearchCache();
+
+                return resultDto;
+            }, "UpdateTransaction");
+        }
+
+        public async Task<bool> DeleteTransactionAsync(int transactionId, string reason)
+        {
+            return await ExecuteServiceOperationAsync(async () =>
+            {
+                using var dbTransaction = await _unitOfWork.BeginTransactionAsync();
+
+                var transaction = await _unitOfWork.Transactions
+                    .Query()
+                    .FirstOrDefaultAsync(t => t.TransactionId == transactionId);
+
+                if (transaction == null)
+                {
+                    return false;
+                }
+
+                if (transaction.CustomerId.HasValue)
+                {
+                    var customer = await _unitOfWork.Customers
+                        .Query()
+                        .FirstOrDefaultAsync(c => c.CustomerId == transaction.CustomerId.Value);
+
+                    if (customer != null)
+                    {
+                        if (transaction.TransactionType == TransactionType.Sale)
+                        {
+                            customer.Balance += transaction.TotalAmount;
+                        }
+                        else
+                        {
+                            customer.Balance -= transaction.TotalAmount;
+                        }
+
+                        customer.UpdatedAt = DateTime.Now;
+                    }
+                }
+
+                _unitOfWork.Context.Set<Transaction>().Remove(transaction);
+                await _unitOfWork.SaveChangesAsync();
+                await dbTransaction.CommitAsync();
+
+                var dto = _mapper.Map<TransactionDTO>(transaction);
+                _eventAggregator.Publish(new EntityChangedEvent<TransactionDTO>("Delete", dto));
+                ClearSearchCache();
+
+                return true;
+            }, "DeleteTransaction");
+        }
+
+        private void ClearSearchCache()
+        {
+            _searchCache.Clear();
+            _transactionBalanceCache.Clear();
+        }
     }
 }

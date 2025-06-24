@@ -1,13 +1,13 @@
-﻿// Path: QuickTechSystems.Application.Services/SupplierInvoiceService.cs
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using AutoMapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
-using QuickTechSystems.Application.Interfaces;
+using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
-using QuickTechSystems.Domain.Interfaces.Repositories;
+using QuickTechSystems.Domain.Interfaces;
 
 namespace QuickTechSystems.Application.Services
 {
@@ -18,6 +18,8 @@ namespace QuickTechSystems.Application.Services
         private readonly IEventAggregator _eventAggregator;
         private readonly IDbContextScopeService _dbContextScopeService;
         private readonly IDrawerService _drawerService;
+        private readonly Dictionary<int, SemaphoreSlim> _invoiceLocks;
+        private readonly SemaphoreSlim _lockManagerSemaphore;
 
         public SupplierInvoiceService(
             IUnitOfWork unitOfWork,
@@ -31,6 +33,25 @@ namespace QuickTechSystems.Application.Services
             _eventAggregator = eventAggregator;
             _dbContextScopeService = dbContextScopeService;
             _drawerService = drawerService;
+            _invoiceLocks = new Dictionary<int, SemaphoreSlim>();
+            _lockManagerSemaphore = new SemaphoreSlim(1, 1);
+        }
+
+        private async Task<SemaphoreSlim> GetInvoiceLock(int invoiceId)
+        {
+            await _lockManagerSemaphore.WaitAsync();
+            try
+            {
+                if (!_invoiceLocks.ContainsKey(invoiceId))
+                {
+                    _invoiceLocks[invoiceId] = new SemaphoreSlim(1, 1);
+                }
+                return _invoiceLocks[invoiceId];
+            }
+            finally
+            {
+                _lockManagerSemaphore.Release();
+            }
         }
 
         public async Task<IEnumerable<SupplierInvoiceDTO>> GetAllAsync()
@@ -41,10 +62,19 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
                     .OrderByDescending(si => si.CreatedAt)
+                    .AsNoTracking()
                     .ToListAsync();
 
-                return _mapper.Map<IEnumerable<SupplierInvoiceDTO>>(invoices);
+                var dtoList = _mapper.Map<List<SupplierInvoiceDTO>>(invoices);
+
+                foreach (var dto in dtoList)
+                {
+                    await RecalculateInvoiceAmounts(dto);
+                }
+
+                return dtoList;
             });
         }
 
@@ -56,13 +86,23 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
                     .Where(si => si.SupplierId == supplierId)
                     .OrderByDescending(si => si.CreatedAt)
+                    .AsNoTracking()
                     .ToListAsync();
 
-                return _mapper.Map<IEnumerable<SupplierInvoiceDTO>>(invoices);
+                var dtoList = _mapper.Map<List<SupplierInvoiceDTO>>(invoices);
+
+                foreach (var dto in dtoList)
+                {
+                    await RecalculateInvoiceAmounts(dto);
+                }
+
+                return dtoList;
             });
         }
+
         public async Task<IEnumerable<SupplierInvoiceDTO>> GetRecentInvoicesAsync(DateTime startDate)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -71,25 +111,23 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
                     .Where(si => si.CreatedAt >= startDate)
                     .OrderByDescending(si => si.CreatedAt)
+                    .AsNoTracking()
                     .ToListAsync();
 
-                var dtos = _mapper.Map<IEnumerable<SupplierInvoiceDTO>>(invoices);
+                var dtoList = _mapper.Map<List<SupplierInvoiceDTO>>(invoices);
 
-                // Ensure supplier names are properly set
-                foreach (var dto in dtos)
+                foreach (var dto in dtoList)
                 {
-                    var invoice = invoices.FirstOrDefault(i => i.SupplierInvoiceId == dto.SupplierInvoiceId);
-                    if (invoice != null && invoice.Supplier != null)
-                    {
-                        dto.SupplierName = invoice.Supplier.Name;
-                    }
+                    await RecalculateInvoiceAmounts(dto);
                 }
 
-                return dtos;
+                return dtoList;
             });
         }
+
         public async Task<SupplierInvoiceDTO?> GetByIdAsync(int invoiceId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -98,90 +136,164 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(si => si.SupplierInvoiceId == invoiceId);
 
-                return _mapper.Map<SupplierInvoiceDTO>(invoice);
+                if (invoice == null) return null;
+
+                var dto = _mapper.Map<SupplierInvoiceDTO>(invoice);
+                await RecalculateInvoiceAmounts(dto);
+
+                return dto;
             });
+        }
+
+        private async Task RecalculateInvoiceAmounts(SupplierInvoiceDTO dto)
+        {
+            decimal calculatedTotal = 0;
+
+            if (dto.Details?.Count > 0)
+            {
+                foreach (var detail in dto.Details)
+                {
+                    var detailTotal = detail.Quantity * detail.PurchasePrice;
+                    detail.TotalPrice = detailTotal;
+                    calculatedTotal += detailTotal;
+                }
+            }
+
+            dto.CalculatedAmount = calculatedTotal;
         }
 
         public async Task<SupplierInvoiceDTO> CreateAsync(SupplierInvoiceDTO invoiceDto)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
             {
-                var invoice = _mapper.Map<SupplierInvoice>(invoiceDto);
-                invoice.CreatedAt = DateTime.Now;
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
+                {
+                    var invoice = _mapper.Map<SupplierInvoice>(invoiceDto);
+                    invoice.CreatedAt = DateTime.Now;
+                    invoice.CalculatedAmount = 0;
 
-                var result = await _unitOfWork.SupplierInvoices.AddAsync(invoice);
-                await _unitOfWork.SaveChangesAsync();
+                    var result = await _unitOfWork.SupplierInvoices.AddAsync(invoice);
+                    await _unitOfWork.SaveChangesAsync();
 
-                // Reload to get the supplier info
-                result = await _unitOfWork.SupplierInvoices.Query()
-                    .Include(si => si.Supplier)
-                    .FirstOrDefaultAsync(si => si.SupplierInvoiceId == result.SupplierInvoiceId);
+                    result = await _unitOfWork.SupplierInvoices.Query()
+                        .Include(si => si.Supplier)
+                        .Include(si => si.Details)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(si => si.SupplierInvoiceId == result.SupplierInvoiceId);
 
-                var resultDto = _mapper.Map<SupplierInvoiceDTO>(result);
+                    await transaction.CommitAsync();
 
-                // Publish event
-                _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Create", resultDto));
+                    var resultDto = _mapper.Map<SupplierInvoiceDTO>(result);
+                    await RecalculateInvoiceAmounts(resultDto);
 
-                return resultDto;
+                    _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Create", resultDto));
+
+                    return resultDto;
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    Debug.WriteLine($"[CreateAsync] ERROR: {ex.Message}");
+                    throw;
+                }
             });
         }
 
         public async Task UpdateAsync(SupplierInvoiceDTO invoiceDto)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(invoiceDto.SupplierInvoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                var existingInvoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(invoiceDto.SupplierInvoiceId);
-                if (existingInvoice == null)
+                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    throw new InvalidOperationException($"Invoice with ID {invoiceDto.SupplierInvoiceId} not found");
-                }
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var existingInvoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(invoiceDto.SupplierInvoiceId);
+                        if (existingInvoice == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {invoiceDto.SupplierInvoiceId} not found");
+                        }
 
-                _mapper.Map(invoiceDto, existingInvoice);
-                existingInvoice.UpdatedAt = DateTime.Now;
+                        _mapper.Map(invoiceDto, existingInvoice);
+                        existingInvoice.UpdatedAt = DateTime.Now;
 
-                await _unitOfWork.SupplierInvoices.UpdateAsync(existingInvoice);
-                await _unitOfWork.SaveChangesAsync();
+                        await _unitOfWork.SupplierInvoices.UpdateAsync(existingInvoice);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
 
-                // Publish event
-                _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
-            });
+                        await RecalculateInvoiceAmounts(invoiceDto);
+                        _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[UpdateAsync] ERROR: {ex.Message}");
+                        throw;
+                    }
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
 
         public async Task DeleteAsync(int invoiceId)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(invoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(invoiceId);
-                if (invoice == null)
+                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
-                }
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var invoice = await _unitOfWork.SupplierInvoices.Query()
+                            .Include(si => si.Details)
+                            .FirstOrDefaultAsync(si => si.SupplierInvoiceId == invoiceId);
 
-                // Can only delete invoices in Draft status
-                if (invoice.Status != "Draft")
-                {
-                    throw new InvalidOperationException($"Cannot delete invoice in {invoice.Status} status");
-                }
+                        if (invoice == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
+                        }
 
-                // Delete details first (should be handled by cascade delete, but just to be safe)
-                var details = await _unitOfWork.SupplierInvoiceDetails.Query()
-                    .Where(d => d.SupplierInvoiceId == invoiceId)
-                    .ToListAsync();
+                        if (invoice.Status != "Draft")
+                        {
+                            throw new InvalidOperationException($"Cannot delete invoice in {invoice.Status} status");
+                        }
 
-                foreach (var detail in details)
-                {
-                    await _unitOfWork.SupplierInvoiceDetails.DeleteAsync(detail);
-                }
+                        foreach (var detail in invoice.Details.ToList())
+                        {
+                            await _unitOfWork.SupplierInvoiceDetails.DeleteAsync(detail);
+                        }
 
-                await _unitOfWork.SupplierInvoices.DeleteAsync(invoice);
-                await _unitOfWork.SaveChangesAsync();
+                        await _unitOfWork.SupplierInvoices.DeleteAsync(invoice);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
 
-                // Publish event
-                var invoiceDto = _mapper.Map<SupplierInvoiceDTO>(invoice);
-                _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Delete", invoiceDto));
-            });
+                        var invoiceDto = _mapper.Map<SupplierInvoiceDTO>(invoice);
+                        _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Delete", invoiceDto));
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[DeleteAsync] ERROR: {ex.Message}");
+                        throw;
+                    }
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
 
         public async Task<IEnumerable<SupplierInvoiceDTO>> GetByStatusAsync(string status)
@@ -192,174 +304,223 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
                     .Where(si => si.Status == status)
                     .OrderByDescending(si => si.CreatedAt)
+                    .AsNoTracking()
                     .ToListAsync();
 
-                return _mapper.Map<IEnumerable<SupplierInvoiceDTO>>(invoices);
+                var dtoList = _mapper.Map<List<SupplierInvoiceDTO>>(invoices);
+
+                foreach (var dto in dtoList)
+                {
+                    await RecalculateInvoiceAmounts(dto);
+                }
+
+                return dtoList;
             });
         }
 
         public async Task<bool> ValidateInvoiceAsync(int invoiceId)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(invoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(invoiceId);
-                if (invoice == null)
+                return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
-                }
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        var invoice = await _unitOfWork.SupplierInvoices.Query()
+                            .Include(si => si.Details)
+                            .FirstOrDefaultAsync(si => si.SupplierInvoiceId == invoiceId);
 
-                // Only draft invoices can be validated
-                if (invoice.Status != "Draft")
-                {
-                    throw new InvalidOperationException($"Cannot validate invoice in {invoice.Status} status");
-                }
+                        if (invoice == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
+                        }
 
-                // Check if there are any details
-                var details = await _unitOfWork.SupplierInvoiceDetails.Query()
-                    .Where(d => d.SupplierInvoiceId == invoiceId)
-                    .ToListAsync();
+                        if (invoice.Status != "Draft")
+                        {
+                            throw new InvalidOperationException($"Cannot validate invoice in {invoice.Status} status");
+                        }
 
-                if (!details.Any())
-                {
-                    throw new InvalidOperationException("Cannot validate invoice with no product details");
-                }
+                        if (!invoice.Details.Any())
+                        {
+                            throw new InvalidOperationException("Cannot validate invoice with no product details");
+                        }
 
-                // Update status to Validated
-                invoice.Status = "Validated";
-                invoice.UpdatedAt = DateTime.Now;
+                        await UpdateCalculatedAmountDirectly(invoiceId);
 
-                await _unitOfWork.SupplierInvoices.UpdateAsync(invoice);
-                await _unitOfWork.SaveChangesAsync();
+                        invoice.Status = "Validated";
+                        invoice.UpdatedAt = DateTime.Now;
 
-                // Publish event
-                var invoiceDto = _mapper.Map<SupplierInvoiceDTO>(invoice);
-                _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
+                        await _unitOfWork.SupplierInvoices.UpdateAsync(invoice);
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
 
-                return true;
-            });
+                        var invoiceDto = await GetByIdAsync(invoiceId);
+                        if (invoiceDto != null)
+                        {
+                            _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
+                        }
+
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[ValidateInvoiceAsync] ERROR: {ex.Message}");
+                        throw;
+                    }
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
 
         public async Task<bool> SettleInvoiceAsync(int invoiceId, decimal paymentAmount = 0)
         {
-            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(invoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                using var transaction = await _unitOfWork.BeginTransactionAsync();
-                try
+                return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    var invoice = await _unitOfWork.SupplierInvoices.Query()
-                        .Include(si => si.Supplier)
-                        .FirstOrDefaultAsync(si => si.SupplierInvoiceId == invoiceId);
-
-                    if (invoice == null)
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
                     {
-                        throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
+                        var invoiceData = await _unitOfWork.SupplierInvoices.Query()
+                            .Where(si => si.SupplierInvoiceId == invoiceId)
+                            .Select(si => new {
+                                si.SupplierInvoiceId,
+                                si.SupplierId,
+                                si.InvoiceNumber,
+                                si.TotalAmount,
+                                si.Status,
+                                SupplierName = si.Supplier.Name
+                            })
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync();
+
+                        if (invoiceData == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {invoiceId} not found");
+                        }
+
+                        if (invoiceData.Status != "Validated")
+                        {
+                            throw new InvalidOperationException($"Cannot settle invoice in {invoiceData.Status} status");
+                        }
+
+                        var existingPayments = await _unitOfWork.Context.Set<SupplierTransaction>()
+                            .Where(st => st.Reference != null && st.Reference.Contains($"INV-{invoiceData.InvoiceNumber}"))
+                            .SumAsync(st => Math.Abs(st.Amount));
+
+                        decimal remainingAmount = invoiceData.TotalAmount - existingPayments;
+
+                        if (paymentAmount <= 0)
+                        {
+                            paymentAmount = remainingAmount;
+                        }
+
+                        if (paymentAmount > remainingAmount)
+                        {
+                            throw new InvalidOperationException($"Payment amount ({paymentAmount:C}) exceeds remaining amount ({remainingAmount:C})");
+                        }
+
+                        var drawer = await _drawerService.GetCurrentDrawerAsync();
+                        if (drawer == null)
+                        {
+                            throw new InvalidOperationException("No active cash drawer. Please open a drawer first.");
+                        }
+
+                        if (drawer.CurrentBalance < paymentAmount)
+                        {
+                            throw new InvalidOperationException("Insufficient funds in drawer to settle this invoice.");
+                        }
+
+                        string reference = $"INV-{invoiceData.InvoiceNumber}";
+                        var supplierTransaction = new SupplierTransaction
+                        {
+                            SupplierId = invoiceData.SupplierId,
+                            Amount = paymentAmount,
+                            TransactionType = "Purchase",
+                            Reference = reference,
+                            Notes = $"Payment for invoice {invoiceData.InvoiceNumber}",
+                            TransactionDate = DateTime.Now
+                        };
+
+                        await _unitOfWork.Context.Set<SupplierTransaction>().AddAsync(supplierTransaction);
+
+                        _unitOfWork.DetachAllEntities();
+
+                        var supplier = await _unitOfWork.Suppliers.GetByIdAsync(invoiceData.SupplierId);
+                        if (supplier != null)
+                        {
+                            supplier.Balance += paymentAmount;
+                            supplier.UpdatedAt = DateTime.Now;
+                            await _unitOfWork.Suppliers.UpdateAsync(supplier);
+                        }
+
+                        await _drawerService.ProcessSupplierInvoiceAsync(
+                            paymentAmount,
+                            invoiceData.SupplierName ?? "Unknown Supplier",
+                            reference
+                        );
+
+                        if (existingPayments + paymentAmount >= invoiceData.TotalAmount - 0.01m)
+                        {
+                            var invoiceUpdateSql = @"
+                                UPDATE SupplierInvoices 
+                                SET Status = @status, UpdatedAt = @updatedAt 
+                                WHERE SupplierInvoiceId = @invoiceId";
+
+                            var invoiceUpdateParameters = new[]
+                            {
+                                new SqlParameter("@status", "Settled"),
+                                new SqlParameter("@updatedAt", DateTime.Now),
+                                new SqlParameter("@invoiceId", invoiceId)
+                            };
+
+                            await _unitOfWork.Context.Database.ExecuteSqlRawAsync(invoiceUpdateSql, invoiceUpdateParameters);
+                        }
+
+                        await _unitOfWork.SaveChangesAsync();
+                        await transaction.CommitAsync();
+
+                        var invoiceDto = await GetByIdAsync(invoiceId);
+                        if (invoiceDto != null)
+                        {
+                            _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
+                        }
+
+                        var supplierDto = _mapper.Map<SupplierDTO>(supplier);
+                        _eventAggregator.Publish(new EntityChangedEvent<SupplierDTO>("Update", supplierDto));
+
+                        _eventAggregator.Publish(new DrawerUpdateEvent(
+                            "Supplier Invoice",
+                            -paymentAmount,
+                            $"Payment for invoice {invoiceData.InvoiceNumber} for {invoiceData.SupplierName ?? "Unknown Supplier"}"
+                        ));
+
+                        return true;
                     }
-
-                    // Only validated invoices can be settled
-                    if (invoice.Status != "Validated")
+                    catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Cannot settle invoice in {invoice.Status} status");
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[SettleInvoiceAsync] ERROR: {ex.Message}");
+                        throw;
                     }
-
-                    // Get existing payments for this invoice
-                    var existingPayments = await _unitOfWork.Context.Set<SupplierTransaction>()
-                        .Where(st => st.Reference != null && st.Reference.Contains($"INV-{invoice.InvoiceNumber}"))
-                        .SumAsync(st => Math.Abs(st.Amount));
-
-                    // Calculate remaining amount
-                    decimal remainingAmount = invoice.TotalAmount - existingPayments;
-
-                    // If no payment amount specified, use the full remaining amount
-                    if (paymentAmount <= 0)
-                    {
-                        paymentAmount = remainingAmount;
-                    }
-
-                    // Validate payment amount
-                    if (paymentAmount > remainingAmount)
-                    {
-                        throw new InvalidOperationException($"Payment amount ({paymentAmount:C}) exceeds remaining amount ({remainingAmount:C})");
-                    }
-
-                    // Verify drawer has enough funds
-                    var drawer = await _drawerService.GetCurrentDrawerAsync();
-                    if (drawer == null)
-                    {
-                        throw new InvalidOperationException("No active cash drawer. Please open a drawer first.");
-                    }
-
-                    if (drawer.CurrentBalance < paymentAmount)
-                    {
-                        throw new InvalidOperationException("Insufficient funds in drawer to settle this invoice.");
-                    }
-
-                    // Create a supplier transaction to track the payment
-                    string reference = $"INV-{invoice.InvoiceNumber}";
-                    var supplierTransaction = new SupplierTransaction
-                    {
-                        SupplierId = invoice.SupplierId,
-                        Amount = paymentAmount, // Positive amount for purchases
-                        TransactionType = "Purchase",
-                        Reference = reference,
-                        Notes = $"Payment for invoice {invoice.InvoiceNumber}",
-                        TransactionDate = DateTime.Now
-                    };
-
-                    await _unitOfWork.Context.Set<SupplierTransaction>().AddAsync(supplierTransaction);
-
-                    // Update supplier balance
-                    var supplier = await _unitOfWork.Suppliers.GetByIdAsync(invoice.SupplierId);
-                    if (supplier != null)
-                    {
-                        supplier.Balance += paymentAmount;
-                        supplier.UpdatedAt = DateTime.Now;
-                        await _unitOfWork.Suppliers.UpdateAsync(supplier);
-                    }
-
-                    // Process the drawer transaction
-                    await _drawerService.ProcessSupplierInvoiceAsync(
-                        paymentAmount,
-                        invoice.Supplier?.Name ?? "Unknown Supplier",
-                        reference
-                    );
-
-                    // Only mark as settled if fully paid
-                    if (existingPayments + paymentAmount >= invoice.TotalAmount - 0.01m) // Using epsilon for decimal comparison
-                    {
-                        invoice.Status = "Settled";
-                        invoice.UpdatedAt = DateTime.Now;
-
-                        await _unitOfWork.SupplierInvoices.UpdateAsync(invoice);
-                    }
-
-                    await _unitOfWork.SaveChangesAsync();
-
-                    await transaction.CommitAsync();
-
-                    // Publish events
-                    var invoiceDto = _mapper.Map<SupplierInvoiceDTO>(invoice);
-                    _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
-
-                    var supplierDto = _mapper.Map<SupplierDTO>(supplier);
-                    _eventAggregator.Publish(new EntityChangedEvent<SupplierDTO>("Update", supplierDto));
-
-                    _eventAggregator.Publish(new DrawerUpdateEvent(
-                        "Supplier Invoice",
-                        -paymentAmount,
-                        $"Payment for invoice {invoice.InvoiceNumber} for {invoice.Supplier?.Name ?? "Unknown Supplier"}"
-                    ));
-
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    Debug.WriteLine($"Error settling invoice: {ex.Message}");
-                    throw;
-                }
-            });
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
 
         public async Task<IEnumerable<SupplierTransactionDTO>> GetInvoicePaymentsAsync(int invoiceId)
@@ -376,11 +537,13 @@ namespace QuickTechSystems.Application.Services
                     .Include(st => st.Supplier)
                     .Where(st => st.Reference != null && st.Reference.Contains($"INV-{invoice.InvoiceNumber}"))
                     .OrderByDescending(st => st.TransactionDate)
+                    .AsNoTracking()
                     .ToListAsync();
 
                 return _mapper.Map<IEnumerable<SupplierTransactionDTO>>(payments);
             });
         }
+
         public async Task<IEnumerable<string>> GetInvoiceNumbersForAutocompleteAsync(string searchTerm)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -389,6 +552,7 @@ namespace QuickTechSystems.Application.Services
                     .Where(si => si.Status == "Draft" && si.InvoiceNumber.Contains(searchTerm))
                     .Select(si => si.InvoiceNumber)
                     .Take(10)
+                    .AsNoTracking()
                     .ToListAsync();
             });
         }
@@ -401,116 +565,171 @@ namespace QuickTechSystems.Application.Services
                     .Include(si => si.Supplier)
                     .Include(si => si.Details)
                         .ThenInclude(d => d.Product)
+                            .ThenInclude(p => p.Category)
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(si => si.InvoiceNumber == invoiceNumber && si.SupplierId == supplierId);
 
-                return _mapper.Map<SupplierInvoiceDTO>(invoice);
+                if (invoice == null) return null;
+
+                var dto = _mapper.Map<SupplierInvoiceDTO>(invoice);
+                await RecalculateInvoiceAmounts(dto);
+
+                return dto;
             });
+        }
+
+        private async Task UpdateCalculatedAmountDirectly(int invoiceId)
+        {
+            try
+            {
+                var detailTotals = await _unitOfWork.Context.Set<SupplierInvoiceDetail>()
+                    .Where(d => d.SupplierInvoiceId == invoiceId)
+                    .Select(d => new { d.Quantity, d.PurchasePrice })
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                decimal calculatedAmount = detailTotals.Sum(d => d.Quantity * d.PurchasePrice);
+
+                var updateParameters = new[]
+                {
+                    new SqlParameter("@calculatedAmount", calculatedAmount),
+                    new SqlParameter("@updatedAt", DateTime.Now),
+                    new SqlParameter("@invoiceId", invoiceId)
+                };
+
+                string updateSql = @"
+                    UPDATE SupplierInvoices 
+                    SET CalculatedAmount = @calculatedAmount, UpdatedAt = @updatedAt 
+                    WHERE SupplierInvoiceId = @invoiceId";
+
+                await _unitOfWork.Context.Database.ExecuteSqlRawAsync(updateSql, updateParameters);
+
+                Debug.WriteLine($"[UpdateCalculatedAmountDirectly] Updated invoice {invoiceId} with calculated amount: {calculatedAmount}");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UpdateCalculatedAmountDirectly] ERROR: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task UpdateCalculatedAmountAsync(int invoiceId)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(invoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                // Get all the details for this invoice
-                var details = await _unitOfWork.SupplierInvoiceDetails.Query()
-                    .Where(d => d.SupplierInvoiceId == invoiceId)
-                    .ToListAsync();
-
-                // Calculate the sum of all product total prices
-                decimal calculatedAmount = details.Sum(d => d.TotalPrice);
-
-                // Update the invoice's calculated amount
-                var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(invoiceId);
-                if (invoice != null)
+                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    invoice.CalculatedAmount = calculatedAmount;
-                    invoice.UpdatedAt = DateTime.Now;
+                    await UpdateCalculatedAmountDirectly(invoiceId);
 
-                    await _unitOfWork.SupplierInvoices.UpdateAsync(invoice);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Publish event
-                    var invoiceDto = _mapper.Map<SupplierInvoiceDTO>(invoice);
-                    _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", invoiceDto));
-                }
-            });
+                    var updatedInvoice = await GetByIdAsync(invoiceId);
+                    if (updatedInvoice != null)
+                    {
+                        _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", updatedInvoice));
+                    }
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
 
-        // Path: QuickTechSystems.Application.Services/SupplierInvoiceService.cs
-
-        // Update the AddProductToInvoiceAsync method to use direct SQL
         public async Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto)
         {
-            await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            var invoiceLock = await GetInvoiceLock(detailDto.SupplierInvoiceId);
+            await invoiceLock.WaitAsync();
+            try
             {
-                try
+                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
                 {
-                    // First check if the invoice exists and is in draft status
-                    var invoiceStatus = await _unitOfWork.Context.Set<SupplierInvoice>()
-                        .Where(i => i.SupplierInvoiceId == detailDto.SupplierInvoiceId)
-                        .Select(i => new { i.Status })
-                        .FirstOrDefaultAsync();
-
-                    if (invoiceStatus == null)
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
                     {
-                        throw new InvalidOperationException($"Invoice with ID {detailDto.SupplierInvoiceId} not found");
+                        Debug.WriteLine($"[AddProductToInvoiceAsync] Starting for InvoiceId: {detailDto.SupplierInvoiceId}, ProductId: {detailDto.ProductId}");
+
+                        var invoiceStatus = await _unitOfWork.Context.Set<SupplierInvoice>()
+                            .AsNoTracking()
+                            .Where(i => i.SupplierInvoiceId == detailDto.SupplierInvoiceId)
+                            .Select(i => new { i.Status })
+                            .FirstOrDefaultAsync();
+
+                        if (invoiceStatus == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {detailDto.SupplierInvoiceId} not found");
+                        }
+
+                        if (invoiceStatus.Status != "Draft")
+                        {
+                            throw new InvalidOperationException($"Cannot add products to invoice in {invoiceStatus.Status} status");
+                        }
+
+                        var product = await _unitOfWork.Context.Set<Product>()
+                            .Include(p => p.Category)
+                            .Include(p => p.Supplier)
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.ProductId == detailDto.ProductId);
+
+                        if (product == null)
+                        {
+                            throw new InvalidOperationException($"Product with ID {detailDto.ProductId} not found");
+                        }
+
+                        detailDto.TotalPrice = Math.Round(detailDto.Quantity * detailDto.PurchasePrice, 2);
+                        Debug.WriteLine($"[AddProductToInvoiceAsync] Calculated TotalPrice: {detailDto.TotalPrice} (Qty: {detailDto.Quantity} * Price: {detailDto.PurchasePrice})");
+
+                        var detail = new SupplierInvoiceDetail
+                        {
+                            SupplierInvoiceId = detailDto.SupplierInvoiceId,
+                            ProductId = detailDto.ProductId,
+                            Quantity = detailDto.Quantity,
+                            PurchasePrice = detailDto.PurchasePrice,
+                            TotalPrice = detailDto.TotalPrice,
+                            BoxBarcode = detailDto.BoxBarcode ?? string.Empty,
+                            NumberOfBoxes = detailDto.NumberOfBoxes,
+                            ItemsPerBox = detailDto.ItemsPerBox,
+                            BoxPurchasePrice = detailDto.BoxPurchasePrice,
+                            BoxSalePrice = detailDto.BoxSalePrice,
+                            CurrentStock = detailDto.CurrentStock,
+                            Storehouse = detailDto.Storehouse,
+                            SalePrice = detailDto.SalePrice,
+                            WholesalePrice = detailDto.WholesalePrice,
+                            BoxWholesalePrice = detailDto.BoxWholesalePrice,
+                            MinimumStock = detailDto.MinimumStock
+                        };
+
+                        await _unitOfWork.SupplierInvoiceDetails.AddAsync(detail);
+                        await _unitOfWork.SaveChangesAsync();
+
+                        Debug.WriteLine($"[AddProductToInvoiceAsync] Detail added successfully with TotalPrice: {detail.TotalPrice}");
+
+                        await UpdateCalculatedAmountDirectly(detailDto.SupplierInvoiceId);
+
+                        await transaction.CommitAsync();
+                        Debug.WriteLine($"[AddProductToInvoiceAsync] Transaction committed successfully");
+
+                        var updatedInvoice = await GetByIdAsync(detailDto.SupplierInvoiceId);
+                        if (updatedInvoice != null)
+                        {
+                            Debug.WriteLine($"[AddProductToInvoiceAsync] Final CalculatedAmount: {updatedInvoice.CalculatedAmount}");
+                            _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", updatedInvoice));
+                        }
                     }
-
-                    if (invoiceStatus.Status != "Draft")
+                    catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"Cannot add products to invoice in {invoiceStatus.Status} status");
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[AddProductToInvoiceAsync] ERROR: {ex}");
+                        throw;
                     }
-
-                    // Verify product exists without tracking
-                    bool productExists = await _unitOfWork.Context.Set<Product>()
-                        .AsNoTracking()
-                        .AnyAsync(p => p.ProductId == detailDto.ProductId);
-
-                    if (!productExists)
-                    {
-                        throw new InvalidOperationException($"Product with ID {detailDto.ProductId} not found");
-                    }
-
-                    // Calculate total price
-                    detailDto.TotalPrice = detailDto.Quantity * detailDto.PurchasePrice;
-
-                    // Use direct SQL to add the invoice detail, avoiding entity tracking issues
-                    string sql = @"
-                INSERT INTO SupplierInvoiceDetails (
-                    SupplierInvoiceId, ProductId, Quantity, PurchasePrice, TotalPrice, 
-                    BoxBarcode, NumberOfBoxes, ItemsPerBox, BoxPurchasePrice, BoxSalePrice
-                ) VALUES (
-                    @supplierId, @productId, @quantity, @purchasePrice, @totalPrice,
-                    @boxBarcode, @numberOfBoxes, @itemsPerBox, @boxPurchasePrice, @boxSalePrice
-                )";
-
-                    var parameters = new[]
-                    {
-                new Microsoft.Data.SqlClient.SqlParameter("@supplierId", detailDto.SupplierInvoiceId),
-                new Microsoft.Data.SqlClient.SqlParameter("@productId", detailDto.ProductId),
-                new Microsoft.Data.SqlClient.SqlParameter("@quantity", detailDto.Quantity),
-                new Microsoft.Data.SqlClient.SqlParameter("@purchasePrice", detailDto.PurchasePrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@totalPrice", detailDto.TotalPrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxBarcode", (object)detailDto.BoxBarcode ?? DBNull.Value),
-                new Microsoft.Data.SqlClient.SqlParameter("@numberOfBoxes", detailDto.NumberOfBoxes),
-                new Microsoft.Data.SqlClient.SqlParameter("@itemsPerBox", detailDto.ItemsPerBox),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxPurchasePrice", detailDto.BoxPurchasePrice),
-                new Microsoft.Data.SqlClient.SqlParameter("@boxSalePrice", detailDto.BoxSalePrice)
-            };
-
-                    await _unitOfWork.Context.Database.ExecuteSqlRawAsync(sql, parameters);
-
-                    // Update the calculated amount on the invoice
-                    await UpdateCalculatedAmountAsync(detailDto.SupplierInvoiceId);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error adding product to invoice: {ex}");
-                    throw;
-                }
-            });
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
         }
- 
+
         public async Task RemoveProductFromInvoiceAsync(int detailId)
         {
             await _dbContextScopeService.ExecuteInScopeAsync(async context =>
@@ -518,68 +737,75 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    // Get the detail
                     var detail = await _unitOfWork.SupplierInvoiceDetails.GetByIdAsync(detailId);
                     if (detail == null)
                     {
                         throw new InvalidOperationException($"Invoice detail with ID {detailId} not found");
                     }
 
-                    // Check if the invoice is in draft status
-                    var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(detail.SupplierInvoiceId);
-                    if (invoice == null)
+                    var invoiceLock = await GetInvoiceLock(detail.SupplierInvoiceId);
+                    await invoiceLock.WaitAsync();
+                    try
                     {
-                        throw new InvalidOperationException($"Invoice not found");
-                    }
-
-                    if (invoice.Status != "Draft")
-                    {
-                        throw new InvalidOperationException($"Cannot remove products from invoice in {invoice.Status} status");
-                    }
-
-                    // Get the product to update inventory
-                    var product = await _unitOfWork.Products.GetByIdAsync(detail.ProductId);
-                    if (product != null)
-                    {
-                        // Decrease inventory
-                        product.CurrentStock -= (int)detail.Quantity;
-                        product.UpdatedAt = DateTime.Now;
-                        await _unitOfWork.Products.UpdateAsync(product);
-
-                        // Add inventory history record
-                        var inventoryHistory = new InventoryHistory
+                        var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(detail.SupplierInvoiceId);
+                        if (invoice == null)
                         {
-                            ProductId = product.ProductId,
-                            QuantityChange = -detail.Quantity,
-                            NewQuantity = product.CurrentStock,
-                            Type = "Adjustment",
-                            Notes = $"Removed from supplier invoice {invoice.InvoiceNumber}",
-                            Timestamp = DateTime.Now
-                        };
+                            throw new InvalidOperationException($"Invoice not found");
+                        }
 
-                        await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(inventoryHistory);
+                        if (invoice.Status != "Draft")
+                        {
+                            throw new InvalidOperationException($"Cannot remove products from invoice in {invoice.Status} status");
+                        }
+
+                        var product = await _unitOfWork.Products.GetByIdAsync(detail.ProductId);
+                        if (product != null)
+                        {
+                            product.CurrentStock -= (int)detail.Quantity;
+                            product.UpdatedAt = DateTime.Now;
+                            await _unitOfWork.Products.UpdateAsync(product);
+
+                            var inventoryHistory = new InventoryHistory
+                            {
+                                ProductId = product.ProductId,
+                                QuantityChange = -detail.Quantity,
+                                NewQuantity = product.CurrentStock,
+                                Type = "Adjustment",
+                                Notes = $"Removed from supplier invoice {invoice.InvoiceNumber}",
+                                Timestamp = DateTime.Now
+                            };
+
+                            await _unitOfWork.Context.Set<InventoryHistory>().AddAsync(inventoryHistory);
+                        }
+
+                        await _unitOfWork.SupplierInvoiceDetails.DeleteAsync(detail);
+                        await _unitOfWork.SaveChangesAsync();
+
+                        await UpdateCalculatedAmountDirectly(detail.SupplierInvoiceId);
+
+                        await transaction.CommitAsync();
+
+                        if (product != null)
+                        {
+                            var productDto = _mapper.Map<ProductDTO>(product);
+                            _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                        }
+
+                        var updatedInvoice = await GetByIdAsync(detail.SupplierInvoiceId);
+                        if (updatedInvoice != null)
+                        {
+                            _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", updatedInvoice));
+                        }
                     }
-
-                    // Remove the detail
-                    await _unitOfWork.SupplierInvoiceDetails.DeleteAsync(detail);
-                    await _unitOfWork.SaveChangesAsync();
-
-                    // Update the calculated amount on the invoice
-                    await UpdateCalculatedAmountAsync(detail.SupplierInvoiceId);
-
-                    await transaction.CommitAsync();
-
-                    // Publish product update event if product exists
-                    if (product != null)
+                    finally
                     {
-                        var productDto = _mapper.Map<ProductDTO>(product);
-                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", productDto));
+                        invoiceLock.Release();
                     }
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    Debug.WriteLine($"Error removing product from invoice: {ex.Message}");
+                    Debug.WriteLine($"[RemoveProductFromInvoiceAsync] ERROR: {ex.Message}");
                     throw;
                 }
             });

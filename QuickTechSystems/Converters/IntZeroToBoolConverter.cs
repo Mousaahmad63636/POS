@@ -1,5 +1,4 @@
-﻿// Path: QuickTechSystems.WPF.Converters/IntZeroToBoolConverter.cs
-using System;
+﻿using System;
 using System.Globalization;
 using System.Windows.Data;
 
@@ -13,7 +12,7 @@ namespace QuickTechSystems.WPF.Converters
             {
                 return intValue == 0;
             }
-            return true;
+            return false;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

@@ -3,6 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              xmlns:vm="clr-namespace:QuickTechSystems.WPF.ViewModels"
+             xmlns:categoryVm="clr-namespace:QuickTechSystems.ViewModels.Categorie"
+             xmlns:customerVm="clr-namespace:QuickTechSystems.ViewModels.Customer"
+             xmlns:productVm="clr-namespace:QuickTechSystems.ViewModels.Product"
+             xmlns:settingsVm="clr-namespace:QuickTechSystems.ViewModels.Settings"
+             xmlns:supplierVm="clr-namespace:QuickTechSystems.ViewModels.Supplier"
+             xmlns:expenseVm="clr-namespace:QuickTechSystems.ViewModels.Expense"
+             xmlns:drawerVm="clr-namespace:QuickTechSystems.ViewModels.Drawer"
+             xmlns:employeeVm="clr-namespace:QuickTechSystems.ViewModels.Employee"
+             xmlns:restaurantVm="clr-namespace:QuickTechSystems.ViewModels.Restaurent"
+             xmlns:welcomeVm="clr-namespace:QuickTechSystems.ViewModels.Welcome"
+             xmlns:transactionVm="clr-namespace:QuickTechSystems.ViewModels.Transaction"
              xmlns:views="clr-namespace:QuickTechSystems.WPF.Views">
     <Application.Resources>
         <ResourceDictionary>
@@ -10,7 +21,6 @@
                 <ResourceDictionary Source="/Resources/Dictionaries/Languages/en-US.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <!-- System Colors -->
             <Color x:Key="PrimaryBackgroundColor">#F7F9FC</Color>
             <Color x:Key="SurfaceColor">#FCFCFF</Color>
             <Color x:Key="BorderColor">#E8ECF2</Color>
@@ -26,7 +36,6 @@
             <Color x:Key="ErrorTextColor">#9A4355</Color>
             <Color x:Key="SuccessColor">#48BB78</Color>
 
-            <!-- Brushes -->
             <SolidColorBrush x:Key="PrimaryBackgroundBrush" Color="{StaticResource PrimaryBackgroundColor}"/>
             <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}"/>
             <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}"/>
@@ -41,7 +50,6 @@
             <SolidColorBrush x:Key="ErrorTextBrush" Color="{StaticResource ErrorTextColor}"/>
             <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}"/>
 
-            <!-- Converters -->
             <converters:IndexConverter x:Key="IndexConverter"/>
             <converters:IntZeroToBoolConverter x:Key="IntZeroToBoolConverter"/>
             <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
@@ -51,7 +59,6 @@
             <converters:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter"/>
             <converters:LessThanZeroConverter x:Key="LessThanZeroConverter"/>
             <converters:NegativeValueConverter x:Key="NegativeValueConverter"/>
-            <converters:CustomerSpecificPriceConverter x:Key="CustomerSpecificPriceConverter"/>
             <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
@@ -59,9 +66,8 @@
             <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
-            <converters:ProductCostMultiConverter x:Key="ProductCostMultiConverter"/>
+            <converters:StatusToColorConverter x:Key="StatusToColorConverter"/>
 
-            <!-- Common Styles -->
             <Style x:Key="CardBorderStyle" TargetType="Border">
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
@@ -113,7 +119,6 @@
                 </Setter>
             </Style>
 
-            <!-- Primary Button Style -->
             <Style x:Key="PrimaryButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
@@ -148,7 +153,6 @@
                 </Setter>
             </Style>
 
-            <!-- Secondary Button Style -->
             <Style x:Key="SecondaryButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
@@ -186,7 +190,6 @@
                 </Setter>
             </Style>
 
-            <!-- Toggle Button Style -->
             <Style x:Key="ModernToggleButtonStyle" TargetType="ToggleButton">
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
@@ -219,7 +222,6 @@
                 </Setter>
             </Style>
 
-            <!-- DataGrid Style -->
             <Style x:Key="ModernDataGridStyle" TargetType="DataGrid">
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
@@ -233,52 +235,40 @@
                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
             </Style>
 
-            <!-- View DataTemplates -->
-            <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
-                <views:DashboardView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:ProductViewModel}">
-                <views:ProductView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:CategoryViewModel}">
+            <DataTemplate DataType="{x:Type categoryVm:CategoryViewModel}">
                 <views:CategoryView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:CustomerViewModel}">
+            <DataTemplate DataType="{x:Type customerVm:CustomerViewModel}">
                 <views:CustomerView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <DataTemplate DataType="{x:Type productVm:ProductViewModel}">
+                <views:ProductView/>
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type settingsVm:SettingsViewModel}">
                 <views:SettingsView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:SupplierViewModel}">
+            <DataTemplate DataType="{x:Type supplierVm:SupplierViewModel}">
                 <views:SupplierView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:TransactionHistoryViewModel}">
-                <views:TransactionHistoryView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:ProfitViewModel}">
-                <views:ProfitView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:ExpenseViewModel}">
+            <DataTemplate DataType="{x:Type expenseVm:ExpenseViewModel}">
                 <views:ExpenseView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:DrawerViewModel}">
+            <DataTemplate DataType="{x:Type drawerVm:DrawerViewModel}">
                 <views:DrawerView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:EmployeeViewModel}">
+            <DataTemplate DataType="{x:Type employeeVm:EmployeeViewModel}">
                 <views:EmployeeView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:QuoteViewModel}">
-                <views:QuoteView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:LowStockHistoryViewModel}">
-                <views:LowStockHistoryView/>
-            </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:TableManagementViewModel}">
+            <DataTemplate DataType="{x:Type restaurantVm:TableManagementViewModel}">
                 <views:TableManagementView/>
             </DataTemplate>
-            <DataTemplate DataType="{x:Type vm:MainStockViewModel}">
-                <views:MainStockView/>
+            <DataTemplate DataType="{x:Type welcomeVm:WelcomeViewModel}">
+                <views:WelcomeView/>
             </DataTemplate>
+            <DataTemplate DataType="{x:Type transactionVm:TransactionHistoryViewModel}">
+                <views:TransactionHistoryView/>
+            </DataTemplate>
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

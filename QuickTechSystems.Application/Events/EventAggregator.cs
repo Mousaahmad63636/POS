@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace QuickTechSystems.Application.Events
 {
@@ -16,32 +16,30 @@ namespace QuickTechSystems.Application.Events
 
     public class EventAggregator : IEventAggregator
     {
-        private readonly Dictionary<Type, List<object>> _subscribers = new();
-        private readonly object _lock = new();
+        private readonly ConcurrentDictionary<string, ConcurrentBag<object>> _subscribers = new();
+        private readonly ReaderWriterLockSlim _lock = new();
 
         public void Publish<TEvent>(TEvent eventToPublish)
         {
-            Debug.WriteLine($"Publishing event of type: {typeof(TEvent).Name}");
-            lock (_lock)
+            var eventTypeKey = GenerateEventKey<TEvent>();
+            Debug.WriteLine($"Publishing event: {eventTypeKey}");
+
+            _lock.EnterReadLock();
+            try
             {
-                if (!_subscribers.ContainsKey(typeof(TEvent)))
+                if (!_subscribers.TryGetValue(eventTypeKey, out var subscriberBag))
                 {
-                    Debug.WriteLine($"No subscribers found for {typeof(TEvent).Name}");
+                    Debug.WriteLine($"No subscribers found for {eventTypeKey}");
                     return;
                 }
 
-                var actions = _subscribers[typeof(TEvent)]
-                    .Cast<Action<TEvent>>()
-                    .Where(action => action != null)
-                    .ToList();
-
-                Debug.WriteLine($"Found {actions.Count} subscribers for {typeof(TEvent).Name}");
+                var actions = subscriberBag.OfType<Action<TEvent>>().ToArray();
+                Debug.WriteLine($"Found {actions.Length} subscribers for {eventTypeKey}");
 
                 foreach (var action in actions)
                 {
                     try
                     {
-                        Debug.WriteLine("Invoking subscriber");
                         action.Invoke(eventToPublish);
                         Debug.WriteLine("Subscriber invoked successfully");
                     }
@@ -51,36 +49,63 @@ namespace QuickTechSystems.Application.Events
                     }
                 }
             }
+            finally
+            {
+                _lock.ExitReadLock();
+            }
         }
 
         public void Subscribe<TEvent>(Action<TEvent> action)
         {
-            lock (_lock)
+            var eventTypeKey = GenerateEventKey<TEvent>();
+            Debug.WriteLine($"Subscribing to {eventTypeKey}");
+
+            _lock.EnterWriteLock();
+            try
             {
-                var eventType = typeof(TEvent);
-                Debug.WriteLine($"Attempting to subscribe to {eventType.Name}");
+                var subscriberBag = _subscribers.GetOrAdd(eventTypeKey, _ => new ConcurrentBag<object>());
+                subscriberBag.Add(action);
 
-                if (!_subscribers.ContainsKey(eventType))
-                {
-                    Debug.WriteLine($"Creating new subscriber list for {eventType.Name}");
-                    _subscribers[eventType] = new List<object>();
-                }
-
-                _subscribers[eventType].Add(action);
-                Debug.WriteLine($"Successfully subscribed. Total subscribers for {eventType.Name}: {_subscribers[eventType].Count}");
+                Debug.WriteLine($"Successfully subscribed. Total subscribers for {eventTypeKey}: {subscriberBag.Count}");
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
             }
         }
 
         public void Unsubscribe<TEvent>(Action<TEvent> action)
         {
-            lock (_lock)
-            {
-                var eventType = typeof(TEvent);
-                if (!_subscribers.ContainsKey(eventType))
-                    return;
+            var eventTypeKey = GenerateEventKey<TEvent>();
 
-                _subscribers[eventType].Remove(action);
+            _lock.EnterWriteLock();
+            try
+            {
+                if (_subscribers.TryGetValue(eventTypeKey, out var subscriberBag))
+                {
+                    var remainingActions = subscriberBag.Where(s => !ReferenceEquals(s, action)).ToArray();
+                    _subscribers[eventTypeKey] = new ConcurrentBag<object>(remainingActions);
+                }
             }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        private static string GenerateEventKey<TEvent>()
+        {
+            var eventType = typeof(TEvent);
+
+            if (eventType.IsGenericType)
+            {
+                var genericTypeDef = eventType.GetGenericTypeDefinition();
+                var genericArgs = eventType.GetGenericArguments();
+                var argNames = string.Join(",", genericArgs.Select(t => t.FullName));
+                return $"{genericTypeDef.FullName}[{argNames}]";
+            }
+
+            return eventType.FullName ?? eventType.Name;
         }
     }
 }
