@@ -13,6 +13,7 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.WPF.Commands;
 using QuickTechSystems.WPF.Services;
 using QuickTechSystems.WPF.Views;
+using System.Threading;
 
 namespace QuickTechSystems.WPF.ViewModels
 {
@@ -78,15 +79,14 @@ namespace QuickTechSystems.WPF.ViewModels
             _businessSettingsService = businessSettingsService;
 
             // Initialize child ViewModels as placeholders
-            // These can be injected later if needed
             TransactionHistoryViewModel = null;
             ProfitViewModel = null;
 
             // Initialize commands
             InitializeCommands();
 
-            // Load initial data
-            _ = LoadInitialDataAsync();
+            // Initialize data asynchronously after construction
+            Task.Run(async () => await LoadInitialDataAsync());
         }
 
         #endregion
@@ -146,7 +146,8 @@ namespace QuickTechSystems.WPF.ViewModels
             {
                 if (SetProperty(ref _selectedDrawerSession, value))
                 {
-                    _ = LoadSelectedSessionAsync();
+                    // Use Task.Run to avoid blocking the UI thread
+                    Task.Run(async () => await LoadSelectedSessionAsync());
                 }
             }
         }
@@ -306,23 +307,54 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task LoadInitialDataAsync()
         {
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                Debug.WriteLine("Loading initial drawer data");
-                IsProcessing = true;
+                if (_isInitialized) return;
 
+                Debug.WriteLine("Loading initial drawer data");
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
+                // Load current drawer first
                 await LoadCurrentDrawerAsync();
-                await LoadDrawerSessionsAsync();
+
+                // Then load sessions, but don't auto-select to avoid triggering another load
+                await LoadDrawerSessionsInternalAsync();
+
+                // Finally, set the selected session without triggering another load
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    var currentSession = DrawerSessions?.FirstOrDefault(s => s.Status == "Open");
+                    if (currentSession != null)
+                    {
+                        _selectedDrawerSession = currentSession;
+                        OnPropertyChanged(nameof(SelectedDrawerSession));
+                        IsViewingHistoricalSession = false;
+                    }
+                });
+
                 UpdateStatus();
+                _isInitialized = true;
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading initial drawer data: {ex.Message}");
-                await ShowErrorMessageAsync("Error loading drawer data. Please try again.");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowErrorMessageAsync("Error loading drawer data. Please try again.");
+                });
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
+                _loadingSemaphore.Release();
             }
         }
 
@@ -339,7 +371,10 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
                 else
                 {
-                    DrawerHistory.Clear();
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        DrawerHistory.Clear();
+                    });
                     ResetFinancialTotals();
                 }
             }
@@ -372,17 +407,37 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading drawer history for drawer {CurrentDrawer.DrawerId}: {ex.Message}");
-                await ShowErrorMessageAsync("Unable to load drawer history. Please try refreshing.");
-                DrawerHistory = new ObservableCollection<DrawerTransactionDTO>();
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowErrorMessageAsync("Unable to load drawer history. Please try refreshing.");
+                    DrawerHistory = new ObservableCollection<DrawerTransactionDTO>();
+                });
                 ResetFinancialTotals();
             }
         }
 
         private async Task LoadDrawerSessionsAsync()
         {
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                IsProcessing = true;
+                await LoadDrawerSessionsInternalAsync();
+            }
+            finally
+            {
+                _loadingSemaphore.Release();
+            }
+        }
+
+        private async Task LoadDrawerSessionsInternalAsync()
+        {
+            try
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
                 Debug.WriteLine("Loading drawer sessions");
 
                 var sessions = await _drawerService.GetAllDrawerSessionsAsync(
@@ -402,24 +457,22 @@ namespace QuickTechSystems.WPF.ViewModels
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     DrawerSessions = new ObservableCollection<DrawerSessionItem>(sessionItems);
-
-                    // Auto-select current session if it exists
-                    var currentSession = sessionItems.FirstOrDefault(s => s.Status == "Open");
-                    if (currentSession != null)
-                    {
-                        SelectedDrawerSession = currentSession;
-                        IsViewingHistoricalSession = false;
-                    }
                 });
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading drawer sessions: {ex.Message}");
-                await ShowErrorMessageAsync($"Error loading drawer sessions: {ex.Message}");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowErrorMessageAsync($"Error loading drawer sessions: {ex.Message}");
+                });
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
             }
         }
 
@@ -431,16 +484,25 @@ namespace QuickTechSystems.WPF.ViewModels
         {
             if (SelectedDrawerSession == null) return;
 
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                IsProcessing = true;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
                 Debug.WriteLine($"Loading selected session: {SelectedDrawerSession.DrawerId}");
 
                 var drawer = await _drawerService.GetDrawerSessionByIdAsync(SelectedDrawerSession.DrawerId);
                 if (drawer != null)
                 {
-                    CurrentDrawer = drawer;
-                    IsViewingHistoricalSession = drawer.Status != "Open";
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        CurrentDrawer = drawer;
+                        IsViewingHistoricalSession = drawer.Status != "Open";
+                    });
+
                     await LoadDrawerHistoryAsync();
                     UpdateStatus();
                 }
@@ -448,32 +510,49 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading selected session: {ex.Message}");
-                await ShowErrorMessageAsync($"Error loading selected session: {ex.Message}");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowErrorMessageAsync($"Error loading selected session: {ex.Message}");
+                });
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
+                _loadingSemaphore.Release();
             }
         }
 
         private async Task ViewCurrentSessionAsync()
         {
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                IsProcessing = true;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
                 Debug.WriteLine("Loading current session");
 
                 CurrentDrawer = await _drawerService.GetCurrentDrawerAsync();
-                IsViewingHistoricalSession = false;
 
-                if (CurrentDrawer != null)
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    var currentSessionItem = DrawerSessions?.FirstOrDefault(s => s.DrawerId == CurrentDrawer.DrawerId);
-                    if (currentSessionItem != null)
+                    IsViewingHistoricalSession = false;
+
+                    if (CurrentDrawer != null)
                     {
-                        SelectedDrawerSession = currentSessionItem;
+                        var currentSessionItem = DrawerSessions?.FirstOrDefault(s => s.DrawerId == CurrentDrawer.DrawerId);
+                        if (currentSessionItem != null)
+                        {
+                            _selectedDrawerSession = currentSessionItem;
+                            OnPropertyChanged(nameof(SelectedDrawerSession));
+                        }
                     }
-                }
+                });
 
                 await LoadDrawerHistoryAsync();
                 UpdateStatus();
@@ -481,11 +560,18 @@ namespace QuickTechSystems.WPF.ViewModels
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading current session: {ex.Message}");
-                await ShowErrorMessageAsync($"Error loading current session: {ex.Message}");
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowErrorMessageAsync($"Error loading current session: {ex.Message}");
+                });
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
+                _loadingSemaphore.Release();
             }
         }
 
@@ -514,9 +600,14 @@ namespace QuickTechSystems.WPF.ViewModels
 
         private async Task ApplyDateFilterAsync()
         {
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                IsProcessing = true;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
                 Debug.WriteLine($"Applying date filter: {StartDate:d} to {EndDate:d}");
 
                 if (StartDate > EndDate)
@@ -555,7 +646,11 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
+                _loadingSemaphore.Release();
             }
         }
 
@@ -874,16 +969,24 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public async Task RefreshDrawerDataAsync()
         {
+            await _loadingSemaphore.WaitAsync();
             try
             {
-                IsProcessing = true;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = true;
+                });
+
                 Debug.WriteLine("Refreshing drawer data");
 
                 CurrentDrawer = await _drawerService.GetCurrentDrawerAsync();
 
                 if (CurrentDrawer == null)
                 {
-                    DrawerHistory.Clear();
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        DrawerHistory.Clear();
+                    });
                     ResetFinancialTotals();
                     UpdateStatus();
                     return;
@@ -899,7 +1002,11 @@ namespace QuickTechSystems.WPF.ViewModels
             }
             finally
             {
-                IsProcessing = false;
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    IsProcessing = false;
+                });
+                _loadingSemaphore.Release();
             }
         }
 
@@ -1025,6 +1132,7 @@ namespace QuickTechSystems.WPF.ViewModels
         public override void Dispose()
         {
             Debug.WriteLine("Disposing DrawerViewModel");
+            _loadingSemaphore?.Dispose();
             base.Dispose();
         }
 
