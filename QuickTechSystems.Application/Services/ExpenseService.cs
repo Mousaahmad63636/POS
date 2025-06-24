@@ -102,37 +102,31 @@ namespace QuickTechSystems.Application.Services
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    // Validate expense data
                     if (string.IsNullOrWhiteSpace(dto.Reason))
                         throw new InvalidOperationException("Expense reason is required");
 
                     if (dto.Amount <= 0)
                         throw new InvalidOperationException("Amount must be greater than zero");
 
-                    // Check drawer balance first
-                    var drawer = await _drawerService.GetCurrentDrawerAsync();
-                    if (drawer == null)
-                        throw new InvalidOperationException("No active drawer found");
-
-                    if (dto.Amount > drawer.CurrentBalance)
-                        throw new InvalidOperationException("Insufficient funds in drawer");
-
-                    // Create the expense record
                     var entity = _mapper.Map<Expense>(dto);
                     entity.CreatedAt = DateTime.Now;
                     var result = await _repository.AddAsync(entity);
                     await _unitOfWork.SaveChangesAsync();
 
-                    // Process the drawer transaction
-                    await _drawerService.ProcessExpenseAsync(
-                        dto.Amount,
-                        dto.Category,
-                        dto.Reason
-                    );
+                    try
+                    {
+                        await _drawerService.ProcessExpenseAsync(
+                            dto.Amount,
+                            dto.Category,
+                            dto.Reason
+                        );
+                    }
+                    catch
+                    {
+                    }
 
                     await transaction.CommitAsync();
 
-                    // Map and return result
                     var resultDto = _mapper.Map<ExpenseDTO>(result);
                     _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Create", resultDto));
                     _eventAggregator.Publish(new DrawerUpdateEvent(

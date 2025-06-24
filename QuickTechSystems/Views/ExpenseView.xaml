@@ -3,14 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
              mc:Ignorable="d"
              x:Name="ExpenseViewRoot">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
     </UserControl.Resources>
 
     <Grid>
@@ -19,10 +17,10 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Header Section -->
                 <StackPanel Grid.Row="0" Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -45,44 +43,111 @@
                     <Separator/>
                 </StackPanel>
 
-                <!-- Filter Section -->
                 <Border Grid.Row="1" 
                         BorderThickness="1"
                         Margin="0,0,0,24">
                     <Grid Margin="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Filter by Category" Margin="0,0,0,5"/>
-                            <ComboBox ItemsSource="{Binding Categories}"
-                                     SelectedItem="{Binding SelectedCategory}"
-                                     Margin="0"/>
-                        </StackPanel>
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="From Date" Margin="0,0,0,5"/>
-                            <DatePicker SelectedDate="{Binding FilterStartDate}"
-                                       Margin="0"/>
-                        </StackPanel>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Filter Type" Margin="0,0,0,5"/>
+                                <ComboBox ItemsSource="{Binding FilterTypes}"
+                                         SelectedItem="{Binding FilterType}"
+                                         Margin="0"/>
+                            </StackPanel>
 
-                        <Button Grid.Column="4"
-                                Content="Apply Filter"
-                                Command="{Binding ApplyFilterCommand}"
-                                VerticalAlignment="Bottom"
-                                Width="120"/>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Category" Margin="0,0,0,5"/>
+                                <ComboBox ItemsSource="{Binding Categories}"
+                                         SelectedItem="{Binding SelectedCategory}"
+                                         Margin="0"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="4"
+                                    Content="Apply Filter"
+                                    Command="{Binding ApplyFilterCommand}"
+                                    VerticalAlignment="Bottom"
+                                    Width="120"/>
+                        </Grid>
+
+                        <Grid Grid.Row="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" 
+                                        Visibility="{Binding IsMonthlyFilter, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Month" Margin="0,0,0,5"/>
+                                <ComboBox SelectedValue="{Binding SelectedMonth}" 
+                                         SelectedValuePath="Tag" 
+                                         Margin="0">
+                                    <ComboBoxItem Content="January" Tag="1"/>
+                                    <ComboBoxItem Content="February" Tag="2"/>
+                                    <ComboBoxItem Content="March" Tag="3"/>
+                                    <ComboBoxItem Content="April" Tag="4"/>
+                                    <ComboBoxItem Content="May" Tag="5"/>
+                                    <ComboBoxItem Content="June" Tag="6"/>
+                                    <ComboBoxItem Content="July" Tag="7"/>
+                                    <ComboBoxItem Content="August" Tag="8"/>
+                                    <ComboBoxItem Content="September" Tag="9"/>
+                                    <ComboBoxItem Content="October" Tag="10"/>
+                                    <ComboBoxItem Content="November" Tag="11"/>
+                                    <ComboBoxItem Content="December" Tag="12"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2" 
+                                        Visibility="{Binding IsYearlyOrMonthlyFilter, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="Year" Margin="0,0,0,5"/>
+                                <ComboBox ItemsSource="{Binding Years}"
+                                         SelectedItem="{Binding SelectedYear}"
+                                         Margin="0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom">
+                                <TextBlock Text="Total: " FontWeight="Bold" Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding TotalExpenseCount}" FontWeight="Bold" Margin="0,0,5,0"/>
+                                <TextBlock Text="expenses, " Margin="0,0,5,0"/>
+                                <TextBlock Text="{Binding TotalExpenseAmount, StringFormat=C2}" FontWeight="Bold" Foreground="Red"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
                 </Border>
 
-                <!-- Expenses Grid -->
                 <Border Grid.Row="2"
+                        BorderThickness="1"
+                        BorderBrush="LightBlue"
+                        Background="AliceBlue"
+                        Margin="0,0,0,16"
+                        Padding="12">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Showing expenses from: " FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding FilterStartDate, StringFormat=d}" FontWeight="Bold" Margin="0,0,5,0"/>
+                        <TextBlock Text="to" Margin="0,0,5,0"/>
+                        <TextBlock Text="{Binding FilterEndDate, StringFormat=d}" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="3"
                         BorderThickness="1">
-                    <DataGrid ItemsSource="{Binding Expenses}"
+                    <DataGrid ItemsSource="{Binding FilteredExpenses}"
                              SelectedItem="{Binding SelectedExpense}"
                              AutoGenerateColumns="False"
                              MouseDoubleClick="DataGrid_MouseDoubleClick">
@@ -139,9 +204,8 @@
                     </DataGrid>
                 </Border>
 
-                <!-- Loading Overlay -->
                 <Border Grid.Row="0" 
-                        Grid.RowSpan="3" 
+                        Grid.RowSpan="4" 
                         Background="#80000000" 
                         Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel HorizontalAlignment="Center" 

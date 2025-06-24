@@ -3,6 +3,10 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Printing;
+using System.Windows.Media;
+using System.Linq;
+using System.Collections.ObjectModel;
 using QuickTechSystems.WPF.Views;
 
 namespace QuickTechSystems.WPF.ViewModels
@@ -511,26 +515,180 @@ namespace QuickTechSystems.WPF.ViewModels
 
         public async Task PrintReportWithOptions(bool includeTransactions, bool includeFinancialSummary, bool printCashierCopy)
         {
-            try
+            if (CurrentDrawer == null)
             {
-                IsProcessing = true;
-                if (CurrentDrawer == null) return;
+                await ShowErrorMessageAsync("No active drawer found.");
+                return;
+            }
 
-                var printDialog = new PrintDialog();
-                if (printDialog.ShowDialog() == true)
+            await ExecuteOperationSafelyAsync(async () =>
+            {
+                bool printCancelled = false;
+                StatusMessage = "Preparing drawer report...";
+                OnPropertyChanged(nameof(StatusMessage));
+
+                string companyName;
+                string address;
+                string phoneNumber;
+                string email;
+                string footerText1;
+                string footerText2;
+                string logoPath = null;
+
+                try
                 {
-                    var document = CreateDrawerReport(includeTransactions, includeFinancialSummary, printCashierCopy);
-                    printDialog.PrintDocument(((IDocumentPaginatorSource)document).DocumentPaginator, "Drawer Report");
+                    companyName = await _businessSettingsService.GetSettingValueAsync("CompanyName", "Your Business Name");
+                    address = await _businessSettingsService.GetSettingValueAsync("Address", "Your Business Address");
+                    phoneNumber = await _businessSettingsService.GetSettingValueAsync("Phone", "Your Phone Number");
+                    email = await _businessSettingsService.GetSettingValueAsync("Email", "");
+                    footerText1 = await _businessSettingsService.GetSettingValueAsync("ReceiptFooter1", "Stay caffeinated!!");
+                    footerText2 = await _businessSettingsService.GetSettingValueAsync("ReceiptFooter2", "See you next time");
+
+                    var logoSetting = await _businessSettingsService.GetByKeyAsync("CompanyLogo");
+                    if (logoSetting != null && !string.IsNullOrEmpty(logoSetting.Value))
+                    {
+                        logoPath = logoSetting.Value;
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorMessageAsync($"Error printing report: {ex.Message}");
-            }
-            finally
-            {
-                IsProcessing = false;
-            }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error retrieving business settings: {ex.Message}");
+                    companyName = "Your Business Name";
+                    address = "Your Business Address";
+                    phoneNumber = "Your Phone Number";
+                    email = "";
+                    footerText1 = "Stay caffeinated!!";
+                    footerText2 = "See you next time";
+                    logoPath = null;
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    StatusMessage = "Opening print dialog...";
+                    OnPropertyChanged(nameof(StatusMessage));
+
+                    try
+                    {
+                        bool printerAvailable = false;
+                        await Task.Run(() => {
+                            try
+                            {
+                                PrintServer printServer = new PrintServer();
+                                PrintQueueCollection printQueues = printServer.GetPrintQueues();
+                                printerAvailable = printQueues.Count() > 0;
+                            }
+                            catch (Exception)
+                            {
+                                printerAvailable = false;
+                            }
+                        });
+
+                        if (!printerAvailable)
+                        {
+                            MessageBox.Show(
+                                "No printer available. Please connect a printer and try again.",
+                                "Printer Required",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Warning);
+                            printCancelled = true;
+                            return;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error checking printer availability: {ex.Message}");
+                        MessageBox.Show(
+                            "Unable to check printer availability. Please ensure a printer is properly configured.",
+                            "Printer Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        printCancelled = true;
+                        return;
+                    }
+
+                    PrintDialog printDialog = new PrintDialog();
+                    bool? dialogResult = false;
+
+                    try
+                    {
+                        dialogResult = printDialog.ShowDialog();
+                    }
+                    catch (Exception dialogEx)
+                    {
+                        Debug.WriteLine($"Error showing print dialog: {dialogEx.Message}");
+                        MessageBox.Show(
+                            "Failed to open print dialog. Please check printer configuration.",
+                            "Print Dialog Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        printCancelled = true;
+                        return;
+                    }
+
+                    if (dialogResult != true)
+                    {
+                        printCancelled = true;
+                        return;
+                    }
+
+                    StatusMessage = "Preparing document...";
+                    OnPropertyChanged(nameof(StatusMessage));
+
+                    try
+                    {
+                        var flowDocument = CreateDrawerReport(
+                            printDialog,
+                            companyName,
+                            address,
+                            phoneNumber,
+                            email,
+                            footerText1,
+                            footerText2,
+                            logoPath);
+
+                        try
+                        {
+                            StatusMessage = "Printing...";
+                            OnPropertyChanged(nameof(StatusMessage));
+
+                            printDialog.PrintDocument(
+                                ((IDocumentPaginatorSource)flowDocument).DocumentPaginator,
+                                "Drawer Report");
+
+                            StatusMessage = "Drawer report printed successfully";
+                            OnPropertyChanged(nameof(StatusMessage));
+                        }
+                        catch (Exception printEx)
+                        {
+                            Debug.WriteLine($"Error during print execution: {printEx.Message}");
+                            MessageBox.Show(
+                                "Error printing drawer report. Please check printer connection and try again.",
+                                "Print Error",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+                            StatusMessage = "Print error - Report not printed";
+                            OnPropertyChanged(nameof(StatusMessage));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error preparing drawer report: {ex.Message}");
+                        MessageBox.Show(
+                            "An error occurred while preparing the report. Please try again.",
+                            "Print Error",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Error);
+                        StatusMessage = "Error preparing report";
+                        OnPropertyChanged(nameof(StatusMessage));
+                    }
+                });
+
+                if (printCancelled)
+                {
+                    StatusMessage = "Printing was cancelled";
+                    OnPropertyChanged(nameof(StatusMessage));
+                }
+            }, "Printing drawer report", "PrintOperation");
         }
     }
 }

@@ -137,7 +137,7 @@ namespace QuickTechSystems.WPF.ViewModels
 
                     try
                     {
-                        var flowDocument = CreateDrawerReportDocument(
+                        var flowDocument = CreateDrawerReport(
                             printDialog,
                             companyName,
                             address,
@@ -192,7 +192,7 @@ namespace QuickTechSystems.WPF.ViewModels
             }, "Printing drawer report", "PrintOperation");
         }
 
-        private FlowDocument CreateDrawerReportDocument(
+        private FlowDocument CreateDrawerReport(
             PrintDialog printDialog,
             string companyName,
             string address,

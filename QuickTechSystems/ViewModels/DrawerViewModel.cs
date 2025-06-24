@@ -17,6 +17,7 @@ namespace QuickTechSystems.WPF.ViewModels
     {
         private readonly IDrawerService _drawerService;
         private readonly IWindowService _windowService;
+        private readonly IBusinessSettingsService _businessSettingsService;
 
         private TransactionHistoryViewModel _transactionHistoryViewModel;
 
@@ -37,12 +38,14 @@ namespace QuickTechSystems.WPF.ViewModels
         public DrawerViewModel(
             IDrawerService drawerService,
             IWindowService windowService,
+            IBusinessSettingsService businessSettingsService,
             IEventAggregator eventAggregator,
             TransactionHistoryViewModel transactionHistoryViewModel,
             ProfitViewModel profitViewModel) : base(eventAggregator)
         {
             _drawerService = drawerService;
             _windowService = windowService;
+            _businessSettingsService = businessSettingsService;
             _drawerSessions = new ObservableCollection<DrawerSessionItem>();
 
             ProfitViewModel = profitViewModel;
@@ -74,9 +77,9 @@ namespace QuickTechSystems.WPF.ViewModels
         }
 
         private async Task ExecuteOperationSafelyAsync(
-    Func<Task> operation,
-    string operationName,
-    string operationType = "General")
+            Func<Task> operation,
+            string operationName,
+            string operationType = "General")
         {
             try
             {
@@ -98,6 +101,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
+
         protected override async Task LoadDataAsync()
         {
             try
@@ -114,7 +118,7 @@ namespace QuickTechSystems.WPF.ViewModels
                 IsProcessing = false;
             }
         }
-     
+
         private async Task LoadDataSequentiallyAsync()
         {
             int maxRetries = 3;
@@ -148,7 +152,7 @@ namespace QuickTechSystems.WPF.ViewModels
                         throw;
                     }
 
-                    await Task.Delay(1000 * currentRetry); // Exponential backoff
+                    await Task.Delay(1000 * currentRetry);
                 }
                 finally
                 {
@@ -156,6 +160,5 @@ namespace QuickTechSystems.WPF.ViewModels
                 }
             }
         }
-
     }
 }
