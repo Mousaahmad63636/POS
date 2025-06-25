@@ -160,7 +160,7 @@
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}" 
                                 IsEnabled="{Binding IsNavigationEnabled}"
-                                CommandParameter="Drawer">
+                                CommandParameter="Drawer" Click="Button_Click">
                             <StackPanel Orientation="Horizontal">
                                 <Border Style="{StaticResource IconContainer}">
                                     <TextBlock Text="🏦" 

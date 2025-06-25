@@ -247,6 +247,11 @@ namespace QuickTechSystems.WPF
         {
             base.OnClosed(e);
         }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 
     public class GridLengthAnimation : AnimationTimeline
