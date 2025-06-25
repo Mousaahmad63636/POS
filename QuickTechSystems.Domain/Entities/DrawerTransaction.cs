@@ -14,6 +14,7 @@
         public string TransactionReference { get; set; } = string.Empty;
         public bool IsVoided { get; set; }
         public string PaymentMethod { get; set; } = string.Empty;
+        public int? CustomerTransactionId { get; set; } // NEW COLUMN
         public virtual Drawer? Drawer { get; set; }
 
         public decimal GetNewBalance(decimal currentBalance, string transactionType, decimal amount)

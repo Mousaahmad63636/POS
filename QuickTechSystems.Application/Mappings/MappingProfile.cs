@@ -98,6 +98,7 @@ namespace QuickTechSystems.Application.Mappings
                 .ForMember(dest => dest.ActionType, opt => opt.MapFrom(src => src.ActionType))
                 .ForMember(dest => dest.TransactionReference, opt => opt.MapFrom(src => src.TransactionReference))
                 .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod))
+                .ForMember(dest => dest.CustomerTransactionId, opt => opt.MapFrom(src => src.CustomerTransactionId)) // NEW MAPPING
                 .ForMember(dest => dest.ResultingBalance, opt => opt.MapFrom(src => src.Balance));
             CreateMap<DrawerTransactionDTO, DrawerTransaction>();
 

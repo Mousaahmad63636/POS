@@ -8,11 +8,12 @@
         public string Type { get; set; } = string.Empty;
         public decimal Amount { get; set; }
         public decimal Balance { get; set; }
-          public string? Notes { get; set; }
+        public string? Notes { get; set; }
         public string ActionType { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string TransactionReference { get; set; } = string.Empty;
         public string PaymentMethod { get; set; } = string.Empty;
+        public int? CustomerTransactionId { get; set; } // NEW PROPERTY
         public decimal ResultingBalance
         {
             get => Balance;

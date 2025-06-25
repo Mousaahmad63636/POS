@@ -47,6 +47,10 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.Property(t => t.PaymentMethod)
                 .HasMaxLength(50);
 
+            // NEW COLUMN CONFIGURATION
+            builder.Property(t => t.CustomerTransactionId)
+                .IsRequired(false);
+
             // Relationships
             builder.HasOne(t => t.Drawer)
                 .WithMany(d => d.Transactions)
@@ -60,11 +64,7 @@ namespace QuickTechSystems.Infrastructure.Data.Configurations
             builder.HasIndex(t => t.ActionType);
             builder.HasIndex(t => t.Type);
             builder.HasIndex(t => t.IsVoided);
-
-            // Seed Data (if needed)
-            // builder.HasData(
-            //     new DrawerTransaction { ... }
-            // );
+            builder.HasIndex(t => t.CustomerTransactionId); // NEW INDEX
         }
     }
 }
