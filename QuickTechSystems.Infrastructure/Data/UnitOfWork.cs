@@ -29,6 +29,7 @@ namespace QuickTechSystems.Infrastructure.Data
         private IGenericRepository<RestaurantTable>? _restaurantTables;
         private IGenericRepository<SupplierInvoice>? _supplierInvoices;
         private IGenericRepository<SupplierInvoiceDetail>? _supplierInvoiceDetails;
+        private IGenericRepository<CustomerPayment>? _customerPayments;
 
         public IGenericRepository<InventoryHistory> InventoryHistories =>
             _inventoryHistories ??= CreateRepository<InventoryHistory>();
@@ -71,6 +72,9 @@ namespace QuickTechSystems.Infrastructure.Data
 
         public IGenericRepository<Supplier> Suppliers =>
             _suppliers ??= CreateRepository<Supplier>();
+
+        public IGenericRepository<CustomerPayment> CustomerPayments =>
+            _customerPayments ??= CreateRepository<CustomerPayment>();
 
         public DbContext Context => GetOrCreateContext();
 
@@ -161,6 +165,7 @@ namespace QuickTechSystems.Infrastructure.Data
             _supplierInvoices = null;
             _supplierInvoiceDetails = null;
             _inventoryHistories = null;
+            _customerPayments = null;
         }
 
         public async Task<IDbContextTransaction> BeginTransactionAsync()

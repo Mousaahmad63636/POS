@@ -9,9 +9,9 @@
              d:DesignHeight="800" d:DesignWidth="1200">
 
     <UserControl.Resources>
-        <ObjectDataProvider x:Key="TransactionStatusValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
+        <ObjectDataProvider x:Key="PaymentStatusValues" MethodName="GetValues" ObjectType="{x:Type sys:Enum}">
             <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="domain:TransactionStatus"/>
+                <x:Type TypeName="sys:String"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
     </UserControl.Resources>
@@ -387,7 +387,7 @@
                                        Margin="8,0,0,0">
                                     <StackPanel>
                                         <TextBlock Text="🛒" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                        <TextBlock Text="Transactions" 
+                                        <TextBlock Text="Payments" 
                                                   FontWeight="SemiBold" 
                                                   HorizontalAlignment="Center"
                                                   Margin="0,0,0,4"/>
@@ -499,18 +499,34 @@
                                               Margin="0,0,0,12"/>
 
                                     <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
                                             <TextBlock Text="Payment Amount" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">
+                                            <TextBlock Text="Payment Method" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <ComboBox Text="{Binding PaymentMethod, UpdateSourceTrigger=PropertyChanged}"
+                                                     Height="36" Padding="8" IsEditable="True">
+                                                <sys:String>Cash</sys:String>
+                                                <sys:String>Credit Card</sys:String>
+                                                <sys:String>Debit Card</sys:String>
+                                                <sys:String>Bank Transfer</sys:String>
+                                                <sys:String>Check</sys:String>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0">
                                             <TextBlock Text="Payment Notes" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding PaymentNotes, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
@@ -542,7 +558,7 @@
                                    Margin="0,0,0,20"
                                    Visibility="{Binding IsEditingPayment, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Edit Payment Transaction"
+                                    <TextBlock Text="Edit Payment"
                                               FontSize="16"
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
@@ -560,13 +576,13 @@
 
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
                                             <TextBlock Text="Amount*" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding EditingTransaction.TotalAmount, UpdateSourceTrigger=PropertyChanged}"
+                                            <TextBox Text="{Binding EditingPayment.Amount, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">
                                             <TextBlock Text="Payment Method*" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <ComboBox Text="{Binding EditingTransaction.PaymentMethod, UpdateSourceTrigger=PropertyChanged}"
+                                            <ComboBox Text="{Binding EditingPayment.PaymentMethod, UpdateSourceTrigger=PropertyChanged}"
                                                      Height="36" Padding="8" IsEditable="True">
                                                 <sys:String>Cash</sys:String>
                                                 <sys:String>Credit Card</sys:String>
@@ -577,33 +593,41 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,12,8,0">
-                                            <TextBlock Text="Transaction Date" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <DatePicker SelectedDate="{Binding EditingTransaction.TransactionDate, UpdateSourceTrigger=PropertyChanged}"
+                                            <TextBlock Text="Payment Date" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <DatePicker SelectedDate="{Binding EditingPayment.PaymentDate, UpdateSourceTrigger=PropertyChanged}"
                                                        Height="36"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,12,0,0">
                                             <TextBlock Text="Status" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <ComboBox ItemsSource="{Binding Source={StaticResource TransactionStatusValues}}"
-                                                     SelectedItem="{Binding EditingTransaction.Status, UpdateSourceTrigger=PropertyChanged}"
-                                                     Height="36" Padding="8"/>
+                                            <ComboBox Text="{Binding EditingPayment.Status, UpdateSourceTrigger=PropertyChanged}"
+                                                     Height="36" Padding="8" IsEditable="True">
+                                                <sys:String>Completed</sys:String>
+                                                <sys:String>Pending</sys:String>
+                                                <sys:String>Cancelled</sys:String>
+                                            </ComboBox>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" 
-                                                   Orientation="Horizontal" 
-                                                   HorizontalAlignment="Right" 
-                                                   Margin="0,16,0,0">
-                                            <Button Command="{Binding CancelEditCommand}"
-                                                   Style="{StaticResource SecondaryButtonStyle}"
-                                                   Margin="0,0,8,0">
-                                                Cancel
-                                            </Button>
-                                            <Button Command="{Binding SavePaymentCommand}"
-                                                   Style="{StaticResource PrimaryButtonStyle}">
-                                                Save Payment
-                                            </Button>
+                                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,12,0,0">
+                                            <TextBlock Text="Notes" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding EditingPayment.Notes, UpdateSourceTrigger=PropertyChanged}"
+                                                    Height="60" Padding="8" TextWrapping="Wrap" AcceptsReturn="True"/>
                                         </StackPanel>
                                     </Grid>
+
+                                    <StackPanel Orientation="Horizontal" 
+                                               HorizontalAlignment="Right" 
+                                               Margin="0,16,0,0">
+                                        <Button Command="{Binding CancelEditCommand}"
+                                               Style="{StaticResource SecondaryButtonStyle}"
+                                               Margin="0,0,8,0">
+                                            Cancel
+                                        </Button>
+                                        <Button Command="{Binding SavePaymentCommand}"
+                                               Style="{StaticResource PrimaryButtonStyle}">
+                                            Save Payment
+                                        </Button>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 
@@ -616,20 +640,17 @@
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
 
-                                    <DataGrid ItemsSource="{Binding CustomerTransactions}"
-                                             SelectedItem="{Binding SelectedTransaction}"
+                                    <DataGrid ItemsSource="{Binding CustomerPayments}"
+                                             SelectedItem="{Binding SelectedPayment}"
                                              Style="{StaticResource ModernDataGridStyle}"
                                              AutoGenerateColumns="False"
                                              MaxHeight="300">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Date" 
-                                                               Binding="{Binding TransactionDate, StringFormat=MM/dd/yyyy}" 
+                                                               Binding="{Binding PaymentDate, StringFormat=MM/dd/yyyy}" 
                                                                Width="100"/>
-                                            <DataGridTextColumn Header="Type" 
-                                                               Binding="{Binding TransactionType}" 
-                                                               Width="80"/>
                                             <DataGridTextColumn Header="Amount" 
-                                                               Binding="{Binding TotalAmount, StringFormat=C}" 
+                                                               Binding="{Binding Amount, StringFormat=C}" 
                                                                Width="100"/>
                                             <DataGridTextColumn Header="Payment Method" 
                                                                Binding="{Binding PaymentMethod}" 
@@ -637,6 +658,9 @@
                                             <DataGridTextColumn Header="Status" 
                                                                Binding="{Binding Status}" 
                                                                Width="80"/>
+                                            <DataGridTextColumn Header="Notes" 
+                                                               Binding="{Binding Notes}" 
+                                                               Width="*"/>
                                         </DataGrid.Columns>
                                     </DataGrid>
 

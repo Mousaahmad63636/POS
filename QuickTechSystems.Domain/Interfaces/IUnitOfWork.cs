@@ -7,7 +7,6 @@ namespace QuickTechSystems.Domain.Interfaces
     public interface IUnitOfWork : IDisposable
     {
         IGenericRepository<Product> Products { get; }
-    
         IGenericRepository<Category> Categories { get; }
         IGenericRepository<Customer> Customers { get; }
         IGenericRepository<Transaction> Transactions { get; }
@@ -18,10 +17,12 @@ namespace QuickTechSystems.Domain.Interfaces
         IGenericRepository<Drawer> Drawers { get; }
         IGenericRepository<Employee> Employees { get; }
         IGenericRepository<RestaurantTable> RestaurantTables { get; }
-        IGenericRepository<T> GetRepository<T>() where T : class;
         IGenericRepository<SupplierInvoice> SupplierInvoices { get; }
         IGenericRepository<SupplierInvoiceDetail> SupplierInvoiceDetails { get; }
         IGenericRepository<InventoryHistory> InventoryHistories { get; }
+        IGenericRepository<CustomerPayment> CustomerPayments { get; }
+
+        IGenericRepository<T> GetRepository<T>() where T : class;
         Task<int> SaveChangesAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
         void DetachEntity<T>(T entity) where T : class;

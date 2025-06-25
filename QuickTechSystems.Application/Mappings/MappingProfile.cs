@@ -49,6 +49,11 @@ namespace QuickTechSystems.Application.Mappings
             CreateMap<Customer, CustomerDTO>()
                 .ForMember(dest => dest.Balance, opt => opt.MapFrom(src => src.Balance));
 
+            // CustomerPayment mappings
+            CreateMap<CustomerPayment, CustomerPaymentDTO>()
+                .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : string.Empty));
+            CreateMap<CustomerPaymentDTO, CustomerPayment>();
+
             CreateMap<Transaction, TransactionDTO>()
                 .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : string.Empty))
                 .ForMember(dest => dest.Details, opt => opt.MapFrom(src => src.TransactionDetails));
@@ -98,7 +103,7 @@ namespace QuickTechSystems.Application.Mappings
                 .ForMember(dest => dest.ActionType, opt => opt.MapFrom(src => src.ActionType))
                 .ForMember(dest => dest.TransactionReference, opt => opt.MapFrom(src => src.TransactionReference))
                 .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod))
-                .ForMember(dest => dest.CustomerTransactionId, opt => opt.MapFrom(src => src.CustomerTransactionId)) // NEW MAPPING
+                .ForMember(dest => dest.CustomerTransactionId, opt => opt.MapFrom(src => src.CustomerTransactionId))
                 .ForMember(dest => dest.ResultingBalance, opt => opt.MapFrom(src => src.Balance));
             CreateMap<DrawerTransactionDTO, DrawerTransaction>();
 

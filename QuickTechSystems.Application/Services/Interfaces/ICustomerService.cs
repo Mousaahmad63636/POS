@@ -9,9 +9,11 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<IEnumerable<CustomerDTO>> SearchCustomersAsync(string searchTerm);
         Task<CustomerDTO> UpdateBalanceAsync(int customerId, decimal balanceAdjustment, string reason);
         Task<CustomerDTO> SetBalanceAsync(int customerId, decimal newBalance, string reason);
-        Task<IEnumerable<TransactionDTO>> GetCustomerTransactionsAsync(int customerId);
-        Task<CustomerDTO> ProcessPaymentAsync(int customerId, decimal paymentAmount, string notes);
-        Task<TransactionDTO> UpdateTransactionAsync(TransactionDTO transaction);
-        Task<bool> DeleteTransactionAsync(int transactionId, string reason);
+
+        // CustomerPayment methods - NO repository exposure
+        Task<IEnumerable<CustomerPaymentDTO>> GetCustomerPaymentsAsync(int customerId);
+        Task<CustomerDTO> ProcessPaymentAsync(int customerId, decimal paymentAmount, string notes, string paymentMethod = "Cash");
+        Task<CustomerPaymentDTO> UpdatePaymentAsync(CustomerPaymentDTO payment);
+        Task<bool> DeletePaymentAsync(int paymentId, string reason);
     }
 }

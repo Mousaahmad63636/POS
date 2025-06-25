@@ -33,6 +33,7 @@ namespace QuickTechSystems.Infrastructure.Data
         public DbSet<RestaurantTable> RestaurantTables => Set<RestaurantTable>();
         public DbSet<SupplierInvoice> SupplierInvoices { get; set; }
         public DbSet<SupplierInvoiceDetail> SupplierInvoiceDetails { get; set; }
+        public DbSet<CustomerPayment> CustomerPayments => Set<CustomerPayment>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +42,7 @@ namespace QuickTechSystems.Infrastructure.Data
             modelBuilder.ApplyConfiguration(new SupplierInvoiceConfiguration());
             modelBuilder.ApplyConfiguration(new SupplierInvoiceDetailConfiguration());
             modelBuilder.ApplyConfiguration(new InventoryHistoryConfiguration());
+            modelBuilder.ApplyConfiguration(new CustomerPaymentConfiguration());
         }
 
         public DbContextOptions<ApplicationDbContext> GetConfiguration()

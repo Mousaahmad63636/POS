@@ -23,11 +23,11 @@ namespace QuickTechSystems.ViewModels.Customer
         private readonly Dictionary<int, CustomerDTO> _customerLookup;
 
         private ObservableCollection<CustomerDTO> _customers;
-        private ObservableCollection<TransactionDTO> _customerTransactions;
+        private ObservableCollection<CustomerPaymentDTO> _customerPayments;
         private CustomerDTO _selectedCustomer;
         private CustomerDTO _editingCustomer;
-        private TransactionDTO _selectedTransaction;
-        private TransactionDTO _editingTransaction;
+        private CustomerPaymentDTO _selectedPayment;
+        private CustomerPaymentDTO _editingPayment;
         private string _searchText;
         private bool _isAddingCustomer;
         private bool _isEditingCustomer;
@@ -39,6 +39,7 @@ namespace QuickTechSystems.ViewModels.Customer
         private decimal _newBalance;
         private decimal _paymentAmount;
         private string _paymentNotes;
+        private string _paymentMethod;
         private string _adjustmentReason;
         private bool _isSettingNewBalance;
 
@@ -48,10 +49,10 @@ namespace QuickTechSystems.ViewModels.Customer
             set => SetProperty(ref _customers, value);
         }
 
-        public ObservableCollection<TransactionDTO> CustomerTransactions
+        public ObservableCollection<CustomerPaymentDTO> CustomerPayments
         {
-            get => _customerTransactions;
-            set => SetProperty(ref _customerTransactions, value);
+            get => _customerPayments;
+            set => SetProperty(ref _customerPayments, value);
         }
 
         public CustomerDTO SelectedCustomer
@@ -72,16 +73,16 @@ namespace QuickTechSystems.ViewModels.Customer
             set => SetProperty(ref _editingCustomer, value);
         }
 
-        public TransactionDTO SelectedTransaction
+        public CustomerPaymentDTO SelectedPayment
         {
-            get => _selectedTransaction;
-            set => SetProperty(ref _selectedTransaction, value);
+            get => _selectedPayment;
+            set => SetProperty(ref _selectedPayment, value);
         }
 
-        public TransactionDTO EditingTransaction
+        public CustomerPaymentDTO EditingPayment
         {
-            get => _editingTransaction;
-            set => SetProperty(ref _editingTransaction, value);
+            get => _editingPayment;
+            set => SetProperty(ref _editingPayment, value);
         }
 
         public string SearchText
@@ -162,6 +163,12 @@ namespace QuickTechSystems.ViewModels.Customer
             set => SetProperty(ref _paymentNotes, value);
         }
 
+        public string PaymentMethod
+        {
+            get => _paymentMethod;
+            set => SetProperty(ref _paymentMethod, value);
+        }
+
         public string AdjustmentReason
         {
             get => _adjustmentReason;
@@ -197,9 +204,10 @@ namespace QuickTechSystems.ViewModels.Customer
             _customerLookup = new Dictionary<int, CustomerDTO>();
 
             _customers = new ObservableCollection<CustomerDTO>();
-            _customerTransactions = new ObservableCollection<TransactionDTO>();
+            _customerPayments = new ObservableCollection<CustomerPaymentDTO>();
             _searchText = string.Empty;
             _paymentNotes = string.Empty;
+            _paymentMethod = "Cash";
             _adjustmentReason = string.Empty;
 
             InitializeCommands();
@@ -218,9 +226,9 @@ namespace QuickTechSystems.ViewModels.Customer
             ProcessPaymentCommand = new RelayCommand(async _ => await ProcessPaymentAsync());
             ShowHistoryCommand = new RelayCommand(async _ => await ShowPaymentHistoryAsync(), _ => SelectedCustomer != null);
             HideHistoryCommand = new RelayCommand(_ => IsShowingHistory = false);
-            EditPaymentCommand = new RelayCommand(_ => StartEditPayment(), _ => SelectedTransaction != null);
+            EditPaymentCommand = new RelayCommand(_ => StartEditPayment(), _ => SelectedPayment != null);
             SavePaymentCommand = new RelayCommand(async _ => await SavePaymentAsync());
-            DeletePaymentCommand = new RelayCommand(async _ => await DeletePaymentAsync(), _ => SelectedTransaction != null);
+            DeletePaymentCommand = new RelayCommand(async _ => await DeletePaymentAsync(), _ => SelectedPayment != null);
             RefreshCommand = new RelayCommand(async _ => await LoadDataAsync());
         }
 
@@ -249,31 +257,31 @@ namespace QuickTechSystems.ViewModels.Customer
         {
             if (SelectedCustomer != null && !_processingOperations.Contains(SelectedCustomer.CustomerId))
             {
-                Task.Run(async () => await LoadCustomerTransactionsAsync(SelectedCustomer.CustomerId));
+                Task.Run(async () => await LoadCustomerPaymentsAsync(SelectedCustomer.CustomerId));
             }
         }
 
-        private async Task LoadCustomerTransactionsAsync(int customerId)
+        private async Task LoadCustomerPaymentsAsync(int customerId)
         {
             try
             {
                 _processingOperations.Add(customerId);
 
-                var transactions = await _customerService.GetCustomerTransactionsAsync(customerId);
-                var transactionList = transactions?.ToList() ?? new List<TransactionDTO>();
+                var payments = await _customerService.GetCustomerPaymentsAsync(customerId);
+                var paymentList = payments?.ToList() ?? new List<CustomerPaymentDTO>();
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    CustomerTransactions.Clear();
-                    foreach (var transaction in transactionList)
+                    CustomerPayments.Clear();
+                    foreach (var payment in paymentList)
                     {
-                        CustomerTransactions.Add(transaction);
+                        CustomerPayments.Add(payment);
                     }
                 });
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync("Error loading customer transactions", ex);
+                await HandleExceptionAsync("Error loading customer payments", ex);
             }
             finally
             {
@@ -362,7 +370,7 @@ namespace QuickTechSystems.ViewModels.Customer
         private void CancelEdit()
         {
             EditingCustomer = null;
-            EditingTransaction = null;
+            EditingPayment = null;
             IsAddingCustomer = false;
             IsEditingCustomer = false;
             IsEditingBalance = false;
@@ -374,6 +382,7 @@ namespace QuickTechSystems.ViewModels.Customer
             NewBalance = 0;
             PaymentAmount = 0;
             PaymentNotes = string.Empty;
+            PaymentMethod = "Cash";
             AdjustmentReason = string.Empty;
         }
 
@@ -397,7 +406,7 @@ namespace QuickTechSystems.ViewModels.Customer
                         _customerLookup.Remove(SelectedCustomer.CustomerId);
                         Customers.Remove(SelectedCustomer);
                         SelectedCustomer = null;
-                        CustomerTransactions.Clear();
+                        CustomerPayments.Clear();
                     });
                     await ShowSuccessMessage("Customer deleted successfully");
                 });
@@ -456,7 +465,7 @@ namespace QuickTechSystems.ViewModels.Customer
 
                 if (IsShowingHistory)
                 {
-                    await LoadCustomerTransactionsAsync(SelectedCustomer.CustomerId);
+                    await LoadCustomerPaymentsAsync(SelectedCustomer.CustomerId);
                 }
 
                 await ShowSuccessMessage("Balance updated successfully");
@@ -469,6 +478,7 @@ namespace QuickTechSystems.ViewModels.Customer
             if (SelectedCustomer?.Balance <= 0) return;
             PaymentAmount = SelectedCustomer.Balance;
             PaymentNotes = "Debt settlement";
+            PaymentMethod = "Cash";
             IsSettlingDebt = true;
         }
 
@@ -478,25 +488,11 @@ namespace QuickTechSystems.ViewModels.Customer
 
             await ExecuteWithOperationLockAsync("ProcessPayment", async () =>
             {
-                var updatedBalance = SelectedCustomer.Balance - PaymentAmount;
-
-                var updatedCustomer = new CustomerDTO
-                {
-                    CustomerId = SelectedCustomer.CustomerId,
-                    Name = SelectedCustomer.Name,
-                    Phone = SelectedCustomer.Phone,
-                    Email = SelectedCustomer.Email,
-                    Address = SelectedCustomer.Address,
-                    Balance = Math.Max(0, updatedBalance),
-                    IsActive = SelectedCustomer.IsActive,
-                    CreatedAt = SelectedCustomer.CreatedAt,
-                    UpdatedAt = DateTime.Now
-                };
-
                 var processedCustomer = await _customerService.ProcessPaymentAsync(
                     SelectedCustomer.CustomerId,
                     PaymentAmount,
-                    PaymentNotes);
+                    PaymentNotes,
+                    PaymentMethod);
 
                 await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
                 {
@@ -511,7 +507,7 @@ namespace QuickTechSystems.ViewModels.Customer
 
                 if (IsShowingHistory)
                 {
-                    await LoadCustomerTransactionsAsync(SelectedCustomer.CustomerId);
+                    await LoadCustomerPaymentsAsync(SelectedCustomer.CustomerId);
                 }
 
                 await ShowSuccessMessage($"Payment of {PaymentAmount:C} processed successfully");
@@ -525,63 +521,54 @@ namespace QuickTechSystems.ViewModels.Customer
 
             await ExecuteWithOperationLockAsync("ShowPaymentHistory", async () =>
             {
-                await LoadCustomerTransactionsAsync(SelectedCustomer.CustomerId);
+                await LoadCustomerPaymentsAsync(SelectedCustomer.CustomerId);
                 IsShowingHistory = true;
             });
         }
 
-        private async Task EditPaymentAsync()
-        {
-            if (SelectedTransaction == null) return;
-
-            await ShowSuccessMessage("Payment editing feature would be implemented here");
-        }
-
         private void StartEditPayment()
         {
-            if (SelectedTransaction == null) return;
+            if (SelectedPayment == null) return;
 
-            EditingTransaction = new TransactionDTO
+            EditingPayment = new CustomerPaymentDTO
             {
-                TransactionId = SelectedTransaction.TransactionId,
-                CustomerId = SelectedTransaction.CustomerId,
-                CustomerName = SelectedTransaction.CustomerName,
-                TotalAmount = SelectedTransaction.TotalAmount,
-                PaidAmount = SelectedTransaction.PaidAmount,
-                TransactionDate = SelectedTransaction.TransactionDate,
-                TransactionType = SelectedTransaction.TransactionType,
-                Status = SelectedTransaction.Status,
-                PaymentMethod = SelectedTransaction.PaymentMethod,
-                CashierId = SelectedTransaction.CashierId,
-                CashierName = SelectedTransaction.CashierName,
-                CashierRole = SelectedTransaction.CashierRole
+                PaymentId = SelectedPayment.PaymentId,
+                CustomerId = SelectedPayment.CustomerId,
+                CustomerName = SelectedPayment.CustomerName,
+                Amount = SelectedPayment.Amount,
+                PaymentDate = SelectedPayment.PaymentDate,
+                PaymentMethod = SelectedPayment.PaymentMethod,
+                Notes = SelectedPayment.Notes,
+                Status = SelectedPayment.Status,
+                CreatedBy = SelectedPayment.CreatedBy
             };
             IsEditingPayment = true;
         }
 
         private async Task SavePaymentAsync()
         {
-            if (EditingTransaction == null) return;
+            if (EditingPayment == null) return;
 
             var selectedCustomerId = SelectedCustomer?.CustomerId;
             if (!selectedCustomerId.HasValue) return;
 
             await ExecuteWithOperationLockAsync("SavePayment", async () =>
             {
-                if (EditingTransaction.TotalAmount <= 0)
+                if (EditingPayment.Amount <= 0)
                 {
                     ShowTemporaryErrorMessage("Payment amount must be greater than zero");
                     return;
                 }
 
-                if (string.IsNullOrWhiteSpace(EditingTransaction.PaymentMethod))
+                if (string.IsNullOrWhiteSpace(EditingPayment.PaymentMethod))
                 {
                     ShowTemporaryErrorMessage("Payment method is required");
                     return;
                 }
 
-                var updatedTransaction = await _customerService.UpdateTransactionAsync(EditingTransaction);
+                var updatedPayment = await _customerService.UpdatePaymentAsync(EditingPayment);
 
+                // Refresh customer data
                 var refreshedCustomers = await _customerService.GetAllAsync();
                 var refreshedCustomersList = refreshedCustomers.ToList();
 
@@ -604,7 +591,7 @@ namespace QuickTechSystems.ViewModels.Customer
                     }
                 });
 
-                await LoadCustomerTransactionsAsync(selectedCustomerId.Value);
+                await LoadCustomerPaymentsAsync(selectedCustomerId.Value);
 
                 await ShowSuccessMessage("Payment updated successfully");
                 CancelEdit();
@@ -613,13 +600,13 @@ namespace QuickTechSystems.ViewModels.Customer
 
         private async Task DeletePaymentAsync()
         {
-            if (SelectedTransaction == null) return;
+            if (SelectedPayment == null) return;
 
             var selectedCustomerId = SelectedCustomer?.CustomerId;
             if (!selectedCustomerId.HasValue) return;
 
             var result = MessageBox.Show(
-                $"Are you sure you want to delete this payment transaction of {SelectedTransaction.TotalAmount:C}?",
+                $"Are you sure you want to delete this payment of {SelectedPayment.Amount:C}?",
                 "Confirm Delete Payment",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Question);
@@ -628,12 +615,13 @@ namespace QuickTechSystems.ViewModels.Customer
             {
                 await ExecuteWithOperationLockAsync("DeletePayment", async () =>
                 {
-                    var deleted = await _customerService.DeleteTransactionAsync(
-                        SelectedTransaction.TransactionId,
+                    var deleted = await _customerService.DeletePaymentAsync(
+                        SelectedPayment.PaymentId,
                         "Manual deletion by user");
 
                     if (deleted)
                     {
+                        // Refresh customer data
                         var refreshedCustomers = await _customerService.GetAllAsync();
                         var refreshedCustomersList = refreshedCustomers.ToList();
 
@@ -656,13 +644,13 @@ namespace QuickTechSystems.ViewModels.Customer
                             }
                         });
 
-                        await LoadCustomerTransactionsAsync(selectedCustomerId.Value);
+                        await LoadCustomerPaymentsAsync(selectedCustomerId.Value);
 
                         await ShowSuccessMessage("Payment deleted successfully");
                     }
                     else
                     {
-                        ShowTemporaryErrorMessage("Failed to delete payment transaction");
+                        ShowTemporaryErrorMessage("Failed to delete payment");
                     }
                 });
             }
