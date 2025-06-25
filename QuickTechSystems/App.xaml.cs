@@ -19,7 +19,7 @@ using System.Globalization;
 using System.Windows.Markup;
 using QuickTechSystems.Domain.Interfaces;
 using QuickTechSystems.Commands;
-using QuickTechSystems.ViewModels.Drawer;
+using QuickTechSystems.ViewModels;
 using QuickTechSystems.ViewModels.Customer;
 using QuickTechSystems.ViewModels.Login;
 using QuickTechSystems.ViewModels.Product;
@@ -31,7 +31,6 @@ using QuickTechSystems.ViewModels.Expense;
 using QuickTechSystems.ViewModels.Restaurent;
 using QuickTechSystems.ViewModels.Welcome;
 using QuickTechSystems.ViewModels.Transaction;
-using QuickTechSystems.ViewModels;
 using System.Threading;
 
 namespace QuickTechSystems.WPF
@@ -130,7 +129,6 @@ namespace QuickTechSystems.WPF
             services.AddScoped<LoginViewModel>();
             services.AddScoped<CategoryViewModel>();
             services.AddScoped<CustomerViewModel>();
-            services.AddScoped<DrawerViewModel>();
             services.AddScoped<EmployeeViewModel>();
             services.AddScoped<ExpenseViewModel>();
             services.AddScoped<ProductViewModel>();

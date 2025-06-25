@@ -11,7 +11,6 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Generic;
 using QuickTechSystems.Commands;
-using QuickTechSystems.ViewModels.Drawer;
 using QuickTechSystems.ViewModels.Customer;
 using QuickTechSystems.ViewModels.Product;
 using QuickTechSystems.ViewModels.Supplier;

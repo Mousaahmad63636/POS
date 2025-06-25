@@ -9,7 +9,7 @@
              xmlns:settingsVm="clr-namespace:QuickTechSystems.ViewModels.Settings"
              xmlns:supplierVm="clr-namespace:QuickTechSystems.ViewModels.Supplier"
              xmlns:expenseVm="clr-namespace:QuickTechSystems.ViewModels.Expense"
-             xmlns:drawerVm="clr-namespace:QuickTechSystems.ViewModels.Drawer"
+             xmlns:drawerVm="clr-namespace:QuickTechSystems.ViewModels"
              xmlns:employeeVm="clr-namespace:QuickTechSystems.ViewModels.Employee"
              xmlns:restaurantVm="clr-namespace:QuickTechSystems.ViewModels.Restaurent"
              xmlns:welcomeVm="clr-namespace:QuickTechSystems.ViewModels.Welcome"

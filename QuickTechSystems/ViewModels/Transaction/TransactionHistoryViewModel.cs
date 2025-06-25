@@ -11,8 +11,8 @@ using QuickTechSystems.WPF.Commands;
 using QuickTechSystems.WPF.ViewModels;
 using QuickTechSystems.Views;
 using System.ComponentModel;
-using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using System.Linq;
 
 namespace QuickTechSystems.ViewModels.Transaction
 {
@@ -484,19 +484,25 @@ namespace QuickTechSystems.ViewModels.Transaction
             await _operationLocks["PopupManagement"].WaitAsync();
             try
             {
-                var popupViewModel = _serviceProvider.GetRequiredService<TransactionDetailsPopupViewModel>();
-                var popupWindow = _serviceProvider.GetRequiredService<TransactionDetailsPopup>();
+                // Always create new instances to avoid disposed object issues
+                var popupViewModel = ActivatorUtilities.CreateInstance<TransactionDetailsPopupViewModel>(_serviceProvider);
+                var popupWindow = new TransactionDetailsPopup();
 
                 popupWindow.DataContext = popupViewModel;
                 popupWindow.Owner = System.Windows.Application.Current.MainWindow;
 
                 popupViewModel.SetView(popupWindow);
+
+                // Setup event handlers
                 popupViewModel.RequestClose += (sender, args) => popupWindow.Close();
                 popupViewModel.TransactionChanged += async (sender, args) => await RefreshTransactionDataAsync(args.TransactionId);
 
+                // Initialize the popup
                 await popupViewModel.InitializeAsync(transaction);
 
                 _currentPopupViewModel = popupViewModel;
+
+                // Show dialog and clean up after it closes
                 popupWindow.ShowDialog();
             }
             catch (Exception ex)
@@ -505,12 +511,12 @@ namespace QuickTechSystems.ViewModels.Transaction
             }
             finally
             {
+                // Clean up after dialog closes
                 _currentPopupViewModel?.Dispose();
                 _currentPopupViewModel = null;
                 _operationLocks["PopupManagement"].Release();
             }
         }
-
         private void ClosePopup()
         {
             IsPopupVisible = false;
