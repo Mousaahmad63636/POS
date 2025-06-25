@@ -131,6 +131,7 @@ namespace QuickTechSystems.WPF
             services.AddScoped<CustomerViewModel>();
             services.AddScoped<EmployeeViewModel>();
             services.AddScoped<ExpenseViewModel>();
+            services.AddScoped<DrawerViewModel>();
             services.AddScoped<ProductViewModel>();
             services.AddScoped<SettingsViewModel>();
             services.AddScoped<SupplierViewModel>();
