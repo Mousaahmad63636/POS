@@ -8,18 +8,12 @@
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
         <Style x:Key="HeaderTextStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="24"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
             <Setter Property="Margin" Value="0,0,0,20"/>
-        </Style>
-
-        <Style x:Key="SubHeaderTextStyle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-            <Setter Property="Margin" Value="0,0,0,10"/>
         </Style>
 
         <Style x:Key="FilterCardStyle" TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
@@ -35,6 +29,14 @@
         <Style x:Key="StatCardStyle" TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
             <Setter Property="Padding" Value="20"/>
             <Setter Property="Margin" Value="5"/>
+            <Setter Property="MinHeight" Value="80"/>
+        </Style>
+
+        <Style x:Key="FilterComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="35"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         </Style>
     </UserControl.Resources>
 
@@ -46,11 +48,14 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Transaction History" Style="{StaticResource HeaderTextStyle}"/>
+        <!-- Header Section -->
+        <TextBlock Grid.Row="0" 
+                   Text="Transaction History" 
+                   Style="{StaticResource HeaderTextStyle}"/>
 
+        <!-- Statistics Section -->
         <Grid Grid.Row="1" Margin="0,0,0,20">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -58,149 +63,134 @@
 
             <Border Grid.Column="0" Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="Total Sales" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding TotalSalesAmount, StringFormat=C}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                    <TextBlock Text="Total Sales" 
+                               FontSize="14" 
+                               Foreground="{StaticResource TextTertiaryBrush}"/>
+                    <TextBlock Text="{Binding TotalSalesAmount, StringFormat=C, FallbackValue=$0.00}" 
+                               FontSize="20" 
+                               FontWeight="Bold" 
+                               Foreground="{StaticResource AccentBrush}"/>
                 </StackPanel>
             </Border>
 
             <Border Grid.Column="1" Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="Total Transactions" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding FilteredTransactions.Count}" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Total Transactions" 
+                               FontSize="14" 
+                               Foreground="{StaticResource TextTertiaryBrush}"/>
+                    <TextBlock Text="{Binding FilteredTransactions.Count, FallbackValue=0}" 
+                               FontSize="20" 
+                               FontWeight="Bold" 
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Date Range" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}"/>
-                    <TextBlock FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}">
-                        <Run Text="{Binding StartDate, StringFormat=MMM dd}"/>
-                        <Run Text=" - "/>
-                        <Run Text="{Binding EndDate, StringFormat='MMM dd, yyyy'}"/>
-                    </TextBlock>
-                </StackPanel>
-            </Border>
-
-            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button Content="Toggle Filters" Command="{Binding ToggleFiltersCommand}" Style="{StaticResource SecondaryButtonStyle}" Margin="10,0,5,0"/>
-                <Button Content="Refresh" Command="{Binding LoadDataCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="5,0"/>
+            <StackPanel Grid.Column="2" 
+                        Orientation="Horizontal" 
+                        VerticalAlignment="Center">
+                <Button Content="Refresh" 
+                        Command="{Binding LoadDataCommand}" 
+                        Style="{StaticResource PrimaryButtonStyle}" 
+                        Margin="5,0"/>
             </StackPanel>
         </Grid>
 
-        <Border Grid.Row="2" Style="{StaticResource FilterCardStyle}" Visibility="{Binding ShowFilters, Converter={StaticResource BooleanToVisibilityConverter}}">
+        <!-- Filters Section -->
+        <Border Grid.Row="2" Style="{StaticResource FilterCardStyle}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <TextBlock Grid.Row="0" Text="Filters" Style="{StaticResource SubHeaderTextStyle}"/>
+                <TextBlock Grid.Row="0" 
+                           Text="Filters" 
+                           FontSize="16" 
+                           FontWeight="SemiBold" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           Margin="0,0,0,15"/>
 
-                <Grid Grid.Row="1" Margin="0,0,0,15">
+                <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
+                        <ColumnDefinition Width="20"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
+                    <!-- Employee Filter -->
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Search" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
-                                 BorderBrush="{StaticResource BorderBrush}" 
-                                 Padding="8" Height="32"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Employee" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                        <TextBlock Text="Employee" 
+                                   FontWeight="SemiBold" 
+                                   Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding Employees}" 
                                   SelectedValue="{Binding SelectedEmployeeId}"
                                   SelectedValuePath="EmployeeId"
-                                  Height="32" Padding="8">
+                                  Style="{StaticResource FilterComboBoxStyle}">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock>
-                                        <Run Text="{Binding FirstName}"/>
+                                        <Run Text="{Binding FirstName, FallbackValue=''}"/>
                                         <Run Text=" "/>
-                                        <Run Text="{Binding LastName}"/>
+                                        <Run Text="{Binding LastName, FallbackValue=''}"/>
                                     </TextBlock>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="4">
-                        <TextBlock Text="Transaction Type" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <!-- Transaction Type Filter -->
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Transaction Type" 
+                                   FontWeight="SemiBold" 
+                                   Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding TransactionTypes}" 
                                   SelectedItem="{Binding SelectedTransactionType}"
-                                  Height="32" Padding="8">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
+                                  Style="{StaticResource FilterComboBoxStyle}"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="6">
-                        <TextBlock Text="Status" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <ComboBox ItemsSource="{Binding TransactionStatuses}" 
-                                  SelectedItem="{Binding SelectedTransactionStatus}"
-                                  Height="32" Padding="8"/>
-                    </StackPanel>
-                </Grid>
-
-                <Grid Grid.Row="2">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="10"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="Start Date" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <DatePicker SelectedDate="{Binding StartDate}" Height="32"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="End Date" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                        <DatePicker SelectedDate="{Binding EndDate}" Height="32"/>
-                    </StackPanel>
-
-                    <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Bottom">
-                        <Button Content="Apply Filters" Command="{Binding ApplyFiltersCommand}" Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,10,0"/>
-                        <Button Content="Clear All" Command="{Binding ClearFiltersCommand}" Style="{StaticResource SecondaryButtonStyle}"/>
+                    <!-- Clear Filters Button -->
+                    <StackPanel Grid.Column="4" 
+                                VerticalAlignment="Bottom">
+                        <Button Content="Clear Filters" 
+                                Command="{Binding ClearFiltersCommand}" 
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Padding="15,8"/>
                     </StackPanel>
                 </Grid>
             </Grid>
         </Border>
 
-        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+        <!-- Transaction List Section -->
+        <ScrollViewer Grid.Row="3" 
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <Grid Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="20">
-                    <Border Background="{StaticResource SurfaceBrush}"
-                            BorderBrush="{StaticResource BorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="8"
-                            Padding="40">
-                        <StackPanel HorizontalAlignment="Center">
-                            <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,0,0,15"/>
-                            <TextBlock Text="Loading transactions..." FontSize="14" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
+                <!-- Loading Indicator -->
+                <Border Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" 
+                        Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="40"
+                        Margin="20">
+                    <StackPanel HorizontalAlignment="Center">
+                        <ProgressBar IsIndeterminate="True" 
+                                     Width="200" 
+                                     Height="4" 
+                                     Margin="0,0,0,15"/>
+                        <TextBlock Text="Loading transactions..." 
+                                   FontSize="14" 
+                                   Foreground="{StaticResource TextSecondaryBrush}" 
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
 
-                <Border Margin="20" Padding="20">
+                <!-- No Data Message -->
+                <Border Margin="20" Padding="40">
                     <Border.Style>
                         <Style TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
-                            <Setter Property="Margin" Value="20"/>
-                            <Setter Property="Padding" Value="20"/>
                             <Setter Property="Visibility" Value="Collapsed"/>
                             <Style.Triggers>
                                 <MultiDataTrigger>
@@ -214,14 +204,24 @@
                         </Style>
                     </Border.Style>
                     <StackPanel HorizontalAlignment="Center">
-                        <TextBlock Text="📋" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                        <TextBlock Text="No transactions found" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Try adjusting your filters or date range" FontSize="14" Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="📋" 
+                                   FontSize="48" 
+                                   HorizontalAlignment="Center" 
+                                   Margin="0,0,0,15"/>
+                        <TextBlock Text="No transactions found" 
+                                   FontSize="16" 
+                                   FontWeight="SemiBold" 
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,8"/>
+                        <TextBlock Text="Try adjusting your filters" 
+                                   FontSize="14" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" 
+                                   HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
-                <ItemsControl ItemsSource="{Binding FilteredTransactions}" 
-                              ScrollViewer.CanContentScroll="False">
+                <!-- Transaction Items -->
+                <ItemsControl ItemsSource="{Binding FilteredTransactions}">
                     <ItemsControl.Style>
                         <Style TargetType="ItemsControl">
                             <Setter Property="Visibility" Value="Visible"/>
@@ -246,22 +246,28 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBlock FontSize="16" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,15,0">
+                                    <!-- Transaction ID and Status -->
+                                    <StackPanel Grid.Column="0" 
+                                                Orientation="Horizontal" 
+                                                VerticalAlignment="Center">
+                                        <TextBlock FontSize="16" 
+                                                   FontWeight="Bold" 
+                                                   Foreground="{StaticResource AccentBrush}" 
+                                                   Margin="0,0,15,0">
                                             <Run Text="#"/>
-                                            <Run Text="{Binding TransactionId}"/>
+                                            <Run Text="{Binding TransactionId, FallbackValue=0}"/>
                                         </TextBlock>
-                                        <Border Background="{StaticResource AccentBrush}" CornerRadius="12" Padding="8,2" Margin="0,0,10,0">
-                                            <TextBlock Text="{Binding TransactionType}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                        </Border>
-                                        <Border CornerRadius="12" Padding="8,2">
-                                            <Border.Background>
-                                                <SolidColorBrush Color="{Binding Status, Converter={StaticResource StatusToColorConverter}}"/>
-                                            </Border.Background>
-                                            <TextBlock Text="{Binding Status}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
+                                        <Border Background="{StaticResource AccentBrush}" 
+                                                CornerRadius="12" 
+                                                Padding="8,4">
+                                            <TextBlock Text="{Binding TransactionType, FallbackValue='Sale'}" 
+                                                       Foreground="White" 
+                                                       FontSize="10" 
+                                                       FontWeight="SemiBold"/>
                                         </Border>
                                     </StackPanel>
 
+                                    <!-- Transaction Details -->
                                     <StackPanel Grid.Column="1" Margin="20,0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -271,31 +277,52 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Customer" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                <TextBlock Text="{Binding CustomerName}" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock Text="Customer" 
+                                                           FontSize="11" 
+                                                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                <TextBlock Text="{Binding CustomerName, FallbackValue='Walk-in'}" 
+                                                           FontWeight="SemiBold" 
+                                                           FontSize="13"/>
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="1">
-                                                <TextBlock Text="Cashier" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                <TextBlock Text="{Binding CashierName}" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock Text="Cashier" 
+                                                           FontSize="11" 
+                                                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                <TextBlock Text="{Binding CashierName, FallbackValue='Unknown'}" 
+                                                           FontWeight="SemiBold" 
+                                                           FontSize="13"/>
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2">
-                                                <TextBlock Text="Date" FontSize="11" Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                <TextBlock Text="{Binding TransactionDate, StringFormat='MMM dd, yyyy HH:mm'}" FontWeight="SemiBold" FontSize="13"/>
+                                                <TextBlock Text="Date" 
+                                                           FontSize="11" 
+                                                           Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                <TextBlock Text="{Binding TransactionDate, StringFormat='MMM dd, yyyy HH:mm'}" 
+                                                           FontWeight="SemiBold" 
+                                                           FontSize="13"/>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
 
-                                    <TextBlock Grid.Column="2" Text="{Binding TotalAmount, StringFormat=C}" FontSize="18" FontWeight="Bold" 
-                                               Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center" Margin="0,0,20,0"/>
+                                    <!-- Transaction Amount -->
+                                    <TextBlock Grid.Column="2" 
+                                               Text="{Binding TotalAmount, StringFormat=C, FallbackValue=$0.00}" 
+                                               FontSize="18" 
+                                               FontWeight="Bold" 
+                                               Foreground="{StaticResource SuccessBrush}" 
+                                               VerticalAlignment="Center" 
+                                               Margin="0,0,20,0"/>
 
-                                    <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <!-- Action Buttons -->
+                                    <StackPanel Grid.Column="3" 
+                                                Orientation="Horizontal" 
+                                                VerticalAlignment="Center">
                                         <Button Content="Details" 
                                                 Command="{Binding DataContext.ViewTransactionDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 Style="{StaticResource LightIconButtonStyle}" 
-                                                Margin="0,0,5,0"/>
+                                                Margin="0,0,8,0"/>
                                         <Button Content="Delete" 
                                                 Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"

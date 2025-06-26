@@ -10,7 +10,6 @@ using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.WPF.Commands;
 using QuickTechSystems.WPF.ViewModels;
 using QuickTechSystems.Views;
-using System.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 
@@ -21,36 +20,26 @@ namespace QuickTechSystems.ViewModels.Transaction
         private readonly ITransactionService _transactionService;
         private readonly IEmployeeService _employeeService;
         private readonly IServiceProvider _serviceProvider;
-        private readonly Dictionary<string, SemaphoreSlim> _operationLocks;
-        private readonly Queue<Func<Task>> _operationQueue;
-        private readonly SemaphoreSlim _queueProcessorLock;
-        private volatile bool _isDataLoaded = false;
+        private readonly SemaphoreSlim _dataLock;
+        private readonly CancellationTokenSource _cancellationTokenSource;
+        private volatile bool _isDisposed = false;
 
-        private ObservableCollection<ExtendedTransactionDTO> _transactions;
+        private ObservableCollection<ExtendedTransactionDTO> _allTransactions;
         private ObservableCollection<ExtendedTransactionDTO> _filteredTransactions;
         private ObservableCollection<EmployeeDTO> _employees;
-        private Dictionary<string, decimal> _employeePerformance;
-
         private ExtendedTransactionDTO? _selectedTransaction;
-        private string _searchText = string.Empty;
-        private DateTime _startDate = DateTime.Today.AddDays(-365);
-        private DateTime _endDate = DateTime.Today.AddDays(1);
         private string? _selectedEmployeeId;
-        private TransactionType? _selectedTransactionType;
-        private TransactionStatus? _selectedTransactionStatus;
+        private string? _selectedTransactionType;
         private decimal _totalSalesAmount;
         private bool _isLoading;
-        private bool _showFilters;
-
-        private bool _isPopupVisible;
-        private object? _popupContent;
         private TransactionDetailsPopupViewModel? _currentPopupViewModel;
 
-        public ObservableCollection<ExtendedTransactionDTO> Transactions
+        private static readonly Dictionary<string, Func<ExtendedTransactionDTO, bool>> TransactionTypeFilters = new()
         {
-            get => _transactions;
-            set => SetProperty(ref _transactions, value);
-        }
+            { "All Types", _ => true },
+            { "Sale", t => t.TransactionType == TransactionType.Sale && !IsDebtTransaction(t) },
+            { "By Dept", t => t.TransactionType == TransactionType.Sale && IsDebtTransaction(t) }
+        };
 
         public ObservableCollection<ExtendedTransactionDTO> FilteredTransactions
         {
@@ -64,59 +53,10 @@ namespace QuickTechSystems.ViewModels.Transaction
             set => SetProperty(ref _employees, value);
         }
 
-        public Dictionary<string, decimal> EmployeePerformance
-        {
-            get => _employeePerformance;
-            set => SetProperty(ref _employeePerformance, value);
-        }
-
         public ExtendedTransactionDTO? SelectedTransaction
         {
             get => _selectedTransaction;
-            set
-            {
-                if (SetProperty(ref _selectedTransaction, value))
-                {
-                    OnPropertyChanged(nameof(IsTransactionSelected));
-                    OnPropertyChanged(nameof(CanDeleteTransaction));
-                }
-            }
-        }
-
-        public string SearchText
-        {
-            get => _searchText;
-            set
-            {
-                if (SetProperty(ref _searchText, value))
-                {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
-                }
-            }
-        }
-
-        public DateTime StartDate
-        {
-            get => _startDate;
-            set
-            {
-                if (SetProperty(ref _startDate, value))
-                {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
-                }
-            }
-        }
-
-        public DateTime EndDate
-        {
-            get => _endDate;
-            set
-            {
-                if (SetProperty(ref _endDate, value))
-                {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
-                }
-            }
+            set => SetProperty(ref _selectedTransaction, value);
         }
 
         public string? SelectedEmployeeId
@@ -126,31 +66,19 @@ namespace QuickTechSystems.ViewModels.Transaction
             {
                 if (SetProperty(ref _selectedEmployeeId, value))
                 {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
+                    _ = ApplyFiltersAsync();
                 }
             }
         }
 
-        public TransactionType? SelectedTransactionType
+        public string? SelectedTransactionType
         {
             get => _selectedTransactionType;
             set
             {
                 if (SetProperty(ref _selectedTransactionType, value))
                 {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
-                }
-            }
-        }
-
-        public TransactionStatus? SelectedTransactionStatus
-        {
-            get => _selectedTransactionStatus;
-            set
-            {
-                if (SetProperty(ref _selectedTransactionStatus, value))
-                {
-                    _ = Task.Run(async () => await ApplyFiltersAsync());
+                    _ = ApplyFiltersAsync();
                 }
             }
         }
@@ -167,38 +95,14 @@ namespace QuickTechSystems.ViewModels.Transaction
             set => SetProperty(ref _isLoading, value);
         }
 
-        public bool ShowFilters
-        {
-            get => _showFilters;
-            set => SetProperty(ref _showFilters, value);
-        }
+        public bool CanExecuteCommands => !IsLoading && !_isDisposed;
 
-        public bool IsPopupVisible
-        {
-            get => _isPopupVisible;
-            set => SetProperty(ref _isPopupVisible, value);
-        }
-
-        public object? PopupContent
-        {
-            get => _popupContent;
-            set => SetProperty(ref _popupContent, value);
-        }
-
-        public bool IsTransactionSelected => SelectedTransaction != null;
-        public bool CanDeleteTransaction => IsTransactionSelected;
-
-        public Array TransactionTypes => Enum.GetValues(typeof(TransactionType));
-        public Array TransactionStatuses => Enum.GetValues(typeof(TransactionStatus));
+        public List<string> TransactionTypes => new() { "All Types", "Sale", "By Dept" };
 
         public ICommand LoadDataCommand { get; }
-        public ICommand ApplyFiltersCommand { get; }
         public ICommand ClearFiltersCommand { get; }
-        public ICommand ToggleFiltersCommand { get; }
         public ICommand ViewTransactionDetailsCommand { get; }
         public ICommand DeleteTransactionCommand { get; }
-        public ICommand RefreshEmployeePerformanceCommand { get; }
-        public ICommand ExportTransactionsCommand { get; }
 
         public TransactionHistoryViewModel(
             ITransactionService transactionService,
@@ -208,147 +112,123 @@ namespace QuickTechSystems.ViewModels.Transaction
             IDbContextScopeService dbContextScopeService)
             : base(eventAggregator, dbContextScopeService)
         {
-            _transactionService = transactionService;
-            _employeeService = employeeService;
-            _serviceProvider = serviceProvider;
+            _transactionService = transactionService ?? throw new ArgumentNullException(nameof(transactionService));
+            _employeeService = employeeService ?? throw new ArgumentNullException(nameof(employeeService));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
-            _transactions = new ObservableCollection<ExtendedTransactionDTO>();
+            _allTransactions = new ObservableCollection<ExtendedTransactionDTO>();
             _filteredTransactions = new ObservableCollection<ExtendedTransactionDTO>();
             _employees = new ObservableCollection<EmployeeDTO>();
-            _employeePerformance = new Dictionary<string, decimal>();
-            _operationLocks = new Dictionary<string, SemaphoreSlim>();
-            _operationQueue = new Queue<Func<Task>>();
-            _queueProcessorLock = new SemaphoreSlim(1, 1);
+            _dataLock = new SemaphoreSlim(1, 1);
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            LoadDataCommand = new RelayCommand(async _ => await LoadDataAsync());
-            ApplyFiltersCommand = new RelayCommand(async _ => await ApplyFiltersAsync());
-            ClearFiltersCommand = new RelayCommand(async _ => await ClearFiltersAsync());
-            ToggleFiltersCommand = new RelayCommand(_ => ShowFilters = !ShowFilters);
-            ViewTransactionDetailsCommand = new RelayCommand(async parameter => await OpenTransactionDetailsPopupAsync(parameter));
-            DeleteTransactionCommand = new RelayCommand(async parameter => await DeleteTransactionAsync(parameter));
-            RefreshEmployeePerformanceCommand = new RelayCommand(async _ => await LoadEmployeePerformanceAsync());
-            ExportTransactionsCommand = new RelayCommand(async _ => await ExportTransactionsAsync());
+            LoadDataCommand = new RelayCommand(async _ => await LoadDataAsync(), _ => CanExecuteCommands);
+            ClearFiltersCommand = new RelayCommand(ClearFilters, _ => CanExecuteCommands);
+            ViewTransactionDetailsCommand = new RelayCommand(async parameter => await OpenTransactionDetailsAsync(parameter), CanExecuteTransactionCommand);
+            DeleteTransactionCommand = new RelayCommand(async parameter => await DeleteTransactionAsync(parameter), CanExecuteTransactionCommand);
 
-            InitializeOperationLocks();
-        }
-
-        private void InitializeOperationLocks()
-        {
-            var lockNames = new[] { "LoadData", "ApplyFilters", "DeleteTransaction", "PopupManagement" };
-            foreach (var lockName in lockNames)
-            {
-                _operationLocks[lockName] = new SemaphoreSlim(1, 1);
-            }
+            SelectedTransactionType = "All Types";
         }
 
         protected override async Task LoadDataImplementationAsync()
         {
-            await _operationLocks["LoadData"].WaitAsync();
+            if (_isDisposed) return;
+
+            await _dataLock.WaitAsync(_cancellationTokenSource.Token);
             try
             {
                 IsLoading = true;
-                Debug.WriteLine("Starting to load transaction history data...");
 
-                await LoadTransactionsDirectlyAsync();
-                await LoadEmployeesAsync();
-                await LoadEmployeePerformanceAsync();
-                await CalculateTotalSalesAsync();
+                var (transactions, employees) = await Task.WhenAll(
+                    LoadTransactionsAsync(),
+                    LoadEmployeesAsync()
+                );
 
-                _isDataLoaded = true;
-                Debug.WriteLine($"Loaded {Transactions.Count} transactions successfully");
-
-                await ApplyFiltersAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in LoadDataImplementationAsync: {ex}");
-                await HandleExceptionAsync("Error loading transaction history data", ex);
-            }
-            finally
-            {
-                IsLoading = false;
-                _operationLocks["LoadData"].Release();
-            }
-        }
-
-        private async Task LoadTransactionsDirectlyAsync()
-        {
-            try
-            {
-                Debug.WriteLine("Loading transactions from database...");
-
-                var transactions = await ExecuteDbOperationAsync(
-                    () => _transactionService.GetAllAsync(),
-                    "Loading transactions");
-
-                Debug.WriteLine($"Retrieved {transactions.Count()} transactions from service");
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                await UpdateUIAsync(() =>
                 {
-                    Transactions.Clear();
-                    foreach (var transaction in transactions)
+                    _allTransactions.Clear();
+                    foreach (var transaction in transactions ?? Enumerable.Empty<ExtendedTransactionDTO>())
                     {
-                        try
-                        {
-                            var extendedTransaction = (ExtendedTransactionDTO)transaction;
-                            Transactions.Add(extendedTransaction);
-                            Debug.WriteLine($"Added transaction {transaction.TransactionId}: {transaction.CustomerName}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Error converting transaction {transaction.TransactionId}: {ex.Message}");
-                        }
+                        _allTransactions.Add(transaction);
                     }
-                    Debug.WriteLine($"Total transactions in collection: {Transactions.Count}");
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in LoadTransactionsDirectlyAsync: {ex}");
-                throw;
-            }
-        }
 
-        private async Task LoadEmployeesAsync()
-        {
-            try
-            {
-                var employees = await ExecuteDbOperationAsync(
-                    () => _employeeService.GetAllAsync(),
-                    "Loading employees");
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
                     Employees.Clear();
                     Employees.Add(new EmployeeDTO { EmployeeId = 0, FirstName = "All", LastName = "Employees" });
-                    foreach (var employee in employees.Where(e => e.IsActive))
+                    foreach (var employee in employees?.Where(e => e.IsActive) ?? Enumerable.Empty<EmployeeDTO>())
                     {
                         Employees.Add(employee);
                     }
                 });
+
+                await ApplyFiltersAsync();
+                await CalculateTotalSalesAsync();
+            }
+            finally
+            {
+                IsLoading = false;
+                _dataLock.Release();
+            }
+        }
+
+        private async Task<IEnumerable<ExtendedTransactionDTO>?> LoadTransactionsAsync()
+        {
+            try
+            {
+                var transactions = await ExecuteDbOperationAsync(() => _transactionService.GetAllAsync(), "Loading transactions");
+                return transactions?.Select(t => (ExtendedTransactionDTO)t);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading transactions: {ex}");
+                return null;
+            }
+        }
+
+        private async Task<IEnumerable<EmployeeDTO>?> LoadEmployeesAsync()
+        {
+            try
+            {
+                return await ExecuteDbOperationAsync(() => _employeeService.GetAllAsync(), "Loading employees");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error loading employees: {ex}");
+                return null;
             }
         }
 
-        private async Task LoadEmployeePerformanceAsync()
+        private async Task ApplyFiltersAsync()
         {
+            if (_isDisposed || _allTransactions == null) return;
+
             try
             {
-                var performance = await ExecuteDbOperationAsync(
-                    () => _transactionService.GetEmployeePerformanceAsync(StartDate, EndDate),
-                    "Loading employee performance");
+                var filtered = _allTransactions.AsEnumerable();
 
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                if (!string.IsNullOrEmpty(SelectedEmployeeId) && SelectedEmployeeId != "0")
                 {
-                    EmployeePerformance = performance;
+                    filtered = filtered.Where(t => t.CashierId == SelectedEmployeeId);
+                }
+
+                if (!string.IsNullOrEmpty(SelectedTransactionType) && TransactionTypeFilters.ContainsKey(SelectedTransactionType))
+                {
+                    filtered = filtered.Where(TransactionTypeFilters[SelectedTransactionType]);
+                }
+
+                var result = filtered.OrderByDescending(t => t.TransactionDate).ToList();
+
+                await UpdateUIAsync(() =>
+                {
+                    FilteredTransactions.Clear();
+                    foreach (var transaction in result)
+                    {
+                        FilteredTransactions.Add(transaction);
+                    }
                 });
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error loading employee performance: {ex}");
+                Debug.WriteLine($"Error applying filters: {ex}");
             }
         }
 
@@ -356,14 +236,8 @@ namespace QuickTechSystems.ViewModels.Transaction
         {
             try
             {
-                var totalSales = await ExecuteDbOperationAsync(
-                    () => _transactionService.GetTotalSalesAmountAsync(StartDate, EndDate),
-                    "Calculating total sales");
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    TotalSalesAmount = totalSales;
-                });
+                var totalSales = await ExecuteDbOperationAsync(() => _transactionService.GetTotalSalesAmountAsync(null, null), "Calculating total sales");
+                await UpdateUIAsync(() => TotalSalesAmount = totalSales);
             }
             catch (Exception ex)
             {
@@ -371,138 +245,32 @@ namespace QuickTechSystems.ViewModels.Transaction
             }
         }
 
-        private async Task ApplyFiltersAsync()
+        private void ClearFilters(object? parameter)
         {
-            if (!_isDataLoaded)
-            {
-                Debug.WriteLine("Skipping ApplyFilters - data not loaded yet");
-                return;
-            }
-
-            await _operationLocks["ApplyFilters"].WaitAsync();
-            try
-            {
-                Debug.WriteLine($"Applying filters - Total transactions: {Transactions.Count}");
-                Debug.WriteLine($"Date range: {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}");
-
-                var filteredList = new List<ExtendedTransactionDTO>();
-
-                foreach (var transaction in Transactions)
-                {
-                    bool includeTransaction = true;
-
-                    if (transaction.TransactionDate.Date < StartDate.Date || transaction.TransactionDate.Date > EndDate.Date)
-                    {
-                        includeTransaction = false;
-                    }
-
-                    if (includeTransaction && !string.IsNullOrEmpty(SelectedEmployeeId) && SelectedEmployeeId != "0")
-                    {
-                        if (transaction.CashierId != SelectedEmployeeId)
-                        {
-                            includeTransaction = false;
-                        }
-                    }
-
-                    if (includeTransaction && SelectedTransactionType.HasValue)
-                    {
-                        if (transaction.TransactionType != SelectedTransactionType.Value)
-                        {
-                            includeTransaction = false;
-                        }
-                    }
-
-                    if (includeTransaction && SelectedTransactionStatus.HasValue)
-                    {
-                        if (transaction.Status != SelectedTransactionStatus.Value)
-                        {
-                            includeTransaction = false;
-                        }
-                    }
-
-                    if (includeTransaction && !string.IsNullOrWhiteSpace(SearchText))
-                    {
-                        var searchLower = SearchText.ToLower();
-                        if (!transaction.CustomerName.ToLower().Contains(searchLower) &&
-                            !transaction.CashierName.ToLower().Contains(searchLower) &&
-                            !transaction.PaymentMethod.ToLower().Contains(searchLower) &&
-                            !transaction.TransactionId.ToString().Contains(SearchText))
-                        {
-                            includeTransaction = false;
-                        }
-                    }
-
-                    if (includeTransaction)
-                    {
-                        filteredList.Add(transaction);
-                    }
-                }
-
-                Debug.WriteLine($"Filtered to {filteredList.Count} transactions");
-
-                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    FilteredTransactions.Clear();
-                    foreach (var transaction in filteredList.OrderByDescending(t => t.TransactionDate))
-                    {
-                        FilteredTransactions.Add(transaction);
-                    }
-                });
-
-                await CalculateTotalSalesAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in ApplyFiltersAsync: {ex}");
-                await HandleExceptionAsync("Error applying filters", ex);
-            }
-            finally
-            {
-                _operationLocks["ApplyFilters"].Release();
-            }
+            SelectedEmployeeId = null;
+            SelectedTransactionType = "All Types";
         }
 
-        private async Task ClearFiltersAsync()
+        private async Task OpenTransactionDetailsAsync(object? parameter)
         {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-            {
-                SearchText = string.Empty;
-                StartDate = DateTime.Today.AddDays(-365);
-                EndDate = DateTime.Today.AddDays(1);
-                SelectedEmployeeId = null;
-                SelectedTransactionType = null;
-                SelectedTransactionStatus = null;
-            });
+            if (parameter is not ExtendedTransactionDTO transaction || _isDisposed) return;
 
-            await ApplyFiltersAsync();
-        }
-
-        private async Task OpenTransactionDetailsPopupAsync(object? parameter)
-        {
-            if (parameter is not ExtendedTransactionDTO transaction) return;
-
-            await _operationLocks["PopupManagement"].WaitAsync();
             try
             {
-                // Always create new instances to avoid disposed object issues
                 var popupViewModel = ActivatorUtilities.CreateInstance<TransactionDetailsPopupViewModel>(_serviceProvider);
-                var popupWindow = new TransactionDetailsPopup();
-
-                popupWindow.DataContext = popupViewModel;
-                popupWindow.Owner = System.Windows.Application.Current.MainWindow;
+                var popupWindow = new TransactionDetailsPopup
+                {
+                    DataContext = popupViewModel,
+                    Owner = System.Windows.Application.Current.MainWindow
+                };
 
                 popupViewModel.SetView(popupWindow);
+                popupViewModel.RequestClose += (_, _) => SafeCloseWindow(popupWindow);
+                popupViewModel.TransactionChanged += async (_, args) => await RefreshDataAfterChange(args.TransactionId);
 
-                // Setup event handlers
-                popupViewModel.RequestClose += (sender, args) => popupWindow.Close();
-                popupViewModel.TransactionChanged += async (sender, args) => await RefreshTransactionDataAsync(args.TransactionId);
-
-                // Initialize the popup
                 await popupViewModel.InitializeAsync(transaction);
-
                 _currentPopupViewModel = popupViewModel;
 
-                // Show dialog and clean up after it closes
                 popupWindow.ShowDialog();
             }
             catch (Exception ex)
@@ -511,57 +279,32 @@ namespace QuickTechSystems.ViewModels.Transaction
             }
             finally
             {
-                // Clean up after dialog closes
                 _currentPopupViewModel?.Dispose();
                 _currentPopupViewModel = null;
-                _operationLocks["PopupManagement"].Release();
-            }
-        }
-        private void ClosePopup()
-        {
-            IsPopupVisible = false;
-            PopupContent = null;
-            _currentPopupViewModel?.Dispose();
-            _currentPopupViewModel = null;
-        }
-
-        private async Task RefreshTransactionDataAsync(int transactionId)
-        {
-            try
-            {
-                await LoadDataAsync();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error refreshing transaction data: {ex}");
             }
         }
 
         private async Task DeleteTransactionAsync(object? parameter)
         {
-            if (parameter is not ExtendedTransactionDTO transaction) return;
+            if (parameter is not ExtendedTransactionDTO transaction || _isDisposed) return;
 
             var result = MessageBox.Show(
-                $"Are you sure you want to delete Transaction #{transaction.TransactionId}?\n\n" +
-                "This will permanently remove the transaction and restock all sold items.",
+                $"Are you sure you want to delete Transaction #{transaction.TransactionId}?\n\nThis will permanently remove the transaction and restock all sold items.",
                 "Confirm Deletion",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning);
 
             if (result != MessageBoxResult.Yes) return;
 
-            await _operationLocks["DeleteTransaction"].WaitAsync();
             try
             {
-                var success = await ExecuteDbOperationAsync(
-                    () => _transactionService.DeleteTransactionWithRestockAsync(transaction.TransactionId),
-                    "Deleting transaction");
+                IsLoading = true;
+                var success = await ExecuteDbOperationAsync(() => _transactionService.DeleteTransactionWithRestockAsync(transaction.TransactionId), "Deleting transaction");
 
                 if (success)
                 {
                     await ShowSuccessMessage("Transaction deleted successfully and items restocked!");
                     SelectedTransaction = null;
-                    await Task.Delay(100);
                     await LoadDataAsync();
                 }
                 else
@@ -575,76 +318,135 @@ namespace QuickTechSystems.ViewModels.Transaction
             }
             finally
             {
-                _operationLocks["DeleteTransaction"].Release();
+                IsLoading = false;
             }
         }
 
-        private async Task ExportTransactionsAsync()
+        private async Task RefreshDataAfterChange(int transactionId)
         {
-            ShowTemporaryErrorMessage("Export functionality coming soon!");
-            await Task.CompletedTask;
+            try
+            {
+                await LoadDataAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error refreshing data: {ex}");
+            }
         }
 
         protected override void SubscribeToEvents()
         {
-            _eventAggregator.Subscribe<EntityChangedEvent<TransactionDTO>>(OnTransactionChanged);
+            _eventAggregator?.Subscribe<EntityChangedEvent<TransactionDTO>>(OnTransactionChanged);
         }
 
         protected override void UnsubscribeFromEvents()
         {
-            _eventAggregator.Unsubscribe<EntityChangedEvent<TransactionDTO>>(OnTransactionChanged);
+            _eventAggregator?.Unsubscribe<EntityChangedEvent<TransactionDTO>>(OnTransactionChanged);
         }
 
         private async void OnTransactionChanged(EntityChangedEvent<TransactionDTO> evt)
         {
-            await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+            if (_isDisposed || evt?.Entity == null) return;
+
+            try
             {
-                switch (evt.Action)
+                await UpdateUIAsync(async () =>
                 {
-                    case "Create":
-                        if (!Transactions.Any(t => t.TransactionId == evt.Entity.TransactionId))
-                        {
-                            var extendedTransaction = (ExtendedTransactionDTO)evt.Entity;
-                            Transactions.Insert(0, extendedTransaction);
-                        }
-                        break;
+                    var extendedTransaction = (ExtendedTransactionDTO)evt.Entity;
 
-                    case "Update":
-                        var existingTransaction = Transactions.FirstOrDefault(t => t.TransactionId == evt.Entity.TransactionId);
-                        if (existingTransaction != null)
-                        {
-                            var index = Transactions.IndexOf(existingTransaction);
-                            var extendedTransaction = (ExtendedTransactionDTO)evt.Entity;
-                            Transactions[index] = extendedTransaction;
-                        }
-                        break;
+                    switch (evt.Action)
+                    {
+                        case "Create":
+                            if (!_allTransactions.Any(t => t.TransactionId == evt.Entity.TransactionId))
+                            {
+                                _allTransactions.Insert(0, extendedTransaction);
+                            }
+                            break;
 
-                    case "Delete":
-                        var transactionToRemove = Transactions.FirstOrDefault(t => t.TransactionId == evt.Entity.TransactionId);
-                        if (transactionToRemove != null)
-                        {
-                            Transactions.Remove(transactionToRemove);
-                        }
-                        break;
+                        case "Update":
+                            var existingIndex = _allTransactions.ToList().FindIndex(t => t.TransactionId == evt.Entity.TransactionId);
+                            if (existingIndex >= 0)
+                            {
+                                _allTransactions[existingIndex] = extendedTransaction;
+                            }
+                            break;
+
+                        case "Delete":
+                            var toRemove = _allTransactions.FirstOrDefault(t => t.TransactionId == evt.Entity.TransactionId);
+                            if (toRemove != null)
+                            {
+                                _allTransactions.Remove(toRemove);
+                            }
+                            break;
+                    }
+
+                    await ApplyFiltersAsync();
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error handling transaction changed event: {ex}");
+            }
+        }
+
+        private async Task UpdateUIAsync(Action action)
+        {
+            if (_isDisposed) return;
+
+            try
+            {
+                if (System.Windows.Application.Current?.Dispatcher != null)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(action);
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error updating UI: {ex}");
+            }
+        }
 
-                await ApplyFiltersAsync();
-            });
+        private static void SafeCloseWindow(Window? window)
+        {
+            try
+            {
+                window?.Close();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error closing window: {ex}");
+            }
+        }
+
+        private bool CanExecuteTransactionCommand(object? parameter)
+        {
+            return parameter is ExtendedTransactionDTO && CanExecuteCommands;
+        }
+
+        private static bool IsDebtTransaction(ExtendedTransactionDTO transaction)
+        {
+            return string.Equals(transaction.PaymentMethod, "debt", StringComparison.OrdinalIgnoreCase);
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !_isDisposed)
             {
-                ClosePopup();
+                _isDisposed = true;
 
-                foreach (var lockPair in _operationLocks)
+                try
                 {
-                    lockPair.Value?.Dispose();
+                    _cancellationTokenSource?.Cancel();
+                    _currentPopupViewModel?.Dispose();
+                    _dataLock?.Dispose();
+                    _cancellationTokenSource?.Dispose();
                 }
-                _operationLocks.Clear();
-                _queueProcessorLock?.Dispose();
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error during disposal: {ex}");
+                }
             }
+
             base.Dispose(disposing);
         }
     }
