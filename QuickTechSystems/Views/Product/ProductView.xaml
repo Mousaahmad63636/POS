@@ -3,8 +3,99 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/design/blend/2008"
+             xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
              mc:Ignorable="d" 
-             d:DesignHeight="800" d:DesignWidth="1200">
+             d:DesignHeight="800" d:DesignWidth="1400">
+
+    <UserControl.Resources>
+        <!-- Converters -->
+        <local:LowStockConverter x:Key="LowStockConverter"/>
+        <local:ProductIdToTitleConverter x:Key="ProductIdToTitleConverter"/>
+        <local:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
+        <local:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <local:DecimalConverter x:Key="DecimalConverter"/>
+
+        <!-- Tab Button Style -->
+        <Style x:Key="TabButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="Margin" Value="0,0,1,0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6,6,0,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Active Tab Button Style -->
+        <Style x:Key="ActiveTabButtonStyle" TargetType="Button" BasedOn="{StaticResource TabButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- Stock Status Converter -->
+        <Style x:Key="StockStatusStyle" TargetType="TextBlock">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CurrentStock}" Value="0">
+                    <Setter Property="Foreground" Value="#DC2626"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+                <DataTrigger Value="True">
+                    <DataTrigger.Binding>
+                        <MultiBinding>
+                            <MultiBinding.Converter>
+                                <local:LowStockConverter/>
+                            </MultiBinding.Converter>
+                            <Binding Path="CurrentStock"/>
+                            <Binding Path="MinimumStock"/>
+                        </MultiBinding>
+                    </DataTrigger.Binding>
+                    <Setter Property="Foreground" Value="#D97706"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+            <Setter Property="Foreground" Value="#059669"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+        <!-- Product List Item Style -->
+        <Style x:Key="ProductListItemStyle" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="#EBF4FF"/>
+                    <Setter Property="BorderThickness" Value="4,0,0,1"/>
+                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
 
     <Grid Background="{StaticResource PrimaryBackgroundBrush}">
         <Grid.RowDefinitions>
@@ -12,67 +103,62 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" 
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" 
-                Padding="20">
+                Padding="24,20">
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="Product Management" FontSize="24" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="0" Text="Product Management" FontSize="24" FontWeight="Bold" 
+                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,32,0"/>
 
-                    <TextBox Width="250" Margin="30,0,0,0" VerticalAlignment="Center"
-                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="14" Padding="8" Height="36">
-                        <TextBox.Style>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="TextBox">
-                                            <Border Background="{StaticResource SurfaceBrush}"
-                                                    BorderBrush="{StaticResource BorderBrush}"
-                                                    BorderThickness="1" CornerRadius="4">
-                                                <Grid>
-                                                    <TextBlock Text="Search products..." 
-                                                               Foreground="{StaticResource TextTertiaryBrush}"
-                                                               Margin="8,0" VerticalAlignment="Center"
-                                                               Visibility="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource StringToVisibilityConverter}}"/>
-                                                    <ScrollViewer x:Name="PART_ContentHost" Margin="8,0"/>
-                                                </Grid>
-                                            </Border>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </TextBox.Style>
-                    </TextBox>
+                <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}" 
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                        CornerRadius="8" Width="320" Height="40">
+                    <Grid>
+                        <TextBlock Text="🔍" FontSize="16" Margin="12,0,0,0" VerticalAlignment="Center" 
+                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 Background="Transparent" BorderThickness="0" 
+                                 Margin="40,0,12,0" VerticalAlignment="Center"
+                                 FontSize="14" Foreground="{StaticResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Search products by name or barcode..." 
+                                   Margin="40,0,12,0" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="14"
+                                   IsHitTestVisible="False"
+                                   Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}}"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                    <Button Content="➕ Add Product" 
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Command="{Binding AddProductCommand}" 
+                            Height="40" Width="140" FontWeight="Medium" Margin="0,0,12,0"/>
+                    <Button Content="🔄 Refresh" 
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding RefreshCommand}" 
+                            Height="40" Width="100"/>
                 </StackPanel>
-
-                <Button Grid.Column="1" Content="Add Product" 
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Command="{Binding AddProductCommand}" 
-                        Margin="0,0,10,0" Height="36" Width="120"/>
-
-                <Button Grid.Column="2" Content="Refresh" 
-                        Style="{StaticResource SecondaryButtonStyle}"
-                        Command="{Binding RefreshCommand}" 
-                        Height="36" Width="80"/>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" Margin="20">
+        <!-- Main Content -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*"/>
-                <ColumnDefinition Width="20"/>
-                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="2*" MaxWidth="600"/>
+                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="3*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+            <!-- Product List - Left Panel -->
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="24,16,0,24">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -80,119 +166,172 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="{StaticResource HoverBrush}" 
-                            Padding="16,12" BorderBrush="{StaticResource BorderBrush}" 
+                            Padding="20,16" BorderBrush="{StaticResource BorderBrush}" 
                             BorderThickness="0,0,0,1">
-                        <TextBlock Text="Products" FontSize="16" FontWeight="SemiBold" 
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                        <Grid>
+                            <TextBlock FontSize="18" FontWeight="SemiBold" 
+                                       Foreground="{StaticResource TextSecondaryBrush}">
+                                <Run Text="Products"/>
+                                <Run Text=" (" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                <Run Text="{Binding Products.Count, Mode=OneWay}" Foreground="{StaticResource AccentBrush}"/>
+                                <Run Text=")" Foreground="{StaticResource TextTertiaryBrush}"/>
+                            </TextBlock>
+                        </Grid>
                     </Border>
 
-                    <DataGrid Grid.Row="1" ItemsSource="{Binding Products}"
-                              SelectedItem="{Binding SelectedProduct}"
-                              Style="{StaticResource ModernDataGridStyle}"
-                              AutoGenerateColumns="False" IsReadOnly="True"
-                              GridLinesVisibility="Horizontal" HeadersVisibility="Column">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="200"/>
-                            <DataGridTextColumn Header="Barcode" Binding="{Binding Barcode}" Width="120"/>
-                            <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="120"/>
-                            <DataGridTextColumn Header="Stock" Binding="{Binding CurrentStock}" Width="80"/>
-                            <DataGridTextColumn Header="Storehouse" Binding="{Binding Storehouse}" Width="100"/>
-                            <DataGridTextColumn Header="Purchase Price" Binding="{Binding PurchasePrice, StringFormat=C}" Width="120"/>
-                            <DataGridTextColumn Header="Sale Price" Binding="{Binding SalePrice, StringFormat=C}" Width="120"/>
-                            <DataGridCheckBoxColumn Header="Active" Binding="{Binding IsActive}" Width="60"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" 
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Products}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource ProductListItemStyle}">
+                                        <Border.InputBindings>
+                                            <MouseBinding MouseAction="LeftClick" 
+                                                          Command="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.SelectProductCommand}"
+                                                          CommandParameter="{Binding}"/>
+                                        </Border.InputBindings>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <Grid Margin="0,0,0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" 
+                                                               FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextPrimaryBrush}"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <Border Grid.Column="1" Background="#F3F4F6" 
+                                                            CornerRadius="4" Padding="6,2" Margin="8,0,0,0"
+                                                            Visibility="{Binding IsActive, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                                        <TextBlock Text="Inactive" FontSize="10" FontWeight="Medium"
+                                                                   Foreground="#6B7280"/>
+                                                    </Border>
+                                                </Grid>
+
+                                                <TextBlock Margin="0,0,0,8" Foreground="{StaticResource TextTertiaryBrush}" FontSize="13">
+                                                    <Run Text="{Binding Barcode}" FontFamily="Consolas"/>
+                                                    <Run Text=" • "/>
+                                                    <Run Text="{Binding CategoryName}"/>
+                                                </TextBlock>
+
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
+                                                        <TextBlock Text="Stock: " FontSize="12" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="{Binding CurrentStock}" FontSize="12" 
+                                                                   Style="{StaticResource StockStatusStyle}"/>
+                                                    </StackPanel>
+
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                                        <TextBlock Text="Storehouse: " FontSize="12" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="{Binding Storehouse}" FontSize="12" 
+                                                                   FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="16,0,0,0">
+                                                <TextBlock Text="{Binding SalePrice, StringFormat=C}" 
+                                                           FontSize="16" FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimaryBrush}"
+                                                           HorizontalAlignment="Right"/>
+                                                <TextBlock FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"
+                                                           HorizontalAlignment="Right">
+                                                    <Run Text="Cost: "/>
+                                                    <Run Text="{Binding PurchasePrice, StringFormat=C}"/>
+                                                </TextBlock>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </Grid>
             </Border>
 
-            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel Margin="20" Visibility="{Binding IsEditing, Converter={StaticResource BooleanToVisibilityConverter}}">
-                        <TextBlock Text="Product Details" FontSize="18" FontWeight="SemiBold" 
-                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,20"/>
+            <!-- Product Details - Right Panel -->
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}" Margin="0,16,24,24">
+                <Grid>
+                    <!-- Main Content -->
+                    <Grid Visibility="{Binding IsEditing, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                        <!-- Details Header -->
+                        <Border Grid.Row="0" BorderBrush="{StaticResource BorderBrush}" 
+                                BorderThickness="0,0,0,1" Padding="24,20">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Name:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
+                                <TextBlock Grid.Column="0" FontSize="20" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="{}{0}">
+                                            <Binding Path="SelectedProduct.ProductId">
+                                                <Binding.Converter>
+                                                    <local:ProductIdToTitleConverter/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
 
-                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,0,0,10">
-                                <TextBlock Text="Barcode:" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                         Width="150" Padding="8" Height="32" Margin="0,0,10,0"/>
-                                <Button Content="Generate" Command="{Binding GenerateBarcodeCommand}" 
-                                        Style="{StaticResource SecondaryButtonStyle}" Height="32" Width="80"/>
-                            </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button Content="💾 Save" 
+                                            Style="{StaticResource PrimaryButtonStyle}"
+                                            Command="{Binding SaveProductCommand}" 
+                                            Height="36" Width="100" FontWeight="Medium" Margin="0,0,12,0"/>
+                                    <Button Content="🗑️ Delete" 
+                                            Style="{StaticResource SecondaryButtonStyle}"
+                                            Command="{Binding DeleteProductCommand}" 
+                                            Height="36" Width="100"
+                                            Visibility="{Binding SelectedProduct.ProductId, Converter={StaticResource ZeroToVisibilityConverter}}"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Category:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Categories}"
-                                      SelectedValuePath="CategoryId" DisplayMemberPath="Name"
-                                      SelectedValue="{Binding SelectedProduct.CategoryId}"
-                                      Margin="0,0,0,10" Padding="8" Height="32"/>
+                        <!-- Tab Navigation -->
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="24,0,24,0">
+                            <Button x:Name="BasicInfoTab" Content="📝 Basic Info" 
+                                    Style="{StaticResource ActiveTabButtonStyle}"
+                                    Click="TabButton_Click" Tag="BasicInfo"/>
+                            <Button x:Name="PricingTab" Content="💰 Pricing" 
+                                    Style="{StaticResource TabButtonStyle}"
+                                    Click="TabButton_Click" Tag="Pricing"/>
+                            <Button x:Name="InventoryTab" Content="📦 Inventory" 
+                                    Style="{StaticResource TabButtonStyle}"
+                                    Click="TabButton_Click" Tag="Inventory"/>
+                        </StackPanel>
 
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Supplier:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding Suppliers}"
-                                      SelectedValuePath="SupplierId" DisplayMemberPath="Name"
-                                      SelectedValue="{Binding SelectedProduct.SupplierId}"
-                                      Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Invoice:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding SupplierInvoices}"
-                                      SelectedItem="{Binding SelectedSupplierInvoice}"
-                                      DisplayMemberPath="InvoiceNumber"
-                                      Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Purchase Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding SelectedProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Sale Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding SelectedProduct.SalePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="7" Grid.Column="0" Text="Current Stock:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Storehouse:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding SelectedProduct.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="9" Grid.Column="0" Text="Wholesale Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="9" Grid.Column="1" Text="{Binding SelectedProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <TextBlock Grid.Row="10" Grid.Column="0" Text="Minimum Stock:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                            <TextBox Grid.Row="10" Grid.Column="1" Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="32"/>
-
-                            <Border Grid.Row="11" Grid.Column="0" Grid.ColumnSpan="2" Background="{StaticResource HoverBrush}" 
-                                    Padding="10" CornerRadius="4" Margin="0,0,0,10">
-                                <Expander Header="Box Management" IsExpanded="False">
-                                    <Grid Margin="0,10,0,0">
+                        <!-- Tab Content -->
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="24">
+                            <Grid>
+                                <!-- Basic Info Tab -->
+                                <StackPanel x:Name="BasicInfoContent">
+                                    <Grid Margin="0,0,0,24">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
@@ -200,158 +339,427 @@
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
 
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Box Barcode:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding SelectedProduct.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,24">
+                                            <TextBlock Text="Product Name *" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="40" FontSize="14"/>
+                                        </StackPanel>
 
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Items Per Box:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding SelectedProduct.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,24">
+                                            <TextBlock Text="Barcode *" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBox Grid.Column="0" Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                                         Padding="12" Height="40" FontSize="14" FontFamily="Consolas"/>
+                                                <Button Grid.Column="2" Content="🏷️" 
+                                                        Command="{Binding GenerateBarcodeCommand}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Height="40" Width="40" FontSize="16"/>
+                                            </Grid>
+                                        </StackPanel>
 
-                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Number of Boxes:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SelectedProduct.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,24">
+                                            <TextBlock Text="Category *" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <ComboBox ItemsSource="{Binding Categories}"
+                                                      SelectedValuePath="CategoryId" DisplayMemberPath="Name"
+                                                      SelectedValue="{Binding SelectedProduct.CategoryId}"
+                                                      Padding="12" Height="40"/>
+                                        </StackPanel>
 
-                                        <TextBlock Grid.Row="3" Grid.Column="0" Text="Box Purchase Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SelectedProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,24">
+                                            <TextBlock Text="Supplier" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <ComboBox ItemsSource="{Binding Suppliers}"
+                                                      SelectedValuePath="SupplierId" DisplayMemberPath="Name"
+                                                      SelectedValue="{Binding SelectedProduct.SupplierId}"
+                                                      Padding="12" Height="40"/>
+                                        </StackPanel>
 
-                                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Box Sale Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding SelectedProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
+                                            <TextBlock Text="Supplier Invoice" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <ComboBox ItemsSource="{Binding SupplierInvoices}"
+                                                      SelectedItem="{Binding SelectedSupplierInvoice}"
+                                                      DisplayMemberPath="InvoiceNumber"
+                                                      Padding="12" Height="40"/>
+                                        </StackPanel>
 
-                                        <TextBlock Grid.Row="5" Grid.Column="0" Text="Box Wholesale Price:" Margin="0,0,10,10" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding SelectedProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Margin="0,0,0,10" Padding="8" Height="32"/>
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
+                                            <TextBlock Text="Description" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                        </StackPanel>
                                     </Grid>
-                                </Expander>
-                            </Border>
 
-                            <TextBlock Grid.Row="12" Grid.Column="0" Text="Description:" Margin="0,0,10,10" VerticalAlignment="Top"/>
-                            <TextBox Grid.Row="12" Grid.Column="1" Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="0,0,0,10" Padding="8" Height="60" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                    <CheckBox Content="Active Product" 
+                                              IsChecked="{Binding SelectedProduct.IsActive}" 
+                                              FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                </StackPanel>
 
-                            <CheckBox Grid.Row="13" Grid.Column="0" Grid.ColumnSpan="2" Content="Active" 
-                                      IsChecked="{Binding SelectedProduct.IsActive}" Margin="0,0,0,20"/>
-                        </Grid>
+                                <!-- Pricing Tab -->
+                                <StackPanel x:Name="PricingContent" Visibility="Collapsed">
+                                    <Grid Margin="0,0,0,24">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                        <Border Background="{StaticResource HoverBrush}" Padding="15" CornerRadius="6" Margin="0,0,0,20">
-                            <StackPanel>
-                                <TextBlock Text="Transfer from Storehouse" FontWeight="SemiBold" 
-                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Purchase Price" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                    CornerRadius="4" Height="40">
+                                                <Grid>
+                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                               VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    <TextBox Text="{Binding SelectedProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                             Background="Transparent" BorderThickness="0" 
+                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
 
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Sale Price" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                    CornerRadius="4" Height="40">
+                                                <Grid>
+                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                               VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    <TextBox Text="{Binding SelectedProduct.SalePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                             Background="Transparent" BorderThickness="0" 
+                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
 
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                                        <TextBlock Text="Available in Storehouse:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <TextBlock Text="{Binding SelectedProduct.Storehouse}" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="items" Margin="5,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Wholesale Price" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                    CornerRadius="4" Height="40">
+                                                <Grid>
+                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                               VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    <TextBox Text="{Binding SelectedProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                             Background="Transparent" BorderThickness="0" 
+                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                </Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
 
-                                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-                                        <RadioButton Content="Transfer Individual Items" 
-                                                     IsChecked="{Binding IsIndividualTransfer}" 
-                                                     GroupName="TransferType" Margin="0,0,20,0"/>
-                                        <RadioButton Content="Transfer Boxes" 
-                                                     IsChecked="{Binding IsBoxTransfer}" 
-                                                     GroupName="TransferType"/>
-                                    </StackPanel>
-
-                                    <Border Grid.Row="2" Background="{StaticResource SurfaceBrush}" 
-                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                            CornerRadius="4" Padding="10" Margin="0,0,0,10"
-                                            Visibility="{Binding IsIndividualTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <!-- Box Pricing Section -->
+                                    <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderBrush}" 
+                                            BorderThickness="1" CornerRadius="8" Padding="24">
                                         <StackPanel>
-                                            <TextBlock Text="Individual Items Transfer" FontWeight="SemiBold" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,5"/>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Quantity:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                <TextBox Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}" 
-                                                         Width="100" Padding="8" Height="32"/>
-                                                <TextBlock Text="items" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                                            </StackPanel>
+                                            <TextBlock Text="📦 Box Pricing" FontSize="18" FontWeight="SemiBold" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,20"/>
+
+                                            <Grid Margin="0,0,0,20">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Box Barcode" FontWeight="Medium" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="8"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox Grid.Column="0" Text="{Binding SelectedProduct.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                                                                 Padding="12" Height="40" FontSize="14" FontFamily="Consolas"/>
+                                                        <Button Grid.Column="2" Content="🏷️" 
+                                                                Command="{Binding GenerateBarcodeCommand}"
+                                                                CommandParameter="Box"
+                                                                Style="{StaticResource SecondaryButtonStyle}"
+                                                                Height="40" Width="40" FontSize="16"/>
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Items Per Box" FontWeight="Medium" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBox Text="{Binding SelectedProduct.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
+                                                             Padding="12" Height="40" FontSize="14"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="Box Purchase Price" FontWeight="Medium" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                            CornerRadius="4" Height="40">
+                                                        <Grid>
+                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                                       VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                            <TextBox Text="{Binding SelectedProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                                     Background="Transparent" BorderThickness="0" 
+                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Text="Box Sale Price" FontWeight="Medium" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                            CornerRadius="4" Height="40">
+                                                        <Grid>
+                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                                       VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                            <TextBox Text="{Binding SelectedProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                                     Background="Transparent" BorderThickness="0" 
+                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="4">
+                                                    <TextBlock Text="Box Wholesale Price" FontWeight="Medium" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
+                                                            CornerRadius="4" Height="40">
+                                                        <Grid>
+                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                                       VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                            <TextBox Text="{Binding SelectedProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
+                                                                     Background="Transparent" BorderThickness="0" 
+                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
 
-                                    <Border Grid.Row="3" Background="{StaticResource SurfaceBrush}" 
-                                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                            CornerRadius="4" Padding="10" Margin="0,0,0,10"
-                                            Visibility="{Binding IsBoxTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <!-- Inventory Tab -->
+                                <StackPanel x:Name="InventoryContent" Visibility="Collapsed">
+                                    <!-- Stock Information -->
+                                    <Grid Margin="0,0,0,24">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Current Stock" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="40" FontSize="14"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Storehouse" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="40" FontSize="14"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Minimum Stock" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="40" FontSize="14"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="6">
+                                            <TextBlock Text="Number of Boxes" FontWeight="Medium" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBox Text="{Binding SelectedProduct.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Padding="12" Height="40" FontSize="14"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Transfer Section -->
+                                    <Border Background="#EBF4FF" BorderBrush="#93C5FD" BorderThickness="1" 
+                                            CornerRadius="8" Padding="24">
                                         <StackPanel>
-                                            <TextBlock Text="Box Transfer" FontWeight="SemiBold" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,5"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                                <TextBlock Text="Items per box:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock FontSize="18" FontWeight="SemiBold" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,20">
+                                                <Run Text="🔄"/>
+                                                <Run Text=" Transfer from Storehouse"/>
+                                            </TextBlock>
+
+                                            <!-- Status Cards -->
+                                            <Grid Margin="0,0,0,20">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="16">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Available in Storehouse" FontSize="12" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="{Binding SelectedProduct.Storehouse}" FontSize="24" 
+                                                                   FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
+                                                        <TextBlock Text="individual items" FontSize="11" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Border Grid.Column="2" Background="White" CornerRadius="6" Padding="16">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Available Boxes" FontSize="12" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="{Binding AvailableBoxes}" FontSize="24" 
+                                                                   FontWeight="Bold" Foreground="#059669"/>
+                                                        <TextBlock Text="complete boxes" FontSize="11" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+
+                                                <Border Grid.Column="4" Background="White" CornerRadius="6" Padding="16">
+                                                    <StackPanel>
+                                                        <TextBlock Text="Items per Box" FontSize="12" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontSize="24" 
+                                                                   FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                        <TextBlock Text="items/box" FontSize="11" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </Grid>
+
+                                            <!-- Transfer Type Selection -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                                <RadioButton Content="Transfer Individual Items" 
+                                                             IsChecked="{Binding IsIndividualTransfer}" 
+                                                             GroupName="TransferType" FontWeight="Medium" Margin="0,0,24,0"/>
+                                                <RadioButton Content="Transfer Boxes" 
+                                                             IsChecked="{Binding IsBoxTransfer}" 
+                                                             GroupName="TransferType" FontWeight="Medium"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
-                                                <TextBlock Text="Available boxes:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                <TextBlock Text="{Binding AvailableBoxes}" FontWeight="SemiBold"
-                                                           Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+
+                                            <!-- Individual Transfer -->
+                                            <Border Background="White" BorderBrush="#DBEAFE" BorderThickness="1" 
+                                                    CornerRadius="6" Padding="16" Margin="0,0,0,20"
+                                                    Visibility="{Binding IsIndividualTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="📦 Individual Items Transfer" FontWeight="SemiBold" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="Quantity:" VerticalAlignment="Center" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                        <TextBox Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}" 
+                                                                 Width="120" Padding="8" Height="32" Margin="0,0,12,0"/>
+                                                        <TextBlock Text="items" VerticalAlignment="Center" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Box Transfer -->
+                                            <Border Background="White" BorderBrush="#D1FAE5" BorderThickness="1" 
+                                                    CornerRadius="6" Padding="16" Margin="0,0,0,20"
+                                                    Visibility="{Binding IsBoxTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <StackPanel>
+                                                    <TextBlock Text="📦 Box Transfer" FontWeight="SemiBold" 
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <TextBlock Text="Items per box:" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <TextBlock Text="Available boxes:" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                        <TextBlock Text="{Binding AvailableBoxes}" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                        <TextBlock Text="Boxes to transfer:" VerticalAlignment="Center" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                        <TextBox Text="{Binding TransferBoxes, UpdateSourceTrigger=PropertyChanged}" 
+                                                                 Width="120" Padding="8" Height="32" Margin="0,0,12,0"/>
+                                                        <TextBlock Text="boxes" VerticalAlignment="Center" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding BoxTransferSummary}" 
+                                                               Foreground="{StaticResource TextTertiaryBrush}" 
+                                                               FontStyle="Italic"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Transfer Actions -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                                <Button Content="{Binding TransferButtonText}" 
+                                                        Command="{Binding TransferFromStorehouseCommand}"
+                                                        Style="{StaticResource PrimaryButtonStyle}"
+                                                        Height="40" Width="160" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                <Button Content="Reset" 
+                                                        Command="{Binding ResetTransferCommand}"
+                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Height="40" Width="100"/>
                                             </StackPanel>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Boxes to transfer:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                                <TextBox Text="{Binding TransferBoxes, UpdateSourceTrigger=PropertyChanged}" 
-                                                         Width="100" Padding="8" Height="32"/>
-                                                <TextBlock Text="boxes" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding BoxTransferSummary}" 
-                                                       Foreground="{StaticResource TextTertiaryBrush}" 
-                                                       FontStyle="Italic" Margin="0,5,0,0"/>
+
+                                            <!-- Validation Message -->
+                                            <Border Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" 
+                                                    CornerRadius="6" Padding="12"
+                                                    Visibility="{Binding HasTransferValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="⚠️" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding TransferValidationMessage}" 
+                                                               Foreground="#D97706" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                     </Border>
+                                </StackPanel>
+                            </Grid>
+                        </ScrollViewer>
+                    </Grid>
 
-                                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,10">
-                                        <Button Content="{Binding TransferButtonText}" 
-                                                Command="{Binding TransferFromStorehouseCommand}"
-                                                Style="{StaticResource PrimaryButtonStyle}"
-                                                Height="36" Width="140" Margin="0,0,10,0"/>
-                                        <Button Content="Reset" 
-                                                Command="{Binding ResetTransferCommand}"
-                                                Style="{StaticResource SecondaryButtonStyle}"
-                                                Height="36" Width="80"/>
-                                    </StackPanel>
-
-                                    <Border Grid.Row="5" Background="#FFF9E6" BorderBrush="#FFE4A0" 
-                                            BorderThickness="1" CornerRadius="4" Padding="8"
-                                            Visibility="{Binding HasTransferValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="⚠️" Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                            <TextBlock Text="{Binding TransferValidationMessage}" 
-                                                       Foreground="#B8860B" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button Content="Save" Command="{Binding SaveProductCommand}" 
-                                    Style="{StaticResource PrimaryButtonStyle}" 
-                                    Margin="0,0,10,0" Height="36" Width="80"/>
-                            <Button Content="Delete" Command="{Binding DeleteProductCommand}" 
-                                    Style="{StaticResource SecondaryButtonStyle}" 
-                                    Height="36" Width="80"/>
-                        </StackPanel>
+                    <!-- Empty State -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="{Binding IsEditing, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                        <TextBlock Text="📦" FontSize="64" HorizontalAlignment="Center" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,16"/>
+                        <TextBlock Text="No product selected" FontSize="18" FontWeight="Medium" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Select a product from the list to view and edit details" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
                     </StackPanel>
-                </ScrollViewer>
+                </Grid>
             </Border>
         </Grid>
 
+        <!-- Loading Overlay -->
         <Grid Grid.RowSpan="2" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
               Background="#80F7F9FC">
             <Border Background="{StaticResource SurfaceBrush}"

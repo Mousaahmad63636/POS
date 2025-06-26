@@ -237,13 +237,13 @@ namespace QuickTechSystems.ViewModels.Product
         public ICommand SearchCommand { get; }
         public ICommand GenerateBarcodeCommand { get; }
         public ICommand ResetTransferCommand { get; }
-
+        public ICommand SelectProductCommand { get; }
         public ProductViewModel(
-            IProductService productService,
-            ICategoryService categoryService,
-            ISupplierService supplierService,
-            ISupplierInvoiceService supplierInvoiceService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
+         IProductService productService,
+         ICategoryService categoryService,
+         ISupplierService supplierService,
+         ISupplierInvoiceService supplierInvoiceService,
+         IEventAggregator eventAggregator) : base(eventAggregator)
         {
             _productService = productService;
             _categoryService = categoryService;
@@ -262,8 +262,9 @@ namespace QuickTechSystems.ViewModels.Product
             TransferFromStorehouseCommand = new AsyncRelayCommand(async _ => await TransferFromStorehouseAsync());
             RefreshCommand = new AsyncRelayCommand(async _ => await LoadDataAsync());
             SearchCommand = new AsyncRelayCommand(async _ => await SearchProductsAsync());
-            GenerateBarcodeCommand = new RelayCommand(_ => GenerateBarcode());
+            GenerateBarcodeCommand = new RelayCommand(GenerateBarcode);
             ResetTransferCommand = new RelayCommand(_ => ResetTransfer());
+            SelectProductCommand = new RelayCommand(SelectProduct); // Add this line
 
             _ = LoadDataAsync();
         }
@@ -281,6 +282,21 @@ namespace QuickTechSystems.ViewModels.Product
         private async void HandleProductChanged(EntityChangedEvent<ProductDTO> evt)
         {
             await LoadDataAsync();
+        }
+        private void SelectProduct(object parameter)
+        {
+            if (parameter is ProductDTO product)
+            {
+                // First, reset IsSelected for all products
+                foreach (var p in Products)
+                {
+                    p.IsSelected = false;
+                }
+
+                // Set the selected product
+                product.IsSelected = true;
+                SelectedProduct = product;
+            }
         }
 
         protected override async Task LoadDataAsync()
@@ -725,11 +741,28 @@ namespace QuickTechSystems.ViewModels.Product
             _ = SearchProductsAsync();
         }
 
-        private void GenerateBarcode()
+        private void GenerateBarcode(object parameter)
         {
             if (SelectedProduct != null)
             {
-                SelectedProduct.Barcode = DateTime.Now.ToString("yyyyMMddHHmmss") + new Random().Next(1000, 9999);
+                var random = new Random();
+                // Generate random length between 4 and 10 digits
+                var length = random.Next(4, 11); // 4 to 10 inclusive
+
+                // Generate barcode with the determined length
+                var minValue = (long)Math.Pow(10, length - 1); // e.g., 1000 for 4 digits
+                var maxValue = (long)Math.Pow(10, length) - 1;  // e.g., 9999 for 4 digits
+
+                var barcode = random.NextInt64(minValue, maxValue + 1).ToString();
+
+                if (parameter?.ToString() == "Box")
+                {
+                    SelectedProduct.BoxBarcode = barcode;
+                }
+                else
+                {
+                    SelectedProduct.Barcode = barcode;
+                }
             }
         }
 
