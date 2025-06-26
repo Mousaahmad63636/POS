@@ -47,7 +47,39 @@ namespace QuickTechSystems.Application.Services
                 _lockManagerSemaphore.Release();
             }
         }
+        public async Task<int> GetLatestTransactionIdAsync()
+        {
+            await _queryLock.WaitAsync();
+            try
+            {
+                if (_dbContextScopeService != null)
+                {
+                    return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                    {
+                        var latestTransaction = await _repository.Query()
+                            .OrderByDescending(t => t.TransactionId)
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync();
 
+                        return latestTransaction?.TransactionId ?? 0;
+                    });
+                }
+
+                var fallbackTransaction = await ExecuteWithRetry(async () =>
+                {
+                    return await _repository.Query()
+                        .OrderByDescending(t => t.TransactionId)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync();
+                });
+
+                return fallbackTransaction?.TransactionId ?? 0;
+            }
+            finally
+            {
+                _queryLock.Release();
+            }
+        }
         private async Task<SemaphoreSlim> GetProductStockLock(int productId)
         {
             await _lockManagerSemaphore.WaitAsync();

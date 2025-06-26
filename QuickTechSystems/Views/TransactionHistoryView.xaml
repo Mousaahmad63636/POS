@@ -38,6 +38,17 @@
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
         </Style>
+
+        <Style x:Key="PaginationButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="MinWidth" Value="40"/>
+        </Style>
+
+        <Style x:Key="PaginationCardStyle" TargetType="Border" BasedOn="{StaticResource CardBorderStyle}">
+            <Setter Property="Margin" Value="0,10,0,20"/>
+            <Setter Property="Padding" Value="15"/>
+        </Style>
     </UserControl.Resources>
 
     <Grid>
@@ -45,7 +56,9 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Header Section -->
@@ -66,7 +79,7 @@
                     <TextBlock Text="Total Sales" 
                                FontSize="14" 
                                Foreground="{StaticResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding TotalSalesAmount, StringFormat=C, FallbackValue=$0.00}" 
+                    <TextBlock Text="{Binding TotalSalesAmount, StringFormat=C, FallbackValue=$0.00, Mode=OneWay}" 
                                FontSize="20" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource AccentBrush}"/>
@@ -78,7 +91,7 @@
                     <TextBlock Text="Total Transactions" 
                                FontSize="14" 
                                Foreground="{StaticResource TextTertiaryBrush}"/>
-                    <TextBlock Text="{Binding FilteredTransactions.Count, FallbackValue=0}" 
+                    <TextBlock Text="{Binding TotalItems, FallbackValue=0, Mode=OneWay}" 
                                FontSize="20" 
                                FontWeight="Bold" 
                                Foreground="{StaticResource TextPrimaryBrush}"/>
@@ -88,6 +101,10 @@
             <StackPanel Grid.Column="2" 
                         Orientation="Horizontal" 
                         VerticalAlignment="Center">
+                <Button Content="Print Report" 
+                        Command="{Binding PrintReportCommand}" 
+                        Style="{StaticResource SecondaryButtonStyle}" 
+                        Margin="0,0,10,0"/>
                 <Button Content="Refresh" 
                         Command="{Binding LoadDataCommand}" 
                         Style="{StaticResource PrimaryButtonStyle}" 
@@ -96,20 +113,24 @@
         </Grid>
 
         <!-- Filters Section -->
+        <!-- Update your Filters Section in the XAML -->
         <Border Grid.Row="2" Style="{StaticResource FilterCardStyle}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" 
-                           Text="Filters" 
-                           FontSize="16" 
-                           FontWeight="SemiBold" 
-                           Foreground="{StaticResource TextSecondaryBrush}" 
-                           Margin="0,0,0,15"/>
+                   Text="Filters" 
+                   FontSize="16" 
+                   FontWeight="SemiBold" 
+                   Foreground="{StaticResource TextSecondaryBrush}" 
+                   Margin="0,0,0,15"/>
 
+                <!-- Date Range Row -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -119,21 +140,84 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
+                    <!-- Start Date -->
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Start Date" 
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,8"/>
+                        <DatePicker SelectedDate="{Binding StartDate}"
+                            Height="35"
+                            Padding="8"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            Background="{StaticResource SurfaceBrush}"
+                            DisplayDateStart="2020-01-01"
+                            DisplayDateEnd="{x:Static sys:DateTime.Now}"
+                            xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                    </StackPanel>
+
+                    <!-- End Date -->
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="End Date" 
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,8"/>
+                        <DatePicker SelectedDate="{Binding EndDate}"
+                            Height="35"
+                            Padding="8"
+                            BorderBrush="{StaticResource BorderBrush}"
+                            Background="{StaticResource SurfaceBrush}"
+                            DisplayDateStart="2020-01-01"
+                            DisplayDateEnd="{x:Static sys:DateTime.Now}"
+                            xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                    </StackPanel>
+
+                    <!-- Quick Date Buttons -->
+                    <StackPanel Grid.Column="4" 
+                        VerticalAlignment="Bottom"
+                        Orientation="Horizontal">
+                        <Button Content="Today" 
+                        Click="TodayButton_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="10,6"
+                        Margin="0,0,5,0"/>
+                        <Button Content="This Week" 
+                        Click="ThisWeekButton_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="10,6"
+                        Margin="0,0,5,0"/>
+                        <Button Content="This Month" 
+                        Click="ThisMonthButton_Click"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="10,6"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Other Filters Row -->
+                <Grid Grid.Row="3">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
                     <!-- Employee Filter -->
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="Employee" 
-                                   FontWeight="SemiBold" 
-                                   Margin="0,0,0,8"/>
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding Employees}" 
-                                  SelectedValue="{Binding SelectedEmployeeId}"
-                                  SelectedValuePath="EmployeeId"
-                                  Style="{StaticResource FilterComboBoxStyle}">
+                          SelectedValue="{Binding SelectedEmployeeId}"
+                          SelectedValuePath="EmployeeId"
+                          Style="{StaticResource FilterComboBoxStyle}">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock>
-                                        <Run Text="{Binding FirstName, FallbackValue=''}"/>
-                                        <Run Text=" "/>
-                                        <Run Text="{Binding LastName, FallbackValue=''}"/>
+                                <Run Text="{Binding FirstName, FallbackValue=''}"/>
+                                <Run Text=" "/>
+                                <Run Text="{Binding LastName, FallbackValue=''}"/>
                                     </TextBlock>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
@@ -143,32 +227,88 @@
                     <!-- Transaction Type Filter -->
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Transaction Type" 
-                                   FontWeight="SemiBold" 
-                                   Margin="0,0,0,8"/>
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding TransactionTypes}" 
-                                  SelectedItem="{Binding SelectedTransactionType}"
-                                  Style="{StaticResource FilterComboBoxStyle}"/>
+                          SelectedItem="{Binding SelectedTransactionType}"
+                          Style="{StaticResource FilterComboBoxStyle}"/>
+                    </StackPanel>
+
+                    <!-- Items Per Page -->
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Items Per Page" 
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,8"/>
+                        <ComboBox ItemsSource="{Binding PageSizes}" 
+                          SelectedItem="{Binding ItemsPerPage}"
+                          Style="{StaticResource FilterComboBoxStyle}"/>
                     </StackPanel>
 
                     <!-- Clear Filters Button -->
-                    <StackPanel Grid.Column="4" 
-                                VerticalAlignment="Bottom">
+                    <StackPanel Grid.Column="6" 
+                        VerticalAlignment="Bottom">
                         <Button Content="Clear Filters" 
-                                Command="{Binding ClearFiltersCommand}" 
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Padding="15,8"/>
+                        Command="{Binding ClearFiltersCommand}" 
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Padding="15,8"/>
                     </StackPanel>
                 </Grid>
             </Grid>
         </Border>
 
+        <!-- Pagination Info -->
+        <Border Grid.Row="3" Style="{StaticResource PaginationCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Page Information -->
+                <TextBlock Grid.Column="0" 
+                           Text="{Binding PageInfo, Mode=OneWay}" 
+                           FontSize="14" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           VerticalAlignment="Center"/>
+
+                <!-- Pagination Controls -->
+                <StackPanel Grid.Column="1" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <Button Content="First" 
+                            Command="{Binding FirstPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                    <Button Content="Previous" 
+                            Command="{Binding PreviousPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+
+                    <!-- Current Page Display -->
+                    <Border Background="{StaticResource AccentBrush}" 
+                            CornerRadius="4" 
+                            Padding="12,6" 
+                            Margin="5,2">
+                        <TextBlock Text="{Binding CurrentPage, Mode=OneWay}" 
+                                   Foreground="White" 
+                                   FontWeight="Bold"/>
+                    </Border>
+
+                    <Button Content="Next" 
+                            Command="{Binding NextPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                    <Button Content="Last" 
+                            Command="{Binding LastPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
         <!-- Transaction List Section -->
-        <ScrollViewer Grid.Row="3" 
+        <ScrollViewer Grid.Row="4" 
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <!-- Loading Indicator -->
-                <Border Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" 
+                <Border Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}, Mode=OneWay}" 
                         Background="{StaticResource SurfaceBrush}"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
@@ -195,8 +335,8 @@
                             <Style.Triggers>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding IsLoading}" Value="False"/>
-                                        <Condition Binding="{Binding FilteredTransactions.Count}" Value="0"/>
+                                        <Condition Binding="{Binding IsLoading, Mode=OneWay}" Value="False"/>
+                                        <Condition Binding="{Binding TotalItems, Mode=OneWay}" Value="0"/>
                                     </MultiDataTrigger.Conditions>
                                     <Setter Property="Visibility" Value="Visible"/>
                                 </MultiDataTrigger>
@@ -221,15 +361,15 @@
                 </Border>
 
                 <!-- Transaction Items -->
-                <ItemsControl ItemsSource="{Binding FilteredTransactions}">
+                <ItemsControl ItemsSource="{Binding PagedTransactions, Mode=OneWay}">
                     <ItemsControl.Style>
                         <Style TargetType="ItemsControl">
                             <Setter Property="Visibility" Value="Visible"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsLoading}" Value="True">
+                                <DataTrigger Binding="{Binding IsLoading, Mode=OneWay}" Value="True">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
-                                <DataTrigger Binding="{Binding FilteredTransactions.Count}" Value="0">
+                                <DataTrigger Binding="{Binding TotalItems, Mode=OneWay}" Value="0">
                                     <Setter Property="Visibility" Value="Collapsed"/>
                                 </DataTrigger>
                             </Style.Triggers>
@@ -248,17 +388,17 @@
 
                                     <!-- Transaction ID and Status -->
                                     <StackPanel Grid.Column="0" 
-            Orientation="Horizontal" 
-            VerticalAlignment="Center">
+                                                Orientation="Horizontal" 
+                                                VerticalAlignment="Center">
                                         <TextBlock FontSize="16" 
-               FontWeight="Bold" 
-               Foreground="{StaticResource AccentBrush}" 
-               Margin="0,0,15,0">
-        <Run Text="#"/>
-        <Run Text="{Binding TransactionId, FallbackValue=0}"/>
+                                                   FontWeight="Bold" 
+                                                   Foreground="{StaticResource AccentBrush}" 
+                                                   Margin="0,0,15,0">
+                                            <Run Text="#"/>
+                                            <Run Text="{Binding TransactionId, FallbackValue=0}"/>
                                         </TextBlock>
                                         <Border CornerRadius="12" 
-            Padding="8,4">
+                                                Padding="8,4">
                                             <Border.Style>
                                                 <Style TargetType="Border">
                                                     <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
@@ -270,9 +410,9 @@
                                                 </Style>
                                             </Border.Style>
                                             <TextBlock Text="{Binding DisplayTransactionType, FallbackValue='Sale'}" 
-                   Foreground="White" 
-                   FontSize="10" 
-                   FontWeight="SemiBold"/>
+                                                       Foreground="White" 
+                                                       FontSize="10" 
+                                                       FontWeight="SemiBold"/>
                                         </Border>
                                     </StackPanel>
 
@@ -344,5 +484,56 @@
                 </ItemsControl>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- Bottom Pagination Controls -->
+        <Border Grid.Row="5" Style="{StaticResource PaginationCardStyle}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Showing Items Info -->
+                <TextBlock Grid.Column="0" 
+                           FontSize="14" 
+                           Foreground="{StaticResource TextSecondaryBrush}" 
+                           VerticalAlignment="Center">
+                    <Run Text="Showing"/>
+                    <Run Text="{Binding PagedTransactions.Count, Mode=OneWay}"/>
+                    <Run Text="of"/>
+                    <Run Text="{Binding TotalItems, Mode=OneWay}"/>
+                    <Run Text="transactions"/>
+                </TextBlock>
+
+                <!-- Pagination Controls -->
+                <StackPanel Grid.Column="1" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <Button Content="First" 
+                            Command="{Binding FirstPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                    <Button Content="Previous" 
+                            Command="{Binding PreviousPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+
+                    <!-- Current Page Display -->
+                    <Border Background="{StaticResource AccentBrush}" 
+                            CornerRadius="4" 
+                            Padding="12,6" 
+                            Margin="5,2">
+                        <TextBlock Text="{Binding CurrentPage, Mode=OneWay}" 
+                                   Foreground="White" 
+                                   FontWeight="Bold"/>
+                    </Border>
+
+                    <Button Content="Next" 
+                            Command="{Binding NextPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                    <Button Content="Last" 
+                            Command="{Binding LastPageCommand}" 
+                            Style="{StaticResource PaginationButtonStyle}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

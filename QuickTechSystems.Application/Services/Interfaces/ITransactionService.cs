@@ -26,5 +26,6 @@ namespace QuickTechSystems.Application.Services.Interfaces
             TransactionStatus? status = null,
             string? searchTerm = null);
         Task<Dictionary<string, decimal>> GetEmployeePerformanceAsync(DateTime? startDate = null, DateTime? endDate = null);
+        Task<int> GetLatestTransactionIdAsync();
     }
 }
