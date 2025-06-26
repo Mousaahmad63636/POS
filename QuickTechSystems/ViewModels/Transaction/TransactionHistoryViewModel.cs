@@ -139,10 +139,14 @@ namespace QuickTechSystems.ViewModels.Transaction
             {
                 IsLoading = true;
 
-                var (transactions, employees) = await Task.WhenAll(
-                    LoadTransactionsAsync(),
-                    LoadEmployeesAsync()
-                );
+                // Load data concurrently but handle results separately
+                var transactionsTask = LoadTransactionsAsync();
+                var employeesTask = LoadEmployeesAsync();
+
+                await Task.WhenAll(transactionsTask, employeesTask);
+
+                var transactions = await transactionsTask;
+                var employees = await employeesTask;
 
                 await UpdateUIAsync(() =>
                 {
@@ -225,19 +229,26 @@ namespace QuickTechSystems.ViewModels.Transaction
                         FilteredTransactions.Add(transaction);
                     }
                 });
+
+                // Calculate total sales for filtered transactions
+                await CalculateTotalSalesAsync();
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error applying filters: {ex}");
             }
         }
-
         private async Task CalculateTotalSalesAsync()
         {
             try
             {
-                var totalSales = await ExecuteDbOperationAsync(() => _transactionService.GetTotalSalesAmountAsync(null, null), "Calculating total sales");
-                await UpdateUIAsync(() => TotalSalesAmount = totalSales);
+                await UpdateUIAsync(() =>
+                {
+                    // Calculate total from filtered transactions only
+                    TotalSalesAmount = FilteredTransactions?
+                        .Where(t => t.TransactionType == TransactionType.Sale && t.Status == TransactionStatus.Completed)
+                        .Sum(t => t.TotalAmount) ?? 0;
+                });
             }
             catch (Exception ex)
             {

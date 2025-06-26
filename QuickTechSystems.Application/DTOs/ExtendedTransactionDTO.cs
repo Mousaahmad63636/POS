@@ -120,7 +120,17 @@ namespace QuickTechSystems.Application.DTOs
             OnPropertyChanged(propertyName);
             return true;
         }
-
+        public string DisplayTransactionType
+        {
+            get
+            {
+                if (TransactionType == TransactionType.Sale)
+                {
+                    return string.Equals(PaymentMethod, "debt", StringComparison.OrdinalIgnoreCase) ? "Debt" : "Sale";
+                }
+                return TransactionType.ToString();
+            }
+        }
         public static explicit operator ExtendedTransactionDTO(TransactionDTO dto)
         {
             return new ExtendedTransactionDTO
