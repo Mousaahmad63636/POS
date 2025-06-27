@@ -492,20 +492,20 @@ namespace QuickTechSystems.ViewModels.Product
 
         private async Task LinkProductToInvoiceAsync(ProductDTO product)
         {
-            if (SelectedSupplierInvoice == null || product.PurchasePrice <= 0) return;
+            if (SelectedSupplierInvoice == null) return; // Only check if invoice is selected, remove purchase price check
 
             try
             {
                 decimal totalQuantity = product.CurrentStock + product.Storehouse;
-                decimal totalAmount = totalQuantity * product.PurchasePrice;
+                decimal totalAmount = totalQuantity * product.PurchasePrice; // This will be 0 if purchase price is 0, which is fine
 
                 var invoiceDetail = new SupplierInvoiceDetailDTO
                 {
                     SupplierInvoiceId = SelectedSupplierInvoice.SupplierInvoiceId,
                     ProductId = product.ProductId,
                     Quantity = totalQuantity,
-                    PurchasePrice = product.PurchasePrice,
-                    TotalPrice = totalAmount,
+                    PurchasePrice = product.PurchasePrice, // Can be 0
+                    TotalPrice = totalAmount, // Can be 0
                     BoxBarcode = product.BoxBarcode ?? string.Empty,
                     NumberOfBoxes = product.NumberOfBoxes,
                     ItemsPerBox = product.ItemsPerBox,
