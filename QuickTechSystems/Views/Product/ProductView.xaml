@@ -1,4 +1,5 @@
 ﻿<UserControl x:Class="QuickTechSystems.WPF.Views.ProductView"
+             x:Name="ProductViewControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -18,19 +19,22 @@
         <!-- Tab Button Style -->
         <Style x:Key="TabButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderThickness" Value="0,0,0,3"/>
             <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="Margin" Value="0,0,1,0"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="Margin" Value="0,0,2,0"/>
             <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}"/>
             <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="Height" Value="55"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}" 
                                 BorderBrush="{TemplateBinding BorderBrush}" 
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6,6,0,0">
+                                CornerRadius="8,8,0,0">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
@@ -82,8 +86,9 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Padding" Value="20"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="100"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
@@ -106,7 +111,7 @@
         <!-- Header -->
         <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}" 
                 BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" 
-                Padding="24,20">
+                Padding="28,24">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -115,22 +120,22 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Grid.Column="0" Text="Product Management" FontSize="24" FontWeight="Bold" 
-                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,32,0"/>
+                <TextBlock Grid.Column="0" Text="Product Management" FontSize="26" FontWeight="Bold" 
+                           Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="0,0,40,0"/>
 
                 <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}" 
                         BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                        CornerRadius="8" Width="320" Height="40">
+                        CornerRadius="8" Width="360" Height="55">
                     <Grid>
-                        <TextBlock Text="🔍" FontSize="16" Margin="12,0,0,0" VerticalAlignment="Center" 
+                        <TextBlock Text="🔍" FontSize="18" Margin="16,0,0,0" VerticalAlignment="Center" 
                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                  Background="Transparent" BorderThickness="0" 
-                                 Margin="40,0,12,0" VerticalAlignment="Center"
-                                 FontSize="14" Foreground="{StaticResource TextPrimaryBrush}"/>
+                                 Margin="48,0,16,0" VerticalAlignment="Center"
+                                 FontSize="15" Foreground="{StaticResource TextPrimaryBrush}"/>
                         <TextBlock Text="Search products by name or barcode..." 
-                                   Margin="40,0,12,0" VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="14"
+                                   Margin="48,0,16,0" VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="15"
                                    IsHitTestVisible="False"
                                    Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}}"/>
                     </Grid>
@@ -140,11 +145,11 @@
                     <Button Content="➕ Add Product" 
                             Style="{StaticResource PrimaryButtonStyle}"
                             Command="{Binding AddProductCommand}" 
-                            Height="40" Width="140" FontWeight="Medium" Margin="0,0,12,0"/>
+                            Height="55" Width="160" FontWeight="Medium" FontSize="15" Margin="0,0,16,0"/>
                     <Button Content="🔄 Refresh" 
                             Style="{StaticResource SecondaryButtonStyle}"
                             Command="{Binding RefreshCommand}" 
-                            Height="40" Width="100"/>
+                            Height="55" Width="120" FontSize="15"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -152,13 +157,13 @@
         <!-- Main Content -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" MaxWidth="600"/>
-                <ColumnDefinition Width="24"/>
+                <ColumnDefinition Width="2*" MaxWidth="650"/>
+                <ColumnDefinition Width="28"/>
                 <ColumnDefinition Width="3*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Product List - Left Panel -->
-            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="24,16,0,24">
+            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}" Margin="28,20,0,28">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -166,10 +171,10 @@
                     </Grid.RowDefinitions>
 
                     <Border Grid.Row="0" Background="{StaticResource HoverBrush}" 
-                            Padding="20,16" BorderBrush="{StaticResource BorderBrush}" 
+                            Padding="24,20" BorderBrush="{StaticResource BorderBrush}" 
                             BorderThickness="0,0,0,1">
                         <Grid>
-                            <TextBlock FontSize="18" FontWeight="SemiBold" 
+                            <TextBlock FontSize="20" FontWeight="SemiBold" 
                                        Foreground="{StaticResource TextSecondaryBrush}">
                                 <Run Text="Products"/>
                                 <Run Text=" (" Foreground="{StaticResource TextTertiaryBrush}"/>
@@ -187,7 +192,7 @@
                                     <Border Style="{StaticResource ProductListItemStyle}">
                                         <Border.InputBindings>
                                             <MouseBinding MouseAction="LeftClick" 
-                                                          Command="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.SelectProductCommand}"
+                                                          Command="{Binding DataContext.SelectProductCommand, ElementName=ProductViewControl}"
                                                           CommandParameter="{Binding}"/>
                                         </Border.InputBindings>
                                         <Grid>
@@ -197,24 +202,24 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0">
-                                                <Grid Margin="0,0,0,4">
+                                                <Grid Margin="0,0,0,8">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Grid.Column="0" Text="{Binding Name}" 
-                                                               FontWeight="Medium" FontSize="15"
+                                                               FontWeight="Medium" FontSize="16"
                                                                Foreground="{StaticResource TextPrimaryBrush}"
                                                                TextTrimming="CharacterEllipsis"/>
                                                     <Border Grid.Column="1" Background="#F3F4F6" 
-                                                            CornerRadius="4" Padding="6,2" Margin="8,0,0,0"
+                                                            CornerRadius="6" Padding="8,4" Margin="12,0,0,0"
                                                             Visibility="{Binding IsActive, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                                        <TextBlock Text="Inactive" FontSize="10" FontWeight="Medium"
+                                                        <TextBlock Text="Inactive" FontSize="11" FontWeight="Medium"
                                                                    Foreground="#6B7280"/>
                                                     </Border>
                                                 </Grid>
 
-                                                <TextBlock Margin="0,0,0,8" Foreground="{StaticResource TextTertiaryBrush}" FontSize="13">
+                                                <TextBlock Margin="0,0,0,12" Foreground="{StaticResource TextTertiaryBrush}" FontSize="14">
                                                     <Run Text="{Binding Barcode}" FontFamily="Consolas"/>
                                                     <Run Text=" • "/>
                                                     <Run Text="{Binding CategoryName}"/>
@@ -227,28 +232,28 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
 
-                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
-                                                        <TextBlock Text="Stock: " FontSize="12" 
+                                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,20,0">
+                                                        <TextBlock Text="Stock: " FontSize="13" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                        <TextBlock Text="{Binding CurrentStock}" FontSize="12" 
+                                                        <TextBlock Text="{Binding CurrentStock}" FontSize="13" 
                                                                    Style="{StaticResource StockStatusStyle}"/>
                                                     </StackPanel>
 
                                                     <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                                        <TextBlock Text="Storehouse: " FontSize="12" 
+                                                        <TextBlock Text="Storehouse: " FontSize="13" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                        <TextBlock Text="{Binding Storehouse}" FontSize="12" 
+                                                        <TextBlock Text="{Binding Storehouse}" FontSize="13" 
                                                                    FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
                                                     </StackPanel>
                                                 </Grid>
                                             </StackPanel>
 
-                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="16,0,0,0">
+                                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" Margin="20,0,0,0">
                                                 <TextBlock Text="{Binding SalePrice, StringFormat=C}" 
-                                                           FontSize="16" FontWeight="SemiBold"
+                                                           FontSize="18" FontWeight="SemiBold"
                                                            Foreground="{StaticResource TextPrimaryBrush}"
                                                            HorizontalAlignment="Right"/>
-                                                <TextBlock FontSize="12" Foreground="{StaticResource TextTertiaryBrush}"
+                                                <TextBlock FontSize="13" Foreground="{StaticResource TextTertiaryBrush}"
                                                            HorizontalAlignment="Right">
                                                     <Run Text="Cost: "/>
                                                     <Run Text="{Binding PurchasePrice, StringFormat=C}"/>
@@ -264,7 +269,7 @@
             </Border>
 
             <!-- Product Details - Right Panel -->
-            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}" Margin="0,16,24,24">
+            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}" Margin="0,20,28,28">
                 <Grid>
                     <!-- Main Content -->
                     <Grid Visibility="{Binding IsEditing, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -276,14 +281,14 @@
 
                         <!-- Details Header -->
                         <Border Grid.Row="0" BorderBrush="{StaticResource BorderBrush}" 
-                                BorderThickness="0,0,0,1" Padding="24,20">
+                                BorderThickness="0,0,0,1" Padding="28,24">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" FontSize="20" FontWeight="SemiBold" 
+                                <TextBlock Grid.Column="0" FontSize="22" FontWeight="SemiBold" 
                                            Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center">
                                     <TextBlock.Text>
                                         <MultiBinding StringFormat="{}{0}">
@@ -300,18 +305,18 @@
                                     <Button Content="💾 Save" 
                                             Style="{StaticResource PrimaryButtonStyle}"
                                             Command="{Binding SaveProductCommand}" 
-                                            Height="36" Width="100" FontWeight="Medium" Margin="0,0,12,0"/>
+                                            Height="44" Width="120" FontWeight="Medium" FontSize="15" Margin="0,0,16,0"/>
                                     <Button Content="🗑️ Delete" 
                                             Style="{StaticResource SecondaryButtonStyle}"
                                             Command="{Binding DeleteProductCommand}" 
-                                            Height="36" Width="100"
+                                            Height="44" Width="120" FontSize="15"
                                             Visibility="{Binding SelectedProduct.ProductId, Converter={StaticResource ZeroToVisibilityConverter}}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
                         <!-- Tab Navigation -->
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="24,0,24,0">
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="28,0,28,0">
                             <Button x:Name="BasicInfoTab" Content="📝 Basic Info" 
                                     Style="{StaticResource ActiveTabButtonStyle}"
                                     Click="TabButton_Click" Tag="BasicInfo"/>
@@ -324,14 +329,14 @@
                         </StackPanel>
 
                         <!-- Tab Content -->
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="24">
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Padding="28">
                             <Grid>
                                 <!-- Basic Info Tab -->
                                 <StackPanel x:Name="BasicInfoContent">
-                                    <Grid Margin="0,0,0,24">
+                                    <Grid Margin="0,0,0,32">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions>
@@ -343,12 +348,12 @@
                                         </Grid.RowDefinitions>
 
                                         <!-- Product Name with Matching Products -->
-                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,24">
-                                            <TextBlock Text="Product Name *" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,28">
+                                            <TextBlock Text="Product Name *" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <Grid>
                                                 <TextBox Text="{Binding SelectedProduct.Name, UpdateSourceTrigger=PropertyChanged}" 
-                                                         Padding="12" Height="40" FontSize="14"/>
+                                                         Padding="16" Height="55" FontSize="15"/>
 
                                                 <!-- Matching Products Dropdown -->
                                                 <Popup IsOpen="{Binding ShowMatchingProducts}" 
@@ -359,17 +364,17 @@
                                                     <Border Background="{StaticResource SurfaceBrush}" 
                                                             BorderBrush="{StaticResource BorderBrush}" 
                                                             BorderThickness="1" 
-                                                            CornerRadius="4"
-                                                            MaxHeight="200">
+                                                            CornerRadius="6"
+                                                            MaxHeight="280">
                                                         <Border.Effect>
                                                             <DropShadowEffect BlurRadius="8" Direction="270" ShadowDepth="2" 
                                                                               Color="{StaticResource ShadowColor}" Opacity="0.15"/>
                                                         </Border.Effect>
                                                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                                                             <StackPanel>
-                                                                <Border Padding="12,8,12,4">
+                                                                <Border Padding="16,12,16,8">
                                                                     <TextBlock Text="📦 Similar Products Found" 
-                                                                               FontWeight="SemiBold" 
+                                                                               FontWeight="SemiBold" FontSize="15"
                                                                                Foreground="{StaticResource TextSecondaryBrush}"/>
                                                                 </Border>
                                                                 <ItemsControl ItemsSource="{Binding MatchingProducts}">
@@ -379,10 +384,11 @@
                                                                                     BorderThickness="0,0,0,1" 
                                                                                     BorderBrush="{StaticResource BorderBrush}"
                                                                                     Cursor="Hand"
-                                                                                    Padding="12,8">
+                                                                                    Padding="16,12"
+                                                                                    MinHeight="60">
                                                                                 <Border.InputBindings>
                                                                                     <MouseBinding MouseAction="LeftClick" 
-                                                                                                  Command="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=DataContext.SelectMatchingProductCommand}" 
+                                                                                                  Command="{Binding DataContext.SelectMatchingProductCommand, ElementName=ProductViewControl}" 
                                                                                                   CommandParameter="{Binding}"/>
                                                                                 </Border.InputBindings>
                                                                                 <Border.Style>
@@ -401,20 +407,20 @@
                                                                                     </Grid.ColumnDefinitions>
                                                                                     <StackPanel Grid.Column="0">
                                                                                         <TextBlock Text="{Binding Name}" 
-                                                                                                   FontWeight="Medium" 
+                                                                                                   FontWeight="Medium" FontSize="15"
                                                                                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                                                                                         <TextBlock Text="{Binding Barcode}" 
-                                                                                                   FontSize="12" 
+                                                                                                   FontSize="13" 
                                                                                                    FontFamily="Consolas"
-                                                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                                                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,4,0,0"/>
                                                                                     </StackPanel>
                                                                                     <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                                                                                         <TextBlock Text="{Binding SalePrice, StringFormat=C}" 
-                                                                                                   FontWeight="SemiBold" 
+                                                                                                   FontWeight="SemiBold" FontSize="15"
                                                                                                    Foreground="{StaticResource AccentBrush}"/>
                                                                                         <TextBlock Text="{Binding CategoryName}" 
-                                                                                                   FontSize="11" 
-                                                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                                                                   FontSize="12" 
+                                                                                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,4,0,0"/>
                                                                                     </StackPanel>
                                                                                 </Grid>
                                                                             </Border>
@@ -424,7 +430,7 @@
                                                                 <Button Content="❌ Clear Search" 
                                                                         Command="{Binding ClearMatchingProductsCommand}"
                                                                         Style="{StaticResource SecondaryButtonStyle}"
-                                                                        Margin="8" Height="32" FontSize="12"/>
+                                                                        Margin="12" Height="36" FontSize="13"/>
                                                             </StackPanel>
                                                         </ScrollViewer>
                                                     </Border>
@@ -433,13 +439,13 @@
                                         </StackPanel>
 
                                         <!-- Barcode with Validation -->
-                                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,24">
-                                            <TextBlock Text="Barcode *" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,28">
+                                            <TextBlock Text="Barcode *" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="8"/>
+                                                    <ColumnDefinition Width="12"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
                                                 <Grid.RowDefinitions>
@@ -449,28 +455,28 @@
 
                                                 <TextBox Grid.Row="0" Grid.Column="0" 
                                                          Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                         Padding="12" Height="40" FontSize="14" FontFamily="Consolas"/>
+                                                         Padding="16" Height="55" FontSize="15" FontFamily="Consolas"/>
                                                 <Button Grid.Row="0" Grid.Column="2" Content="🏷️" 
                                                         Command="{Binding GenerateBarcodeCommand}"
                                                         Style="{StaticResource SecondaryButtonStyle}"
-                                                        Height="40" Width="40" FontSize="16"/>
+                                                        Height="55" Width="48" FontSize="18"/>
 
                                                 <!-- Barcode Validation Message -->
                                                 <Border Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" 
                                                         Background="#FEF3C7" 
                                                         BorderBrush="#F59E0B" 
                                                         BorderThickness="1" 
-                                                        CornerRadius="4" 
-                                                        Padding="8" 
-                                                        Margin="0,4,0,0"
+                                                        CornerRadius="6" 
+                                                        Padding="12" 
+                                                        Margin="0,8,0,0"
                                                         Visibility="{Binding HasBarcodeValidation, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="ℹ️" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                        <TextBlock Text="ℹ️" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="16"/>
                                                         <TextBlock Text="{Binding BarcodeValidationMessage}" 
                                                                    Foreground="#D97706" 
                                                                    TextWrapping="Wrap" 
                                                                    VerticalAlignment="Center" 
-                                                                   FontSize="13"/>
+                                                                   FontSize="14"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
@@ -481,38 +487,38 @@
                                                 Background="#EBF4FF" 
                                                 BorderBrush="#93C5FD" 
                                                 BorderThickness="1" 
-                                                CornerRadius="6" 
-                                                Padding="16" 
-                                                Margin="0,0,0,24"
+                                                CornerRadius="8" 
+                                                Padding="20" 
+                                                Margin="0,0,0,28"
                                                 Visibility="{Binding IsExistingProduct, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <StackPanel>
                                                 <TextBlock Text="📦 Updating Existing Product" 
-                                                           FontWeight="SemiBold" 
+                                                           FontWeight="SemiBold" FontSize="16"
                                                            Foreground="{StaticResource TextSecondaryBrush}" 
-                                                           Margin="0,0,0,8"/>
+                                                           Margin="0,0,0,12"/>
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="16"/>
+                                                        <ColumnDefinition Width="20"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="Adding Quantity:" FontSize="12" 
-                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="Adding Quantity:" FontSize="14" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,8"/>
                                                         <TextBox Text="{Binding NewQuantity, UpdateSourceTrigger=PropertyChanged}" 
-                                                                 Padding="8" Height="32" FontSize="14"/>
+                                                                 Padding="12" Height="40" FontSize="14"/>
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2">
-                                                        <TextBlock Text="Purchase Price for New Stock:" FontSize="12" 
-                                                                   Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                        <TextBlock Text="Purchase Price for New Stock:" FontSize="14" 
+                                                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,8"/>
                                                         <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                                CornerRadius="4" Height="32">
+                                                                CornerRadius="4" Height="40">
                                                             <Grid>
-                                                                <TextBlock Text="$" FontSize="12" Margin="8,0,0,0" 
+                                                                <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
                                                                            VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                                 <TextBox Text="{Binding NewPurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                                          Background="Transparent" BorderThickness="0" 
-                                                                         Margin="20,0,8,0" VerticalAlignment="Center" FontSize="14"/>
+                                                                         Margin="28,0,12,0" VerticalAlignment="Center" FontSize="14"/>
                                                             </Grid>
                                                         </Border>
                                                     </StackPanel>
@@ -520,101 +526,101 @@
                                             </StackPanel>
                                         </Border>
 
-                                        <!-- Category and Supplier - moved to row 2 -->
-                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,24">
-                                            <TextBlock Text="Category *" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <!-- Category and Supplier -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,28">
+                                            <TextBlock Text="Category *" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <ComboBox ItemsSource="{Binding Categories}"
                                                       SelectedValuePath="CategoryId" DisplayMemberPath="Name"
                                                       SelectedValue="{Binding SelectedProduct.CategoryId}"
-                                                      Padding="12" Height="40"/>
+                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,24">
-                                            <TextBlock Text="Supplier" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,28">
+                                            <TextBlock Text="Supplier" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <ComboBox ItemsSource="{Binding Suppliers}"
                                                       SelectedValuePath="SupplierId" DisplayMemberPath="Name"
                                                       SelectedValue="{Binding SelectedProduct.SupplierId}"
-                                                      Padding="12" Height="40"/>
+                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <!-- Supplier Invoice - moved to row 3 -->
-                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
-                                            <TextBlock Text="Supplier Invoice" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <!-- Supplier Invoice -->
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
+                                            <TextBlock Text="Supplier Invoice" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <ComboBox ItemsSource="{Binding SupplierInvoices}"
                                                       SelectedItem="{Binding SelectedSupplierInvoice}"
                                                       DisplayMemberPath="InvoiceNumber"
-                                                      Padding="12" Height="40"/>
+                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <!-- Description - moved to row 4 -->
-                                        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,24">
-                                            <TextBlock Text="Description" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                        <!-- Description -->
+                                        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
+                                            <TextBlock Text="Description" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                                     Padding="12" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                                     Padding="16" Height="96" TextWrapping="Wrap" AcceptsReturn="True" FontSize="15"/>
                                         </StackPanel>
                                     </Grid>
 
                                     <CheckBox Content="Active Product" 
                                               IsChecked="{Binding SelectedProduct.IsActive}" 
-                                              FontWeight="Medium" Foreground="{StaticResource TextSecondaryBrush}"/>
+                                              FontWeight="Medium" FontSize="15" Foreground="{StaticResource TextSecondaryBrush}"/>
                                 </StackPanel>
 
                                 <!-- Pricing Tab -->
                                 <StackPanel x:Name="PricingContent" Visibility="Collapsed">
-                                    <Grid Margin="0,0,0,24">
+                                    <Grid Margin="0,0,0,32">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock Text="Purchase Price" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Purchase Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                    CornerRadius="4" Height="40">
+                                                    CornerRadius="6" Height="55">
                                                 <Grid>
-                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                    <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     <TextBox Text="{Binding SelectedProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                              Background="Transparent" BorderThickness="0" 
-                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                             Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Sale Price" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Sale Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                    CornerRadius="4" Height="40">
+                                                    CornerRadius="6" Height="55">
                                                 <Grid>
-                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                    <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     <TextBox Text="{Binding SelectedProduct.SalePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                              Background="Transparent" BorderThickness="0" 
-                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                             Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="4">
-                                            <TextBlock Text="Wholesale Price" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Wholesale Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                    CornerRadius="4" Height="40">
+                                                    CornerRadius="6" Height="55">
                                                 <Grid>
-                                                    <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                    <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     <TextBox Text="{Binding SelectedProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                              Background="Transparent" BorderThickness="0" 
-                                                             Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                             Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                 </Grid>
                                             </Border>
                                         </StackPanel>
@@ -622,95 +628,95 @@
 
                                     <!-- Box Pricing Section -->
                                     <Border Background="#F8FAFC" BorderBrush="{StaticResource BorderBrush}" 
-                                            BorderThickness="1" CornerRadius="8" Padding="24">
+                                            BorderThickness="1" CornerRadius="10" Padding="28">
                                         <StackPanel>
-                                            <TextBlock Text="📦 Box Pricing" FontSize="18" FontWeight="SemiBold" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,20"/>
+                                            <TextBlock Text="📦 Box Pricing" FontSize="20" FontWeight="SemiBold" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,24"/>
 
-                                            <Grid Margin="0,0,0,20">
+                                            <Grid Margin="0,0,0,24">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="20"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="Box Barcode" FontWeight="Medium" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="Box Barcode" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*"/>
-                                                            <ColumnDefinition Width="8"/>
+                                                            <ColumnDefinition Width="12"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         <TextBox Grid.Column="0" Text="{Binding SelectedProduct.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                                 Padding="12" Height="40" FontSize="14" FontFamily="Consolas"/>
+                                                                 Padding="16" Height="55" FontSize="15" FontFamily="Consolas"/>
                                                         <Button Grid.Column="2" Content="🏷️" 
                                                                 Command="{Binding GenerateBarcodeCommand}"
                                                                 CommandParameter="Box"
                                                                 Style="{StaticResource SecondaryButtonStyle}"
-                                                                Height="40" Width="40" FontSize="16"/>
+                                                                Height="55" Width="48" FontSize="18"/>
                                                     </Grid>
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="Items Per Box" FontWeight="Medium" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="Items Per Box" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                                     <TextBox Text="{Binding SelectedProduct.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
-                                                             Padding="12" Height="40" FontSize="14"/>
+                                                             Padding="16" Height="55" FontSize="15"/>
                                                 </StackPanel>
                                             </Grid>
 
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="20"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="20"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <StackPanel Grid.Column="0">
-                                                    <TextBlock Text="Box Purchase Price" FontWeight="Medium" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="Box Purchase Price" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                            CornerRadius="4" Height="40">
+                                                            CornerRadius="6" Height="55">
                                                         <Grid>
-                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                            <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                        VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                             <TextBox Text="{Binding SelectedProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                                      Background="Transparent" BorderThickness="0" 
-                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                                     Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                         </Grid>
                                                     </Border>
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Column="2">
-                                                    <TextBlock Text="Box Sale Price" FontWeight="Medium" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="Box Sale Price" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                            CornerRadius="4" Height="40">
+                                                            CornerRadius="6" Height="55">
                                                         <Grid>
-                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                            <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                        VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                             <TextBox Text="{Binding SelectedProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                                      Background="Transparent" BorderThickness="0" 
-                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                                     Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                         </Grid>
                                                     </Border>
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Column="4">
-                                                    <TextBlock Text="Box Wholesale Price" FontWeight="Medium" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="Box Wholesale Price" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                                     <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" 
-                                                            CornerRadius="4" Height="40">
+                                                            CornerRadius="6" Height="55">
                                                         <Grid>
-                                                            <TextBlock Text="$" FontSize="14" Margin="12,0,0,0" 
+                                                            <TextBlock Text="$" FontSize="16" Margin="16,0,0,0" 
                                                                        VerticalAlignment="Center" Foreground="{StaticResource TextTertiaryBrush}"/>
                                                             <TextBox Text="{Binding SelectedProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged}" 
                                                                      Background="Transparent" BorderThickness="0" 
-                                                                     Margin="24,0,12,0" VerticalAlignment="Center" FontSize="14"/>
+                                                                     Margin="36,0,16,0" VerticalAlignment="Center" FontSize="15"/>
                                                         </Grid>
                                                     </Border>
                                                 </StackPanel>
@@ -722,122 +728,122 @@
                                 <!-- Inventory Tab -->
                                 <StackPanel x:Name="InventoryContent" Visibility="Collapsed">
                                     <!-- Stock Information -->
-                                    <Grid Margin="0,0,0,24">
+                                    <Grid Margin="0,0,0,32">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="20"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0">
-                                            <TextBlock Text="Current Stock" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Current Stock" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
-                                                     Padding="12" Height="40" FontSize="14"/>
+                                                     Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="2">
-                                            <TextBlock Text="Storehouse" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Storehouse" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
-                                                     Padding="12" Height="40" FontSize="14"/>
+                                                     Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="4">
-                                            <TextBlock Text="Minimum Stock" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Minimum Stock" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                                     Padding="12" Height="40" FontSize="14"/>
+                                                     Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="6">
-                                            <TextBlock Text="Number of Boxes" FontWeight="Medium" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                            <TextBlock Text="Number of Boxes" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
-                                                     Padding="12" Height="40" FontSize="14"/>
+                                                     Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
                                     </Grid>
 
                                     <!-- Transfer Section -->
                                     <Border Background="#EBF4FF" BorderBrush="#93C5FD" BorderThickness="1" 
-                                            CornerRadius="8" Padding="24">
+                                            CornerRadius="10" Padding="28">
                                         <StackPanel>
-                                            <TextBlock FontSize="18" FontWeight="SemiBold" 
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,20">
+                                            <TextBlock FontSize="20" FontWeight="SemiBold" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,24">
                                                 <Run Text="🔄"/>
                                                 <Run Text=" Transfer from Storehouse"/>
                                             </TextBlock>
 
                                             <!-- Status Cards -->
-                                            <Grid Margin="0,0,0,20">
+                                            <Grid Margin="0,0,0,24">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="20"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="16"/>
+                                                    <ColumnDefinition Width="20"/>
                                                     <ColumnDefinition Width="*"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <Border Grid.Column="0" Background="White" CornerRadius="6" Padding="16">
+                                                <Border Grid.Column="0" Background="White" CornerRadius="8" Padding="20" MinHeight="90">
                                                     <StackPanel>
-                                                        <TextBlock Text="Available in Storehouse" FontSize="12" 
+                                                        <TextBlock Text="Available in Storehouse" FontSize="13" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                        <TextBlock Text="{Binding SelectedProduct.Storehouse}" FontSize="24" 
-                                                                   FontWeight="Bold" Foreground="{StaticResource AccentBrush}"/>
-                                                        <TextBlock Text="individual items" FontSize="11" 
+                                                        <TextBlock Text="{Binding SelectedProduct.Storehouse}" FontSize="26" 
+                                                                   FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="individual items" FontSize="12" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     </StackPanel>
                                                 </Border>
 
-                                                <Border Grid.Column="2" Background="White" CornerRadius="6" Padding="16">
+                                                <Border Grid.Column="2" Background="White" CornerRadius="8" Padding="20" MinHeight="90">
                                                     <StackPanel>
-                                                        <TextBlock Text="Available Boxes" FontSize="12" 
+                                                        <TextBlock Text="Available Boxes" FontSize="13" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                        <TextBlock Text="{Binding AvailableBoxes}" FontSize="24" 
-                                                                   FontWeight="Bold" Foreground="#059669"/>
-                                                        <TextBlock Text="complete boxes" FontSize="11" 
+                                                        <TextBlock Text="{Binding AvailableBoxes}" FontSize="26" 
+                                                                   FontWeight="Bold" Foreground="#059669" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="complete boxes" FontSize="12" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     </StackPanel>
                                                 </Border>
 
-                                                <Border Grid.Column="4" Background="White" CornerRadius="6" Padding="16">
+                                                <Border Grid.Column="4" Background="White" CornerRadius="8" Padding="20" MinHeight="90">
                                                     <StackPanel>
-                                                        <TextBlock Text="Items per Box" FontSize="12" 
+                                                        <TextBlock Text="Items per Box" FontSize="13" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontSize="24" 
-                                                                   FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}"/>
-                                                        <TextBlock Text="items/box" FontSize="11" 
+                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontSize="26" 
+                                                                   FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0"/>
+                                                        <TextBlock Text="items/box" FontSize="12" 
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     </StackPanel>
                                                 </Border>
                                             </Grid>
 
                                             <!-- Transfer Type Selection -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
                                                 <RadioButton Content="Transfer Individual Items" 
                                                              IsChecked="{Binding IsIndividualTransfer}" 
-                                                             GroupName="TransferType" FontWeight="Medium" Margin="0,0,24,0"/>
+                                                             GroupName="TransferType" FontWeight="Medium" FontSize="15" Margin="0,0,32,0"/>
                                                 <RadioButton Content="Transfer Boxes" 
                                                              IsChecked="{Binding IsBoxTransfer}" 
-                                                             GroupName="TransferType" FontWeight="Medium"/>
+                                                             GroupName="TransferType" FontWeight="Medium" FontSize="15"/>
                                             </StackPanel>
 
                                             <!-- Individual Transfer -->
                                             <Border Background="White" BorderBrush="#DBEAFE" BorderThickness="1" 
-                                                    CornerRadius="6" Padding="16" Margin="0,0,0,20"
+                                                    CornerRadius="8" Padding="20" Margin="0,0,0,24"
                                                     Visibility="{Binding IsIndividualTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <StackPanel>
-                                                    <TextBlock Text="📦 Individual Items Transfer" FontWeight="SemiBold" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
+                                                    <TextBlock Text="📦 Individual Items Transfer" FontWeight="SemiBold" FontSize="16"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
                                                     <StackPanel Orientation="Horizontal">
-                                                        <TextBlock Text="Quantity:" VerticalAlignment="Center" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                        <TextBlock Text="Quantity:" VerticalAlignment="Center" FontWeight="Medium" FontSize="15" Margin="0,0,16,0"/>
                                                         <TextBox Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}" 
-                                                                 Width="120" Padding="8" Height="32" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="items" VerticalAlignment="Center" 
+                                                                 Width="140" Padding="12" Height="55" Margin="0,0,16,0" FontSize="15"/>
+                                                        <TextBlock Text="items" VerticalAlignment="Center" FontSize="15"
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     </StackPanel>
                                                 </StackPanel>
@@ -845,54 +851,54 @@
 
                                             <!-- Box Transfer -->
                                             <Border Background="White" BorderBrush="#D1FAE5" BorderThickness="1" 
-                                                    CornerRadius="6" Padding="16" Margin="0,0,0,20"
+                                                    CornerRadius="8" Padding="20" Margin="0,0,0,24"
                                                     Visibility="{Binding IsBoxTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <StackPanel>
-                                                    <TextBlock Text="📦 Box Transfer" FontWeight="SemiBold" 
-                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,8"/>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                        <TextBlock Text="Items per box:" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontWeight="SemiBold"
+                                                    <TextBlock Text="📦 Box Transfer" FontWeight="SemiBold" FontSize="16"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                        <TextBlock Text="Items per box:" VerticalAlignment="Center" Margin="0,0,16,0" FontSize="15"/>
+                                                        <TextBlock Text="{Binding SelectedProduct.ItemsPerBox}" FontWeight="SemiBold" FontSize="15"
                                                                    Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
                                                     </StackPanel>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                        <TextBlock Text="Available boxes:" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="{Binding AvailableBoxes}" FontWeight="SemiBold"
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                        <TextBlock Text="Available boxes:" VerticalAlignment="Center" Margin="0,0,16,0" FontSize="15"/>
+                                                        <TextBlock Text="{Binding AvailableBoxes}" FontWeight="SemiBold" FontSize="15"
                                                                    Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center"/>
                                                     </StackPanel>
-                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                                        <TextBlock Text="Boxes to transfer:" VerticalAlignment="Center" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                                        <TextBlock Text="Boxes to transfer:" VerticalAlignment="Center" FontWeight="Medium" FontSize="15" Margin="0,0,16,0"/>
                                                         <TextBox Text="{Binding TransferBoxes, UpdateSourceTrigger=PropertyChanged}" 
-                                                                 Width="120" Padding="8" Height="32" Margin="0,0,12,0"/>
-                                                        <TextBlock Text="boxes" VerticalAlignment="Center" 
+                                                                 Width="140" Padding="12" Height="40" Margin="0,0,16,0" FontSize="15"/>
+                                                        <TextBlock Text="boxes" VerticalAlignment="Center" FontSize="15"
                                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                                     </StackPanel>
                                                     <TextBlock Text="{Binding BoxTransferSummary}" 
                                                                Foreground="{StaticResource TextTertiaryBrush}" 
-                                                               FontStyle="Italic"/>
+                                                               FontStyle="Italic" FontSize="14"/>
                                                 </StackPanel>
                                             </Border>
 
                                             <!-- Transfer Actions -->
-                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,24">
                                                 <Button Content="{Binding TransferButtonText}" 
                                                         Command="{Binding TransferFromStorehouseCommand}"
                                                         Style="{StaticResource PrimaryButtonStyle}"
-                                                        Height="40" Width="160" FontWeight="Medium" Margin="0,0,12,0"/>
+                                                        Height="55" Width="180" FontWeight="Medium" FontSize="15" Margin="0,0,16,0"/>
                                                 <Button Content="Reset" 
                                                         Command="{Binding ResetTransferCommand}"
                                                         Style="{StaticResource SecondaryButtonStyle}"
-                                                        Height="40" Width="100"/>
+                                                        Height="55" Width="120" FontSize="15"/>
                                             </StackPanel>
 
                                             <!-- Validation Message -->
                                             <Border Background="#FEF3C7" BorderBrush="#F59E0B" BorderThickness="1" 
-                                                    CornerRadius="6" Padding="12"
+                                                    CornerRadius="8" Padding="16"
                                                     Visibility="{Binding HasTransferValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
                                                 <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="⚠️" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="⚠️" VerticalAlignment="Center" Margin="0,0,12,0" FontSize="16"/>
                                                     <TextBlock Text="{Binding TransferValidationMessage}" 
-                                                               Foreground="#D97706" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                                               Foreground="#D97706" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="14"/>
                                                 </StackPanel>
                                             </Border>
                                         </StackPanel>
@@ -905,12 +911,13 @@
                     <!-- Empty State -->
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Visibility="{Binding IsEditing, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                        <TextBlock Text="📦" FontSize="64" HorizontalAlignment="Center" 
-                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,16"/>
-                        <TextBlock Text="No product selected" FontSize="18" FontWeight="Medium" 
+                        <TextBlock Text="📦" FontSize="72" HorizontalAlignment="Center" 
+                                   Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,20"/>
+                        <TextBlock Text="No product selected" FontSize="20" FontWeight="Medium" 
                                    Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
                         <TextBlock Text="Select a product from the list to view and edit details" 
-                                   Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                   Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" 
+                                   Margin="0,12,0,0" FontSize="15"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -922,14 +929,15 @@
             <Border Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource BorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="8"
-                    Width="320">
+                    CornerRadius="10"
+                    Width="360"
+                    MinHeight="120">
                 <Border.Effect>
                     <DropShadowEffect BlurRadius="8" Direction="270" ShadowDepth="2" Color="{StaticResource ShadowColor}" Opacity="0.15"/>
                 </Border.Effect>
-                <StackPanel Margin="24" VerticalAlignment="Center" HorizontalAlignment="Center">
-                    <ProgressBar IsIndeterminate="True" Width="240" Height="4"/>
-                    <TextBlock Text="{Binding LoadingMessage}" Margin="0,16,0,0" FontSize="14"
+                <StackPanel Margin="28" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <ProgressBar IsIndeterminate="True" Width="280" Height="6"/>
+                    <TextBlock Text="{Binding LoadingMessage}" Margin="0,20,0,0" FontSize="15"
                                Foreground="{StaticResource TextSecondaryBrush}" TextAlignment="Center"/>
                 </StackPanel>
             </Border>
