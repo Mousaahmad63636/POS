@@ -22,7 +22,8 @@ namespace QuickTechSystems.ViewModels.Product
         private readonly ISupplierInvoiceService _supplierInvoiceService;
         private readonly SemaphoreSlim _operationLock = new SemaphoreSlim(1, 1);
         private bool _isDisposed;
-
+        private bool _isAutoFilling = false;
+        private bool _suppressPropertyChangeEvents = false;
         // Core collections and properties
         private ObservableCollection<ProductDTO> _products;
         private ObservableCollection<CategoryDTO> _categories;
@@ -126,7 +127,8 @@ namespace QuickTechSystems.ViewModels.Product
 
                         // Only subscribe to new product events if it's actually a new product (ProductId == 0)
                         // AND we're not editing an existing product from the list
-                        if (value.ProductId == 0 && !_isEditingExistingProduct)
+                        // AND we're not in auto-fill mode
+                        if (value.ProductId == 0 && !_isEditingExistingProduct && !IsExistingProduct)
                         {
                             value.PropertyChanged += OnNewProductPropertyChanged;
                         }
@@ -144,7 +146,6 @@ namespace QuickTechSystems.ViewModels.Product
                 }
             }
         }
-
         public SupplierInvoiceDTO? SelectedSupplierInvoice
         {
             get => _selectedSupplierInvoice;
@@ -421,9 +422,12 @@ namespace QuickTechSystems.ViewModels.Product
                 // Set flag to indicate this is editing an existing product (not creating new)
                 _isEditingExistingProduct = true;
 
+                // Don't subscribe to new product change events when editing existing
                 SelectedProduct = productCopy;
             }
         }
+
+
 
         private async void OnSelectedProductPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -432,23 +436,30 @@ namespace QuickTechSystems.ViewModels.Product
                 await LoadSupplierInvoicesAsync();
             }
         }
-
         private void OnNewProductPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (sender is ProductDTO product)
+            // Don't trigger events during auto-fill or when suppressed
+            if (_isAutoFilling || _suppressPropertyChangeEvents || sender is not ProductDTO product)
+                return;
+
+            switch (e.PropertyName)
             {
-                switch (e.PropertyName)
-                {
-                    case nameof(ProductDTO.Name):
+                case nameof(ProductDTO.Name):
+                    // Only trigger search if we're not in existing product mode
+                    if (!IsExistingProduct)
+                    {
                         DebouncedSearchByName(product.Name);
-                        break;
-                    case nameof(ProductDTO.Barcode):
+                    }
+                    break;
+                case nameof(ProductDTO.Barcode):
+                    // Only trigger barcode validation if we're not in existing product mode
+                    if (!IsExistingProduct)
+                    {
                         DebouncedBarcodeValidation(product.Barcode);
-                        break;
-                }
+                    }
+                    break;
             }
         }
-
         // Core data loading
         protected override async Task LoadDataAsync()
         {
@@ -538,6 +549,10 @@ namespace QuickTechSystems.ViewModels.Product
             // Clear existing product state
             ClearExistingProductState();
 
+            // Reset flags
+            _isAutoFilling = false;
+            _suppressPropertyChangeEvents = false;
+
             // Make sure we're not in editing existing product mode
             _isEditingExistingProduct = false;
 
@@ -562,25 +577,122 @@ namespace QuickTechSystems.ViewModels.Product
                     return;
 
                 IsLoading = true;
-                LoadingMessage = SelectedProduct.ProductId == 0 ?
-                    "Creating new product..." :
-                    IsExistingProduct ? "Updating existing product..." : "Updating product...";
 
                 var productBeingSaved = SelectedProduct;
-                bool isNew = productBeingSaved.ProductId == 0 && !IsExistingProduct;
 
-                if (isNew)
+                // Determine the operation type
+                bool isExistingProductRestock = IsExistingProduct && _originalProduct != null;
+                bool isNewProduct = !isExistingProductRestock;
+
+                if (isExistingProductRestock)
                 {
+                    LoadingMessage = "Updating existing product with new stock...";
+
+                    // Validate that we have the necessary data
+                    if (NewQuantity <= 0)
+                    {
+                        ShowTemporaryErrorMessage("Please enter a valid quantity to add.");
+                        return;
+                    }
+
+                    if (NewPurchasePrice <= 0)
+                    {
+                        ShowTemporaryErrorMessage("Please enter a valid purchase price for the new stock.");
+                        return;
+                    }
+
+                    // Create a DTO for the existing product with updated values
+                    var updatedProduct = new ProductDTO
+                    {
+                        ProductId = _originalProduct.ProductId, // Use the original product ID
+                        Name = productBeingSaved.Name,
+                        Barcode = productBeingSaved.Barcode,
+                        Description = productBeingSaved.Description,
+                        CategoryId = productBeingSaved.CategoryId,
+                        SupplierId = productBeingSaved.SupplierId,
+                        SalePrice = productBeingSaved.SalePrice,
+                        WholesalePrice = productBeingSaved.WholesalePrice,
+                        MinimumStock = productBeingSaved.MinimumStock,
+                        IsActive = productBeingSaved.IsActive,
+                        ImagePath = productBeingSaved.ImagePath,
+                        BoxBarcode = productBeingSaved.BoxBarcode,
+                        ItemsPerBox = productBeingSaved.ItemsPerBox,
+                        BoxSalePrice = productBeingSaved.BoxSalePrice,
+                        BoxWholesalePrice = productBeingSaved.BoxWholesalePrice,
+                        MinimumBoxStock = productBeingSaved.MinimumBoxStock,
+                        NumberOfBoxes = productBeingSaved.NumberOfBoxes,
+                        UpdatedAt = DateTime.Now
+                    };
+
+                    // Get current totals from original product
+                    var originalTotalQuantity = _originalProduct.CurrentStock + _originalProduct.Storehouse;
+                    var newTotalQuantity = originalTotalQuantity + NewQuantity;
+
+                    // Calculate average purchase price with rounding to 3 decimal places
+                    decimal averagePurchasePrice = 0;
+                    if (newTotalQuantity > 0)
+                    {
+                        var originalValue = originalTotalQuantity * _originalProduct.PurchasePrice;
+                        var newValue = NewQuantity * NewPurchasePrice;
+                        averagePurchasePrice = Math.Round((originalValue + newValue) / newTotalQuantity, 3);
+                    }
+
+                    // Update the product with merged values
+                    updatedProduct.PurchasePrice = averagePurchasePrice;
+                    updatedProduct.Storehouse = _originalProduct.Storehouse + NewQuantity;
+                    updatedProduct.CurrentStock = _originalProduct.CurrentStock;
+
+                    // Update box pricing if needed (also round to 3 decimal places)
+                    if (updatedProduct.ItemsPerBox > 0)
+                    {
+                        if (updatedProduct.BoxPurchasePrice == 0 && updatedProduct.PurchasePrice > 0)
+                            updatedProduct.BoxPurchasePrice = Math.Round(updatedProduct.PurchasePrice * updatedProduct.ItemsPerBox, 3);
+                        else if (productBeingSaved.BoxPurchasePrice > 0)
+                            updatedProduct.BoxPurchasePrice = Math.Round(productBeingSaved.BoxPurchasePrice, 3);
+                    }
+
+                    await SafeDatabaseOperation(() => _productService.UpdateAsync(updatedProduct));
+
+                    if (SelectedSupplierInvoice != null)
+                    {
+                        await LinkProductToInvoiceAsync(updatedProduct);
+                    }
+
+                    await ShowSuccessMessage($"Product updated successfully. Added {NewQuantity} units. New average purchase price: {averagePurchasePrice:C}");
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        UpdateProductInCollection(updatedProduct);
+                    });
+                }
+                else
+                {
+                    LoadingMessage = "Creating new product...";
+
                     productBeingSaved.CreatedAt = DateTime.Now;
 
+                    // Round all price fields to 3 decimal places
+                    productBeingSaved.PurchasePrice = Math.Round(productBeingSaved.PurchasePrice, 3);
+                    productBeingSaved.SalePrice = Math.Round(productBeingSaved.SalePrice, 3);
+                    productBeingSaved.WholesalePrice = Math.Round(productBeingSaved.WholesalePrice, 3);
+
+                    // Calculate box prices if not set (also round to 3 decimal places)
                     if (productBeingSaved.ItemsPerBox > 0)
                     {
                         if (productBeingSaved.BoxPurchasePrice == 0 && productBeingSaved.PurchasePrice > 0)
-                            productBeingSaved.BoxPurchasePrice = productBeingSaved.PurchasePrice * productBeingSaved.ItemsPerBox;
+                            productBeingSaved.BoxPurchasePrice = Math.Round(productBeingSaved.PurchasePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxPurchasePrice = Math.Round(productBeingSaved.BoxPurchasePrice, 3);
+
                         if (productBeingSaved.BoxSalePrice == 0 && productBeingSaved.SalePrice > 0)
-                            productBeingSaved.BoxSalePrice = productBeingSaved.SalePrice * productBeingSaved.ItemsPerBox;
+                            productBeingSaved.BoxSalePrice = Math.Round(productBeingSaved.SalePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxSalePrice = Math.Round(productBeingSaved.BoxSalePrice, 3);
+
                         if (productBeingSaved.BoxWholesalePrice == 0 && productBeingSaved.WholesalePrice > 0)
-                            productBeingSaved.BoxWholesalePrice = productBeingSaved.WholesalePrice * productBeingSaved.ItemsPerBox;
+                            productBeingSaved.BoxWholesalePrice = Math.Round(productBeingSaved.WholesalePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxWholesalePrice = Math.Round(productBeingSaved.BoxWholesalePrice, 3);
                     }
 
                     var savedProduct = await SafeDatabaseOperation(() => _productService.CreateAsync(productBeingSaved));
@@ -600,77 +712,6 @@ namespace QuickTechSystems.ViewModels.Product
                         });
                     }
                 }
-                else if (IsExistingProduct && _originalProduct != null)
-                {
-                    // Handle existing product update with quantity merging
-                    productBeingSaved.UpdatedAt = DateTime.Now;
-
-                    // Get current totals from original product
-                    var originalTotalQuantity = _originalProduct.CurrentStock + _originalProduct.Storehouse;
-                    var newTotalQuantity = originalTotalQuantity + NewQuantity;
-
-                    // Calculate average purchase price
-                    decimal averagePurchasePrice = 0;
-                    if (newTotalQuantity > 0)
-                    {
-                        var originalValue = originalTotalQuantity * _originalProduct.PurchasePrice;
-                        var newValue = NewQuantity * NewPurchasePrice;
-                        averagePurchasePrice = (originalValue + newValue) / newTotalQuantity;
-                    }
-
-                    // Update the product with merged values
-                    productBeingSaved.PurchasePrice = averagePurchasePrice;
-                    productBeingSaved.Storehouse = _originalProduct.Storehouse + NewQuantity;
-                    productBeingSaved.CurrentStock = _originalProduct.CurrentStock;
-
-                    // Update box pricing if needed
-                    if (productBeingSaved.ItemsPerBox > 0)
-                    {
-                        if (productBeingSaved.BoxPurchasePrice == 0 && productBeingSaved.PurchasePrice > 0)
-                            productBeingSaved.BoxPurchasePrice = productBeingSaved.PurchasePrice * productBeingSaved.ItemsPerBox;
-                        if (productBeingSaved.BoxSalePrice == 0 && productBeingSaved.SalePrice > 0)
-                            productBeingSaved.BoxSalePrice = productBeingSaved.SalePrice * productBeingSaved.ItemsPerBox;
-                        if (productBeingSaved.BoxWholesalePrice == 0 && productBeingSaved.WholesalePrice > 0)
-                            productBeingSaved.BoxWholesalePrice = productBeingSaved.WholesalePrice * productBeingSaved.ItemsPerBox;
-                    }
-
-                    await SafeDatabaseOperation(() => _productService.UpdateAsync(productBeingSaved));
-
-                    if (SelectedSupplierInvoice != null)
-                    {
-                        await LinkProductToInvoiceAsync(productBeingSaved);
-                    }
-
-                    await ShowSuccessMessage($"Product updated successfully. Added {NewQuantity} units. New average purchase price: {averagePurchasePrice:C}");
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        UpdateProductInCollection(productBeingSaved);
-                    });
-                }
-                else
-                {
-                    // Regular product update
-                    productBeingSaved.UpdatedAt = DateTime.Now;
-
-                    if (productBeingSaved.ItemsPerBox > 0)
-                    {
-                        if (productBeingSaved.BoxPurchasePrice == 0 && productBeingSaved.PurchasePrice > 0)
-                            productBeingSaved.BoxPurchasePrice = productBeingSaved.PurchasePrice * productBeingSaved.ItemsPerBox;
-                        if (productBeingSaved.BoxSalePrice == 0 && productBeingSaved.SalePrice > 0)
-                            productBeingSaved.BoxSalePrice = productBeingSaved.SalePrice * productBeingSaved.ItemsPerBox;
-                        if (productBeingSaved.BoxWholesalePrice == 0 && productBeingSaved.WholesalePrice > 0)
-                            productBeingSaved.BoxWholesalePrice = productBeingSaved.WholesalePrice * productBeingSaved.ItemsPerBox;
-                    }
-
-                    await SafeDatabaseOperation(() => _productService.UpdateAsync(productBeingSaved));
-                    await ShowSuccessMessage("Product updated successfully.");
-
-                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        UpdateProductInCollection(productBeingSaved);
-                    });
-                }
 
                 // Reset state
                 _isEditingExistingProduct = false;
@@ -688,6 +729,28 @@ namespace QuickTechSystems.ViewModels.Product
                 _operationLock.Release();
             }
         }
+        private bool ValidateExistingProductRestock()
+        {
+            if (!IsExistingProduct || _originalProduct == null)
+                return true; // Not an existing product restock, use regular validation
+
+            var errors = new List<string>();
+
+            if (NewQuantity <= 0)
+                errors.Add("Please enter a valid quantity to add (must be greater than 0).");
+
+            if (NewPurchasePrice <= 0)
+                errors.Add("Please enter a valid purchase price for the new stock (must be greater than 0).");
+
+            if (errors.Any())
+            {
+                ShowValidationErrors(errors);
+                return false;
+            }
+
+            return true;
+        }
+
 
         private async Task DeleteProductAsync()
         {
@@ -1035,8 +1098,17 @@ namespace QuickTechSystems.ViewModels.Product
 
                     if (existingProduct != null && existingProduct.ProductId != (SelectedProduct?.ProductId ?? 0))
                     {
-                        SetBarcodeValidation($"Product with this barcode already exists: {existingProduct.Name}");
-                        await AutoFillFromExistingProduct(existingProduct);
+                        // Only auto-fill if we're adding a new product (ProductId == 0) and not editing an existing one
+                        if (SelectedProduct?.ProductId == 0 && !_isEditingExistingProduct)
+                        {
+                            SetBarcodeValidation($"Product with this barcode already exists: {existingProduct.Name}");
+                            await AutoFillFromExistingProduct(existingProduct);
+                        }
+                        else if (_isEditingExistingProduct)
+                        {
+                            // If editing an existing product and barcode conflicts with another product
+                            SetBarcodeValidation($"This barcode is already used by another product: {existingProduct.Name}");
+                        }
                     }
                     else
                     {
@@ -1069,13 +1141,16 @@ namespace QuickTechSystems.ViewModels.Product
                 ClearMatchingProducts();
             }
         }
-
         private async Task AutoFillFromExistingProduct(ProductDTO existingProduct)
         {
-            if (SelectedProduct == null || _isEditingExistingProduct) return;
+            if (SelectedProduct == null || _isEditingExistingProduct || _isAutoFilling)
+                return;
 
             try
             {
+                // Set flag to prevent recursive calls
+                _isAutoFilling = true;
+
                 // Cancel any ongoing search operations when auto-filling
                 CancelSearchOperations();
 
@@ -1088,13 +1163,14 @@ namespace QuickTechSystems.ViewModels.Product
                 NewQuantity = currentQuantity;
                 NewPurchasePrice = currentPurchasePrice;
 
-                // Temporarily unsubscribe from property changes to avoid triggering searches
+                // Suppress all property change events during auto-fill
+                _suppressPropertyChangeEvents = true;
                 SelectedProduct.PropertyChanged -= OnNewProductPropertyChanged;
 
                 try
                 {
-                    // Auto-fill all product details
-                    SelectedProduct.ProductId = existingProduct.ProductId;
+                    // Auto-fill all product details BUT KEEP ProductId as 0 to maintain "new product" state
+                    SelectedProduct.ProductId = 0; // Keep as 0 - this is key!
                     SelectedProduct.Name = existingProduct.Name;
                     SelectedProduct.Barcode = existingProduct.Barcode;
                     SelectedProduct.Description = existingProduct.Description;
@@ -1113,34 +1189,36 @@ namespace QuickTechSystems.ViewModels.Product
                     SelectedProduct.BoxSalePrice = existingProduct.BoxSalePrice;
                     SelectedProduct.BoxWholesalePrice = existingProduct.BoxWholesalePrice;
                     SelectedProduct.MinimumBoxStock = existingProduct.MinimumBoxStock;
+                    SelectedProduct.NumberOfBoxes = existingProduct.NumberOfBoxes;
 
-                    // Calculate new quantities and average price
+                    // Calculate current values for display
                     var totalExistingQuantity = existingProduct.CurrentStock + existingProduct.Storehouse;
-                    var newTotalQuantity = totalExistingQuantity + NewQuantity;
 
-                    // Calculate average purchase price
-                    decimal averagePurchasePrice = 0;
+                    // Set current stock values (don't modify yet - that happens on save)
+                    SelectedProduct.CurrentStock = existingProduct.CurrentStock;
+                    SelectedProduct.Storehouse = existingProduct.Storehouse;
+
+                    // Calculate what the new average price would be if saved
+                    decimal projectedAveragePrice = 0;
+                    var newTotalQuantity = totalExistingQuantity + NewQuantity;
                     if (newTotalQuantity > 0)
                     {
                         var existingValue = totalExistingQuantity * existingProduct.PurchasePrice;
                         var newValue = NewQuantity * NewPurchasePrice;
-                        averagePurchasePrice = (existingValue + newValue) / newTotalQuantity;
+                        projectedAveragePrice = Math.Round((existingValue + newValue) / newTotalQuantity, 3);
                     }
 
-                    // Set the new values
-                    SelectedProduct.PurchasePrice = averagePurchasePrice;
-                    SelectedProduct.CurrentStock = existingProduct.CurrentStock;
-                    SelectedProduct.Storehouse = existingProduct.Storehouse + NewQuantity;
-                    SelectedProduct.NumberOfBoxes = existingProduct.NumberOfBoxes;
+                    SelectedProduct.PurchasePrice = projectedAveragePrice;
 
                     IsExistingProduct = true;
 
-                    SetBarcodeValidation($"Product found! Adding {NewQuantity} units. New average purchase price: {averagePurchasePrice:C}");
+                    SetBarcodeValidation($"Product found! Adding {NewQuantity} units. New average purchase price will be: {projectedAveragePrice:C}");
                 }
                 finally
                 {
-                    // Re-subscribe to property changes
-                    SelectedProduct.PropertyChanged += OnNewProductPropertyChanged;
+                    // Re-enable property change events but only for non-triggering properties
+                    _suppressPropertyChangeEvents = false;
+                    // Don't re-subscribe to OnNewProductPropertyChanged since we're now in existing product mode
                 }
             }
             catch (Exception ex)
@@ -1149,7 +1227,12 @@ namespace QuickTechSystems.ViewModels.Product
                 ClearBarcodeValidation();
                 SetBarcodeValidation("Error loading product details. Please try again.");
             }
+            finally
+            {
+                _isAutoFilling = false;
+            }
         }
+
 
         // Utility methods
         private void ClearExistingProductState()
@@ -1158,6 +1241,8 @@ namespace QuickTechSystems.ViewModels.Product
             _originalProduct = null;
             NewQuantity = 0;
             NewPurchasePrice = 0;
+            _isAutoFilling = false;
+            _suppressPropertyChangeEvents = false;
             ClearMatchingProducts();
             ClearBarcodeValidation();
             ClearTransferValidation();
@@ -1233,6 +1318,7 @@ namespace QuickTechSystems.ViewModels.Product
                 _searchCancellationTokenSource?.Dispose();
                 _searchCancellationTokenSource = null;
                 _searchTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                _pendingSearchTerm = string.Empty;
             }
 
             lock (_barcodeLock)
@@ -1241,6 +1327,7 @@ namespace QuickTechSystems.ViewModels.Product
                 _barcodeCancellationTokenSource?.Dispose();
                 _barcodeCancellationTokenSource = null;
                 _barcodeTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+                _pendingBarcode = string.Empty;
             }
         }
 
@@ -1447,6 +1534,13 @@ namespace QuickTechSystems.ViewModels.Product
                 return false;
             }
 
+            // For existing product restock, use different validation
+            if (IsExistingProduct)
+            {
+                return ValidateExistingProductRestock();
+            }
+
+            // Regular validation for new products
             if (string.IsNullOrWhiteSpace(product.Name))
                 ValidationErrors.Add("Name", "Product name is required.");
 
@@ -1481,7 +1575,6 @@ namespace QuickTechSystems.ViewModels.Product
 
             return true;
         }
-
         private void ShowValidationErrors(List<string> errors)
         {
             System.Windows.Application.Current.Dispatcher.Invoke(() =>
