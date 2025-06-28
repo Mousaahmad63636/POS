@@ -580,9 +580,10 @@ namespace QuickTechSystems.ViewModels.Product
 
                 var productBeingSaved = SelectedProduct;
 
-                // Determine the operation type
+                // Determine the operation type more accurately
                 bool isExistingProductRestock = IsExistingProduct && _originalProduct != null;
-                bool isNewProduct = !isExistingProductRestock;
+                bool isRegularProductUpdate = !isExistingProductRestock && productBeingSaved.ProductId > 0;
+                bool isNewProduct = !isExistingProductRestock && productBeingSaved.ProductId == 0;
 
                 if (isExistingProductRestock)
                 {
@@ -665,7 +666,51 @@ namespace QuickTechSystems.ViewModels.Product
                         UpdateProductInCollection(updatedProduct);
                     });
                 }
-                else
+                else if (isRegularProductUpdate)
+                {
+                    LoadingMessage = "Updating product...";
+
+                    productBeingSaved.UpdatedAt = DateTime.Now;
+
+                    // Round all price fields to 3 decimal places
+                    productBeingSaved.PurchasePrice = Math.Round(productBeingSaved.PurchasePrice, 3);
+                    productBeingSaved.SalePrice = Math.Round(productBeingSaved.SalePrice, 3);
+                    productBeingSaved.WholesalePrice = Math.Round(productBeingSaved.WholesalePrice, 3);
+
+                    // Calculate box prices if not set (also round to 3 decimal places)
+                    if (productBeingSaved.ItemsPerBox > 0)
+                    {
+                        if (productBeingSaved.BoxPurchasePrice == 0 && productBeingSaved.PurchasePrice > 0)
+                            productBeingSaved.BoxPurchasePrice = Math.Round(productBeingSaved.PurchasePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxPurchasePrice = Math.Round(productBeingSaved.BoxPurchasePrice, 3);
+
+                        if (productBeingSaved.BoxSalePrice == 0 && productBeingSaved.SalePrice > 0)
+                            productBeingSaved.BoxSalePrice = Math.Round(productBeingSaved.SalePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxSalePrice = Math.Round(productBeingSaved.BoxSalePrice, 3);
+
+                        if (productBeingSaved.BoxWholesalePrice == 0 && productBeingSaved.WholesalePrice > 0)
+                            productBeingSaved.BoxWholesalePrice = Math.Round(productBeingSaved.WholesalePrice * productBeingSaved.ItemsPerBox, 3);
+                        else
+                            productBeingSaved.BoxWholesalePrice = Math.Round(productBeingSaved.BoxWholesalePrice, 3);
+                    }
+
+                    await SafeDatabaseOperation(() => _productService.UpdateAsync(productBeingSaved));
+
+                    if (SelectedSupplierInvoice != null)
+                    {
+                        await LinkProductToInvoiceAsync(productBeingSaved);
+                    }
+
+                    await ShowSuccessMessage("Product updated successfully.");
+
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        UpdateProductInCollection(productBeingSaved);
+                    });
+                }
+                else if (isNewProduct)
                 {
                     LoadingMessage = "Creating new product...";
 
