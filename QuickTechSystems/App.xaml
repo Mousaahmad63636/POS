@@ -15,6 +15,7 @@
              xmlns:welcomeVm="clr-namespace:QuickTechSystems.ViewModels.Welcome"
              xmlns:transactionVm="clr-namespace:QuickTechSystems.ViewModels.Transaction"
              xmlns:views="clr-namespace:QuickTechSystems.WPF.Views">
+    
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -62,6 +63,8 @@
             <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
             <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
+            <converters:CollectionSumConverter x:Key="CollectionSumConverter"/>
+            <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter"/>
             <converters:TableStatusColorConverter x:Key="TableStatusColorConverter"/>
             <converters:PaymentButtonVisibilityConverter x:Key="PaymentButtonVisibilityConverter"/>
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />

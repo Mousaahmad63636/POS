@@ -1,4 +1,9 @@
 ﻿// Path: QuickTechSystems.WPF.ViewModels/SupplierInvoiceViewModel.cs
+using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.Application.Events;
+using QuickTechSystems.Application.Services.Interfaces;
+using QuickTechSystems.WPF;
+using QuickTechSystems.WPF.Commands;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -7,10 +12,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
-using QuickTechSystems.Application.DTOs;
-using QuickTechSystems.Application.Events;
-using QuickTechSystems.Application.Services.Interfaces;
-using QuickTechSystems.WPF.Commands;
+using QuickTechSystems.WPF.Views;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace QuickTechSystems.ViewModels.Supplier
 {
@@ -28,6 +31,8 @@ namespace QuickTechSystems.ViewModels.Supplier
         private decimal _totalAmount;
         private string _notes = string.Empty;
         private bool _isSaving;
+        private readonly IProductService _productService;
+        private readonly ICategoryService _categoryService;
         private string _errorMessage = string.Empty;
         private bool _isInvoicePopupOpen;
         private bool _isProductSelectionPopupOpen;
@@ -225,6 +230,7 @@ namespace QuickTechSystems.ViewModels.Supplier
         public ICommand DeleteInvoiceCommand { get; }
         public ICommand AddProductCommand { get; }
         public ICommand SaveProductCommand { get; }
+        public ICommand AddEditProductsCommand { get; }
         public ICommand RemoveProductCommand { get; }
         public ICommand ValidateInvoiceCommand { get; }
         public ICommand SettleInvoiceCommand { get; }
@@ -236,7 +242,7 @@ namespace QuickTechSystems.ViewModels.Supplier
     ISupplierService supplierService,
      IEventAggregator eventAggregator) : base(eventAggregator)
         {
-
+            AddEditProductsCommand = new RelayCommand(_ => OpenAddEditProductsWindow());
             _supplierInvoiceService = supplierInvoiceService;
             _supplierService = supplierService;
             _invoices = new ObservableCollection<SupplierInvoiceDTO>();
@@ -259,7 +265,7 @@ namespace QuickTechSystems.ViewModels.Supplier
             ValidateInvoiceCommand = new AsyncRelayCommand(async _ => await ValidateInvoiceAsync());
             SettleInvoiceCommand = new AsyncRelayCommand(async _ => await SettleInvoiceAsync());
             ViewInvoiceDetailsCommand = new RelayCommand(_ => ViewInvoiceDetails());
-
+            AddEditProductsCommand = new RelayCommand(_ => OpenAddEditProductsWindow());
             _ = LoadDataAsync();
         }
         protected override void SubscribeToEvents()
@@ -281,7 +287,61 @@ namespace QuickTechSystems.ViewModels.Supplier
             _eventAggregator.Unsubscribe(_supplierChangedHandler);
         }
 
+        private void OpenAddEditProductsWindow()
+        {
+            if (SelectedInvoice == null)
+            {
+                System.Windows.MessageBox.Show(
+                    "Please select an invoice first.",
+                    "No Invoice Selected",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
 
+            if (SelectedInvoice.Status != "Draft")
+            {
+                System.Windows.MessageBox.Show(
+                    "Products can only be added/edited for Draft invoices.",
+                    "Invalid Invoice Status",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            try
+            {
+                // Create the ViewModel with injected dependencies
+                var productViewModel = new SupplierInvoiceProductViewModel(
+                    _supplierInvoiceService,
+                    _productService,
+                    _categoryService,
+                    _supplierService,
+                    _eventAggregator
+                );
+
+                var window = new SupplierInvoiceProductWindow(productViewModel, SelectedInvoice)
+                {
+                    Owner = System.Windows.Application.Current.MainWindow
+                };
+
+                var result = window.ShowDialog();
+
+                // Refresh the invoice data if changes were saved
+                if (result == true)
+                {
+                    _ = LoadInvoicesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    $"Error opening product management window: {ex.Message}",
+                    "Error",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
         private async void HandleInvoiceChanged(EntityChangedEvent<SupplierInvoiceDTO> evt)
         {
             try

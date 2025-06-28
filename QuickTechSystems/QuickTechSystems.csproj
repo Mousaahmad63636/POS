@@ -80,6 +80,12 @@
 		<Folder Include="Resources\Images\" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <Compile Update="Converters\BooleanToBrushConverter.cs">
+	    <Generator>MSBuild:Compile</Generator>
+	  </Compile>
+	</ItemGroup>
+
 	<!-- Ensure all required files are included during publish -->
 	<Target Name="CopyCustomContent" AfterTargets="Publish">
 		<ItemGroup>
