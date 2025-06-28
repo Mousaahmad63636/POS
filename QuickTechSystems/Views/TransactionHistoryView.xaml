@@ -63,7 +63,7 @@
 
         <!-- Header Section -->
         <TextBlock Grid.Row="0" 
-                   Text="Transaction History" 
+                   Text="{DynamicResource TransactionHistory_Title}" 
                    Style="{StaticResource HeaderTextStyle}"/>
 
         <!-- Statistics Section -->
@@ -76,7 +76,7 @@
 
             <Border Grid.Column="0" Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="Total Sales" 
+                    <TextBlock Text="{DynamicResource TransactionHistory_TotalSales}" 
                                FontSize="14" 
                                Foreground="{StaticResource TextTertiaryBrush}"/>
                     <TextBlock Text="{Binding TotalSalesAmount, StringFormat=C, FallbackValue=$0.00, Mode=OneWay}" 
@@ -88,7 +88,7 @@
 
             <Border Grid.Column="1" Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="Total Transactions" 
+                    <TextBlock Text="{DynamicResource TransactionHistory_TotalTransactions}" 
                                FontSize="14" 
                                Foreground="{StaticResource TextTertiaryBrush}"/>
                     <TextBlock Text="{Binding TotalItems, FallbackValue=0, Mode=OneWay}" 
@@ -101,11 +101,11 @@
             <StackPanel Grid.Column="2" 
                         Orientation="Horizontal" 
                         VerticalAlignment="Center">
-                <Button Content="Print Report" 
+                <Button Content="{DynamicResource TransactionHistory_PrintReport}" 
                         Command="{Binding PrintReportCommand}" 
                         Style="{StaticResource SecondaryButtonStyle}" 
                         Margin="0,0,10,0"/>
-                <Button Content="Refresh" 
+                <Button Content="{DynamicResource TransactionHistory_Refresh}" 
                         Command="{Binding LoadDataCommand}" 
                         Style="{StaticResource PrimaryButtonStyle}" 
                         Margin="5,0"/>
@@ -113,7 +113,6 @@
         </Grid>
 
         <!-- Filters Section -->
-        <!-- Update your Filters Section in the XAML -->
         <Border Grid.Row="2" Style="{StaticResource FilterCardStyle}">
             <Grid>
                 <Grid.RowDefinitions>
@@ -124,7 +123,7 @@
                 </Grid.RowDefinitions>
 
                 <TextBlock Grid.Row="0" 
-                   Text="Filters" 
+                   Text="{DynamicResource TransactionHistory_Filters}" 
                    FontSize="16" 
                    FontWeight="SemiBold" 
                    Foreground="{StaticResource TextSecondaryBrush}" 
@@ -142,7 +141,7 @@
 
                     <!-- Start Date -->
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Start Date" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_StartDate}" 
                            FontWeight="SemiBold" 
                            Margin="0,0,0,8"/>
                         <DatePicker SelectedDate="{Binding StartDate}"
@@ -157,7 +156,7 @@
 
                     <!-- End Date -->
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="End Date" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_EndDate}" 
                            FontWeight="SemiBold" 
                            Margin="0,0,0,8"/>
                         <DatePicker SelectedDate="{Binding EndDate}"
@@ -174,17 +173,17 @@
                     <StackPanel Grid.Column="4" 
                         VerticalAlignment="Bottom"
                         Orientation="Horizontal">
-                        <Button Content="Today" 
+                        <Button Content="{DynamicResource TransactionHistory_Today}" 
                         Click="TodayButton_Click"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="10,6"
                         Margin="0,0,5,0"/>
-                        <Button Content="This Week" 
+                        <Button Content="{DynamicResource TransactionHistory_ThisWeek}" 
                         Click="ThisWeekButton_Click"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="10,6"
                         Margin="0,0,5,0"/>
-                        <Button Content="This Month" 
+                        <Button Content="{DynamicResource TransactionHistory_ThisMonth}" 
                         Click="ThisMonthButton_Click"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="10,6"/>
@@ -205,7 +204,7 @@
 
                     <!-- Employee Filter -->
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Employee" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_Employee}" 
                            FontWeight="SemiBold" 
                            Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding Employees}" 
@@ -226,7 +225,7 @@
 
                     <!-- Transaction Type Filter -->
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Transaction Type" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_TransactionType}" 
                            FontWeight="SemiBold" 
                            Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding TransactionTypes}" 
@@ -236,7 +235,7 @@
 
                     <!-- Items Per Page -->
                     <StackPanel Grid.Column="4">
-                        <TextBlock Text="Items Per Page" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_ItemsPerPage}" 
                            FontWeight="SemiBold" 
                            Margin="0,0,0,8"/>
                         <ComboBox ItemsSource="{Binding PageSizes}" 
@@ -247,7 +246,7 @@
                     <!-- Clear Filters Button -->
                     <StackPanel Grid.Column="6" 
                         VerticalAlignment="Bottom">
-                        <Button Content="Clear Filters" 
+                        <Button Content="{DynamicResource TransactionHistory_ClearFilters}" 
                         Command="{Binding ClearFiltersCommand}" 
                         Style="{StaticResource SecondaryButtonStyle}"
                         Padding="15,8"/>
@@ -275,10 +274,10 @@
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center">
-                    <Button Content="First" 
+                    <Button Content="{DynamicResource TransactionHistory_First}" 
                             Command="{Binding FirstPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="Previous" 
+                    <Button Content="{DynamicResource TransactionHistory_Previous}" 
                             Command="{Binding PreviousPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
 
@@ -292,10 +291,10 @@
                                    FontWeight="Bold"/>
                     </Border>
 
-                    <Button Content="Next" 
+                    <Button Content="{DynamicResource TransactionHistory_Next}" 
                             Command="{Binding NextPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="Last" 
+                    <Button Content="{DynamicResource TransactionHistory_Last}" 
                             Command="{Binding LastPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
                 </StackPanel>
@@ -320,7 +319,7 @@
                                      Width="200" 
                                      Height="4" 
                                      Margin="0,0,0,15"/>
-                        <TextBlock Text="Loading transactions..." 
+                        <TextBlock Text="{DynamicResource TransactionHistory_LoadingTransactions}" 
                                    FontSize="14" 
                                    Foreground="{StaticResource TextSecondaryBrush}" 
                                    HorizontalAlignment="Center"/>
@@ -348,12 +347,12 @@
                                    FontSize="48" 
                                    HorizontalAlignment="Center" 
                                    Margin="0,0,0,15"/>
-                        <TextBlock Text="No transactions found" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_NoTransactionsFound}" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 
                                    HorizontalAlignment="Center"
                                    Margin="0,0,0,8"/>
-                        <TextBlock Text="Try adjusting your filters" 
+                        <TextBlock Text="{DynamicResource TransactionHistory_TryAdjustingFilters}" 
                                    FontSize="14" 
                                    Foreground="{StaticResource TextTertiaryBrush}" 
                                    HorizontalAlignment="Center"/>
@@ -426,7 +425,7 @@
                                             </Grid.ColumnDefinitions>
 
                                             <StackPanel Grid.Column="0">
-                                                <TextBlock Text="Customer" 
+                                                <TextBlock Text="{DynamicResource TransactionHistory_Customer}" 
                                                            FontSize="11" 
                                                            Foreground="{StaticResource TextTertiaryBrush}"/>
                                                 <TextBlock Text="{Binding CustomerName, FallbackValue='Walk-in'}" 
@@ -435,7 +434,7 @@
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="1">
-                                                <TextBlock Text="Cashier" 
+                                                <TextBlock Text="{DynamicResource TransactionHistory_Cashier}" 
                                                            FontSize="11" 
                                                            Foreground="{StaticResource TextTertiaryBrush}"/>
                                                 <TextBlock Text="{Binding CashierName, FallbackValue='Unknown'}" 
@@ -444,7 +443,7 @@
                                             </StackPanel>
 
                                             <StackPanel Grid.Column="2">
-                                                <TextBlock Text="Date" 
+                                                <TextBlock Text="{DynamicResource TransactionHistory_Date}" 
                                                            FontSize="11" 
                                                            Foreground="{StaticResource TextTertiaryBrush}"/>
                                                 <TextBlock Text="{Binding TransactionDate, StringFormat='MMM dd, yyyy HH:mm'}" 
@@ -467,12 +466,12 @@
                                     <StackPanel Grid.Column="3" 
                                                 Orientation="Horizontal" 
                                                 VerticalAlignment="Center">
-                                        <Button Content="Details" 
+                                        <Button Content="{DynamicResource TransactionHistory_Details}" 
                                                 Command="{Binding DataContext.ViewTransactionDetailsCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 Style="{StaticResource LightIconButtonStyle}" 
                                                 Margin="0,0,8,0"/>
-                                        <Button Content="Delete" 
+                                        <Button Content="{DynamicResource TransactionHistory_Delete}" 
                                                 Command="{Binding DataContext.DeleteTransactionCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                 CommandParameter="{Binding}"
                                                 Style="{StaticResource LightIconButtonStyle}"/>
@@ -498,21 +497,21 @@
                            FontSize="14" 
                            Foreground="{StaticResource TextSecondaryBrush}" 
                            VerticalAlignment="Center">
-                    <Run Text="Showing"/>
+                    <Run Text="{DynamicResource TransactionHistory_Showing}"/>
                     <Run Text="{Binding PagedTransactions.Count, Mode=OneWay}"/>
-                    <Run Text="of"/>
+                    <Run Text="{DynamicResource TransactionHistory_Of}"/>
                     <Run Text="{Binding TotalItems, Mode=OneWay}"/>
-                    <Run Text="transactions"/>
+                    <Run Text="{DynamicResource TransactionHistory_Transactions}"/>
                 </TextBlock>
 
                 <!-- Pagination Controls -->
                 <StackPanel Grid.Column="1" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center">
-                    <Button Content="First" 
+                    <Button Content="{DynamicResource TransactionHistory_First}" 
                             Command="{Binding FirstPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="Previous" 
+                    <Button Content="{DynamicResource TransactionHistory_Previous}" 
                             Command="{Binding PreviousPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
 
@@ -526,10 +525,10 @@
                                    FontWeight="Bold"/>
                     </Border>
 
-                    <Button Content="Next" 
+                    <Button Content="{DynamicResource TransactionHistory_Next}" 
                             Command="{Binding NextPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="Last" 
+                    <Button Content="{DynamicResource TransactionHistory_Last}" 
                             Command="{Binding LastPageCommand}" 
                             Style="{StaticResource PaginationButtonStyle}"/>
                 </StackPanel>

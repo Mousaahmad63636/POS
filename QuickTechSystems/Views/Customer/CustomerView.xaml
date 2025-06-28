@@ -34,7 +34,7 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
                     <TextBlock Text="👥" FontSize="24" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                    <TextBlock Text="Customer Management" 
+                    <TextBlock Text="{DynamicResource Customer_Management}" 
                               FontSize="24" 
                               FontWeight="SemiBold" 
                               Foreground="{StaticResource TextPrimaryBrush}"
@@ -60,7 +60,7 @@
                                                BorderThickness="1"
                                                CornerRadius="4">
                                             <Grid>
-                                                <TextBlock Text="🔍 Search customers..."
+                                                <TextBlock Text="{DynamicResource Customer_SearchPlaceholder}"
                                                          Foreground="{StaticResource TextTertiaryBrush}"
                                                          Margin="12,0"
                                                          VerticalAlignment="Center"
@@ -95,7 +95,7 @@
                        Padding="16,0">
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="+" FontWeight="Bold" Margin="0,0,8,0"/>
-                        <TextBlock Text="Add Customer"/>
+                        <TextBlock Text="{DynamicResource Customer_AddCustomer}"/>
                     </StackPanel>
                 </Button>
             </Grid>
@@ -118,7 +118,7 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0"
-                              Text="Customer List"
+                              Text="{DynamicResource Customer_CustomerList}"
                               FontSize="18"
                               FontWeight="SemiBold"
                               Foreground="{StaticResource TextSecondaryBrush}"
@@ -135,9 +135,9 @@
                              CanUserDeleteRows="False"
                              GridLinesVisibility="Horizontal">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Phone" Binding="{Binding Phone}" Width="100"/>
-                            <DataGridTextColumn Header="Balance" Binding="{Binding Balance, StringFormat=C}" Width="80">
+                            <DataGridTextColumn Header="{DynamicResource Customer_Name}" Binding="{Binding Name}" Width="*"/>
+                            <DataGridTextColumn Header="{DynamicResource Customer_Phone}" Binding="{Binding Phone}" Width="100"/>
+                            <DataGridTextColumn Header="{DynamicResource Customer_Balance}" Binding="{Binding Balance, StringFormat=C}" Width="80">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock">
                                         <Style.Triggers>
@@ -164,7 +164,7 @@
                                Margin="0,0,8,0">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="✏️" Margin="0,0,6,0"/>
-                                <TextBlock Text="Edit"/>
+                                <TextBlock Text="{DynamicResource Customer_Edit}"/>
                             </StackPanel>
                         </Button>
                         <Button Command="{Binding DeleteCustomerCommand}"
@@ -174,7 +174,7 @@
                                Foreground="#9A4355">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="🗑️" Margin="0,0,6,0"/>
-                                <TextBlock Text="Delete"/>
+                                <TextBlock Text="{DynamicResource Customer_Delete}"/>
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -206,28 +206,28 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                          Text="Add New Customer"
+                                          Text="{DynamicResource Customer_AddNewCustomer}"
                                           FontSize="18"
                                           FontWeight="SemiBold"
                                           Foreground="{StaticResource TextPrimaryBrush}"
                                           Margin="0,0,0,16"/>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
-                                    <TextBlock Text="Name*" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_NameRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Name, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
 
-                                    <TextBlock Text="Phone" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Phone}" FontWeight="SemiBold" Margin="0,12,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Phone, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
-                                    <TextBlock Text="Email" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Email}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Email, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
 
-                                    <TextBlock Text="Address" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Address}" FontWeight="SemiBold" Margin="0,12,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Address, UpdateSourceTrigger=PropertyChanged}"
                                             Height="60" Padding="8" TextWrapping="Wrap" AcceptsReturn="True"/>
                                 </StackPanel>
@@ -238,13 +238,11 @@
                                            Margin="0,16,0,0">
                                     <Button Command="{Binding CancelEditCommand}"
                                            Style="{StaticResource SecondaryButtonStyle}"
-                                           Margin="0,0,8,0">
-                                        Cancel
-                                    </Button>
+                                           Margin="0,0,8,0"
+                                           Content="{DynamicResource Customer_Cancel}"/>
                                     <Button Command="{Binding SaveCustomerCommand}"
-                                           Style="{StaticResource PrimaryButtonStyle}">
-                                        Save Customer
-                                    </Button>
+                                           Style="{StaticResource PrimaryButtonStyle}"
+                                           Content="{DynamicResource Customer_SaveCustomer}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -268,28 +266,28 @@
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
-                                          Text="Edit Customer"
+                                          Text="{DynamicResource Customer_EditCustomer}"
                                           FontSize="18"
                                           FontWeight="SemiBold"
                                           Foreground="{StaticResource TextPrimaryBrush}"
                                           Margin="0,0,0,16"/>
 
                                 <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
-                                    <TextBlock Text="Name*" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_NameRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Name, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
 
-                                    <TextBlock Text="Phone" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Phone}" FontWeight="SemiBold" Margin="0,12,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Phone, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,0">
-                                    <TextBlock Text="Email" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Email}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Email, UpdateSourceTrigger=PropertyChanged}"
                                             Height="36" Padding="8"/>
 
-                                    <TextBlock Text="Address" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                    <TextBlock Text="{DynamicResource Customer_Address}" FontWeight="SemiBold" Margin="0,12,0,4"/>
                                     <TextBox Text="{Binding EditingCustomer.Address, UpdateSourceTrigger=PropertyChanged}"
                                             Height="60" Padding="8" TextWrapping="Wrap" AcceptsReturn="True"/>
                                 </StackPanel>
@@ -300,19 +298,17 @@
                                            Margin="0,16,0,0">
                                     <Button Command="{Binding CancelEditCommand}"
                                            Style="{StaticResource SecondaryButtonStyle}"
-                                           Margin="0,0,8,0">
-                                        Cancel
-                                    </Button>
+                                           Margin="0,0,8,0"
+                                           Content="{DynamicResource Customer_Cancel}"/>
                                     <Button Command="{Binding SaveCustomerCommand}"
-                                           Style="{StaticResource PrimaryButtonStyle}">
-                                        Update Customer
-                                    </Button>
+                                           Style="{StaticResource PrimaryButtonStyle}"
+                                           Content="{DynamicResource Customer_UpdateCustomer}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
                         <StackPanel Visibility="{Binding SelectedCustomer, Converter={StaticResource NullToVisibilityConverter}}">
-                            <TextBlock Text="Customer Details"
+                            <TextBlock Text="{DynamicResource Customer_CustomerDetails}"
                                       FontSize="20"
                                       FontWeight="SemiBold"
                                       Foreground="{StaticResource TextPrimaryBrush}"
@@ -334,7 +330,7 @@
                                        Margin="0,0,8,0">
                                     <StackPanel>
                                         <TextBlock Text="📱" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                        <TextBlock Text="Phone" 
+                                        <TextBlock Text="{DynamicResource Customer_Phone}" 
                                                   FontWeight="SemiBold" 
                                                   HorizontalAlignment="Center"
                                                   Margin="0,0,0,4"/>
@@ -353,7 +349,7 @@
                                        Margin="4,0">
                                     <StackPanel>
                                         <TextBlock Text="💰" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                        <TextBlock Text="Balance" 
+                                        <TextBlock Text="{DynamicResource Customer_Balance}" 
                                                   FontWeight="SemiBold" 
                                                   HorizontalAlignment="Center"
                                                   Margin="0,0,0,4"/>
@@ -387,7 +383,7 @@
                                        Margin="8,0,0,0">
                                     <StackPanel>
                                         <TextBlock Text="🛒" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                        <TextBlock Text="Payments" 
+                                        <TextBlock Text="{DynamicResource Customer_Payments}" 
                                                   FontWeight="SemiBold" 
                                                   HorizontalAlignment="Center"
                                                   Margin="0,0,0,4"/>
@@ -404,7 +400,7 @@
                                        Margin="0,0,4,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="💳" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Edit Balance"/>
+                                        <TextBlock Text="{DynamicResource Customer_EditBalance}"/>
                                     </StackPanel>
                                 </Button>
 
@@ -414,7 +410,7 @@
                                        Background="{StaticResource SuccessBrush}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="💸" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Settle Debt"/>
+                                        <TextBlock Text="{DynamicResource Customer_SettleDebt}"/>
                                     </StackPanel>
                                 </Button>
 
@@ -423,7 +419,7 @@
                                        Margin="2,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="📊" Margin="0,0,6,0"/>
-                                        <TextBlock Text="History"/>
+                                        <TextBlock Text="{DynamicResource Customer_History}"/>
                                     </StackPanel>
                                 </Button>
 
@@ -432,7 +428,7 @@
                                        Margin="4,0,0,0">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="🔄" Margin="0,0,6,0"/>
-                                        <TextBlock Text="Refresh"/>
+                                        <TextBlock Text="{DynamicResource Customer_Refresh}"/>
                                     </StackPanel>
                                 </Button>
                             </UniformGrid>
@@ -445,7 +441,7 @@
                                    Margin="0,0,0,20"
                                    Visibility="{Binding IsEditingBalance, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Edit Balance"
+                                    <TextBlock Text="{DynamicResource Customer_EditBalance}"
                                               FontSize="16"
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
@@ -457,13 +453,13 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                                            <TextBlock Text="New Balance" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_NewBalance}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding NewBalance, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                                            <TextBlock Text="Reason*" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_ReasonRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding AdjustmentReason, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
@@ -474,13 +470,11 @@
                                                Margin="0,12,0,0">
                                         <Button Command="{Binding CancelEditCommand}"
                                                Style="{StaticResource SecondaryButtonStyle}"
-                                               Margin="0,0,8,0">
-                                            Cancel
-                                        </Button>
+                                               Margin="0,0,8,0"
+                                               Content="{DynamicResource Customer_Cancel}"/>
                                         <Button Command="{Binding SaveBalanceCommand}"
-                                               Style="{StaticResource PrimaryButtonStyle}">
-                                            Save Balance
-                                        </Button>
+                                               Style="{StaticResource PrimaryButtonStyle}"
+                                               Content="{DynamicResource Customer_SaveBalance}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -493,7 +487,7 @@
                                    Margin="0,0,0,20"
                                    Visibility="{Binding IsSettlingDebt, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Settle Debt"
+                                    <TextBlock Text="{DynamicResource Customer_SettleDebt}"
                                               FontSize="16"
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
@@ -509,13 +503,13 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
-                                            <TextBlock Text="Payment Amount" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_PaymentAmount}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">
-                                            <TextBlock Text="Payment Method" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_PaymentMethod}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <ComboBox Text="{Binding PaymentMethod, UpdateSourceTrigger=PropertyChanged}"
                                                      Height="36" Padding="8" IsEditable="True">
                                                 <sys:String>Cash</sys:String>
@@ -527,7 +521,7 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,12,0,0">
-                                            <TextBlock Text="Payment Notes" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_PaymentNotes}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding PaymentNotes, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
@@ -538,14 +532,12 @@
                                                Margin="0,12,0,0">
                                         <Button Command="{Binding CancelEditCommand}"
                                                Style="{StaticResource SecondaryButtonStyle}"
-                                               Margin="0,0,8,0">
-                                            Cancel
-                                        </Button>
+                                               Margin="0,0,8,0"
+                                               Content="{DynamicResource Customer_Cancel}"/>
                                         <Button Command="{Binding ProcessPaymentCommand}"
                                                Style="{StaticResource PrimaryButtonStyle}"
-                                               Background="{StaticResource SuccessBrush}">
-                                            Process Payment
-                                        </Button>
+                                               Background="{StaticResource SuccessBrush}"
+                                               Content="{DynamicResource Customer_ProcessPayment}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -558,7 +550,7 @@
                                    Margin="0,0,0,20"
                                    Visibility="{Binding IsEditingPayment, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel>
-                                    <TextBlock Text="Edit Payment"
+                                    <TextBlock Text="{DynamicResource Customer_EditPayment}"
                                               FontSize="16"
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
@@ -575,13 +567,13 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
-                                            <TextBlock Text="Amount*" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_AmountRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding EditingPayment.Amount, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">
-                                            <TextBlock Text="Payment Method*" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_PaymentMethodRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <ComboBox Text="{Binding EditingPayment.PaymentMethod, UpdateSourceTrigger=PropertyChanged}"
                                                      Height="36" Padding="8" IsEditable="True">
                                                 <sys:String>Cash</sys:String>
@@ -593,13 +585,13 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,12,8,0">
-                                            <TextBlock Text="Payment Date" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_PaymentDate}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <DatePicker SelectedDate="{Binding EditingPayment.PaymentDate, UpdateSourceTrigger=PropertyChanged}"
                                                        Height="36"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,12,0,0">
-                                            <TextBlock Text="Status" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_Status}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <ComboBox Text="{Binding EditingPayment.Status, UpdateSourceTrigger=PropertyChanged}"
                                                      Height="36" Padding="8" IsEditable="True">
                                                 <sys:String>Completed</sys:String>
@@ -609,7 +601,7 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="0,12,0,0">
-                                            <TextBlock Text="Notes" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBlock Text="{DynamicResource Customer_Notes}" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                             <TextBox Text="{Binding EditingPayment.Notes, UpdateSourceTrigger=PropertyChanged}"
                                                     Height="60" Padding="8" TextWrapping="Wrap" AcceptsReturn="True"/>
                                         </StackPanel>
@@ -620,13 +612,11 @@
                                                Margin="0,16,0,0">
                                         <Button Command="{Binding CancelEditCommand}"
                                                Style="{StaticResource SecondaryButtonStyle}"
-                                               Margin="0,0,8,0">
-                                            Cancel
-                                        </Button>
+                                               Margin="0,0,8,0"
+                                               Content="{DynamicResource Customer_Cancel}"/>
                                         <Button Command="{Binding SavePaymentCommand}"
-                                               Style="{StaticResource PrimaryButtonStyle}">
-                                            Save Payment
-                                        </Button>
+                                               Style="{StaticResource PrimaryButtonStyle}"
+                                               Content="{DynamicResource Customer_SavePayment}"/>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
@@ -635,7 +625,7 @@
                                    Margin="0,0,0,20"
                                    Visibility="{Binding IsShowingHistory, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <StackPanel Margin="16">
-                                    <TextBlock Text="Payment History"
+                                    <TextBlock Text="{DynamicResource Customer_PaymentHistory}"
                                               FontSize="16"
                                               FontWeight="SemiBold"
                                               Margin="0,0,0,12"/>
@@ -646,19 +636,19 @@
                                              AutoGenerateColumns="False"
                                              MaxHeight="300">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn Header="Date" 
+                                            <DataGridTextColumn Header="{DynamicResource Customer_Date}" 
                                                                Binding="{Binding PaymentDate, StringFormat=MM/dd/yyyy}" 
                                                                Width="100"/>
-                                            <DataGridTextColumn Header="Amount" 
+                                            <DataGridTextColumn Header="{DynamicResource Customer_Amount}" 
                                                                Binding="{Binding Amount, StringFormat=C}" 
                                                                Width="100"/>
-                                            <DataGridTextColumn Header="Payment Method" 
+                                            <DataGridTextColumn Header="{DynamicResource Customer_PaymentMethod}" 
                                                                Binding="{Binding PaymentMethod}" 
                                                                Width="120"/>
-                                            <DataGridTextColumn Header="Status" 
+                                            <DataGridTextColumn Header="{DynamicResource Customer_Status}" 
                                                                Binding="{Binding Status}" 
                                                                Width="80"/>
-                                            <DataGridTextColumn Header="Notes" 
+                                            <DataGridTextColumn Header="{DynamicResource Customer_Notes}" 
                                                                Binding="{Binding Notes}" 
                                                                Width="*"/>
                                         </DataGrid.Columns>
@@ -678,7 +668,7 @@
                                                    Margin="0,0,8,0">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="✏️" Margin="0,0,6,0"/>
-                                                    <TextBlock Text="Edit Payment"/>
+                                                    <TextBlock Text="{DynamicResource Customer_EditPayment}"/>
                                                 </StackPanel>
                                             </Button>
 
@@ -689,7 +679,7 @@
                                                    Foreground="#9A4355">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="🗑️" Margin="0,0,6,0"/>
-                                                    <TextBlock Text="Delete Payment"/>
+                                                    <TextBlock Text="{DynamicResource Customer_DeletePayment}"/>
                                                 </StackPanel>
                                             </Button>
                                         </StackPanel>
@@ -699,7 +689,7 @@
                                                Style="{StaticResource SecondaryButtonStyle}">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="❌" Margin="0,0,6,0"/>
-                                                <TextBlock Text="Close History"/>
+                                                <TextBlock Text="{DynamicResource Customer_CloseHistory}"/>
                                             </StackPanel>
                                         </Button>
                                     </Grid>

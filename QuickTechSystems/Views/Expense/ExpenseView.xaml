@@ -31,12 +31,12 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel>
-                            <TextBlock Text="Expenses" FontSize="24" Margin="0,0,0,8"/>
-                            <TextBlock Text="Manage your business expenses" Margin="0,0,0,16"/>
+                            <TextBlock Text="{DynamicResource Expense_Title}" FontSize="24" Margin="0,0,0,8"/>
+                            <TextBlock Text="{DynamicResource Expense_Subtitle}" Margin="0,0,0,16"/>
                         </StackPanel>
 
                         <Button Grid.Column="1" 
-                                Content="Add New" 
+                                Content="{DynamicResource Expense_AddNew}" 
                                 Command="{Binding ClearCommand}"
                                 VerticalAlignment="Top"
                                 Margin="0,8,0,0"
@@ -59,20 +59,20 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="Filter by Category" Margin="0,0,0,5"/>
+                            <TextBlock Text="{DynamicResource Expense_FilterByCategory}" Margin="0,0,0,5"/>
                             <ComboBox ItemsSource="{Binding Categories}"
                                      SelectedItem="{Binding SelectedCategory}"
                                      Margin="0"/>
                         </StackPanel>
 
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="From Date" Margin="0,0,0,5"/>
+                            <TextBlock Text="{DynamicResource Expense_FromDate}" Margin="0,0,0,5"/>
                             <DatePicker SelectedDate="{Binding FilterStartDate}"
                                        Margin="0"/>
                         </StackPanel>
 
                         <Button Grid.Column="4"
-                                Content="Apply Filter"
+                                Content="{DynamicResource Expense_ApplyFilter}"
                                 Command="{Binding ApplyFilterCommand}"
                                 VerticalAlignment="Bottom"
                                 Width="120"/>
@@ -87,19 +87,19 @@
                              AutoGenerateColumns="False"
                              MouseDoubleClick="DataGrid_MouseDoubleClick">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date" 
+                            <DataGridTextColumn Header="{DynamicResource Expense_DateHeader}" 
                                               Binding="{Binding Date, StringFormat=d}"
                                               Width="100"/>
-                            <DataGridTextColumn Header="Reason" 
+                            <DataGridTextColumn Header="{DynamicResource Expense_ReasonHeader}" 
                                               Binding="{Binding Reason}"
                                               Width="*"/>
-                            <DataGridTextColumn Header="Category" 
+                            <DataGridTextColumn Header="{DynamicResource Expense_CategoryHeader}" 
                                               Binding="{Binding Category}"
                                               Width="120"/>
-                            <DataGridTextColumn Header="Amount" 
+                            <DataGridTextColumn Header="{DynamicResource Expense_AmountHeader}" 
                                               Binding="{Binding Amount, StringFormat=C2}"
                                               Width="120"/>
-                            <DataGridCheckBoxColumn Header="Recurring" 
+                            <DataGridCheckBoxColumn Header="{DynamicResource Expense_RecurringHeader}" 
                                                   Binding="{Binding IsRecurring}"
                                                   Width="80"/>
                             <DataGridTemplateColumn Width="140">
@@ -112,14 +112,14 @@
                                             </Grid.ColumnDefinitions>
 
                                             <Button Grid.Column="0"
-                                                    Content="Edit"
+                                                    Content="{DynamicResource Expense_Edit}"
                                                     Command="{Binding DataContext.EditCommand, 
                                                         RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}"
                                                     Margin="4"/>
 
                                             <Button Grid.Column="1"
-                                                    Content="Delete"
+                                                    Content="{DynamicResource Expense_Delete}"
                                                     Command="{Binding DataContext.DeleteCommand, 
                                                         RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                     CommandParameter="{Binding}"
@@ -131,9 +131,9 @@
                         </DataGrid.Columns>
                         <DataGrid.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Edit" Click="EditMenuItem_Click"/>
+                                <MenuItem Header="{DynamicResource Expense_Edit}" Click="EditMenuItem_Click"/>
                                 <Separator/>
-                                <MenuItem Header="Delete" Click="DeleteMenuItem_Click"/>
+                                <MenuItem Header="{DynamicResource Expense_Delete}" Click="DeleteMenuItem_Click"/>
                             </ContextMenu>
                         </DataGrid.ContextMenu>
                     </DataGrid>
@@ -149,7 +149,7 @@
                         <ProgressBar IsIndeterminate="True" 
                                      Width="120" 
                                      Margin="0,0,0,16"/>
-                        <TextBlock Text="Processing" 
+                        <TextBlock Text="{DynamicResource Expense_Processing}" 
                                    Foreground="White"/>
                     </StackPanel>
                 </Border>

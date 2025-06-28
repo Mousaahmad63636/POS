@@ -588,4 +588,172 @@
     <system:String x:Key="Employee_ProcessSalary">Traiter le Salaire Mensuel</system:String>
     <system:String x:Key="Employee_Withdrawal">Retrait</system:String>
     <system:String x:Key="General_Processing">Traitement en cours...</system:String>
+
+
+
+    <!-- Customer View Translation Keys - Add to fr-FR.xaml -->
+
+    <system:String x:Key="Customer_Management">Gestion des Clients</system:String>
+    <system:String x:Key="Customer_SearchPlaceholder">🔍 Rechercher des clients...</system:String>
+    <system:String x:Key="Customer_AddCustomer">Ajouter Client</system:String>
+    <system:String x:Key="Customer_CustomerList">Liste des Clients</system:String>
+    <system:String x:Key="Customer_Edit">Modifier</system:String>
+    <system:String x:Key="Customer_AddNewCustomer">Ajouter Nouveau Client</system:String>
+    <system:String x:Key="Customer_NameRequired">Nom*</system:String>
+    <system:String x:Key="Customer_Cancel">Annuler</system:String>
+    <system:String x:Key="Customer_SaveCustomer">Enregistrer Client</system:String>
+    <system:String x:Key="Customer_UpdateCustomer">Mettre à jour Client</system:String>
+    <system:String x:Key="Customer_CustomerDetails">Détails du Client</system:String>
+    <system:String x:Key="Customer_Payments">Paiements</system:String>
+    <system:String x:Key="Customer_EditBalance">Modifier Solde</system:String>
+    <system:String x:Key="Customer_SettleDebt">Régler Dette</system:String>
+    <system:String x:Key="Customer_History">Historique</system:String>
+    <system:String x:Key="Customer_Refresh">Actualiser</system:String>
+    <system:String x:Key="Customer_NewBalance">Nouveau Solde</system:String>
+    <system:String x:Key="Customer_ReasonRequired">Raison*</system:String>
+    <system:String x:Key="Customer_SaveBalance">Enregistrer Solde</system:String>
+    <system:String x:Key="Customer_PaymentAmount">Montant du Paiement</system:String>
+    <system:String x:Key="Customer_PaymentMethod">Méthode de Paiement</system:String>
+    <system:String x:Key="Customer_PaymentNotes">Notes de Paiement</system:String>
+    <system:String x:Key="Customer_ProcessPayment">Traiter Paiement</system:String>
+    <system:String x:Key="Customer_EditPayment">Modifier Paiement</system:String>
+    <system:String x:Key="Customer_AmountRequired">Montant*</system:String>
+    <system:String x:Key="Customer_PaymentMethodRequired">Méthode de Paiement*</system:String>
+    <system:String x:Key="Customer_PaymentDate">Date de Paiement</system:String>
+    <system:String x:Key="Customer_Status">Statut</system:String>
+    <system:String x:Key="Customer_Notes">Notes</system:String>
+    <system:String x:Key="Customer_SavePayment">Enregistrer Paiement</system:String>
+    <system:String x:Key="Customer_PaymentHistory">Historique des Paiements</system:String>
+    <system:String x:Key="Customer_Date">Date</system:String>
+    <system:String x:Key="Customer_Amount">Montant</system:String>
+    <system:String x:Key="Customer_DeletePayment">Supprimer Paiement</system:String>
+    <system:String x:Key="Customer_CloseHistory">Fermer Historique</system:String>
+
+    <!-- Payment Methods -->
+    <system:String x:Key="PaymentMethod_Cash">Espèces</system:String>
+    <system:String x:Key="PaymentMethod_CreditCard">Carte de Crédit</system:String>
+    <system:String x:Key="PaymentMethod_DebitCard">Carte de Débit</system:String>
+    <system:String x:Key="PaymentMethod_BankTransfer">Virement Bancaire</system:String>
+    <system:String x:Key="PaymentMethod_Check">Chèque</system:String>
+
+    <!-- Payment Status -->
+    <system:String x:Key="PaymentStatus_Completed">Terminé</system:String>
+    <system:String x:Key="PaymentStatus_Pending">En Attente</system:String>
+    <system:String x:Key="PaymentStatus_Cancelled">Annulé</system:String>
+
+
+
+
+    <!-- Drawer View Translation Keys - Add to fr-FR.xaml -->
+
+    <system:String x:Key="Drawer_DrawerSession">Session Tiroir:</system:String>
+    <system:String x:Key="Drawer_Current">Actuel</system:String>
+    <system:String x:Key="Drawer_SessionFilter">Filtre Session:</system:String>
+    <system:String x:Key="Drawer_To">à</system:String>
+    <system:String x:Key="Drawer_LoadSessions">Charger Sessions</system:String>
+    <system:String x:Key="Drawer_Summary">Résumé</system:String>
+    <system:String x:Key="Drawer_CurrentDrawer">Tiroir Actuel</system:String>
+    <system:String x:Key="Drawer_TransactionHistory">Historique des Transactions</system:String>
+    <system:String x:Key="Drawer_ProfitAnalysis">Analyse des Bénéfices</system:String>
+    <system:String x:Key="Drawer_TransactionRange">Plage de Transactions:</system:String>
+
+    <system:String x:Key="Drawer_Actions">Actions</system:String>
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Drawer_DateTimeHeader">Date &amp; Heure</system:String>
+    <system:String x:Key="Drawer_TransactionTypeHeader">Type de Transaction</system:String>
+    <system:String x:Key="Drawer_TransactionDetailsHeader">Détails de Transaction</system:String>
+    <system:String x:Key="Drawer_TransactionAmountHeader">Montant de Transaction</system:String>
+    <system:String x:Key="Drawer_ResultingBalanceHeader">Solde Résultant</system:String>
+
+    <!-- Add Cash Popup -->
+    <system:String x:Key="Drawer_AddCashTitle">Ajouter Espèces</system:String>
+    <system:String x:Key="Drawer_Amount">Montant:</system:String>
+    <system:String x:Key="Drawer_Description">Description:</system:String>
+    <system:String x:Key="Drawer_Cancel">Annuler</system:String>
+
+    <!-- Remove Cash Popup -->
+    <system:String x:Key="Drawer_RemoveCashTitle">Retirer Espèces</system:String>
+    <system:String x:Key="Drawer_Reason">Raison:</system:String>
+
+    <!-- Open Drawer Popup -->
+    <system:String x:Key="Drawer_OpenDrawerTitle">Ouvrir Tiroir</system:String>
+    <system:String x:Key="Drawer_InitialCashAmount">Montant Espèces Initial:</system:String>
+
+    <!-- Close Drawer Popup -->
+    <system:String x:Key="Drawer_CloseDrawerTitle">Fermer Tiroir</system:String>
+    <system:String x:Key="Drawer_ActualCashCount">Décompte Espèces Réel:</system:String>
+    <system:String x:Key="Drawer_ExpectedAmount">Montant Attendu:</system:String>
+
+    <!-- Print Report Popup -->
+    <system:String x:Key="Drawer_PrintReportTitle">Imprimer Rapport</system:String>
+    <system:String x:Key="Drawer_IncludeTransactionDetails">Inclure Détails des Transactions</system:String>
+    <system:String x:Key="Drawer_IncludeFinancialSummary">Inclure Résumé Financier</system:String>
+    <system:String x:Key="Drawer_PrintCashierCopy">Imprimer Copie Caissier</system:String>
+    <system:String x:Key="Drawer_Print">Imprimer</system:String>
+
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Expense_DateHeader">Date</system:String>
+    <system:String x:Key="Expense_ReasonHeader">Motif</system:String>
+    <system:String x:Key="Expense_CategoryHeader">Catégorie</system:String>
+    <system:String x:Key="Expense_AmountHeader">Montant</system:String>
+    <system:String x:Key="Expense_RecurringHeader">Récurrent</system:String>
+
+
+    <!-- ExpenseWindow Translation Keys - Add to fr-FR.xaml -->
+
+    <system:String x:Key="ExpenseWindow_Title">Détails de Dépense</system:String>
+    <system:String x:Key="ExpenseWindow_HeaderTitle">DÉTAILS DE DÉPENSE</system:String>
+    <system:String x:Key="ExpenseWindow_CloseButton">Fermer (ESC)</system:String>
+
+    <!-- Form Fields -->
+    <system:String x:Key="ExpenseWindow_Reason">Motif</system:String>
+    <system:String x:Key="ExpenseWindow_Amount">Montant</system:String>
+    <system:String x:Key="ExpenseWindow_Category">Catégorie</system:String>
+    <system:String x:Key="ExpenseWindow_Date">Date</system:String>
+    <system:String x:Key="ExpenseWindow_Notes">Notes</system:String>
+    <system:String x:Key="ExpenseWindow_IsRecurring">Est Récurrent</system:String>
+
+    <!-- Action Buttons -->
+    <system:String x:Key="ExpenseWindow_Cancel">Annuler</system:String>
+    <system:String x:Key="ExpenseWindow_Delete">Supprimer</system:String>
+    <system:String x:Key="ExpenseWindow_Save">Enregistrer</system:String>
+
+
+    <system:String x:Key="TransactionHistory_TotalTransactions">Total des Transactions</system:String>
+    <system:String x:Key="TransactionHistory_PrintReport">Imprimer Rapport</system:String>
+
+    <!-- Filters Section -->
+    <system:String x:Key="TransactionHistory_Filters">Filtres</system:String>
+    <system:String x:Key="TransactionHistory_StartDate">Date de Début</system:String>
+    <system:String x:Key="TransactionHistory_EndDate">Date de Fin</system:String>
+    <system:String x:Key="TransactionHistory_Today">Aujourd'hui</system:String>
+    <system:String x:Key="TransactionHistory_ThisWeek">Cette Semaine</system:String>
+    <system:String x:Key="TransactionHistory_ThisMonth">Ce Mois</system:String>
+    <system:String x:Key="TransactionHistory_Employee">Employé</system:String>
+    <system:String x:Key="TransactionHistory_TransactionType">Type de Transaction</system:String>
+    <system:String x:Key="TransactionHistory_ItemsPerPage">Éléments par Page</system:String>
+    <system:String x:Key="TransactionHistory_ClearFilters">Effacer Filtres</system:String>
+
+    <!-- Pagination Controls -->
+    <system:String x:Key="TransactionHistory_First">Premier</system:String>
+    <system:String x:Key="TransactionHistory_Previous">Précédent</system:String>
+    <system:String x:Key="TransactionHistory_Next">Suivant</system:String>
+    <system:String x:Key="TransactionHistory_Last">Dernier</system:String>
+
+    <!-- Transaction List -->
+    <system:String x:Key="TransactionHistory_LoadingTransactions">Chargement des transactions...</system:String>
+    <system:String x:Key="TransactionHistory_NoTransactionsFound">Aucune transaction trouvée</system:String>
+    <system:String x:Key="TransactionHistory_TryAdjustingFilters">Essayez d'ajuster vos filtres</system:String>
+    <system:String x:Key="TransactionHistory_Customer">Client</system:String>
+    <system:String x:Key="TransactionHistory_Cashier">Caissier</system:String>
+    <system:String x:Key="TransactionHistory_Date">Date</system:String>
+    <system:String x:Key="TransactionHistory_Details">Détails</system:String>
+    <system:String x:Key="TransactionHistory_Delete">Supprimer</system:String>
+
+    <!-- Bottom Pagination Info -->
+    <system:String x:Key="TransactionHistory_Showing">Affichage</system:String>
+    <system:String x:Key="TransactionHistory_Of">de</system:String>
+    <system:String x:Key="TransactionHistory_Transactions">transactions</system:String>
 </ResourceDictionary>

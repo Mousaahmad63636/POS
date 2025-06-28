@@ -591,4 +591,245 @@
     <system:String x:Key="Employee_ProcessSalary">Process Monthly Salary</system:String>
     <system:String x:Key="Employee_Withdrawal">Withdrawal</system:String>
     <system:String x:Key="General_Processing">Processing...</system:String>
+    <!-- Add these keys to the existing en-US.xaml file -->
+
+    <!-- Product View Translation Keys -->
+    <system:String x:Key="Product_Management">Product Management</system:String>
+    <system:String x:Key="Product_AddProduct">➕ Add Product</system:String>
+    <system:String x:Key="Product_RefreshButton">🔄 Refresh</system:String>
+    <system:String x:Key="Product_ProductsList">Products</system:String>
+    <system:String x:Key="Product_SaveButton">💾 Save</system:String>
+    <system:String x:Key="Product_DeleteButton">🗑️ Delete</system:String>
+    <system:String x:Key="Product_BasicInfoTab">📝 Basic Info</system:String>
+    <system:String x:Key="Product_PricingTab">💰 Pricing</system:String>
+    <system:String x:Key="Product_BarcodeLabel">Barcode *</system:String>
+    <system:String x:Key="Product_SupplierInvoice">Supplier Invoice</system:String>
+    <system:String x:Key="Product_DescriptionLabel">Description</system:String>
+    <system:String x:Key="Product_ActiveProduct">Active Product</system:String>
+    <system:String x:Key="Product_UpdatingExisting">📦 Updating Existing Product</system:String>
+    <system:String x:Key="Product_AddingQuantity">Adding Quantity:</system:String>
+    <system:String x:Key="Product_Storehouse">Storehouse:</system:String>
+    <system:String x:Key="Product_Cost">Cost:</system:String>
+    <system:String x:Key="Product_StockLevel">Stock:</system:String>
+    <system:String x:Key="Product_StockAlert">Low Stock Alert</system:String>
+    <system:String x:Key="Product_OutOfStock">Out of Stock</system:String>
+    <system:String x:Key="Product_InStock">In Stock</system:String>
+    <system:String x:Key="Product_ImageUpload">📷 Upload Image</system:String>
+    <system:String x:Key="Product_ClearImageButton">❌ Clear Image</system:String>
+    <system:String x:Key="Product_InventoryTab">📦 Inventory</system:String>
+    <system:String x:Key="Product_StockQuantity">Stock Quantity *</system:String>
+    <system:String x:Key="Product_NewProduct">New Product</system:String>
+    <system:String x:Key="Product_EditProduct">Edit Product</system:String>
+    <system:String x:Key="Product_ProductDetails">Product Details</system:String>
+    <system:String x:Key="Product_NoProductSelected">No Product Selected</system:String>
+    <system:String x:Key="Product_SelectProductMessage">Select a product from the list to view and edit its details.</system:String>
+    <system:String x:Key="Product_CountLabel">({0})</system:String>
+    <system:String x:Key="Product_NewStock">New Stock:</system:String>
+    <system:String x:Key="Product_TotalStock">Total Stock:</system:String>
+
+    <system:String x:Key="Product_Inactive">Inactive</system:String>
+    <system:String x:Key="Product_SimilarProductsFound">📦 Similar Products Found</system:String>
+    <system:String x:Key="Product_ClearSearch">❌ Clear Search</system:String>
+    <system:String x:Key="Product_PurchasePriceNewStock">Purchase Price for New Stock:</system:String>
+    <system:String x:Key="Product_WholesalePrice">Wholesale Price</system:String>
+    <system:String x:Key="Product_BoxPricing">📦 Box Pricing</system:String>
+    <system:String x:Key="Product_BoxBarcode">Box Barcode</system:String>
+    <system:String x:Key="Product_ItemsPerBox">Items Per Box</system:String>
+    <system:String x:Key="Product_BoxPurchasePrice">Box Purchase Price</system:String>
+    <system:String x:Key="Product_BoxSalePrice">Box Sale Price</system:String>
+    <system:String x:Key="Product_BoxWholesalePrice">Box Wholesale Price</system:String>
+    <system:String x:Key="Product_NumberOfBoxes">Number of Boxes</system:String>
+    <system:String x:Key="Product_TransferFromStorehouse">🔄 Transfer from Storehouse</system:String>
+    <system:String x:Key="Product_AvailableInStorehouse">Available in Storehouse</system:String>
+    <system:String x:Key="Product_IndividualItems">individual items</system:String>
+    <system:String x:Key="Product_AvailableBoxes">Available Boxes</system:String>
+    <system:String x:Key="Product_CompleteBoxes">complete boxes</system:String>
+    <system:String x:Key="Product_ItemsPerBoxShort">items/box</system:String>
+    <system:String x:Key="Product_TransferIndividualItems">Transfer Individual Items</system:String>
+    <system:String x:Key="Product_TransferBoxes">Transfer Boxes</system:String>
+    <system:String x:Key="Product_IndividualItemsTransfer">📦 Individual Items Transfer</system:String>
+    <system:String x:Key="Product_Quantity">Quantity:</system:String>
+    <system:String x:Key="Product_Items">items</system:String>
+    <system:String x:Key="Product_BoxTransfer">📦 Box Transfer</system:String>
+    <system:String x:Key="Product_ItemsPerBoxColon">Items per box:</system:String>
+    <system:String x:Key="Product_AvailableBoxesColon">Available boxes:</system:String>
+    <system:String x:Key="Product_BoxesToTransfer">Boxes to transfer:</system:String>
+    <system:String x:Key="Product_Boxes">boxes</system:String>
+    <system:String x:Key="Product_Reset">Reset</system:String>
+
+
+
+
+
+
+
+
+
+    <!-- Customer View Translation Keys - Add to en-US.xaml -->
+
+    <system:String x:Key="Customer_Management">Customer Management</system:String>
+    <system:String x:Key="Customer_SearchPlaceholder">🔍 Search customers...</system:String>
+    <system:String x:Key="Customer_AddCustomer">Add Customer</system:String>
+    <system:String x:Key="Customer_CustomerList">Customer List</system:String>
+    <system:String x:Key="Customer_AddNewCustomer">Add New Customer</system:String>
+    <system:String x:Key="Customer_NameRequired">Name*</system:String>
+    <system:String x:Key="Customer_Cancel">Cancel</system:String>
+    <system:String x:Key="Customer_SaveCustomer">Save Customer</system:String>
+    <system:String x:Key="Customer_UpdateCustomer">Update Customer</system:String>
+    <system:String x:Key="Customer_CustomerDetails">Customer Details</system:String>
+    <system:String x:Key="Customer_Payments">Payments</system:String>
+    <system:String x:Key="Customer_EditBalance">Edit Balance</system:String>
+    <system:String x:Key="Customer_SettleDebt">Settle Debt</system:String>
+    <system:String x:Key="Customer_History">History</system:String>
+    <system:String x:Key="Customer_Refresh">Refresh</system:String>
+    <system:String x:Key="Customer_NewBalance">New Balance</system:String>
+    <system:String x:Key="Customer_ReasonRequired">Reason*</system:String>
+    <system:String x:Key="Customer_SaveBalance">Save Balance</system:String>
+    <system:String x:Key="Customer_PaymentAmount">Payment Amount</system:String>
+    <system:String x:Key="Customer_PaymentMethod">Payment Method</system:String>
+    <system:String x:Key="Customer_PaymentNotes">Payment Notes</system:String>
+    <system:String x:Key="Customer_ProcessPayment">Process Payment</system:String>
+    <system:String x:Key="Customer_EditPayment">Edit Payment</system:String>
+    <system:String x:Key="Customer_AmountRequired">Amount*</system:String>
+    <system:String x:Key="Customer_PaymentMethodRequired">Payment Method*</system:String>
+    <system:String x:Key="Customer_PaymentDate">Payment Date</system:String>
+    <system:String x:Key="Customer_Status">Status</system:String>
+    <system:String x:Key="Customer_Notes">Notes</system:String>
+    <system:String x:Key="Customer_SavePayment">Save Payment</system:String>
+    <system:String x:Key="Customer_PaymentHistory">Payment History</system:String>
+    <system:String x:Key="Customer_Date">Date</system:String>
+    <system:String x:Key="Customer_Amount">Amount</system:String>
+    <system:String x:Key="Customer_DeletePayment">Delete Payment</system:String>
+    <system:String x:Key="Customer_CloseHistory">Close History</system:String>
+
+    <!-- Payment Methods -->
+    <system:String x:Key="PaymentMethod_Cash">Cash</system:String>
+    <system:String x:Key="PaymentMethod_CreditCard">Credit Card</system:String>
+    <system:String x:Key="PaymentMethod_DebitCard">Debit Card</system:String>
+    <system:String x:Key="PaymentMethod_BankTransfer">Bank Transfer</system:String>
+    <system:String x:Key="PaymentMethod_Check">Check</system:String>
+
+    <!-- Payment Status -->
+    <system:String x:Key="PaymentStatus_Completed">Completed</system:String>
+    <system:String x:Key="PaymentStatus_Pending">Pending</system:String>
+    <system:String x:Key="PaymentStatus_Cancelled">Cancelled</system:String>
+
+
+
+
+
+
+    <!-- Drawer View Translation Keys - Add to en-US.xaml -->
+
+    <system:String x:Key="Drawer_DrawerSession">Drawer Session:</system:String>
+    <system:String x:Key="Drawer_Current">Current</system:String>
+    <system:String x:Key="Drawer_SessionFilter">Session Filter:</system:String>
+    <system:String x:Key="Drawer_To">to</system:String>
+    <system:String x:Key="Drawer_LoadSessions">Load Sessions</system:String>
+    <system:String x:Key="Drawer_Summary">Summary</system:String>
+    <system:String x:Key="Drawer_CurrentDrawer">Current Drawer</system:String>
+    <system:String x:Key="Drawer_TransactionHistory">Transaction History</system:String>
+    <system:String x:Key="Drawer_ProfitAnalysis">Profit Analysis</system:String>
+    <system:String x:Key="Drawer_TransactionRange">Transaction Range:</system:String>
+    <system:String x:Key="Drawer_Actions">Actions</system:String>
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Drawer_DateTimeHeader">Date &amp; Time</system:String>
+    <system:String x:Key="Drawer_TransactionTypeHeader">Transaction Type</system:String>
+    <system:String x:Key="Drawer_TransactionDetailsHeader">Transaction Details</system:String>
+    <system:String x:Key="Drawer_TransactionAmountHeader">Transaction Amount</system:String>
+    <system:String x:Key="Drawer_ResultingBalanceHeader">Resulting Balance</system:String>
+
+
+    <!-- Add Cash Popup -->
+    <system:String x:Key="Drawer_AddCashTitle">Add Cash</system:String>
+    <system:String x:Key="Drawer_Amount">Amount:</system:String>
+    <system:String x:Key="Drawer_Description">Description:</system:String>
+    <system:String x:Key="Drawer_Cancel">Cancel</system:String>
+
+    <!-- Remove Cash Popup -->
+    <system:String x:Key="Drawer_RemoveCashTitle">Remove Cash</system:String>
+    <system:String x:Key="Drawer_Reason">Reason:</system:String>
+
+    <!-- Open Drawer Popup -->
+    <system:String x:Key="Drawer_OpenDrawerTitle">Open Drawer</system:String>
+    <system:String x:Key="Drawer_InitialCashAmount">Initial Cash Amount:</system:String>
+
+    <!-- Close Drawer Popup -->
+    <system:String x:Key="Drawer_CloseDrawerTitle">Close Drawer</system:String>
+    <system:String x:Key="Drawer_ActualCashCount">Actual Cash Count:</system:String>
+    <system:String x:Key="Drawer_ExpectedAmount">Expected Amount:</system:String>
+
+    <!-- Print Report Popup -->
+    <system:String x:Key="Drawer_PrintReportTitle">Print Report</system:String>
+    <system:String x:Key="Drawer_IncludeTransactionDetails">Include Transaction Details</system:String>
+    <system:String x:Key="Drawer_IncludeFinancialSummary">Include Financial Summary</system:String>
+    <system:String x:Key="Drawer_PrintCashierCopy">Print Cashier Copy</system:String>
+    <system:String x:Key="Drawer_Print">Print</system:String>
+
+
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Expense_DateHeader">Date</system:String>
+    <system:String x:Key="Expense_ReasonHeader">Reason</system:String>
+    <system:String x:Key="Expense_CategoryHeader">Category</system:String>
+    <system:String x:Key="Expense_AmountHeader">Amount</system:String>
+    <system:String x:Key="Expense_RecurringHeader">Recurring</system:String>
+
+
+
+    <!-- ExpenseWindow Translation Keys - Add to en-US.xaml -->
+
+    <system:String x:Key="ExpenseWindow_Title">Expense Details</system:String>
+    <system:String x:Key="ExpenseWindow_HeaderTitle">EXPENSE DETAILS</system:String>
+    <system:String x:Key="ExpenseWindow_CloseButton">Close (ESC)</system:String>
+
+    <!-- Form Fields -->
+    <system:String x:Key="ExpenseWindow_Reason">Reason</system:String>
+    <system:String x:Key="ExpenseWindow_Amount">Amount</system:String>
+    <system:String x:Key="ExpenseWindow_Category">Category</system:String>
+    <system:String x:Key="ExpenseWindow_Date">Date</system:String>
+    <system:String x:Key="ExpenseWindow_Notes">Notes</system:String>
+    <system:String x:Key="ExpenseWindow_IsRecurring">Is Recurring</system:String>
+
+    <!-- Action Buttons -->
+    <system:String x:Key="ExpenseWindow_Cancel">Cancel</system:String>
+    <system:String x:Key="ExpenseWindow_Delete">Delete</system:String>
+    <system:String x:Key="ExpenseWindow_Save">Save</system:String>
+
+    <system:String x:Key="TransactionHistory_TotalTransactions">Total Transactions</system:String>
+    <system:String x:Key="TransactionHistory_PrintReport">Print Report</system:String>
+
+    <!-- Filters Section -->
+    <system:String x:Key="TransactionHistory_Filters">Filters</system:String>
+    <system:String x:Key="TransactionHistory_StartDate">Start Date</system:String>
+    <system:String x:Key="TransactionHistory_EndDate">End Date</system:String>
+    <system:String x:Key="TransactionHistory_Today">Today</system:String>
+    <system:String x:Key="TransactionHistory_ThisWeek">This Week</system:String>
+    <system:String x:Key="TransactionHistory_ThisMonth">This Month</system:String>
+    <system:String x:Key="TransactionHistory_Employee">Employee</system:String>
+    <system:String x:Key="TransactionHistory_TransactionType">Transaction Type</system:String>
+    <system:String x:Key="TransactionHistory_ItemsPerPage">Items Per Page</system:String>
+    <system:String x:Key="TransactionHistory_ClearFilters">Clear Filters</system:String>
+
+    <!-- Pagination Controls -->
+    <system:String x:Key="TransactionHistory_First">First</system:String>
+    <system:String x:Key="TransactionHistory_Previous">Previous</system:String>
+    <system:String x:Key="TransactionHistory_Next">Next</system:String>
+    <system:String x:Key="TransactionHistory_Last">Last</system:String>
+
+    <!-- Transaction List -->
+    <system:String x:Key="TransactionHistory_LoadingTransactions">Loading transactions...</system:String>
+    <system:String x:Key="TransactionHistory_NoTransactionsFound">No transactions found</system:String>
+    <system:String x:Key="TransactionHistory_TryAdjustingFilters">Try adjusting your filters</system:String>
+    <system:String x:Key="TransactionHistory_Customer">Customer</system:String>
+    <system:String x:Key="TransactionHistory_Cashier">Cashier</system:String>
+    <system:String x:Key="TransactionHistory_Date">Date</system:String>
+    <system:String x:Key="TransactionHistory_Details">Details</system:String>
+    <system:String x:Key="TransactionHistory_Delete">Delete</system:String>
+
+    <!-- Bottom Pagination Info -->
+    <system:String x:Key="TransactionHistory_Showing">Showing</system:String>
+    <system:String x:Key="TransactionHistory_Of">of</system:String>
+    <system:String x:Key="TransactionHistory_Transactions">transactions</system:String>
 </ResourceDictionary>

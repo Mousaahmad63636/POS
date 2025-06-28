@@ -33,7 +33,7 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="0,0,16,0">
-                    <TextBlock Text="Drawer Session:" 
+                    <TextBlock Text="{DynamicResource Drawer_DrawerSession}" 
                               VerticalAlignment="Center" 
                               Margin="0,0,8,0"/>
                     <ComboBox ItemsSource="{Binding DrawerSessions}"
@@ -41,27 +41,27 @@
                              DisplayMemberPath="DisplayText"
                              Width="400"
                              Margin="0,0,8,0"/>
-                    <Button Content="Current" 
+                    <Button Content="{DynamicResource Drawer_Current}" 
                            Command="{Binding ViewCurrentSessionCommand}"
                            Width="80"
                            Margin="0,0,8,0"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <TextBlock Text="Session Filter:" 
+                    <TextBlock Text="{DynamicResource Drawer_SessionFilter}" 
                               VerticalAlignment="Center" 
                               Margin="0,0,8,0"/>
                     <DatePicker SelectedDate="{Binding SessionStartDate}"
                                Width="120"
                                Margin="0,0,4,0"/>
-                    <TextBlock Text="to" 
+                    <TextBlock Text="{DynamicResource Drawer_To}" 
                               VerticalAlignment="Center" 
                               Margin="0,0,4,0"/>
                     <DatePicker SelectedDate="{Binding SessionEndDate}"
                                Width="120"
                                Margin="0,0,8,0"/>
                     <Button Command="{Binding ApplySessionFilterCommand}"
-                            Content="Load Sessions"
+                            Content="{DynamicResource Drawer_LoadSessions}"
                             Width="100"/>
                 </StackPanel>
             </Grid>
@@ -80,35 +80,35 @@
                         Click="SummaryButton_Click"
                         Margin="0,0,16,0"
                         Width="100">
-                    <TextBlock Text="Summary"/>
+                    <TextBlock Text="{DynamicResource Drawer_Summary}"/>
                 </Button>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button x:Name="TabCurrentDrawer" 
                             Tag="Selected" 
                             Click="TabButton_Click">
-                        <TextBlock Text="Current Drawer"/>
+                        <TextBlock Text="{DynamicResource Drawer_CurrentDrawer}"/>
                     </Button>
 
                     <Button x:Name="TabTransactionHistory" 
                             Click="TabButton_Click">
-                        <TextBlock Text="Transaction History"/>
+                        <TextBlock Text="{DynamicResource Drawer_TransactionHistory}"/>
                     </Button>
 
                     <Button x:Name="TabProfitAnalysis" 
                             Click="TabButton_Click">
-                        <TextBlock Text="Profit Analysis"/>
+                        <TextBlock Text="{DynamicResource Drawer_ProfitAnalysis}"/>
                     </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="16,0,0,0">
-                    <TextBlock Text="Transaction Range:" 
+                    <TextBlock Text="{DynamicResource Drawer_TransactionRange}" 
                               VerticalAlignment="Center" 
                               Margin="0,0,8,0"/>
                     <DatePicker SelectedDate="{Binding StartDate}"
                                Width="120"
                                Margin="0,0,4,0"/>
-                    <TextBlock Text="to" 
+                    <TextBlock Text="{DynamicResource Drawer_To}" 
                               VerticalAlignment="Center" 
                               Margin="0,0,4,0"/>
                     <DatePicker SelectedDate="{Binding EndDate}"
@@ -116,7 +116,7 @@
                                Margin="0,0,8,0"/>
                     <Button Command="{Binding ApplyDateFilterCommand}"
                             Width="120">
-                        <TextBlock Text="Apply Filter"/>
+                        <TextBlock Text="{DynamicResource Drawer_ApplyFilter}"/>
                     </Button>
                 </StackPanel>
 
@@ -125,7 +125,7 @@
                         Click="ActionsButton_Click"
                         Width="100"
                         IsEnabled="{Binding IsViewingHistoricalSession, Converter={StaticResource InvertBooleanConverter}}">
-                    <TextBlock Text="Actions"/>
+                    <TextBlock Text="{DynamicResource Drawer_Actions}"/>
                 </Button>
             </Grid>
         </Grid>
@@ -143,19 +143,19 @@
                              MinHeight="400"
                              Margin="10">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Date &amp; Time" 
+                            <DataGridTextColumn Header="{DynamicResource Drawer_DateTimeHeader}" 
                                               Binding="{Binding Timestamp, StringFormat=g}"
                                               Width="150"/>
-                            <DataGridTextColumn Header="Transaction Type" 
+                            <DataGridTextColumn Header="{DynamicResource Drawer_TransactionTypeHeader}" 
                                               Binding="{Binding ActionType}"
                                               Width="150"/>
-                            <DataGridTextColumn Header="Transaction Details" 
+                            <DataGridTextColumn Header="{DynamicResource Drawer_TransactionDetailsHeader}" 
                                               Binding="{Binding Description}"
                                               Width="150"/>
-                            <DataGridTextColumn Header="Transaction Amount" 
+                            <DataGridTextColumn Header="{DynamicResource Drawer_TransactionAmountHeader}" 
                                               Binding="{Binding Amount, StringFormat=C2}"
                                               Width="130"/>
-                            <DataGridTextColumn Header="Resulting Balance" 
+                            <DataGridTextColumn Header="{DynamicResource Drawer_ResultingBalanceHeader}" 
                                               Binding="{Binding ResultingBalance, StringFormat=C2}"
                                               Width="130"/>
                         </DataGrid.Columns>
@@ -181,37 +181,37 @@
                 <StackPanel>
                     <Button IsEnabled="{Binding CanOpenDrawer}"
                             Click="OpenDrawerCommand_Execute">
-                        <TextBlock Text="Open Drawer"/>
+                        <TextBlock Text="{DynamicResource Drawer_OpenDrawer}"/>
                     </Button>
 
                     <Separator/>
 
                     <Button IsEnabled="{Binding IsDrawerOpen}"
                             Click="AddCashCommand_Execute">
-                        <TextBlock Text="Add Cash"/>
+                        <TextBlock Text="{DynamicResource Drawer_AddCash}"/>
                     </Button>
 
                     <Button IsEnabled="{Binding IsDrawerOpen}"
                             Click="RemoveCashCommand_Execute">
-                        <TextBlock Text="Remove Cash"/>
+                        <TextBlock Text="{DynamicResource Drawer_RemoveCash}"/>
                     </Button>
 
                     <Separator/>
 
                     <Button IsEnabled="{Binding IsDrawerOpen}"
                             Click="CloseDrawerCommand_Execute">
-                        <TextBlock Text="Close Drawer"/>
+                        <TextBlock Text="{DynamicResource Drawer_CloseDrawer}"/>
                     </Button>
 
                     <Separator/>
 
                     <Button IsEnabled="{Binding IsDrawerOpen}"
                             Click="PrintReportCommand_Execute">
-                        <TextBlock Text="Print Report"/>
+                        <TextBlock Text="{DynamicResource Drawer_PrintReport}"/>
                     </Button>
 
                     <Button Click="RefreshDataCommand_Execute">
-                        <TextBlock Text="Refresh Data"/>
+                        <TextBlock Text="{DynamicResource Drawer_RefreshData}"/>
                     </Button>
                 </StackPanel>
             </Border>
@@ -232,17 +232,17 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                               Text="Add Cash" 
+                               Text="{DynamicResource Drawer_AddCashTitle}" 
                                Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Amount:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_Amount}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                                  Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,0,0,20">
-                        <TextBlock Text="Description:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_Description}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                                  Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
@@ -251,13 +251,13 @@
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
                         <Button Click="ClosePopup_Click">
-                            <TextBlock Text="Cancel"/>
+                            <TextBlock Text="{DynamicResource Drawer_Cancel}"/>
                         </Button>
                         <Button Margin="8,0,0,0"
                                 Width="100"
                                 Command="{Binding AddCashCommand}"
                                 Click="AddCashConfirm_Click">
-                            <TextBlock Text="Add Cash"/>
+                            <TextBlock Text="{DynamicResource Drawer_AddCash}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -279,17 +279,17 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                               Text="Remove Cash" 
+                               Text="{DynamicResource Drawer_RemoveCashTitle}" 
                                Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                        <TextBlock Text="Amount:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_Amount}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                                  Text="{Binding CashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Margin="0,0,0,20">
-                        <TextBlock Text="Reason:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_Reason}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                                  Text="{Binding CashDescription, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
@@ -298,13 +298,13 @@
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
                         <Button Click="ClosePopup_Click">
-                            <TextBlock Text="Cancel"/>
+                            <TextBlock Text="{DynamicResource Drawer_Cancel}"/>
                         </Button>
                         <Button Margin="8,0,0,0"
                                 Width="120"
                                 Command="{Binding RemoveCashCommand}"
                                 Click="RemoveCashConfirm_Click">
-                            <TextBlock Text="Remove Cash"/>
+                            <TextBlock Text="{DynamicResource Drawer_RemoveCash}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -325,13 +325,13 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                       Text="Open Drawer" 
+                       Text="{DynamicResource Drawer_OpenDrawerTitle}" 
                        FontWeight="Bold"
                        FontSize="16"
                        Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
-                        <TextBlock Text="Initial Cash Amount:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_InitialCashAmount}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                          Text="{Binding InitialCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
@@ -342,11 +342,11 @@
                         <Button Click="ClosePopup_Click"
                         Width="80"
                         Margin="0,0,8,0">
-                            <TextBlock Text="Cancel"/>
+                            <TextBlock Text="{DynamicResource Drawer_Cancel}"/>
                         </Button>
                         <Button Width="120"
                         Click="OpenDrawerConfirm_Click">
-                            <TextBlock Text="Open Drawer"/>
+                            <TextBlock Text="{DynamicResource Drawer_OpenDrawer}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -367,18 +367,18 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                               Text="Close Drawer" 
+                               Text="{DynamicResource Drawer_CloseDrawerTitle}" 
                                Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
-                        <TextBlock Text="Actual Cash Count:" Margin="0,0,0,8"/>
+                        <TextBlock Text="{DynamicResource Drawer_ActualCashCount}" Margin="0,0,0,8"/>
                         <TextBox Width="Auto" 
                                  Text="{Binding FinalCashAmount, StringFormat=N2, UpdateSourceTrigger=PropertyChanged}"/>
 
-                        <TextBlock Text="Expected Amount:" Margin="0,16,0,4"/>
+                        <TextBlock Text="{DynamicResource Drawer_ExpectedAmount}" Margin="0,16,0,4"/>
                         <TextBlock Text="{Binding CurrentDrawer.ExpectedBalance, StringFormat=C2}"/>
 
-                        <TextBlock Text="Difference:" Margin="0,16,0,4"/>
+                        <TextBlock Text="{DynamicResource Drawer_Difference}" Margin="0,16,0,4"/>
                         <TextBlock Text="{Binding DrawerClosingDifference, StringFormat=C2}"/>
                     </StackPanel>
 
@@ -386,12 +386,12 @@
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
                         <Button Click="ClosePopup_Click">
-                            <TextBlock Text="Cancel"/>
+                            <TextBlock Text="{DynamicResource Drawer_Cancel}"/>
                         </Button>
                         <Button Margin="8,0,0,0"
         Width="120"
         Click="RemoveCashConfirm_Click">
-                            <TextBlock Text="Remove Cash"/>
+                            <TextBlock Text="{DynamicResource Drawer_RemoveCash}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -412,17 +412,17 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" 
-                               Text="Print Report" 
+                               Text="{DynamicResource Drawer_PrintReportTitle}" 
                                Margin="0,0,0,16"/>
 
                     <StackPanel Grid.Row="1" Margin="0,0,0,20">
-                        <CheckBox Content="Include Transaction Details" 
+                        <CheckBox Content="{DynamicResource Drawer_IncludeTransactionDetails}" 
                                   IsChecked="{Binding IncludeTransactionDetails}"
                                   Margin="0,0,0,8"/>
-                        <CheckBox Content="Include Financial Summary" 
+                        <CheckBox Content="{DynamicResource Drawer_IncludeFinancialSummary}" 
                                   IsChecked="{Binding IncludeFinancialSummary}"
                                   Margin="0,0,0,8"/>
-                        <CheckBox Content="Print Cashier Copy" 
+                        <CheckBox Content="{DynamicResource Drawer_PrintCashierCopy}" 
                                   IsChecked="{Binding PrintCashierCopy}"/>
                     </StackPanel>
 
@@ -430,13 +430,13 @@
                                 Orientation="Horizontal" 
                                 HorizontalAlignment="Right">
                         <Button Click="ClosePopup_Click">
-                            <TextBlock Text="Cancel"/>
+                            <TextBlock Text="{DynamicResource Drawer_Cancel}"/>
                         </Button>
                         <Button Margin="8,0,0,0"
                                 Width="100"
                                 Command="{Binding PrintReportCommand}"
                                 Click="PrintReportConfirm_Click">
-                            <TextBlock Text="Print"/>
+                            <TextBlock Text="{DynamicResource Drawer_Print}"/>
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -457,7 +457,7 @@
                                 Width="200"
                                 Height="2"
                                 Margin="0,0,0,10"/>
-                    <TextBlock Text="Processing"
+                    <TextBlock Text="{DynamicResource Drawer_Processing}"
                               HorizontalAlignment="Center"/>
                 </StackPanel>
             </Border>

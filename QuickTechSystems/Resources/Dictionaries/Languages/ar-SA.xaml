@@ -590,4 +590,244 @@
     <system:String x:Key="General_Processing">جارٍ المعالجة...</system:String>
     <system:String x:Key="Product_BulkAdd_AddOneRow">إضافة صف واحد</system:String>
     <system:String x:Key="TransactionHistory_Column_PaymentMethod">طريقة الدفع</system:String>
+
+    <!-- Product View Translation Keys -->
+    <system:String x:Key="Product_Management">إدارة المنتجات</system:String>
+    <system:String x:Key="Product_AddProduct">➕ إضافة منتج</system:String>
+    <system:String x:Key="Product_RefreshButton">🔄 تحديث</system:String>
+    <system:String x:Key="Product_ProductsList">المنتجات</system:String>
+    <system:String x:Key="Product_SaveButton">💾 حفظ</system:String>
+    <system:String x:Key="Product_DeleteButton">🗑️ حذف</system:String>
+    <system:String x:Key="Product_BasicInfoTab">📝 المعلومات الأساسية</system:String>
+    <system:String x:Key="Product_PricingTab">💰 التسعير</system:String>
+    <system:String x:Key="Product_BarcodeLabel">الرمز الشريطي *</system:String>
+    <system:String x:Key="Product_SupplierInvoice">فاتورة المورد</system:String>
+    <system:String x:Key="Product_DescriptionLabel">الوصف</system:String>
+    <system:String x:Key="Product_ActiveProduct">منتج نشط</system:String>
+    <system:String x:Key="Product_UpdatingExisting">📦 تحديث منتج موجود</system:String>
+    <system:String x:Key="Product_AddingQuantity">إضافة الكمية:</system:String>
+    <system:String x:Key="Product_Storehouse">المستودع:</system:String>
+    <system:String x:Key="Product_Cost">التكلفة:</system:String>
+    <system:String x:Key="Product_StockLevel">المخزون:</system:String>
+    <system:String x:Key="Product_StockAlert">تنبيه مخزون منخفض</system:String>
+    <system:String x:Key="Product_OutOfStock">نفد المخزون</system:String>
+    <system:String x:Key="Product_InStock">متوفر</system:String>
+    <system:String x:Key="Product_ImageUpload">📷 رفع صورة</system:String>
+    <system:String x:Key="Product_ClearImageButton">❌ مسح الصورة</system:String>
+    <system:String x:Key="Product_InventoryTab">📦 الجرد</system:String>
+    <system:String x:Key="Product_StockQuantity">كمية المخزون *</system:String>
+    <system:String x:Key="Product_NewProduct">منتج جديد</system:String>
+    <system:String x:Key="Product_EditProduct">تعديل المنتج</system:String>
+    <system:String x:Key="Product_ProductDetails">تفاصيل المنتج</system:String>
+    <system:String x:Key="Product_NoProductSelected">لم يتم اختيار منتج</system:String>
+    <system:String x:Key="Product_SelectProductMessage">اختر منتجًا من القائمة لعرض وتعديل تفاصيله.</system:String>
+    <system:String x:Key="Product_CountLabel">({0})</system:String>
+    <system:String x:Key="Product_NewStock">المخزون الجديد:</system:String>
+    <system:String x:Key="Product_TotalStock">إجمالي المخزون:</system:String>
+
+    <system:String x:Key="Product_Inactive">غير نشط</system:String>
+    <system:String x:Key="Product_SimilarProductsFound">📦 تم العثور على منتجات مشابهة</system:String>
+    <system:String x:Key="Product_ClearSearch">❌ مسح البحث</system:String>
+    <system:String x:Key="Product_PurchasePriceNewStock">سعر الشراء للمخزون الجديد:</system:String>
+    <system:String x:Key="Product_WholesalePrice">سعر الجملة</system:String>
+    <system:String x:Key="Product_BoxPricing">📦 تسعير الصندوق</system:String>
+    <system:String x:Key="Product_BoxBarcode">رمز الصندوق الشريطي</system:String>
+    <system:String x:Key="Product_ItemsPerBox">العناصر في الصندوق</system:String>
+    <system:String x:Key="Product_BoxPurchasePrice">سعر شراء الصندوق</system:String>
+    <system:String x:Key="Product_BoxSalePrice">سعر بيع الصندوق</system:String>
+    <system:String x:Key="Product_BoxWholesalePrice">سعر جملة الصندوق</system:String>
+    <system:String x:Key="Product_NumberOfBoxes">عدد الصناديق</system:String>
+    <system:String x:Key="Product_TransferFromStorehouse">🔄 النقل من المستودع</system:String>
+    <system:String x:Key="Product_AvailableInStorehouse">متاح في المستودع</system:String>
+    <system:String x:Key="Product_IndividualItems">عناصر فردية</system:String>
+    <system:String x:Key="Product_AvailableBoxes">الصناديق المتاحة</system:String>
+    <system:String x:Key="Product_CompleteBoxes">صناديق كاملة</system:String>
+    <system:String x:Key="Product_ItemsPerBoxShort">عناصر/صندوق</system:String>
+    <system:String x:Key="Product_TransferIndividualItems">نقل العناصر الفردية</system:String>
+    <system:String x:Key="Product_TransferBoxes">نقل الصناديق</system:String>
+    <system:String x:Key="Product_IndividualItemsTransfer">📦 نقل العناصر الفردية</system:String>
+    <system:String x:Key="Product_Quantity">الكمية:</system:String>
+    <system:String x:Key="Product_Items">عناصر</system:String>
+    <system:String x:Key="Product_BoxTransfer">📦 نقل الصناديق</system:String>
+    <system:String x:Key="Product_ItemsPerBoxColon">العناصر في الصندوق:</system:String>
+    <system:String x:Key="Product_AvailableBoxesColon">الصناديق المتاحة:</system:String>
+    <system:String x:Key="Product_BoxesToTransfer">الصناديق المراد نقلها:</system:String>
+    <system:String x:Key="Product_Boxes">صناديق</system:String>
+    <system:String x:Key="Product_Reset">إعادة تعيين</system:String>
+
+
+
+
+
+
+
+
+
+
+
+    <!-- Customer View Translation Keys - Add to ar-SA.xaml -->
+
+    <system:String x:Key="Customer_Management">إدارة العملاء</system:String>
+    <system:String x:Key="Customer_SearchPlaceholder">🔍 البحث عن العملاء...</system:String>
+    <system:String x:Key="Customer_AddCustomer">إضافة عميل</system:String>
+    <system:String x:Key="Customer_CustomerList">قائمة العملاء</system:String>
+    <system:String x:Key="Customer_Edit">تعديل</system:String>
+    <system:String x:Key="Customer_AddNewCustomer">إضافة عميل جديد</system:String>
+    <system:String x:Key="Customer_NameRequired">الاسم*</system:String>
+    <system:String x:Key="Customer_Cancel">إلغاء</system:String>
+    <system:String x:Key="Customer_SaveCustomer">حفظ العميل</system:String>
+    <system:String x:Key="Customer_UpdateCustomer">تحديث العميل</system:String>
+    <system:String x:Key="Customer_CustomerDetails">تفاصيل العميل</system:String>
+    <system:String x:Key="Customer_Payments">المدفوعات</system:String>
+    <system:String x:Key="Customer_EditBalance">تعديل الرصيد</system:String>
+    <system:String x:Key="Customer_SettleDebt">تسوية الدين</system:String>
+    <system:String x:Key="Customer_History">السجل</system:String>
+    <system:String x:Key="Customer_Refresh">تحديث</system:String>
+    <system:String x:Key="Customer_NewBalance">الرصيد الجديد</system:String>
+    <system:String x:Key="Customer_ReasonRequired">السبب*</system:String>
+    <system:String x:Key="Customer_SaveBalance">حفظ الرصيد</system:String>
+    <system:String x:Key="Customer_PaymentAmount">مبلغ الدفع</system:String>
+    <system:String x:Key="Customer_PaymentMethod">طريقة الدفع</system:String>
+    <system:String x:Key="Customer_PaymentNotes">ملاحظات الدفع</system:String>
+    <system:String x:Key="Customer_ProcessPayment">معالجة الدفع</system:String>
+    <system:String x:Key="Customer_EditPayment">تعديل الدفع</system:String>
+    <system:String x:Key="Customer_AmountRequired">المبلغ*</system:String>
+    <system:String x:Key="Customer_PaymentMethodRequired">طريقة الدفع*</system:String>
+    <system:String x:Key="Customer_PaymentDate">تاريخ الدفع</system:String>
+    <system:String x:Key="Customer_Status">الحالة</system:String>
+    <system:String x:Key="Customer_Notes">الملاحظات</system:String>
+    <system:String x:Key="Customer_SavePayment">حفظ الدفع</system:String>
+    <system:String x:Key="Customer_PaymentHistory">سجل المدفوعات</system:String>
+    <system:String x:Key="Customer_Date">التاريخ</system:String>
+    <system:String x:Key="Customer_Amount">المبلغ</system:String>
+    <system:String x:Key="Customer_DeletePayment">حذف الدفع</system:String>
+    <system:String x:Key="Customer_CloseHistory">إغلاق السجل</system:String>
+
+    <!-- Payment Methods -->
+    <system:String x:Key="PaymentMethod_Cash">نقدي</system:String>
+    <system:String x:Key="PaymentMethod_CreditCard">بطاقة ائتمان</system:String>
+    <system:String x:Key="PaymentMethod_DebitCard">بطاقة خصم</system:String>
+    <system:String x:Key="PaymentMethod_BankTransfer">تحويل بنكي</system:String>
+    <system:String x:Key="PaymentMethod_Check">شيك</system:String>
+
+    <!-- Payment Status -->
+    <system:String x:Key="PaymentStatus_Completed">مكتمل</system:String>
+    <system:String x:Key="PaymentStatus_Pending">في الانتظار</system:String>
+    <system:String x:Key="PaymentStatus_Cancelled">ملغي</system:String>
+
+
+
+
+    <!-- Drawer View Translation Keys - Add to ar-SA.xaml -->
+
+    <system:String x:Key="Drawer_DrawerSession">جلسة الدرج:</system:String>
+    <system:String x:Key="Drawer_Current">الحالية</system:String>
+    <system:String x:Key="Drawer_SessionFilter">مرشح الجلسة:</system:String>
+    <system:String x:Key="Drawer_To">إلى</system:String>
+    <system:String x:Key="Drawer_LoadSessions">تحميل الجلسات</system:String>
+    <system:String x:Key="Drawer_Summary">الملخص</system:String>
+    <system:String x:Key="Drawer_CurrentDrawer">الدرج الحالي</system:String>
+    <system:String x:Key="Drawer_TransactionHistory">سجل المعاملات</system:String>
+    <system:String x:Key="Drawer_ProfitAnalysis">تحليل الأرباح</system:String>
+    <system:String x:Key="Drawer_TransactionRange">نطاق المعاملات:</system:String>
+    <system:String x:Key="Drawer_Actions">الإجراءات</system:String>
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Drawer_DateTimeHeader">التاريخ والوقت</system:String>
+    <system:String x:Key="Drawer_TransactionTypeHeader">نوع المعاملة</system:String>
+    <system:String x:Key="Drawer_TransactionDetailsHeader">تفاصيل المعاملة</system:String>
+    <system:String x:Key="Drawer_TransactionAmountHeader">مبلغ المعاملة</system:String>
+    <system:String x:Key="Drawer_ResultingBalanceHeader">الرصيد الناتج</system:String>
+
+
+    <!-- Add Cash Popup -->
+    <system:String x:Key="Drawer_AddCashTitle">إضافة نقد</system:String>
+    <system:String x:Key="Drawer_Amount">المبلغ:</system:String>
+    <system:String x:Key="Drawer_Description">الوصف:</system:String>
+    <system:String x:Key="Drawer_Cancel">إلغاء</system:String>
+
+    <!-- Remove Cash Popup -->
+    <system:String x:Key="Drawer_RemoveCashTitle">إخراج نقد</system:String>
+    <system:String x:Key="Drawer_Reason">السبب:</system:String>
+
+    <!-- Open Drawer Popup -->
+    <system:String x:Key="Drawer_OpenDrawerTitle">فتح الدرج</system:String>
+    <system:String x:Key="Drawer_InitialCashAmount">مبلغ النقد الأولي:</system:String>
+
+    <!-- Close Drawer Popup -->
+    <system:String x:Key="Drawer_CloseDrawerTitle">إغلاق الدرج</system:String>
+    <system:String x:Key="Drawer_ActualCashCount">عد النقد الفعلي:</system:String>
+    <system:String x:Key="Drawer_ExpectedAmount">المبلغ المتوقع:</system:String>
+    <!-- Print Report Popup -->
+    <system:String x:Key="Drawer_PrintReportTitle">طباعة التقرير</system:String>
+    <system:String x:Key="Drawer_IncludeTransactionDetails">تضمين تفاصيل المعاملات</system:String>
+    <system:String x:Key="Drawer_IncludeFinancialSummary">تضمين الملخص المالي</system:String>
+    <system:String x:Key="Drawer_PrintCashierCopy">طباعة نسخة الكاشير</system:String>
+    <system:String x:Key="Drawer_Print">طباعة</system:String>
+
+
+    <!-- Data Grid Headers -->
+    <system:String x:Key="Expense_DateHeader">التاريخ</system:String>
+    <system:String x:Key="Expense_ReasonHeader">السبب</system:String>
+    <system:String x:Key="Expense_CategoryHeader">الفئة</system:String>
+    <system:String x:Key="Expense_AmountHeader">المبلغ</system:String>
+    <system:String x:Key="Expense_RecurringHeader">متكرر</system:String>
+
+
+
+    <!-- ExpenseWindow Translation Keys - Add to ar-SA.xaml -->
+
+    <system:String x:Key="ExpenseWindow_Title">تفاصيل المصروف</system:String>
+    <system:String x:Key="ExpenseWindow_HeaderTitle">تفاصيل المصروف</system:String>
+    <system:String x:Key="ExpenseWindow_CloseButton">إغلاق (ESC)</system:String>
+
+    <!-- Form Fields -->
+    <system:String x:Key="ExpenseWindow_Reason">السبب</system:String>
+    <system:String x:Key="ExpenseWindow_Amount">المبلغ</system:String>
+    <system:String x:Key="ExpenseWindow_Category">الفئة</system:String>
+    <system:String x:Key="ExpenseWindow_Date">التاريخ</system:String>
+    <system:String x:Key="ExpenseWindow_Notes">الملاحظات</system:String>
+    <system:String x:Key="ExpenseWindow_IsRecurring">متكرر</system:String>
+
+    <!-- Action Buttons -->
+    <system:String x:Key="ExpenseWindow_Cancel">إلغاء</system:String>
+    <system:String x:Key="ExpenseWindow_Delete">حذف</system:String>
+    <system:String x:Key="ExpenseWindow_Save">حفظ</system:String>
+
+    <system:String x:Key="TransactionHistory_TotalTransactions">إجمالي المعاملات</system:String>
+    <system:String x:Key="TransactionHistory_PrintReport">طباعة التقرير</system:String>
+
+    <!-- Filters Section -->
+    <system:String x:Key="TransactionHistory_Filters">المرشحات</system:String>
+    <system:String x:Key="TransactionHistory_StartDate">تاريخ البداية</system:String>
+    <system:String x:Key="TransactionHistory_EndDate">تاريخ النهاية</system:String>
+    <system:String x:Key="TransactionHistory_Today">اليوم</system:String>
+    <system:String x:Key="TransactionHistory_ThisWeek">هذا الأسبوع</system:String>
+    <system:String x:Key="TransactionHistory_ThisMonth">هذا الشهر</system:String>
+    <system:String x:Key="TransactionHistory_Employee">الموظف</system:String>
+    <system:String x:Key="TransactionHistory_TransactionType">نوع المعاملة</system:String>
+    <system:String x:Key="TransactionHistory_ItemsPerPage">العناصر في الصفحة</system:String>
+    <system:String x:Key="TransactionHistory_ClearFilters">مسح المرشحات</system:String>
+
+    <!-- Pagination Controls -->
+    <system:String x:Key="TransactionHistory_First">الأول</system:String>
+    <system:String x:Key="TransactionHistory_Previous">السابق</system:String>
+    <system:String x:Key="TransactionHistory_Next">التالي</system:String>
+    <system:String x:Key="TransactionHistory_Last">الأخير</system:String>
+
+    <!-- Transaction List -->
+    <system:String x:Key="TransactionHistory_LoadingTransactions">جارٍ تحميل المعاملات...</system:String>
+    <system:String x:Key="TransactionHistory_NoTransactionsFound">لم يتم العثور على معاملات</system:String>
+    <system:String x:Key="TransactionHistory_TryAdjustingFilters">جرب تعديل المرشحات</system:String>
+    <system:String x:Key="TransactionHistory_Customer">العميل</system:String>
+    <system:String x:Key="TransactionHistory_Cashier">الكاشير</system:String>
+    <system:String x:Key="TransactionHistory_Date">التاريخ</system:String>
+    <system:String x:Key="TransactionHistory_Details">التفاصيل</system:String>
+    <system:String x:Key="TransactionHistory_Delete">حذف</system:String>
+
+    <!-- Bottom Pagination Info -->
+    <system:String x:Key="TransactionHistory_Showing">عرض</system:String>
+    <system:String x:Key="TransactionHistory_Of">من</system:String>
+    <system:String x:Key="TransactionHistory_Transactions">معاملات</system:String>
+
 </ResourceDictionary>
