@@ -356,36 +356,54 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Product Name" 
                                                     Binding="{Binding ProductName}" 
-                                                    Width="200" 
+                                                    Width="160" 
                                                     IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Barcode" 
                                                     Binding="{Binding ProductBarcode}" 
-                                                    Width="120" 
+                                                    Width="100" 
                                                     IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Category" 
                                                     Binding="{Binding CategoryName}" 
-                                                    Width="100" 
+                                                    Width="80" 
                                                     IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Quantity" 
                                                     Binding="{Binding Quantity, StringFormat=N2}" 
-                                                    Width="80"/>
+                                                    Width="70"/>
                                 <DataGridTextColumn Header="Unit Price" 
                                                     Binding="{Binding PurchasePrice, StringFormat=C2}" 
-                                                    Width="100"/>
+                                                    Width="85"/>
                                 <DataGridTextColumn Header="Total" 
                                                     Binding="{Binding TotalPrice, StringFormat=C2}" 
-                                                    Width="100" 
+                                                    Width="85" 
                                                     IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Stock" 
                                                     Binding="{Binding CurrentStock, StringFormat=N2}" 
-                                                    Width="80" 
+                                                    Width="65" 
                                                     IsReadOnly="True"/>
                                 <DataGridTextColumn Header="Storehouse" 
                                                     Binding="{Binding Storehouse, StringFormat=N2}" 
-                                                    Width="100" 
+                                                    Width="85" 
                                                     IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Box Barcode" 
+                                                    Binding="{Binding BoxBarcode}" 
+                                                    Width="95"/>
+                                <DataGridTextColumn Header="Boxes" 
+                                                    Binding="{Binding NumberOfBoxes}" 
+                                                    Width="55"/>
+                                <DataGridTextColumn Header="Items/Box" 
+                                                    Binding="{Binding ItemsPerBox}" 
+                                                    Width="70"/>
+                                <DataGridTextColumn Header="Box Purchase" 
+                                                    Binding="{Binding BoxPurchasePrice, StringFormat=C2}" 
+                                                    Width="95"/>
+                                <DataGridTextColumn Header="Box Sale" 
+                                                    Binding="{Binding BoxSalePrice, StringFormat=C2}" 
+                                                    Width="80"/>
+                                <DataGridTextColumn Header="Box Wholesale" 
+                                                    Binding="{Binding BoxWholesalePrice, StringFormat=C2}" 
+                                                    Width="100"/>
 
-                                <DataGridTemplateColumn Header="Actions" Width="120">
+                                <DataGridTemplateColumn Header="Actions" Width="100">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -518,8 +536,8 @@
               Panel.ZIndex="100">
             <Border Background="White" 
                     CornerRadius="16" 
-                    Width="1000" 
-                    Height="700" 
+                    Width="1100" 
+                    Height="800" 
                     HorizontalAlignment="Center" 
                     VerticalAlignment="Center">
                 <Border.Effect>
@@ -560,113 +578,191 @@
 
                     <!-- Modal Content -->
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="24"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
+                        <StackPanel>
+                            <!-- Basic Product Information -->
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
 
-                            <!-- Left Column -->
-                            <!-- Product Name -->
-                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,16">
-                                <TextBlock Text="Product Name *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Left Column -->
+                                <!-- Product Name -->
+                                <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Product Name *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Barcode -->
-                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,16">
-                                <TextBlock Text="Barcode *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Barcode -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Barcode *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Category -->
-                            <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,16">
-                                <TextBlock Text="Category *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <ComboBox ItemsSource="{Binding Categories}"
-                                          SelectedValue="{Binding NewProductFromInvoice.CategoryId}"
-                                          SelectedValuePath="CategoryId"
-                                          DisplayMemberPath="Name"
-                                          Height="44"
-                                          Padding="12,10"
-                                          FontSize="14"/>
-                            </StackPanel>
+                                <!-- Category -->
+                                <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Category *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <ComboBox ItemsSource="{Binding Categories}"
+                                              SelectedValue="{Binding NewProductFromInvoice.CategoryId}"
+                                              SelectedValuePath="CategoryId"
+                                              DisplayMemberPath="Name"
+                                              Height="44"
+                                              Padding="12,10"
+                                              FontSize="14"/>
+                                </StackPanel>
 
-                            <!-- Purchase Price -->
-                            <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,0,16">
-                                <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Purchase Price -->
+                                <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Sale Price -->
-                            <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,0,16">
-                                <TextBlock Text="Sale Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Sale Price -->
+                                <StackPanel Grid.Row="4" Grid.Column="0" Margin="0,0,0,16">
+                                    <TextBlock Text="Sale Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Right Column -->
-                            <!-- Invoice Quantity -->
-                            <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,16">
-                                <TextBlock Text="Invoice Quantity *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.InvoiceQuantity, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Right Column -->
+                                <!-- Invoice Quantity -->
+                                <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Invoice Quantity *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.InvoiceQuantity, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Current Stock -->
-                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,16">
-                                <TextBlock Text="Current Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Current Stock -->
+                                <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Current Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Storehouse -->
-                            <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,16">
-                                <TextBlock Text="Storehouse" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Storehouse -->
+                                <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Storehouse" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Minimum Stock -->
-                            <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,0,0,16">
-                                <TextBlock Text="Minimum Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Minimum Stock -->
+                                <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Minimum Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Wholesale Price -->
-                            <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,0,0,16">
-                                <TextBlock Text="Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                         Style="{StaticResource ModernTextBox}"/>
-                            </StackPanel>
+                                <!-- Wholesale Price -->
+                                <StackPanel Grid.Row="4" Grid.Column="2" Margin="0,0,0,16">
+                                    <TextBlock Text="Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
 
-                            <!-- Description (Full Width) -->
-                            <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,16">
-                                <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                         Style="{StaticResource ModernTextBox}"
-                                         Height="80"
-                                         TextWrapping="Wrap" 
-                                         AcceptsReturn="True" 
-                                         VerticalScrollBarVisibility="Auto"/>
-                            </StackPanel>
-                        </Grid>
+                                <!-- Description (Full Width) -->
+                                <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,0">
+                                    <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Height="80"
+                                             TextWrapping="Wrap" 
+                                             AcceptsReturn="True" 
+                                             VerticalScrollBarVisibility="Auto"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Box Data Section -->
+                            <Border Background="#F8F9FA" 
+                                    BorderBrush="#E9ECEF" 
+                                    BorderThickness="1" 
+                                    CornerRadius="12" 
+                                    Padding="24">
+                                <StackPanel>
+                                    <TextBlock Text="📦 Box Data (Optional)" 
+                                               FontSize="16" 
+                                               FontWeight="SemiBold" 
+                                               Foreground="#374151" 
+                                               Margin="0,0,0,20"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <!-- Box Barcode -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,16">
+                                            <TextBlock Text="Box Barcode" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Number of Boxes -->
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,16">
+                                            <TextBlock Text="Number of Boxes" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Items per Box -->
+                                        <StackPanel Grid.Row="0" Grid.Column="4" Margin="0,0,0,16">
+                                            <TextBlock Text="Items per Box" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Box Purchase Price -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,16">
+                                            <TextBlock Text="Box Purchase Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Box Sale Price -->
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,16">
+                                            <TextBlock Text="Box Sale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Box Wholesale Price -->
+                                        <StackPanel Grid.Row="1" Grid.Column="4" Margin="0,0,0,16">
+                                            <TextBlock Text="Box Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+
+                                        <!-- Minimum Box Stock -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,0">
+                                            <TextBlock Text="Minimum Box Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                            <TextBox Text="{Binding NewProductFromInvoice.MinimumBoxStock, UpdateSourceTrigger=PropertyChanged}" 
+                                                     Style="{StaticResource ModernTextBox}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </ScrollViewer>
 
                     <!-- Validation Message -->
