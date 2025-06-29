@@ -4,6 +4,7 @@
 **/[Oo]bj/
 # Visual Studio files
 .vs/
+
 *.suo
 *.user
 
