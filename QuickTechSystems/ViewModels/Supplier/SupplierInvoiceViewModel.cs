@@ -238,13 +238,20 @@ namespace QuickTechSystems.ViewModels.Supplier
         public ICommand MakePaymentCommand { get; }
         public ICommand ShowPaymentHistoryCommand { get; }
         public SupplierInvoiceViewModel(
-    ISupplierInvoiceService supplierInvoiceService,
-    ISupplierService supplierService,
-     IEventAggregator eventAggregator) : base(eventAggregator)
+         ISupplierInvoiceService supplierInvoiceService,
+         ISupplierService supplierService,
+         IProductService productService,        // ← ADDED - was missing causing ArgumentNullException
+         ICategoryService categoryService,      // ← ADDED - was missing causing ArgumentNullException  
+         IEventAggregator eventAggregator) : base(eventAggregator)
         {
+            // Assign services with null checks
+            _supplierInvoiceService = supplierInvoiceService ?? throw new ArgumentNullException(nameof(supplierInvoiceService));
+            _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
+            _productService = productService ?? throw new ArgumentNullException(nameof(productService));      // ← ADDED
+            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));  // ← ADDED
+
+            // Keep all the existing initialization code exactly as it was:
             AddEditProductsCommand = new RelayCommand(_ => OpenAddEditProductsWindow());
-            _supplierInvoiceService = supplierInvoiceService;
-            _supplierService = supplierService;
             _invoices = new ObservableCollection<SupplierInvoiceDTO>();
             _suppliers = new ObservableCollection<SupplierDTO>();
             _products = new ObservableCollection<ProductDTO>();
@@ -265,7 +272,7 @@ namespace QuickTechSystems.ViewModels.Supplier
             ValidateInvoiceCommand = new AsyncRelayCommand(async _ => await ValidateInvoiceAsync());
             SettleInvoiceCommand = new AsyncRelayCommand(async _ => await SettleInvoiceAsync());
             ViewInvoiceDetailsCommand = new RelayCommand(_ => ViewInvoiceDetails());
-            AddEditProductsCommand = new RelayCommand(_ => OpenAddEditProductsWindow());
+
             _ = LoadDataAsync();
         }
         protected override void SubscribeToEvents()
