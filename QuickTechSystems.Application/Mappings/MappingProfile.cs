@@ -134,6 +134,25 @@ namespace QuickTechSystems.Application.Mappings
             CreateMap<EmployeeDTO, Employee>();
 
             CreateMap<RestaurantTable, RestaurantTableDTO>().ReverseMap();
+
+
+            // Add these mappings to the existing MappingProfile constructor in QuickTechSystems.Application/Mappings/MappingProfile.cs
+
+            // Mapping for new product creation from supplier invoice
+            CreateMap<NewProductFromInvoiceDTO, Product>()
+                .ForMember(dest => dest.ProductId, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.UpdatedAt, opt => opt.MapFrom(src => DateTime.Now))
+                .ForMember(dest => dest.BarcodeImage, opt => opt.Ignore())
+                .ForMember(dest => dest.Category, opt => opt.Ignore())
+                .ForMember(dest => dest.Supplier, opt => opt.Ignore())
+                .ForMember(dest => dest.TransactionDetails, opt => opt.Ignore())
+                .ForMember(dest => dest.InventoryHistories, opt => opt.Ignore());
+
+            CreateMap<Product, NewProductFromInvoiceDTO>()
+                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : string.Empty))
+                .ForMember(dest => dest.SupplierName, opt => opt.MapFrom(src => src.Supplier != null ? src.Supplier.Name : string.Empty))
+                .ForMember(dest => dest.InvoiceQuantity, opt => opt.Ignore());
         }
     }
 }

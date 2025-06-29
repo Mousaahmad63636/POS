@@ -8,6 +8,8 @@
         KeyDown="Window_KeyDown">
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
         <Style x:Key="DataGridStyle" TargetType="DataGrid">
             <Setter Property="AutoGenerateColumns" Value="False"/>
             <Setter Property="CanUserAddRows" Value="False"/>
@@ -34,67 +36,38 @@
         </Style>
 
         <Style x:Key="DataGridCellStyle" TargetType="DataGridCell">
-            <Setter Property="Padding" Value="4,2"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="BorderBrush" Value="#DDDDDD"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="#EEEEEE"/>
+            <Setter Property="BorderThickness" Value="0,0,1,0"/>
         </Style>
 
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Padding" Value="15,8"/>
             <Setter Property="Margin" Value="5,0"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="MinWidth" Value="100"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Opacity" Value="0.8"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Opacity" Value="0.6"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="RoundedButtonStyle" TargetType="Button">
-            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="3"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Opacity" Value="0.8"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.8"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </Window.Resources>
 
@@ -107,7 +80,6 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
         <Border Grid.Row="0" Background="#2196F3" Padding="20,15">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -123,207 +95,174 @@
                                FontSize="12" Foreground="#E3F2FD"/>
                 </StackPanel>
 
-                <Button Grid.Column="1" Content="✕" Click="CloseButton_Click"
-                        Background="Transparent" Foreground="White" BorderThickness="0"
-                        FontSize="16" Width="30" Height="30" VerticalAlignment="Top"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Create New Product" 
+                            Command="{Binding OpenNewProductDialogCommand}"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Background="#4CAF50" Foreground="White"
+                            Margin="0,0,10,0"/>
+
+                    <Button Content="✕" Click="CloseButton_Click"
+                            Background="Transparent" Foreground="White" BorderThickness="0"
+                            FontSize="16" Width="30" Height="30" VerticalAlignment="Top"/>
+                </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Instructions -->
-        <Border Grid.Row="1" Background="#FFF3E0" BorderBrush="#FFB74D" BorderThickness="0,0,0,1" Padding="15,10">
-            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#E65100">
-                <Run Text="💡 Instructions: "/>
-                <Run Text="Enter product details in the grid below. Use Tab to move between cells. "/>
-                <Run Text="Enter a barcode to auto-fill product information, or fill manually. "/>
-                <Run Text="Click 'Add Row' or press Enter on the last row to add more products."/>
-            </TextBlock>
+        <Border Grid.Row="1" Background="#E8F5F0" BorderBrush="#28A745" BorderThickness="0,0,0,2" Padding="20,15">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="💡" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock TextWrapping="Wrap" FontSize="13" Foreground="#155724" VerticalAlignment="Center">
+                    <Run Text="Quick Start: " FontWeight="SemiBold"/>
+                    <Run Text="Scan an existing product barcode in the field above, or click 'Create New Product' to add a product with all details. "/>
+                    <Run Text="Products are automatically added to your invoice upon creation."/>
+                </TextBlock>
+            </StackPanel>
         </Border>
 
-        <!-- Main Product Grid -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-            <Grid>
+            <Grid Margin="10">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Existing Products -->
-                <DataGrid Grid.Row="0" ItemsSource="{Binding InvoiceDetails}" 
+                <!-- Quick Add Bar -->
+                <Border Grid.Row="0" Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="1" 
+                        CornerRadius="4" Padding="15" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Quick Add:" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <TextBox Grid.Column="1" x:Name="QuickBarcodeTextBox" 
+                                 ToolTip="Scan or enter a product barcode to quickly add it to the invoice"
+                                 Text="{Binding NewProductRow.ProductBarcode, UpdateSourceTrigger=PropertyChanged}"
+                                 LostFocus="BarcodeTextBox_LostFocus"
+                                 Height="32" Padding="8,4"
+                                 BorderBrush="#CED4DA" BorderThickness="1"/>
+
+                        <TextBlock Grid.Column="2" Text="or" FontStyle="Italic" VerticalAlignment="Center" 
+                                   Margin="15,0" Foreground="#6C757D"/>
+
+                        <Button Grid.Column="3" Content="➕ Create New Product" 
+                                Command="{Binding OpenNewProductDialogCommand}"
+                                Background="#28A745" Foreground="White" 
+                                Padding="15,8" FontWeight="SemiBold"
+                                HorizontalAlignment="Left" MinWidth="180"/>
+                    </Grid>
+                </Border>
+
+                <!-- Main Products DataGrid -->
+                <DataGrid Grid.Row="1" ItemsSource="{Binding InvoiceDetails}" 
                           SelectedItem="{Binding SelectedDetail}"
                           Style="{StaticResource DataGridStyle}"
                           ColumnHeaderStyle="{StaticResource DataGridColumnHeaderStyle}"
-                          CellStyle="{StaticResource DataGridCellStyle}"
-                          Margin="10">
+                          CellStyle="{StaticResource DataGridCellStyle}">
 
                     <DataGrid.Columns>
-                        <!-- Product Name -->
-                        <DataGridTextColumn Header="Product Name" Binding="{Binding ProductName}" Width="150" IsReadOnly="False"/>
+                        <DataGridTextColumn Header="Product Name" Binding="{Binding ProductName}" Width="200" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Barcode" Binding="{Binding ProductBarcode}" Width="120" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity, StringFormat=N2}" Width="80"/>
+                        <DataGridTextColumn Header="Purchase Price" Binding="{Binding PurchasePrice, StringFormat=C2}" Width="120"/>
+                        <DataGridTextColumn Header="Total Price" Binding="{Binding TotalPrice, StringFormat=C2}" Width="120" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Current Stock" Binding="{Binding CurrentStock, StringFormat=N2}" Width="100" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Storehouse" Binding="{Binding Storehouse, StringFormat=N2}" Width="100" IsReadOnly="True"/>
 
-                        <!-- Product Barcode -->
-                        <DataGridTextColumn Header="Item Barcode" Binding="{Binding ProductBarcode}" Width="120" IsReadOnly="False"/>
-
-                        <!-- Box Barcode -->
-                        <DataGridTextColumn Header="Box Barcode" Binding="{Binding BoxBarcode}" Width="120" IsReadOnly="False"/>
-
-                        <!-- Category -->
-                        <DataGridTemplateColumn Header="Category" Width="100">
+                        <DataGridTemplateColumn Header="Actions" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding CategoryName}"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                            <DataGridTemplateColumn.CellEditingTemplate>
-                                <DataTemplate>
-                                    <ComboBox ItemsSource="{Binding DataContext.Categories, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              SelectedValue="{Binding CategoryName, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Name"
-                                              DisplayMemberPath="Name"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellEditingTemplate>
-                        </DataGridTemplateColumn>
-
-                        <!-- Quantity -->
-                        <DataGridTextColumn Header="Quantity" Binding="{Binding Quantity, StringFormat=N2}" Width="80" IsReadOnly="False"/>
-
-                        <!-- Purchase Price -->
-                        <DataGridTextColumn Header="Purchase Price" Binding="{Binding PurchasePrice, StringFormat=C2}" Width="100" IsReadOnly="False"/>
-
-                        <!-- Total Price (Calculated) -->
-                        <DataGridTextColumn Header="Total Price" Binding="{Binding TotalPrice, StringFormat=C2}" Width="100" IsReadOnly="True"/>
-
-                        <!-- Items Per Box -->
-                        <DataGridTextColumn Header="Items/Box" Binding="{Binding ItemsPerBox}" Width="80" IsReadOnly="False"/>
-
-                        <!-- Number of Boxes -->
-                        <DataGridTextColumn Header="Boxes" Binding="{Binding NumberOfBoxes}" Width="60" IsReadOnly="False"/>
-
-                        <!-- Current Stock -->
-                        <DataGridTextColumn Header="Current Stock" Binding="{Binding CurrentStock, StringFormat=N2}" Width="90" IsReadOnly="True"/>
-
-                        <!-- Storehouse -->
-                        <DataGridTextColumn Header="Storehouse" Binding="{Binding Storehouse, StringFormat=N2}" Width="90" IsReadOnly="True"/>
-
-                        <!-- Actions -->
-                        <DataGridTemplateColumn Header="Actions" Width="100">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                         <Button Content="🗑️" 
                                                 Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip="Remove Product"
                                                 Style="{StaticResource RoundedButtonStyle}"
-                                                Background="#E74C3C" Foreground="White"/>
+                                                Background="#DC3545" Foreground="White"/>
                                         <Button Content="📋" 
                                                 Command="{Binding DataContext.GenerateBarcodeCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 CommandParameter="{Binding}"
                                                 ToolTip="Generate Barcode"
                                                 Style="{StaticResource RoundedButtonStyle}"
-                                                Background="#3498DB" Foreground="White"/>
+                                                Background="#007BFF" Foreground="White"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
+
+                    <!-- Empty State Message -->
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="White"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#E3F2FD"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
                 </DataGrid>
 
-                <!-- New Product Row -->
-                <Border Grid.Row="1" Background="#E8F5E8" BorderBrush="#4CAF50" BorderThickness="2" 
-                        Margin="10,0,10,10" Padding="10">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Text="➕ Add New Product" FontWeight="Bold" 
-                                   Foreground="#2E7D32" FontSize="14" Margin="0,0,0,10"/>
-
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="150"/>
-                                <ColumnDefinition Width="120"/>
-                                <ColumnDefinition Width="120"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="80"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Labels -->
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Product Name" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Item Barcode" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="Box Barcode" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="3" Text="Category" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="4" Text="Quantity" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="5" Text="Purchase Price" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="6" Text="Total Price" FontSize="10" Margin="2"/>
-                            <TextBlock Grid.Row="0" Grid.Column="7" Text="Items/Box" FontSize="10" Margin="2"/>
-
-                            <!-- Input Controls -->
-                            <TextBox Grid.Row="1" Grid.Column="0" Text="{Binding NewProductRow.ProductName, UpdateSourceTrigger=PropertyChanged}" Margin="2" Padding="4"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding NewProductRow.ProductBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="2" Padding="4" x:Name="BarcodeTextBox" LostFocus="BarcodeTextBox_LostFocus"/>
-                            <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding NewProductRow.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" Margin="2" Padding="4"/>
-
-                            <ComboBox Grid.Row="1" Grid.Column="3" 
-                                      ItemsSource="{Binding Categories}"
-                                      SelectedValue="{Binding NewProductRow.CategoryName}"
-                                      SelectedValuePath="Name"
-                                      DisplayMemberPath="Name"
-                                      Margin="2" Padding="4"/>
-
-                            <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding NewProductRow.Quantity, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="2" Padding="4" LostFocus="CalculationTextBox_LostFocus"/>
-                            <TextBox Grid.Row="1" Grid.Column="5" Text="{Binding NewProductRow.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                     Margin="2" Padding="4" LostFocus="CalculationTextBox_LostFocus"/>
-                            <TextBox Grid.Row="1" Grid.Column="6" Text="{Binding NewProductRow.TotalPrice, StringFormat=C2}" IsReadOnly="True" Background="#F5F5F5" Margin="2" Padding="4"/>
-                            <TextBox Grid.Row="1" Grid.Column="7" Text="{Binding NewProductRow.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
-                                     Margin="2" Padding="4" LostFocus="CalculationTextBox_LostFocus"/>
-
-                            <Button Grid.Row="1" Grid.Column="8" Content="Add Product" 
-                                    Command="{Binding AddProductCommand}"
-                                    Style="{StaticResource ActionButtonStyle}"
-                                    Background="#4CAF50" Foreground="White"
-                                    Margin="5,2"/>
-                        </Grid>
-                    </Grid>
+                <!-- Empty State Overlay - Show when no items -->
+                <Border Grid.Row="1" Background="#F8F9FA" CornerRadius="8" Padding="40"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding InvoiceDetails.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="📦" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                        <TextBlock Text="No products added yet" FontSize="18" FontWeight="SemiBold" 
+                                   HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                        <TextBlock Text="Scan a barcode above or create a new product to get started" 
+                                   FontSize="14" Foreground="#6C757D" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+                        <Button Content="➕ Create Your First Product" 
+                                Command="{Binding OpenNewProductDialogCommand}"
+                                Background="#28A745" Foreground="White" 
+                                Padding="20,10" FontWeight="SemiBold"/>
+                    </StackPanel>
                 </Border>
             </Grid>
         </ScrollViewer>
 
-        <!-- Summary -->
-        <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="15,10">
+        <Border Grid.Row="3" Background="#F8F9FA" BorderBrush="#DEE2E6" BorderThickness="0,1,0,0" Padding="20,15">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock Text="{Binding InvoiceDetails.Count, StringFormat='Total Products: {0}', FallbackValue='Total Products: 0'}" 
-                               FontWeight="Medium" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding HasChanges, StringFormat='Has Changes: {0}', FallbackValue='Has Changes: False'}" 
-                               Margin="20,0,0,0" VerticalAlignment="Center"
-                               Foreground="{Binding HasChanges, Converter={StaticResource BooleanToBrushConverter}}"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#17A2B8" CornerRadius="12" Padding="8,4" Margin="0,0,15,0">
+                        <TextBlock Text="{Binding InvoiceDetails.Count, StringFormat='{0} Products'}" 
+                                   Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                    </Border>
+
+                    <Border Background="#28A745" CornerRadius="12" Padding="8,4" 
+                            Visibility="{Binding HasChanges, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock Text="⚠ Unsaved Changes" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+                    </Border>
                 </StackPanel>
 
                 <TextBlock Grid.Column="1" 
-                           Text="{Binding InvoiceDetails, Converter={StaticResource CollectionSumConverter}, ConverterParameter=TotalPrice, StringFormat='Invoice Total: {0:C2}', FallbackValue='Invoice Total: $0.00'}"
-                           FontSize="14" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,20,0"/>
-
-                <CheckBox Grid.Column="2" Content="Auto-calculate totals" IsChecked="True" VerticalAlignment="Center"/>
+                           Text="💡 Tip: Products are automatically saved when created"
+                           FontSize="12" Foreground="#6C757D" FontStyle="Italic" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
-        <!-- Action Buttons -->
         <Border Grid.Row="4" Background="White" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="15">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Content="Save Changes" 
@@ -344,13 +283,268 @@
             </StackPanel>
         </Border>
 
-        <!-- Loading Overlay -->
         <Grid Grid.RowSpan="5" Background="#80000000" Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Border Background="White" CornerRadius="8" Width="200" Height="100" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                     <ProgressBar IsIndeterminate="True" Width="150" Height="6" Margin="0,0,0,15"/>
                     <TextBlock Text="Loading..." HorizontalAlignment="Center" FontSize="14"/>
                 </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Grid.RowSpan="5" Background="#80000000" Visibility="{Binding IsNewProductDialogOpen, Converter={StaticResource BooleanToVisibilityConverter}}" Panel.ZIndex="100">
+            <Border Background="White" CornerRadius="12" Width="1200" Height="800" 
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="20" ShadowDepth="8" Opacity="0.3"/>
+                </Border.Effect>
+
+                <Grid Margin="30">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,25">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Create New Product" FontSize="24" FontWeight="Bold" Foreground="#2196F3" Margin="0,0,0,5"/>
+                            <TextBlock Text="Fill in the product details below. All fields marked with * are required." 
+                                       FontSize="14" Foreground="#6C757D"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="1" Content="✕" Command="{Binding CancelNewProductCommand}"
+                                Background="Transparent" Foreground="#666" BorderThickness="0"
+                                FontSize="20" Width="40" Height="40" VerticalAlignment="Top"/>
+                    </Grid>
+
+                    <!-- Form Content -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Margin="0,0,20,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="280"/>
+                                <ColumnDefinition Width="30"/>
+                                <ColumnDefinition Width="150"/>
+                                <ColumnDefinition Width="280"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <!-- Basic Information Section -->
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="30"/>
+
+                                <!-- Pricing Section -->
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="30"/>
+
+                                <!-- Stock Section -->
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="30"/>
+
+                                <!-- Box Information Section -->
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="15"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Basic Information Section -->
+                            <TextBlock Grid.Row="0" Grid.ColumnSpan="6" Text="📋 Basic Information" 
+                                       FontWeight="Bold" FontSize="16" Foreground="#2196F3" Margin="0,0,0,0"/>
+
+                            <!-- Product Name -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Product Name*:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="4"
+                                     Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Barcode and Category -->
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Barcode*:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="3" Text="Category*:" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Row="4" Grid.Column="4" 
+                                      ItemsSource="{Binding Categories}"
+                                      SelectedValue="{Binding NewProductFromInvoice.CategoryId}"
+                                      SelectedValuePath="CategoryId"
+                                      DisplayMemberPath="Name"
+                                      Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Description -->
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Description:" VerticalAlignment="Top" Margin="0,8,0,0"/>
+                            <TextBox Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="4"
+                                     Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="80" Padding="10,8" TextWrapping="Wrap" AcceptsReturn="True" 
+                                     VerticalScrollBarVisibility="Auto" FontSize="14"/>
+
+                            <!-- Supplier -->
+                            <TextBlock Grid.Row="8" Grid.Column="0" Text="Supplier:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="4"
+                                     Text="{Binding NewProductFromInvoice.SupplierName}" 
+                                     IsReadOnly="True" Background="#F8F9FA" Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Invoice Quantity -->
+                            <TextBlock Grid.Row="10" Grid.Column="0" Text="Invoice Quantity*:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="10" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.InvoiceQuantity, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Pricing Section -->
+                            <TextBlock Grid.Row="12" Grid.ColumnSpan="6" Text="💰 Pricing Information" 
+                                       FontWeight="Bold" FontSize="16" Foreground="#2196F3"/>
+
+                            <!-- Purchase Price and Sale Price -->
+                            <TextBlock Grid.Row="14" Grid.Column="0" Text="Purchase Price*:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="14" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="14" Grid.Column="3" Text="Sale Price*:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="14" Grid.Column="4" 
+                                     Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Wholesale Price -->
+                            <TextBlock Grid.Row="16" Grid.Column="0" Text="Wholesale Price:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="16" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Stock Section -->
+                            <TextBlock Grid.Row="18" Grid.ColumnSpan="6" Text="📦 Stock Information" 
+                                       FontWeight="Bold" FontSize="16" Foreground="#2196F3"/>
+
+                            <!-- Current Stock and Storehouse -->
+                            <TextBlock Grid.Row="20" Grid.Column="0" Text="Current Stock:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="20" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="20" Grid.Column="3" Text="Storehouse:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="20" Grid.Column="4" 
+                                     Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Minimum Stock -->
+                            <TextBlock Grid.Row="22" Grid.Column="0" Text="Minimum Stock:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="22" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Box Information Section -->
+                            <TextBlock Grid.Row="26" Grid.ColumnSpan="6" Text="📋 Box Information (Optional)" 
+                                       FontWeight="Bold" FontSize="16" Foreground="#2196F3"/>
+
+                            <!-- Box Barcode and Items per Box -->
+                            <TextBlock Grid.Row="28" Grid.Column="0" Text="Box Barcode:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="28" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="28" Grid.Column="3" Text="Items per Box:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="28" Grid.Column="4" 
+                                     Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Number of Boxes and Min Box Stock -->
+                            <TextBlock Grid.Row="30" Grid.Column="0" Text="Number of Boxes:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="30" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="30" Grid.Column="3" Text="Min Box Stock:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="30" Grid.Column="4" 
+                                     Text="{Binding NewProductFromInvoice.MinimumBoxStock, UpdateSourceTrigger=PropertyChanged}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Box Prices -->
+                            <TextBlock Grid.Row="32" Grid.Column="0" Text="Box Purchase Price:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="32" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <TextBlock Grid.Row="32" Grid.Column="3" Text="Box Sale Price:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="32" Grid.Column="4" 
+                                     Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+
+                            <!-- Box Wholesale Price -->
+                            <TextBlock Grid.Row="34" Grid.Column="0" Text="Box Wholesale Price:" VerticalAlignment="Center"/>
+                            <TextBox Grid.Row="34" Grid.Column="1" 
+                                     Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                     Height="35" Padding="10,8" FontSize="14"/>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <!-- Validation Message -->
+                    <Border Grid.Row="2" Background="#F8D7DA" BorderBrush="#F5C6CB" BorderThickness="1" CornerRadius="6" 
+                            Padding="15" Margin="0,15,0,0" 
+                            Visibility="{Binding HasNewProductValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="⚠️" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Text="{Binding NewProductValidationMessage}" Foreground="#721C24" 
+                                       TextWrapping="Wrap" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Action Buttons -->
+                    <Grid Grid.Row="3" Margin="0,25,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="1" Content="✅ Create Product" 
+                                Command="{Binding SaveNewProductCommand}"
+                                Background="#28A745" Foreground="White" 
+                                Padding="25,12" Margin="0,0,15,0" MinWidth="150"
+                                FontSize="14" FontWeight="SemiBold"/>
+
+                        <Button Grid.Column="2" Content="❌ Cancel" 
+                                Command="{Binding CancelNewProductCommand}"
+                                Background="#6C757D" Foreground="White" 
+                                Padding="25,12" MinWidth="120"
+                                FontSize="14" FontWeight="SemiBold"/>
+                    </Grid>
+                </Grid>
             </Border>
         </Grid>
     </Grid>
