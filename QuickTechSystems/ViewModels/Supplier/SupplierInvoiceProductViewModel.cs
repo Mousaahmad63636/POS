@@ -1,4 +1,5 @@
-﻿using System;
+﻿// File: QuickTechSystems\ViewModels\Supplier\SupplierInvoiceProductViewModel.cs
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -37,26 +38,13 @@ namespace QuickTechSystems.ViewModels.Supplier
         private string _newProductValidationMessage = string.Empty;
         private bool _hasNewProductValidationMessage;
 
-        public SupplierInvoiceProductViewModel(
-            ISupplierInvoiceService supplierInvoiceService,
-            IProductService productService,
-            ICategoryService categoryService,
-            ISupplierService supplierService,
-            IEventAggregator eventAggregator) : base(eventAggregator)
-        {
-            _supplierInvoiceService = supplierInvoiceService ?? throw new ArgumentNullException(nameof(supplierInvoiceService));
-            _productService = productService ?? throw new ArgumentNullException(nameof(productService));
-            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
-            _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
-
-            _invoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>();
-            _products = new ObservableCollection<ProductDTO>();
-            _categories = new ObservableCollection<CategoryDTO>();
-            _suppliers = new ObservableCollection<SupplierDTO>();
-
-            InitializeCommands();
-            InitializeNewProductRow();
-        }
+        // New properties for product search functionality
+        private string _productNameSearch = string.Empty;
+        private ObservableCollection<ProductDTO> _searchResults;
+        private bool _showSearchResults;
+        private ProductDTO _selectedSearchResult;
+        private Timer _searchTimer;
+        private CancellationTokenSource _searchCancellationTokenSource;
 
         #region Properties
 
@@ -108,28 +96,16 @@ namespace QuickTechSystems.ViewModels.Supplier
             set => SetProperty(ref _newProductFromInvoice, value);
         }
 
-        public bool IsNewProductDialogOpen
-        {
-            get => _isNewProductDialogOpen;
-            set => SetProperty(ref _isNewProductDialogOpen, value);
-        }
-
-        public string NewProductValidationMessage
-        {
-            get => _newProductValidationMessage;
-            set => SetProperty(ref _newProductValidationMessage, value);
-        }
-
-        public bool HasNewProductValidationMessage
-        {
-            get => _hasNewProductValidationMessage;
-            set => SetProperty(ref _hasNewProductValidationMessage, value);
-        }
-
         public bool IsLoading
         {
             get => _isLoading;
             set => SetProperty(ref _isLoading, value);
+        }
+
+        public bool IsNewProductDialogOpen
+        {
+            get => _isNewProductDialogOpen;
+            set => SetProperty(ref _isNewProductDialogOpen, value);
         }
 
         public string SearchText
@@ -144,29 +120,90 @@ namespace QuickTechSystems.ViewModels.Supplier
             set => SetProperty(ref _hasChanges, value);
         }
 
+        public string NewProductValidationMessage
+        {
+            get => _newProductValidationMessage;
+            set => SetProperty(ref _newProductValidationMessage, value);
+        }
+
+        public bool HasNewProductValidationMessage
+        {
+            get => _hasNewProductValidationMessage;
+            set => SetProperty(ref _hasNewProductValidationMessage, value);
+        }
+
+        // New properties for product search
+        public string ProductNameSearch
+        {
+            get => _productNameSearch;
+            set
+            {
+                if (SetProperty(ref _productNameSearch, value))
+                {
+                    DebouncedProductSearch(value);
+                }
+            }
+        }
+
+        public ObservableCollection<ProductDTO> SearchResults
+        {
+            get => _searchResults;
+            set => SetProperty(ref _searchResults, value);
+        }
+
+        public bool ShowSearchResults
+        {
+            get => _showSearchResults;
+            set => SetProperty(ref _showSearchResults, value);
+        }
+
+        public ProductDTO SelectedSearchResult
+        {
+            get => _selectedSearchResult;
+            set => SetProperty(ref _selectedSearchResult, value);
+        }
+
         #endregion
 
         #region Commands
 
-        public ICommand LoadDataCommand { get; private set; }
-        public ICommand SaveChangesCommand { get; private set; }
-        public ICommand CancelChangesCommand { get; private set; }
-        public ICommand AddRowCommand { get; private set; }
-        public ICommand AddProductCommand { get; private set; }
-        public ICommand RemoveProductCommand { get; private set; }
-        public ICommand ProductSelectedCommand { get; private set; }
-        public ICommand BarcodeChangedCommand { get; private set; }
-        public ICommand OpenNewProductDialogCommand { get; private set; }
-        public ICommand SaveNewProductCommand { get; private set; }
-        public ICommand CancelNewProductCommand { get; private set; }
-        public ICommand GenerateBarcodeCommand { get; private set; }
+        public ICommand LoadDataCommand { get; }
+        public ICommand SaveChangesCommand { get; }
+        public ICommand CancelChangesCommand { get; }
+        public ICommand AddRowCommand { get; }
+        public ICommand AddProductCommand { get; }
+        public ICommand RemoveProductCommand { get; }
+        public ICommand ProductSelectedCommand { get; }
+        public ICommand BarcodeChangedCommand { get; }
+        public ICommand OpenNewProductDialogCommand { get; }
+        public ICommand SaveNewProductCommand { get; }
+        public ICommand CancelNewProductCommand { get; }
+        public ICommand GenerateBarcodeCommand { get; }
+        public ICommand SelectSearchResultCommand { get; } // New command
+        public ICommand ClearSearchCommand { get; } // New command
 
         #endregion
 
-        #region Initialization
-
-        private void InitializeCommands()
+        public SupplierInvoiceProductViewModel(
+            ISupplierInvoiceService supplierInvoiceService,
+            IProductService productService,
+            ICategoryService categoryService,
+            ISupplierService supplierService,
+            IEventAggregator eventAggregator) : base(eventAggregator)
         {
+            _supplierInvoiceService = supplierInvoiceService ?? throw new ArgumentNullException(nameof(supplierInvoiceService));
+            _productService = productService ?? throw new ArgumentNullException(nameof(productService));
+            _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
+            _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
+
+            // Initialize collections
+            InvoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>();
+            Products = new ObservableCollection<ProductDTO>();
+            Categories = new ObservableCollection<CategoryDTO>();
+            Suppliers = new ObservableCollection<SupplierDTO>();
+            SearchResults = new ObservableCollection<ProductDTO>();
+
+            // Initialize commands
             LoadDataCommand = new AsyncRelayCommand(async _ => await LoadDataAsync());
             SaveChangesCommand = new AsyncRelayCommand(async _ => await SaveChangesAsync());
             CancelChangesCommand = new RelayCommand(_ => CancelChanges());
@@ -195,6 +232,11 @@ namespace QuickTechSystems.ViewModels.Supplier
                 if (param is SupplierInvoiceDetailDTO detail)
                     _ = Task.Run(async () => await GenerateBarcodeAsync(param));
             });
+            SelectSearchResultCommand = new RelayCommand<object>(OnSearchResultSelected); // New command
+            ClearSearchCommand = new RelayCommand(_ => ClearProductSearch()); // New command
+
+            // Initialize search timer
+            _searchTimer = new Timer(OnSearchTimerElapsed, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         public async Task InitializeAsync(SupplierInvoiceDTO invoice)
@@ -204,6 +246,136 @@ namespace QuickTechSystems.ViewModels.Supplier
             Invoice = invoice;
             await LoadDataAsync();
         }
+
+        #region Data Loading
+
+        private async Task LoadDataAsync()
+        {
+            if (!await _operationLock.WaitAsync(0))
+                return;
+
+            try
+            {
+                IsLoading = true;
+
+                var tasks = new List<Task>
+                {
+                    LoadInvoiceDetailsAsync(),
+                    LoadProductsAsync(),
+                    LoadCategoriesAsync(),
+                    LoadSuppliersAsync()
+                };
+
+                await Task.WhenAll(tasks);
+
+                InitializeNewProductRow();
+                HasChanges = false;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading data: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsLoading = false;
+                _operationLock.Release();
+            }
+        }
+
+        private async Task LoadInvoiceDetailsAsync()
+        {
+            try
+            {
+                if (Invoice?.SupplierInvoiceId > 0)
+                {
+                    var invoice = await _supplierInvoiceService.GetByIdAsync(Invoice.SupplierInvoiceId);
+                    if (invoice?.Details != null)
+                    {
+                        await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                        {
+                            InvoiceDetails.Clear();
+                            foreach (var detail in invoice.Details)
+                            {
+                                InvoiceDetails.Add(detail);
+                            }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading invoice details: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadProductsAsync()
+        {
+            try
+            {
+                var products = await _productService.GetActiveAsync();
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    Products.Clear();
+                    foreach (var product in products)
+                    {
+                        Products.Add(product);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading products: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadCategoriesAsync()
+        {
+            try
+            {
+                var categories = await _categoryService.GetProductCategoriesAsync();
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    Categories.Clear();
+                    foreach (var category in categories)
+                    {
+                        Categories.Add(category);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading categories: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private async Task LoadSuppliersAsync()
+        {
+            try
+            {
+                var suppliers = await _supplierService.GetActiveAsync();
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    Suppliers.Clear();
+                    foreach (var supplier in suppliers)
+                    {
+                        Suppliers.Add(supplier);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading suppliers: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        #endregion
+
+        #region Product Management
 
         private void InitializeNewProductRow()
         {
@@ -215,148 +387,106 @@ namespace QuickTechSystems.ViewModels.Supplier
                     Quantity = 1,
                     PurchasePrice = 0,
                     TotalPrice = 0,
-                    ProductName = string.Empty,
-                    ProductBarcode = string.Empty,
-                    ItemsPerBox = 1,
-                    NumberOfBoxes = 0,
-                    BoxBarcode = string.Empty,
-                    BoxPurchasePrice = 0,
-                    BoxSalePrice = 0,
-                    CurrentStock = 0,
-                    Storehouse = 0,
-                    SalePrice = 0,
-                    WholesalePrice = 0,
-                    BoxWholesalePrice = 0,
-                    MinimumStock = 0
+                    ItemsPerBox = 1
                 };
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"Error initializing new product row: {ex.Message}", "Error",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-
-                NewProductRow = new SupplierInvoiceDetailDTO();
             }
         }
-
-        #endregion
-
-        #region Data Loading
-
-        private async Task LoadDataAsync()
-        {
-            if (!await _operationLock.WaitAsync(0))
-            {
-                return;
-            }
-
-            try
-            {
-                IsLoading = true;
-
-                var categoriesTask = _categoryService.GetAllAsync();
-                var suppliersTask = _supplierService.GetAllAsync();
-                var productsTask = _productService.GetAllAsync();
-
-                await Task.WhenAll(categoriesTask, suppliersTask, productsTask);
-
-                var categories = await categoriesTask ?? new List<CategoryDTO>();
-                var suppliers = await suppliersTask ?? new List<SupplierDTO>();
-                var products = await productsTask ?? new List<ProductDTO>();
-
-                Categories = new ObservableCollection<CategoryDTO>(categories);
-                Suppliers = new ObservableCollection<SupplierDTO>(suppliers);
-                Products = new ObservableCollection<ProductDTO>(products);
-
-                if (Invoice?.SupplierInvoiceId > 0)
-                {
-                    var updatedInvoice = await _supplierInvoiceService.GetByIdAsync(Invoice.SupplierInvoiceId);
-                    if (updatedInvoice != null)
-                    {
-                        Invoice = updatedInvoice;
-                        var detailsList = Invoice.Details?.ToList() ?? new List<SupplierInvoiceDetailDTO>();
-                        InvoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>(detailsList);
-                    }
-                    else
-                    {
-                        InvoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>();
-                    }
-                }
-                else
-                {
-                    InvoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>();
-                }
-
-                InitializeNewProductRow();
-                HasChanges = false;
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Error loading data: {ex.Message}", "Error",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-
-                Categories ??= new ObservableCollection<CategoryDTO>();
-                Suppliers ??= new ObservableCollection<SupplierDTO>();
-                Products ??= new ObservableCollection<ProductDTO>();
-                InvoiceDetails ??= new ObservableCollection<SupplierInvoiceDetailDTO>();
-            }
-            finally
-            {
-                IsLoading = false;
-                _operationLock.Release();
-            }
-        }
-
-        #endregion
-
-        #region Product Management
 
         private void AddNewRow()
         {
             try
             {
-                if (NewProductRow != null && NewProductRow.ProductId > 0 && NewProductRow.Quantity > 0)
+                if (NewProductRow == null)
                 {
-                    var existingDetail = InvoiceDetails.FirstOrDefault(d => d.ProductId == NewProductRow.ProductId);
-
-                    if (existingDetail != null)
-                    {
-                        existingDetail.Quantity += NewProductRow.Quantity;
-                        existingDetail.TotalPrice = existingDetail.Quantity * existingDetail.PurchasePrice;
-                    }
-                    else
-                    {
-                        InvoiceDetails.Add(new SupplierInvoiceDetailDTO
-                        {
-                            SupplierInvoiceId = Invoice?.SupplierInvoiceId ?? 0,
-                            ProductId = NewProductRow.ProductId,
-                            ProductName = NewProductRow.ProductName,
-                            ProductBarcode = NewProductRow.ProductBarcode ?? string.Empty,
-                            Quantity = NewProductRow.Quantity,
-                            PurchasePrice = NewProductRow.PurchasePrice,
-                            TotalPrice = NewProductRow.Quantity * NewProductRow.PurchasePrice,
-                            BoxBarcode = NewProductRow.BoxBarcode ?? string.Empty,
-                            NumberOfBoxes = NewProductRow.NumberOfBoxes,
-                            ItemsPerBox = NewProductRow.ItemsPerBox,
-                            BoxPurchasePrice = NewProductRow.BoxPurchasePrice,
-                            BoxSalePrice = NewProductRow.BoxSalePrice,
-                            CurrentStock = NewProductRow.CurrentStock,
-                            Storehouse = NewProductRow.Storehouse,
-                            SalePrice = NewProductRow.SalePrice,
-                            WholesalePrice = NewProductRow.WholesalePrice,
-                            BoxWholesalePrice = NewProductRow.BoxWholesalePrice,
-                            MinimumStock = NewProductRow.MinimumStock
-                        });
-                    }
-
                     InitializeNewProductRow();
-                    HasChanges = true;
+                    return;
+                }
+
+                // Validate new product row
+                if (NewProductRow.ProductId <= 0)
+                {
+                    System.Windows.MessageBox.Show("Please select a product before adding.", "Invalid Product",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (NewProductRow.Quantity <= 0)
+                {
+                    System.Windows.MessageBox.Show("Please enter a valid quantity.", "Invalid Quantity",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (NewProductRow.PurchasePrice <= 0)
+                {
+                    System.Windows.MessageBox.Show("Please enter a valid purchase price.", "Invalid Price",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Check if product already exists in the invoice
+                var existingDetail = InvoiceDetails.FirstOrDefault(d => d.ProductId == NewProductRow.ProductId);
+                if (existingDetail != null)
+                {
+                    var result = System.Windows.MessageBox.Show(
+                        $"Product '{NewProductRow.ProductName}' is already in this invoice. Do you want to combine the quantities?",
+                        "Product Already Exists",
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Question);
+
+                    if (result == System.Windows.MessageBoxResult.Yes)
+                    {
+                        // Combine quantities and recalculate average price
+                        var totalQuantity = existingDetail.Quantity + NewProductRow.Quantity;
+                        var totalValue = (existingDetail.Quantity * existingDetail.PurchasePrice) +
+                                       (NewProductRow.Quantity * NewProductRow.PurchasePrice);
+                        var averagePrice = totalValue / totalQuantity;
+
+                        existingDetail.Quantity = totalQuantity;
+                        existingDetail.PurchasePrice = Math.Round(averagePrice, 3);
+                        existingDetail.TotalPrice = existingDetail.Quantity * existingDetail.PurchasePrice;
+                        HasChanges = true;
+                    }
                 }
                 else
                 {
-                    System.Windows.MessageBox.Show("Please select a valid product before adding.", "Invalid Product",
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    // Add new detail
+                    var newDetail = new SupplierInvoiceDetailDTO
+                    {
+                        SupplierInvoiceId = NewProductRow.SupplierInvoiceId,
+                        ProductId = NewProductRow.ProductId,
+                        ProductName = NewProductRow.ProductName,
+                        ProductBarcode = NewProductRow.ProductBarcode,
+                        Quantity = NewProductRow.Quantity,
+                        PurchasePrice = NewProductRow.PurchasePrice,
+                        TotalPrice = NewProductRow.Quantity * NewProductRow.PurchasePrice,
+                        SalePrice = NewProductRow.SalePrice,
+                        CurrentStock = NewProductRow.CurrentStock,
+                        Storehouse = NewProductRow.Storehouse,
+                        MinimumStock = NewProductRow.MinimumStock,
+                        NumberOfBoxes = NewProductRow.NumberOfBoxes,
+                        ItemsPerBox = NewProductRow.ItemsPerBox,
+                        BoxPurchasePrice = NewProductRow.BoxPurchasePrice,
+                        BoxSalePrice = NewProductRow.BoxSalePrice,
+                        WholesalePrice = NewProductRow.WholesalePrice,
+                        BoxWholesalePrice = NewProductRow.BoxWholesalePrice
+                    };
+
+                    InvoiceDetails.Add(newDetail);
+                    HasChanges = true;
                 }
+
+                // Clear the form
+                InitializeNewProductRow();
+                ClearProductSearch();
+
+                System.Windows.MessageBox.Show("Product added successfully!", "Success",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -385,6 +515,9 @@ namespace QuickTechSystems.ViewModels.Supplier
                 NewProductRow.WholesalePrice = product.WholesalePrice;
                 NewProductRow.BoxWholesalePrice = product.BoxWholesalePrice;
                 UpdateNewProductCalculations();
+
+                // Clear the search
+                ClearProductSearch();
             }
         }
 
@@ -404,6 +537,7 @@ namespace QuickTechSystems.ViewModels.Supplier
             }
         }
 
+        // FIXED: Enhanced barcode scanning to handle existing products properly
         private async Task OnBarcodeChanged(object param)
         {
             if (param is string barcode && !string.IsNullOrWhiteSpace(barcode))
@@ -413,7 +547,33 @@ namespace QuickTechSystems.ViewModels.Supplier
                     var product = await _productService.GetByBarcodeAsync(barcode);
                     if (product != null)
                     {
-                        OnProductSelected(product);
+                        // FIXED: Instead of just calling OnProductSelected, show user options
+                        var result = System.Windows.MessageBox.Show(
+                            $"Found existing product: '{product.Name}' (Current Stock: {product.CurrentStock + product.Storehouse})\n\n" +
+                            $"Would you like to:\n" +
+                            $"• Click 'Yes' to add this existing product to restock\n" +
+                            $"• Click 'No' to clear the barcode field",
+                            "Existing Product Found",
+                            System.Windows.MessageBoxButton.YesNo,
+                            System.Windows.MessageBoxImage.Question);
+
+                        if (result == System.Windows.MessageBoxResult.Yes)
+                        {
+                            OnProductSelected(product);
+                            System.Windows.MessageBox.Show(
+                                $"Product '{product.Name}' has been loaded. Please enter the quantity and purchase price for this restock.",
+                                "Product Loaded",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            // Clear the barcode field
+                            if (NewProductRow != null)
+                            {
+                                NewProductRow.ProductBarcode = string.Empty;
+                            }
+                        }
                     }
                     else
                     {
@@ -440,6 +600,93 @@ namespace QuickTechSystems.ViewModels.Supplier
                 }
             }
         }
+
+        #endregion
+
+        #region NEW: Product Search Functionality
+
+        private void DebouncedProductSearch(string searchTerm)
+        {
+            // Cancel previous search
+            _searchCancellationTokenSource?.Cancel();
+            _searchCancellationTokenSource = new CancellationTokenSource();
+
+            // Reset timer - 300ms delay
+            _searchTimer?.Change(300, Timeout.Infinite);
+        }
+
+        private async void OnSearchTimerElapsed(object state)
+        {
+            var searchTerm = ProductNameSearch;
+            var cancellationToken = _searchCancellationTokenSource?.Token ?? CancellationToken.None;
+
+            if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    SearchResults.Clear();
+                    ShowSearchResults = false;
+                });
+                return;
+            }
+
+            try
+            {
+                if (cancellationToken.IsCancellationRequested) return;
+
+                var products = await _productService.SearchByNameAsync(searchTerm);
+
+                if (cancellationToken.IsCancellationRequested) return;
+
+                var filteredProducts = products?.Where(p =>
+                    p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) && p.IsActive)
+                    .Take(10)
+                    .ToList() ?? new List<ProductDTO>();
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    SearchResults.Clear();
+                    foreach (var product in filteredProducts)
+                    {
+                        SearchResults.Add(product);
+                    }
+                    ShowSearchResults = SearchResults.Any();
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when operation is cancelled
+            }
+            catch (Exception ex)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    System.Windows.MessageBox.Show($"Error searching products: {ex.Message}", "Search Error",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                });
+            }
+        }
+
+        private void OnSearchResultSelected(object param)
+        {
+            if (param is ProductDTO selectedProduct)
+            {
+                OnProductSelected(selectedProduct);
+                ClearProductSearch();
+            }
+        }
+
+        private void ClearProductSearch()
+        {
+            ProductNameSearch = string.Empty;
+            SearchResults.Clear();
+            ShowSearchResults = false;
+            SelectedSearchResult = null;
+        }
+
+        #endregion
+
+        #region Product Dialog Management
 
         private async Task AddProductAsync()
         {
@@ -474,6 +721,108 @@ namespace QuickTechSystems.ViewModels.Supplier
             }
         }
 
+        private async Task OpenNewProductDialogAsync()
+        {
+            try
+            {
+                NewProductFromInvoice = new NewProductFromInvoiceDTO
+                {
+                    SupplierId = Invoice?.SupplierId ?? 0,
+                    SupplierName = Invoice?.SupplierName ?? string.Empty,
+                    ItemsPerBox = 1
+                };
+
+                IsNewProductDialogOpen = true;
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error opening new product dialog: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+            await Task.CompletedTask;
+        }
+
+        private async Task SaveNewProductAsync()
+        {
+            try
+            {
+                if (NewProductFromInvoice == null)
+                {
+                    System.Windows.MessageBox.Show("No product data available.", "Error",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+
+                // Basic validation
+                if (string.IsNullOrWhiteSpace(NewProductFromInvoice.Name))
+                {
+                    SetNewProductValidationMessage("Product name is required.");
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(NewProductFromInvoice.Barcode))
+                {
+                    SetNewProductValidationMessage("Barcode is required.");
+                    return;
+                }
+
+                if (NewProductFromInvoice.CategoryId <= 0)
+                {
+                    SetNewProductValidationMessage("Please select a category.");
+                    return;
+                }
+
+                if (NewProductFromInvoice.PurchasePrice <= 0)
+                {
+                    SetNewProductValidationMessage("Purchase price must be greater than 0.");
+                    return;
+                }
+
+                if (NewProductFromInvoice.SalePrice <= 0)
+                {
+                    SetNewProductValidationMessage("Sale price must be greater than 0.");
+                    return;
+                }
+
+                ClearNewProductValidationMessage();
+
+                var createdProduct = await _supplierInvoiceService.CreateNewProductAndAddToInvoiceAsync(
+                    Invoice.SupplierInvoiceId, NewProductFromInvoice);
+
+                if (createdProduct != null)
+                {
+                    IsNewProductDialogOpen = false;
+                    await LoadDataAsync();
+
+                    System.Windows.MessageBox.Show("Product created and added to invoice successfully!", "Success",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                SetNewProductValidationMessage($"Error creating product: {ex.Message}");
+            }
+        }
+
+        private void CancelNewProduct()
+        {
+            IsNewProductDialogOpen = false;
+            NewProductFromInvoice = null;
+            ClearNewProductValidationMessage();
+        }
+
+        private void SetNewProductValidationMessage(string message)
+        {
+            NewProductValidationMessage = message;
+            HasNewProductValidationMessage = !string.IsNullOrEmpty(message);
+        }
+
+        private void ClearNewProductValidationMessage()
+        {
+            NewProductValidationMessage = string.Empty;
+            HasNewProductValidationMessage = false;
+        }
+
         private async Task GenerateBarcodeAsync(object param)
         {
             if (param is SupplierInvoiceDetailDTO detail)
@@ -503,209 +852,13 @@ namespace QuickTechSystems.ViewModels.Supplier
 
         #endregion
 
-        #region New Product Creation
-
-        private async Task OpenNewProductDialogAsync()
-        {
-            try
-            {
-                if (Invoice == null)
-                {
-                    System.Windows.MessageBox.Show("No invoice selected to add products to.", "Error",
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-                    return;
-                }
-
-                NewProductFromInvoice = new NewProductFromInvoiceDTO
-                {
-                    SupplierId = Invoice.SupplierId,
-                    SupplierName = Invoice.SupplierName,
-                    IsActive = true,
-                    ItemsPerBox = 1,
-                    InvoiceQuantity = 1,
-                    PurchasePrice = 0,
-                    SalePrice = 0,
-                    MinimumStock = 0,
-                    MinimumBoxStock = 0,
-                    CurrentStock = 0,
-                    Storehouse = 0,
-                    NumberOfBoxes = 0,
-                    BoxPurchasePrice = 0,
-                    BoxSalePrice = 0,
-                    WholesalePrice = 0,
-                    BoxWholesalePrice = 0
-                };
-
-                ClearNewProductValidation();
-                IsNewProductDialogOpen = true;
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Error opening new product dialog: {ex.Message}", "Error",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
-            }
-        }
-
-        private async Task SaveNewProductAsync()
-        {
-            if (!await _operationLock.WaitAsync(0))
-            {
-                SetNewProductValidation("Another operation is in progress. Please wait.");
-                return;
-            }
-
-            try
-            {
-                if (!ValidateNewProduct())
-                {
-                    return;
-                }
-
-                IsLoading = true;
-                ClearNewProductValidation();
-
-                var existingProduct = await _productService.GetByBarcodeAsync(NewProductFromInvoice.Barcode);
-                if (existingProduct != null)
-                {
-                    SetNewProductValidation($"A product with barcode '{NewProductFromInvoice.Barcode}' already exists.");
-                    return;
-                }
-
-                var createdProduct = await _supplierInvoiceService.CreateNewProductAndAddToInvoiceAsync(
-                    NewProductFromInvoice, Invoice.SupplierInvoiceId);
-
-                await LoadDataAsync();
-
-                IsNewProductDialogOpen = false;
-                HasChanges = false;
-
-                System.Windows.MessageBox.Show(
-                    $"Product '{createdProduct.Name}' created successfully and added to invoice.",
-                    "Success",
-                    System.Windows.MessageBoxButton.OK,
-                    System.Windows.MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                SetNewProductValidation($"Error creating product: {ex.Message}");
-            }
-            finally
-            {
-                IsLoading = false;
-                _operationLock.Release();
-            }
-        }
-
-        private void CancelNewProduct()
-        {
-            IsNewProductDialogOpen = false;
-            NewProductFromInvoice = null;
-            ClearNewProductValidation();
-        }
-
-        private bool ValidateNewProduct()
-        {
-            ClearNewProductValidation();
-
-            if (NewProductFromInvoice == null)
-            {
-                SetNewProductValidation("Product data is required.");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(NewProductFromInvoice.Name))
-            {
-                SetNewProductValidation("Product name is required.");
-                return false;
-            }
-
-            if (string.IsNullOrWhiteSpace(NewProductFromInvoice.Barcode))
-            {
-                SetNewProductValidation("Barcode is required.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.CategoryId <= 0)
-            {
-                SetNewProductValidation("Please select a category.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.PurchasePrice <= 0)
-            {
-                SetNewProductValidation("Purchase price must be greater than 0.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.SalePrice <= 0)
-            {
-                SetNewProductValidation("Sale price must be greater than 0.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.InvoiceQuantity <= 0)
-            {
-                SetNewProductValidation("Invoice quantity must be greater than 0.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.SupplierId <= 0)
-            {
-                SetNewProductValidation("Supplier information is missing.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.ItemsPerBox <= 0)
-            {
-                SetNewProductValidation("Items per box must be at least 1.");
-                return false;
-            }
-
-            if (NewProductFromInvoice.NumberOfBoxes > 0)
-            {
-                if (NewProductFromInvoice.ItemsPerBox <= 1)
-                {
-                    SetNewProductValidation("For box products, items per box must be greater than 1.");
-                    return false;
-                }
-
-                if (NewProductFromInvoice.BoxPurchasePrice <= 0)
-                {
-                    SetNewProductValidation("Box purchase price must be greater than 0 for box products.");
-                    return false;
-                }
-
-                if (NewProductFromInvoice.BoxSalePrice <= 0)
-                {
-                    SetNewProductValidation("Box sale price must be greater than 0 for box products.");
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private void ClearNewProductValidation()
-        {
-            NewProductValidationMessage = string.Empty;
-            HasNewProductValidationMessage = false;
-        }
-
-        private void SetNewProductValidation(string message)
-        {
-            NewProductValidationMessage = message;
-            HasNewProductValidationMessage = !string.IsNullOrEmpty(message);
-        }
-
-        #endregion
-
-        #region Save and Cancel
+        #region Save Changes
 
         private async Task SaveChangesAsync()
         {
             if (!await _operationLock.WaitAsync(0))
             {
-                System.Windows.MessageBox.Show("Another save operation is in progress. Please wait.", "Info",
+                System.Windows.MessageBox.Show("Save operation already in progress. Please wait.", "Info",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 return;
             }
@@ -728,9 +881,50 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                 IsLoading = true;
 
+                // Get details that need to be added (new ones)
                 var detailsToAdd = InvoiceDetails.Where(d => d.SupplierInvoiceDetailId == 0).ToList();
 
+                // Group details by whether they're for existing products or new products
+                var detailsForExistingProducts = new List<SupplierInvoiceDetailDTO>();
+                var detailsForNewProducts = new List<SupplierInvoiceDetailDTO>();
+
                 foreach (var detail in detailsToAdd)
+                {
+                    // Check if this is an existing product (ProductId > 0 means it exists in our database)
+                    if (detail.ProductId > 0)
+                    {
+                        var existingProduct = Products.FirstOrDefault(p => p.ProductId == detail.ProductId);
+                        if (existingProduct != null)
+                        {
+                            detailsForExistingProducts.Add(detail);
+                        }
+                        else
+                        {
+                            detailsForNewProducts.Add(detail);
+                        }
+                    }
+                    else
+                    {
+                        detailsForNewProducts.Add(detail);
+                    }
+                }
+
+                // Handle existing products - update stock and average purchase price
+                foreach (var detail in detailsForExistingProducts)
+                {
+                    try
+                    {
+                        await _supplierInvoiceService.AddExistingProductToInvoiceAsync(detail);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"Error adding existing product {detail.ProductName}: {ex.Message}", "Error",
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    }
+                }
+
+                // Handle new products normally
+                foreach (var detail in detailsForNewProducts)
                 {
                     try
                     {
@@ -738,7 +932,7 @@ namespace QuickTechSystems.ViewModels.Supplier
                     }
                     catch (Exception ex)
                     {
-                        System.Windows.MessageBox.Show($"Error adding product {detail.ProductName}: {ex.Message}", "Error",
+                        System.Windows.MessageBox.Show($"Error adding new product {detail.ProductName}: {ex.Message}", "Error",
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
                     }
                 }
@@ -783,6 +977,8 @@ namespace QuickTechSystems.ViewModels.Supplier
             if (disposing)
             {
                 _operationLock?.Dispose();
+                _searchTimer?.Dispose();
+                _searchCancellationTokenSource?.Dispose();
             }
             base.Dispose(disposing);
         }

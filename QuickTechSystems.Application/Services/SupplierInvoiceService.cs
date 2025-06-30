@@ -59,7 +59,153 @@ namespace QuickTechSystems.Application.Services
                 return dtos;
             });
         }
+        // File: QuickTechSystems.Application\Services\SupplierInvoiceService.cs
+        // Add this new method to the SupplierInvoiceService class
 
+        public async Task AddExistingProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto)
+        {
+            var invoiceLock = await GetInvoiceLock(detailDto.SupplierInvoiceId);
+            await invoiceLock.WaitAsync();
+            try
+            {
+                await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+                {
+                    using var transaction = await _unitOfWork.BeginTransactionAsync();
+                    try
+                    {
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Starting for ProductId: {detailDto.ProductId}");
+
+                        // Validate invoice exists and is in Draft status
+                        var invoice = await _unitOfWork.SupplierInvoices.GetByIdAsync(detailDto.SupplierInvoiceId);
+                        if (invoice == null)
+                        {
+                            throw new InvalidOperationException($"Invoice with ID {detailDto.SupplierInvoiceId} not found");
+                        }
+
+                        if (invoice.Status != "Draft")
+                        {
+                            throw new InvalidOperationException($"Cannot add products to invoice in {invoice.Status} status");
+                        }
+
+                        // Get the existing product
+                        var existingProduct = await _unitOfWork.Products.GetByIdAsync(detailDto.ProductId);
+                        if (existingProduct == null)
+                        {
+                            throw new InvalidOperationException($"Product with ID {detailDto.ProductId} not found");
+                        }
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Found existing product: {existingProduct.Name}");
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Current stock: {existingProduct.CurrentStock}, Storehouse: {existingProduct.Storehouse}");
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Current purchase price: {existingProduct.PurchasePrice}");
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] New quantity: {detailDto.Quantity}, New purchase price: {detailDto.PurchasePrice}");
+
+                        // Calculate current total stock and new total stock
+                        var currentTotalStock = existingProduct.CurrentStock + existingProduct.Storehouse;
+                        var newQuantity = detailDto.Quantity;
+                        var newTotalStock = currentTotalStock + newQuantity;
+
+                        // Calculate average purchase price: (old stock * old price + new stock * new price) / total stock
+                        decimal newAveragePurchasePrice = 0;
+                        if (newTotalStock > 0)
+                        {
+                            var currentValue = currentTotalStock * existingProduct.PurchasePrice;
+                            var newValue = newQuantity * detailDto.PurchasePrice;
+                            newAveragePurchasePrice = Math.Round((currentValue + newValue) / newTotalStock, 3);
+                        }
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Calculated average purchase price: {newAveragePurchasePrice}");
+
+                        // Update the existing product with new stock and average purchase price
+                        existingProduct.Storehouse += newQuantity; // Add new stock to storehouse
+                        existingProduct.PurchasePrice = newAveragePurchasePrice;
+                        existingProduct.UpdatedAt = DateTime.Now;
+
+                        // Update box pricing if needed
+                        if (existingProduct.ItemsPerBox > 0)
+                        {
+                            existingProduct.BoxPurchasePrice = Math.Round(newAveragePurchasePrice * existingProduct.ItemsPerBox, 3);
+                        }
+
+                        await _unitOfWork.Products.UpdateAsync(existingProduct);
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Updated product - New storehouse: {existingProduct.Storehouse}, New purchase price: {existingProduct.PurchasePrice}");
+
+                        // Create inventory history record
+                        var inventoryHistory = new InventoryHistory
+                        {
+                            ProductId = existingProduct.ProductId,
+                            QuantityChange = newQuantity,
+                            NewQuantity = (int)(existingProduct.CurrentStock + existingProduct.Storehouse),
+                            Type = "Restock",
+                            Notes = $"Restocked from supplier invoice {invoice.InvoiceNumber} - Qty: {newQuantity}, Price: {detailDto.PurchasePrice:C}",
+                            Timestamp = DateTime.Now
+                        };
+
+                        await _unitOfWork.InventoryHistories.AddAsync(inventoryHistory);
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Created inventory history record");
+
+                        // Create the invoice detail record
+                        var detail = new SupplierInvoiceDetail
+                        {
+                            SupplierInvoiceId = detailDto.SupplierInvoiceId,
+                            ProductId = detailDto.ProductId,
+                            Quantity = detailDto.Quantity,
+                            PurchasePrice = detailDto.PurchasePrice,
+                            TotalPrice = detailDto.Quantity * detailDto.PurchasePrice,
+                            BoxBarcode = detailDto.BoxBarcode ?? string.Empty,
+                            NumberOfBoxes = detailDto.NumberOfBoxes,
+                            ItemsPerBox = detailDto.ItemsPerBox,
+                            BoxPurchasePrice = detailDto.BoxPurchasePrice,
+                            BoxSalePrice = detailDto.BoxSalePrice,
+                            CurrentStock = existingProduct.CurrentStock,
+                            Storehouse = existingProduct.Storehouse,
+                            SalePrice = detailDto.SalePrice,
+                            WholesalePrice = detailDto.WholesalePrice,
+                            BoxWholesalePrice = detailDto.BoxWholesalePrice,
+                            MinimumStock = detailDto.MinimumStock
+                        };
+
+                        await _unitOfWork.SupplierInvoiceDetails.AddAsync(detail);
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Created invoice detail with TotalPrice: {detail.TotalPrice}");
+
+                        // Save all changes
+                        await _unitOfWork.SaveChangesAsync();
+
+                        // Update invoice calculated amount
+                        await UpdateCalculatedAmountDirectly(detailDto.SupplierInvoiceId);
+
+                        await transaction.CommitAsync();
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Transaction committed successfully");
+
+                        // Publish events
+                        var updatedProductDto = _mapper.Map<ProductDTO>(existingProduct);
+                        _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Update", updatedProductDto));
+
+                        var updatedInvoice = await GetByIdAsync(detailDto.SupplierInvoiceId);
+                        if (updatedInvoice != null)
+                        {
+                            Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Final CalculatedAmount: {updatedInvoice.CalculatedAmount}");
+                            _eventAggregator.Publish(new EntityChangedEvent<SupplierInvoiceDTO>("Update", updatedInvoice));
+                        }
+
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] Successfully processed existing product restock");
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        Debug.WriteLine($"[AddExistingProductToInvoiceAsync] ERROR: {ex}");
+                        throw;
+                    }
+                });
+            }
+            finally
+            {
+                invoiceLock.Release();
+            }
+        }
         public async Task<IEnumerable<SupplierInvoiceDTO>> GetBySupplierAsync(int supplierId)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
