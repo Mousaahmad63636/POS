@@ -168,30 +168,6 @@
             </Setter>
         </Style>
 
-        <!-- Search Result Item Style -->
-        <Style x:Key="SearchResultItem" TargetType="ListBoxItem">
-            <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ListBoxItem">
-                        <Border Background="{TemplateBinding Background}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#F8F9FA"/>
-                            </Trigger>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter Property="Background" Value="#E3F2FD"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
     </Window.Resources>
 
     <Grid>
@@ -278,7 +254,7 @@
                                            FontSize="16" 
                                            FontWeight="SemiBold" 
                                            Foreground="#212529"/>
-                                <TextBlock Text="Scan barcode, search by name, or create new product" 
+                                <TextBlock Text="Scan barcode or search by name to instantly add to invoice" 
                                            FontSize="12" 
                                            Foreground="#6C757D"/>
                             </StackPanel>
@@ -308,7 +284,7 @@
                                            Margin="0,0,0,8" 
                                            Foreground="#495057"/>
                                 <TextBox x:Name="QuickBarcodeTextBox"
-                                         Text="{Binding NewProductRow.ProductBarcode, UpdateSourceTrigger=PropertyChanged}"
+                                         Text="{Binding QuickBarcodeSearch, UpdateSourceTrigger=PropertyChanged}"
                                          LostFocus="BarcodeTextBox_LostFocus"
                                          KeyDown="QuickBarcodeTextBox_KeyDown"
                                          Style="{StaticResource ModernTextBox}"
@@ -348,7 +324,6 @@
                                            Placement="Bottom"
                                            AllowsTransparency="True"
                                            StaysOpen="False">
-                                        <!-- FIXED: Replaced problematic Effect binding with proper DropShadowEffect -->
                                         <Border Background="White"
                                                 BorderBrush="#E9ECEF"
                                                 BorderThickness="1"
@@ -376,16 +351,16 @@
                                                                     <TextBlock Text="{Binding Name}" 
                                                                                FontWeight="SemiBold" 
                                                                                FontSize="13"/>
-                                                                    <TextBlock Text="{Binding Barcode, StringFormat='Barcode: {0}'}" 
+                                                                    <TextBlock Text="{Binding Barcode}" 
                                                                                FontSize="11" 
                                                                                Foreground="#6C757D"/>
                                                                 </StackPanel>
                                                                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                                    <TextBlock Text="{Binding PurchasePrice, StringFormat='${0:N2}'}" 
+                                                                    <TextBlock Text="{Binding PurchasePrice, StringFormat=C}" 
                                                                                FontWeight="SemiBold" 
                                                                                FontSize="12" 
                                                                                Foreground="#28A745"/>
-                                                                    <TextBlock Text="{Binding CurrentStock, StringFormat='Stock: {0}'}" 
+                                                                    <TextBlock Text="{Binding CurrentStock}" 
                                                                                FontSize="11" 
                                                                                Foreground="#6C757D"/>
                                                                 </StackPanel>
@@ -417,60 +392,6 @@
                     </Grid>
                 </Border>
 
-                <!-- Product Details Section (when product is selected) -->
-                <Border Style="{StaticResource ModernCard}" 
-                        Margin="0,0,0,24"
-                        Visibility="{Binding NewProductRow.ProductId, Converter={StaticResource ProductIdToVisibilityConverter}}">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Product Info -->
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="📦 Product" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBlock Text="{Binding NewProductRow.ProductName}" 
-                                       FontSize="14" 
-                                       FontWeight="SemiBold" 
-                                       TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding NewProductRow.ProductBarcode, StringFormat='Barcode: {0}'}" 
-                                       FontSize="12" 
-                                       Foreground="#6C757D"/>
-                        </StackPanel>
-
-                        <!-- Quantity -->
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Text="📊 Quantity *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding NewProductRow.Quantity, UpdateSourceTrigger=PropertyChanged}" 
-                                     Style="{StaticResource ModernTextBox}"
-                                     Tag="Enter quantity..."/>
-                        </StackPanel>
-
-                        <!-- Purchase Price -->
-                        <StackPanel Grid.Column="4">
-                            <TextBlock Text="💰 Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBox Text="{Binding NewProductRow.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                     Style="{StaticResource ModernTextBox}"
-                                     Tag="Enter purchase price..."
-                                     LostFocus="CalculationTextBox_LostFocus"/>
-                        </StackPanel>
-
-                        <!-- Add Button -->
-                        <Button Grid.Column="6" 
-                                Content="➕ Add to Invoice"
-                                Command="{Binding AddRowCommand}"
-                                Style="{StaticResource SuccessButton}"
-                                MinWidth="140"
-                                VerticalAlignment="Bottom"/>
-                    </Grid>
-                </Border>
-
                 <!-- Products List Section -->
                 <Border Style="{StaticResource ModernCard}" Margin="0,0,0,0">
                     <StackPanel>
@@ -490,10 +411,13 @@
                                     <Border Background="#E3F2FD" 
                                             CornerRadius="12" 
                                             Padding="8,4">
-                                        <TextBlock Text="{Binding InvoiceDetails.Count, StringFormat='Products'}" 
-                                                   FontSize="12" 
+                                        <TextBlock FontSize="12" 
                                                    FontWeight="SemiBold" 
-                                                   Foreground="#007ACC"/>
+                                                   Foreground="#007ACC">
+                                            <TextBlock.Text>
+                                                <Binding Path="InvoiceDetails.Count" StringFormat="{}{0} Products"/>
+                                            </TextBlock.Text>
+                                        </TextBlock>
                                     </Border>
                                     <Border Background="#FFF3CD" 
                                             CornerRadius="12" 
@@ -531,7 +455,9 @@
                                   Background="White"
                                   BorderThickness="1"
                                   BorderBrush="#E9ECEF"
-                                  RowHeight="50">
+                                  RowHeight="50"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                  ScrollViewer.VerticalScrollBarVisibility="Auto">
 
                             <DataGrid.ColumnHeaderStyle>
                                 <Style TargetType="DataGridColumnHeader">
@@ -568,35 +494,90 @@
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Product Name" 
                                                     Binding="{Binding ProductName}" 
-                                                    Width="250"
+                                                    Width="200"
                                                     IsReadOnly="True"/>
 
-                                <DataGridTextColumn Header="Barcode" 
-                                                    Binding="{Binding ProductBarcode}" 
+                                <DataGridTextColumn Header="Category" 
+                                                    Binding="{Binding CategoryName}" 
                                                     Width="120"
                                                     IsReadOnly="True"/>
 
-                                <DataGridTextColumn Header="Quantity" 
-                                                    Binding="{Binding Quantity, StringFormat=N2}" 
+                                <DataGridTextColumn Header="Item Barcode" 
+                                                    Binding="{Binding ProductBarcode}" 
+                                                    Width="130"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Box Barcode" 
+                                                    Binding="{Binding BoxBarcode}" 
+                                                    Width="130"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Current Stock" 
+                                                    Binding="{Binding CurrentStock, StringFormat=N2}" 
+                                                    Width="110"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Storehouse" 
+                                                    Binding="{Binding Storehouse, StringFormat=N2}" 
                                                     Width="100"
                                                     IsReadOnly="True"/>
 
-                                <DataGridTextColumn Header="Purchase Price" 
+                                <DataGridTextColumn Header="Available Boxes" 
+                                                    Binding="{Binding AvailableBoxes, StringFormat=N0}" 
+                                                    Width="120"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Items/Box" 
+                                                    Binding="{Binding ItemsPerBox}" 
+                                                    Width="90"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="# of Boxes" 
+                                                    Binding="{Binding NumberOfBoxes}" 
+                                                    Width="100"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Box Purchase" 
+                                                    Binding="{Binding BoxPurchasePrice, StringFormat=C}" 
+                                                    Width="120"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Item Purchase" 
                                                     Binding="{Binding PurchasePrice, StringFormat=C}" 
                                                     Width="120"
                                                     IsReadOnly="True"/>
 
-                                <DataGridTextColumn Header="Total Price" 
-                                                    Binding="{Binding TotalPrice, StringFormat=C}" 
-                                                    Width="120"
-                                                    IsReadOnly="True"/>
-
-                                <DataGridTextColumn Header="Current Stock" 
-                                                    Binding="{Binding CurrentStock, StringFormat=N0}" 
+                                <DataGridTextColumn Header="Sale Price" 
+                                                    Binding="{Binding SalePrice, StringFormat=C}" 
                                                     Width="100"
                                                     IsReadOnly="True"/>
 
-                                <DataGridTemplateColumn Header="Actions" Width="100">
+                                <DataGridTextColumn Header="Box Sale" 
+                                                    Binding="{Binding BoxSalePrice, StringFormat=C}" 
+                                                    Width="100"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Wholesale" 
+                                                    Binding="{Binding WholesalePrice, StringFormat=C}" 
+                                                    Width="100"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Box Wholesale" 
+                                                    Binding="{Binding BoxWholesalePrice, StringFormat=C}" 
+                                                    Width="120"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Min Stock" 
+                                                    Binding="{Binding MinimumStock}" 
+                                                    Width="90"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTextColumn Header="Stock Status" 
+                                                    Binding="{Binding StockStatus}" 
+                                                    Width="100"
+                                                    IsReadOnly="True"/>
+
+                                <DataGridTemplateColumn Header="Actions" Width="120">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Button Content="🗑️ Remove"
@@ -604,7 +585,8 @@
                                                     CommandParameter="{Binding}"
                                                     Style="{StaticResource IconButton}"
                                                     Foreground="#DC3545"
-                                                    FontSize="12"/>
+                                                    FontSize="12"
+                                                    Padding="8,4"/>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -638,7 +620,359 @@
         <Grid Grid.Row="0" Grid.RowSpan="2" 
               Background="#80000000" 
               Visibility="{Binding IsNewProductDialogOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <!-- Modal content would go here - keeping existing modal implementation -->
+
+            <!-- Modal Container -->
+            <Border Background="White" 
+                    CornerRadius="16" 
+                    MaxWidth="1000" 
+                    MaxHeight="700"
+                    Margin="50"
+                    HorizontalAlignment="Center" 
+                    VerticalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.3" Color="#000000"/>
+                </Border.Effect>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Modal Header -->
+                    <Border Grid.Row="0" 
+                            Background="#007ACC" 
+                            CornerRadius="16,16,0,0" 
+                            Padding="24,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="➕ Create New Product" 
+                                           FontSize="18" 
+                                           FontWeight="SemiBold" 
+                                           Foreground="White"/>
+                                <TextBlock Text="Fill in the product details below" 
+                                           FontSize="12" 
+                                           Foreground="#E3F2FD" 
+                                           Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <Button Grid.Column="1" 
+                                    Command="{Binding CancelNewProductCommand}"
+                                    Style="{StaticResource IconButton}"
+                                    Background="Transparent"
+                                    Margin="8,0,0,0">
+                                <TextBlock Text="✕" FontSize="16" Foreground="White"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Modal Content -->
+                    <ScrollViewer Grid.Row="1" 
+                                  VerticalScrollBarVisibility="Auto" 
+                                  Padding="24">
+                        <StackPanel>
+
+                            <!-- Validation Message -->
+                            <Border Background="#FFEBEE" 
+                                    BorderBrush="#F44336" 
+                                    BorderThickness="1" 
+                                    CornerRadius="8" 
+                                    Padding="12" 
+                                    Margin="0,0,0,16"
+                                    Visibility="{Binding HasNewProductValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="{Binding NewProductValidationMessage}" 
+                                           Foreground="#C62828" 
+                                           TextWrapping="Wrap"/>
+                            </Border>
+
+                            <!-- Basic Information Section -->
+                            <TextBlock Text="📋 Basic Information" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="16"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="16"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Product Name -->
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Text="Product Name *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="Enter product name..."/>
+                                </StackPanel>
+
+                                <!-- Barcode -->
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Text="Barcode *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="4"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 Tag="Enter or scan barcode..."
+                                                 MaxLength="11"/>
+                                        <Button Grid.Column="2"
+                                                Content="🎲"
+                                                Command="{Binding GenerateItemBarcodeCommand}"
+                                                Style="{StaticResource IconButton}"
+                                                Background="#28A745"
+                                                Foreground="White"
+                                                Width="44"
+                                                Height="44"
+                                                ToolTip="Generate unique barcode"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Category -->
+                                <StackPanel Grid.Row="2" Grid.Column="0">
+                                    <TextBlock Text="Category *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <ComboBox ItemsSource="{Binding Categories}"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="CategoryId"
+                                              SelectedValue="{Binding NewProductFromInvoice.CategoryId}"
+                                              Height="44"
+                                              FontSize="14"/>
+                                </StackPanel>
+
+                                <!-- Supplier -->
+                                <StackPanel Grid.Row="2" Grid.Column="2">
+                                    <TextBlock Text="Supplier" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <ComboBox ItemsSource="{Binding Suppliers}"
+                                              DisplayMemberPath="Name"
+                                              SelectedValuePath="SupplierId"
+                                              SelectedValue="{Binding NewProductFromInvoice.SupplierId}"
+                                              Height="44"
+                                              FontSize="14"/>
+                                </StackPanel>
+
+                                <!-- Description -->
+                                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
+                                    <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Height="80"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Tag="Enter product description..."/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Pricing Section -->
+                            <TextBlock Text="💰 Pricing Information" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Purchase Price -->
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+
+                                <!-- Sale Price -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Sale Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+
+                                <!-- Wholesale Price -->
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Inventory Section -->
+                            <TextBlock Text="📦 Inventory Information" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Current Stock -->
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Current Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="1"/>
+                                </StackPanel>
+
+                                <!-- Storehouse -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Storehouse" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="1"/>
+                                </StackPanel>
+
+                                <!-- Minimum Stock -->
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Minimum Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Box Information Section -->
+                            <TextBlock Text="📦 Box Information (Optional)" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,24">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="16"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <!-- Box Barcode -->
+                                <StackPanel Grid.Row="0" Grid.Column="0">
+                                    <TextBlock Text="Box Barcode" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="4"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Style="{StaticResource ModernTextBox}"
+                                                 Tag="Box barcode..."
+                                                 MaxLength="11"/>
+                                        <Button Grid.Column="2"
+                                                Content="🎲"
+                                                Command="{Binding GenerateBoxBarcodeCommand}"
+                                                Style="{StaticResource IconButton}"
+                                                Background="#28A745"
+                                                Foreground="White"
+                                                Width="44"
+                                                Height="44"
+                                                ToolTip="Generate unique box barcode"/>
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Items Per Box -->
+                                <StackPanel Grid.Row="0" Grid.Column="2">
+                                    <TextBlock Text="Items Per Box" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="1"/>
+                                </StackPanel>
+
+                                <!-- Number of Boxes -->
+                                <StackPanel Grid.Row="0" Grid.Column="4">
+                                    <TextBlock Text="Number of Boxes" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0"/>
+                                </StackPanel>
+
+                                <!-- Box Purchase Price -->
+                                <StackPanel Grid.Row="2" Grid.Column="0">
+                                    <TextBlock Text="Box Purchase Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+
+                                <!-- Box Sale Price -->
+                                <StackPanel Grid.Row="2" Grid.Column="2">
+                                    <TextBlock Text="Box Sale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+
+                                <!-- Box Wholesale Price -->
+                                <StackPanel Grid.Row="2" Grid.Column="4">
+                                    <TextBlock Text="Box Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
+                                             Style="{StaticResource ModernTextBox}"
+                                             Tag="0.00"/>
+                                </StackPanel>
+                            </Grid>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- Modal Footer -->
+                    <Border Grid.Row="2" 
+                            Background="#F8F9FA" 
+                            BorderThickness="0,1,0,0" 
+                            BorderBrush="#E9ECEF" 
+                            CornerRadius="0,0,16,16" 
+                            Padding="24,16">
+                        <StackPanel Orientation="Horizontal" 
+                                    HorizontalAlignment="Right">
+                            <Button Content="❌ Cancel"
+                                    Command="{Binding CancelNewProductCommand}"
+                                    Style="{StaticResource ModernButton}"
+                                    Background="#6C757D"
+                                    Margin="0,0,12,0"
+                                    MinWidth="120"/>
+                            <Button Content="💾 Create Product"
+                                    Command="{Binding SaveNewProductCommand}"
+                                    Style="{StaticResource SuccessButton}"
+                                    MinWidth="150"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>

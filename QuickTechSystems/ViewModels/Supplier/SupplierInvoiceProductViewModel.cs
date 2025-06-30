@@ -181,6 +181,8 @@ namespace QuickTechSystems.ViewModels.Supplier
         public ICommand GenerateBarcodeCommand { get; }
         public ICommand SelectSearchResultCommand { get; } // New command
         public ICommand ClearSearchCommand { get; } // New command
+        public ICommand GenerateItemBarcodeCommand { get; }
+        public ICommand GenerateBoxBarcodeCommand { get; }
 
         #endregion
 
@@ -195,7 +197,8 @@ namespace QuickTechSystems.ViewModels.Supplier
             _productService = productService ?? throw new ArgumentNullException(nameof(productService));
             _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
             _supplierService = supplierService ?? throw new ArgumentNullException(nameof(supplierService));
-
+            GenerateItemBarcodeCommand = new RelayCommand(_ => GenerateItemBarcode());
+            GenerateBoxBarcodeCommand = new RelayCommand(_ => GenerateBoxBarcode());
             // Initialize collections
             InvoiceDetails = new ObservableCollection<SupplierInvoiceDetailDTO>();
             Products = new ObservableCollection<ProductDTO>();
@@ -248,7 +251,72 @@ namespace QuickTechSystems.ViewModels.Supplier
         }
 
         #region Data Loading
+        private void GenerateItemBarcode()
+        {
+            try
+            {
+                if (NewProductFromInvoice == null)
+                {
+                    System.Windows.MessageBox.Show("No product data available.", "Error",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
 
+                var newBarcode = GenerateUniqueBarcode();
+                NewProductFromInvoice.Barcode = newBarcode;
+
+                System.Windows.MessageBox.Show($"Generated barcode: {newBarcode}", "Barcode Generated",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error generating barcode: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private void GenerateBoxBarcode()
+        {
+            try
+            {
+                if (NewProductFromInvoice == null)
+                {
+                    System.Windows.MessageBox.Show("No product data available.", "Error",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    return;
+                }
+
+                var newBarcode = GenerateUniqueBarcode();
+                NewProductFromInvoice.BoxBarcode = newBarcode;
+
+                System.Windows.MessageBox.Show($"Generated box barcode: {newBarcode}", "Box Barcode Generated",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error generating box barcode: {ex.Message}", "Error",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private string GenerateUniqueBarcode()
+        {
+            // Generate a unique barcode with max 11 digits
+            // Format: timestamp (8 digits) + random (3 digits)
+            var timestamp = DateTime.Now.ToString("yyyyMMdd");
+            var random = new Random();
+            var randomPart = random.Next(100, 999).ToString();
+
+            var barcode = timestamp + randomPart;
+
+            // Ensure it's exactly 11 digits by taking the last 11 characters
+            if (barcode.Length > 11)
+            {
+                barcode = barcode.Substring(barcode.Length - 11);
+            }
+
+            return barcode;
+        }
         private async Task LoadDataAsync()
         {
             if (!await _operationLock.WaitAsync(0))
