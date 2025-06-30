@@ -499,28 +499,49 @@ namespace QuickTechSystems.ViewModels.Supplier
         {
             if (param is ProductDTO product)
             {
-                NewProductRow.ProductId = product.ProductId;
-                NewProductRow.ProductName = product.Name;
-                NewProductRow.ProductBarcode = product.Barcode;
-                NewProductRow.PurchasePrice = product.PurchasePrice;
-                NewProductRow.SalePrice = product.SalePrice;
-                NewProductRow.CurrentStock = product.CurrentStock;
-                NewProductRow.Storehouse = product.Storehouse;
-                NewProductRow.MinimumStock = product.MinimumStock;
-                NewProductRow.BoxBarcode = product.BoxBarcode;
-                NewProductRow.NumberOfBoxes = product.NumberOfBoxes;
-                NewProductRow.ItemsPerBox = product.ItemsPerBox;
-                NewProductRow.BoxPurchasePrice = product.BoxPurchasePrice;
-                NewProductRow.BoxSalePrice = product.BoxSalePrice;
-                NewProductRow.WholesalePrice = product.WholesalePrice;
-                NewProductRow.BoxWholesalePrice = product.BoxWholesalePrice;
-                UpdateNewProductCalculations();
+                try
+                {
+                    // Create a completely new SupplierInvoiceDetailDTO instance
+                    // This will force the binding to update since it's a new object reference
+                    NewProductRow = new SupplierInvoiceDetailDTO
+                    {
+                        SupplierInvoiceId = Invoice?.SupplierInvoiceId ?? 0,
+                        ProductId = product.ProductId,
+                        ProductName = product.Name,
+                        ProductBarcode = product.Barcode,
+                        PurchasePrice = product.PurchasePrice,
+                        SalePrice = product.SalePrice,
+                        CurrentStock = product.CurrentStock,
+                        Storehouse = product.Storehouse,
+                        MinimumStock = product.MinimumStock,
+                        BoxBarcode = product.BoxBarcode ?? string.Empty,
+                        NumberOfBoxes = product.NumberOfBoxes,
+                        ItemsPerBox = product.ItemsPerBox,
+                        BoxPurchasePrice = product.BoxPurchasePrice,
+                        BoxSalePrice = product.BoxSalePrice,
+                        WholesalePrice = product.WholesalePrice,
+                        BoxWholesalePrice = product.BoxWholesalePrice,
+                        Quantity = 1, // Default quantity
+                        TotalPrice = 0 // Will be calculated
+                    };
 
-                // Clear the search
-                ClearProductSearch();
+                    // Update calculations
+                    UpdateNewProductCalculations();
+
+                    // Clear the search
+                    ClearProductSearch();
+
+                    // Optional: Show confirmation message
+                    System.Windows.MessageBox.Show($"Product '{product.Name}' selected. Please review the details and click 'Add to Invoice'.",
+                        "Product Selected", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Error selecting product: {ex.Message}",
+                        "Error", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                }
             }
         }
-
         private void UpdateNewProductCalculations()
         {
             try
@@ -786,8 +807,9 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                 ClearNewProductValidationMessage();
 
+                // FIXED: Corrected parameter order - NewProductFromInvoice first, then Invoice.SupplierInvoiceId
                 var createdProduct = await _supplierInvoiceService.CreateNewProductAndAddToInvoiceAsync(
-                    Invoice.SupplierInvoiceId, NewProductFromInvoice);
+                    NewProductFromInvoice, Invoice.SupplierInvoiceId);
 
                 if (createdProduct != null)
                 {
@@ -803,7 +825,6 @@ namespace QuickTechSystems.ViewModels.Supplier
                 SetNewProductValidationMessage($"Error creating product: {ex.Message}");
             }
         }
-
         private void CancelNewProduct()
         {
             IsNewProductDialogOpen = false;

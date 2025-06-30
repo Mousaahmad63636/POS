@@ -348,11 +348,14 @@
                                            Placement="Bottom"
                                            AllowsTransparency="True"
                                            StaysOpen="False">
+                                        <!-- FIXED: Replaced problematic Effect binding with proper DropShadowEffect -->
                                         <Border Background="White"
                                                 BorderBrush="#E9ECEF"
                                                 BorderThickness="1"
-                                                CornerRadius="0,0,8,8"
-                                                Effect="{StaticResource {x:Static SystemParameters.DropShadowKey}}">
+                                                CornerRadius="0,0,8,8">
+                                            <Border.Effect>
+                                                <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.2" Color="#000000"/>
+                                            </Border.Effect>
                                             <ListBox ItemsSource="{Binding SearchResults}"
                                                      SelectedItem="{Binding SelectedSearchResult}"
                                                      Style="{StaticResource SearchResultsListBox}"
