@@ -19,7 +19,9 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<SupplierInvoiceDTO?> GetByInvoiceNumberAsync(string invoiceNumber, int supplierId);
         Task UpdateCalculatedAmountAsync(int invoiceId);
         Task AddProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto);
+        Task UpdateInvoiceDetailAsync(SupplierInvoiceDetailDTO detailDto);
         Task RemoveProductFromInvoiceAsync(int detailId);
         Task<ProductDTO> CreateNewProductAndAddToInvoiceAsync(NewProductFromInvoiceDTO newProductDto, int invoiceId);
+        Task AddExistingProductToInvoiceAsync(SupplierInvoiceDetailDTO detailDto); // Added missing method
     }
 }
