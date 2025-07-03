@@ -1,17 +1,16 @@
-﻿using AutoMapper;
-using Microsoft.Data.SqlClient;
+﻿using System.Diagnostics;
+using System.Text;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
-using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.Domain.Interfaces;
-using QuickTechSystems.WPF.Enums;
+using QuickTechSystems.Domain.Enums;
+using Microsoft.Data.SqlClient;
 using System.Data;
-using System.Diagnostics;
-using System.Text;
 
 namespace QuickTechSystems.Application.Services
 {

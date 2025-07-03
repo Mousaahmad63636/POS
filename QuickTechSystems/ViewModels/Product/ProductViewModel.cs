@@ -1,10 +1,10 @@
 ﻿using Microsoft.Win32;
 using QuickTechSystems.Application.DTOs;
+using QuickTechSystems.Application.Enums;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
-using QuickTechSystems.WPF.Enums;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Windows.Data;
-using QuickTechSystems.Domain.Enums;
+using WpfEnums = QuickTechSystems.WPF.Enums;
 
 namespace QuickTechSystems.WPF.Converters
 {
@@ -9,31 +9,31 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is SortOption sortOption)
+            if (value is WpfEnums.SortOption sortOption)
             {
                 return sortOption switch
                 {
-                    SortOption.Name => "Name",
-                    SortOption.PurchasePrice => "Purchase Price",
-                    SortOption.SalePrice => "Sale Price",
-                    SortOption.StockLevel => "Stock Level",
-                    SortOption.CreationDate => "Creation Date",
-                    SortOption.ProfitMargin => "Profit Margin",
-                    SortOption.TotalValue => "Total Value",
-                    SortOption.LastUpdated => "Last Updated",
+                    WpfEnums.SortOption.Name => "Name",
+                    WpfEnums.SortOption.PurchasePrice => "Purchase Price",
+                    WpfEnums.SortOption.SalePrice => "Sale Price",
+                    WpfEnums.SortOption.StockLevel => "Stock Level",
+                    WpfEnums.SortOption.CreationDate => "Creation Date",
+                    WpfEnums.SortOption.ProfitMargin => "Profit Margin",
+                    WpfEnums.SortOption.TotalValue => "Total Value",
+                    WpfEnums.SortOption.LastUpdated => "Last Updated",
                     _ => "Name"
                 };
             }
 
-            if (value is StockStatus stockStatus)
+            if (value is WpfEnums.StockStatus stockStatus)
             {
                 return stockStatus switch
                 {
-                    StockStatus.All => "All",
-                    StockStatus.OutOfStock => "Out of Stock",
-                    StockStatus.LowStock => "Low Stock",
-                    StockStatus.AdequateStock => "Adequate Stock",
-                    StockStatus.Overstocked => "Overstocked",
+                    WpfEnums.StockStatus.All => "All",
+                    WpfEnums.StockStatus.OutOfStock => "Out of Stock",
+                    WpfEnums.StockStatus.LowStock => "Low Stock",
+                    WpfEnums.StockStatus.AdequateStock => "Adequate Stock",
+                    WpfEnums.StockStatus.Overstocked => "Overstocked",
                     _ => "All"
                 };
             }

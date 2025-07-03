@@ -1,8 +1,9 @@
-﻿using System;
+﻿using QuickTechSystems.Application.Enums;
+using QuickTechSystems.Domain.Enums;
+using System;
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using QuickTechSystems.Domain.Enums;
 
 namespace QuickTechSystems.WPF.Converters
 {

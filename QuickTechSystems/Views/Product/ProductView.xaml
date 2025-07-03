@@ -6,7 +6,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
-             xmlns:enums="clr-namespace:QuickTechSystems.WPF.Enums"
+             xmlns:enums="clr-namespace:QuickTechSystems.Domain.Enums;assembly=QuickTechSystems.Domain"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="1000" d:DesignWidth="1600">
