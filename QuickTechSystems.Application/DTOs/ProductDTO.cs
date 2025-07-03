@@ -254,15 +254,7 @@ namespace QuickTechSystems.Application.DTOs
             }
         }
 
-        public bool IsActive
-        {
-            get => _isActive;
-            set
-            {
-                _isActive = value;
-                OnPropertyChanged();
-            }
-        }
+        public new bool IsActive { get; set; } = true;
 
         public string BoxBarcode
         {

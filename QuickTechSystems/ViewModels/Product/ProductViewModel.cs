@@ -4,7 +4,6 @@ using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.WPF.Commands;
-using QuickTechSystems.WPF.Enums;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -86,7 +85,11 @@ namespace QuickTechSystems.ViewModels.Product
         private string _pendingSearchTerm = string.Empty;
         private string _pendingBarcode = string.Empty;
         private bool _isEditingExistingProduct = false;
+        public IEnumerable<StockStatus> StockStatusOptions =>
+    Enum.GetValues<StockStatus>();
 
+        public IEnumerable<SortOption> SortOptionOptions =>
+            Enum.GetValues<SortOption>();
         public ObservableCollection<ProductDTO> Products
         {
             get => _products;

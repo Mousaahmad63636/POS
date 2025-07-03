@@ -8,7 +8,6 @@ using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
 using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.Domain.Interfaces;
-using QuickTechSystems.WPF.Enums;
 using System.Data;
 using System.Diagnostics;
 using System.Text;
@@ -47,7 +46,26 @@ namespace QuickTechSystems.Application.Services
                 _lockManagerSemaphore.Release();
             }
         }
+        // Add these properties to the ProductViewModel class
+        // File: QuickTechSystems/ViewModels/Product/ProductViewModel.cs
 
+        // Add these properties to the existing ProductViewModel class:
+
+        /// <summary>
+        /// Gets all available StockStatus options for binding to ComboBox
+        /// </summary>
+        public IEnumerable<StockStatus> StockStatusOptions =>
+            Enum.GetValues<StockStatus>();
+
+        /// <summary>
+        /// Gets all available SortOption options for binding to ComboBox
+        /// </summary>
+        public IEnumerable<SortOption> SortOptionOptions =>
+            Enum.GetValues<SortOption>();
+
+        // These properties should be added to the ProductViewModel class alongside the other properties.
+        // They provide the enum values that the ComboBoxes in the XAML can bind to, replacing the
+        // problematic ObjectDataProvider approach that was causing the XAML parse exception.
         public async Task<ProductDTO?> GetByBarcodeAsync(string barcode)
         {
             return await _dbContextScopeService.ExecuteInScopeAsync(async context =>

@@ -17,11 +17,10 @@ namespace QuickTechSystems.Application.Services
 {
     public partial class DrawerService : BaseService<Drawer, DrawerDTO>, IDrawerService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
-        private readonly IEventAggregator _eventAggregator;
-        private readonly IDbContextScopeService _dbContextScopeService;
-        private readonly IGenericRepository<DrawerTransaction> _drawerTransactionRepository;
+        private new readonly IUnitOfWork _unitOfWork;
+        private new readonly IMapper _mapper;
+        private new readonly IEventAggregator _eventAggregator;
+        private new readonly IDbContextScopeService _dbContextScopeService;
 
         private static readonly Dictionary<string, (bool IsIncoming, bool UpdatesSales, bool UpdatesExpenses)> TransactionTypeConfig = new()
         {

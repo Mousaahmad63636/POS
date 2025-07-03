@@ -13,7 +13,7 @@ namespace QuickTechSystems.Application.Services
 {
     public class SupplierService : BaseService<Supplier, SupplierDTO>, ISupplierService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private new readonly IUnitOfWork _unitOfWork;
         private readonly IDrawerService _drawerService;
 
         public SupplierService(
