@@ -1,6 +1,5 @@
 ﻿using Microsoft.Win32;
 using QuickTechSystems.Application.DTOs;
-using QuickTechSystems.Application.Enums;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Enums;

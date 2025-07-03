@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Windows.Data;
-using WpfEnums = QuickTechSystems.WPF.Enums;
+using DomainEnums = QuickTechSystems.Domain.Enums;
 
 namespace QuickTechSystems.WPF.Converters
 {
@@ -9,31 +9,31 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is WpfEnums.SortOption sortOption)
+            if (value is DomainEnums.SortOption sortOption)
             {
                 return sortOption switch
                 {
-                    WpfEnums.SortOption.Name => "Name",
-                    WpfEnums.SortOption.PurchasePrice => "Purchase Price",
-                    WpfEnums.SortOption.SalePrice => "Sale Price",
-                    WpfEnums.SortOption.StockLevel => "Stock Level",
-                    WpfEnums.SortOption.CreationDate => "Creation Date",
-                    WpfEnums.SortOption.ProfitMargin => "Profit Margin",
-                    WpfEnums.SortOption.TotalValue => "Total Value",
-                    WpfEnums.SortOption.LastUpdated => "Last Updated",
+                    DomainEnums.SortOption.Name => "Name",
+                    DomainEnums.SortOption.PurchasePrice => "Purchase Price",
+                    DomainEnums.SortOption.SalePrice => "Sale Price",
+                    DomainEnums.SortOption.StockLevel => "Stock Level",
+                    DomainEnums.SortOption.CreationDate => "Creation Date",
+                    DomainEnums.SortOption.ProfitMargin => "Profit Margin",
+                    DomainEnums.SortOption.TotalValue => "Total Value",
+                    DomainEnums.SortOption.LastUpdated => "Last Updated",
                     _ => "Name"
                 };
             }
 
-            if (value is WpfEnums.StockStatus stockStatus)
+            if (value is DomainEnums.StockStatus stockStatus)
             {
                 return stockStatus switch
                 {
-                    WpfEnums.StockStatus.All => "All",
-                    WpfEnums.StockStatus.OutOfStock => "Out of Stock",
-                    WpfEnums.StockStatus.LowStock => "Low Stock",
-                    WpfEnums.StockStatus.AdequateStock => "Adequate Stock",
-                    WpfEnums.StockStatus.Overstocked => "Overstocked",
+                    DomainEnums.StockStatus.All => "All",
+                    DomainEnums.StockStatus.OutOfStock => "Out of Stock",
+                    DomainEnums.StockStatus.LowStock => "Low Stock",
+                    DomainEnums.StockStatus.AdequateStock => "Adequate Stock",
+                    DomainEnums.StockStatus.Overstocked => "Overstocked",
                     _ => "All"
                 };
             }

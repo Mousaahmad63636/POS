@@ -1,5 +1,4 @@
-﻿using QuickTechSystems.Application.Enums;
-using QuickTechSystems.Domain.Enums;
+﻿using QuickTechSystems.Domain.Enums;
 using System;
 using System.Globalization;
 using System.Windows.Data;

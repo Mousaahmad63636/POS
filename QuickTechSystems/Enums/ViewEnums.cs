@@ -1,23 +1,11 @@
-﻿namespace QuickTechSystems.WPF.Enums
-{
-    public enum StockStatus
-    {
-        All = 0,
-        OutOfStock = 1,
-        LowStock = 2,
-        AdequateStock = 3,
-        Overstocked = 4
-    }
+﻿// This file can now be removed since the enums are in the Domain project
+// Or we can create aliases if needed for WPF-specific usage
 
-    public enum SortOption
-    {
-        Name = 0,
-        PurchasePrice = 1,
-        SalePrice = 2,
-        StockLevel = 3,
-        CreationDate = 4,
-        ProfitMargin = 5,
-        TotalValue = 6,
-        LastUpdated = 7
-    }
+using QuickTechSystems.Domain.Enums;
+
+namespace QuickTechSystems.WPF.Enums
+{
+    // These are now just aliases to the Domain enums
+    using StockStatus = QuickTechSystems.Domain.Enums.StockStatus;
+    using SortOption = QuickTechSystems.Domain.Enums.SortOption;
 }
