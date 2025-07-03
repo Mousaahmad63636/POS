@@ -120,14 +120,14 @@
                     <!-- Total Amount -->
                     <StackPanel Grid.Row="3">
                         <TextBlock Text="Total Amount" Style="{StaticResource FormLabelStyle}"/>
-                        <TextBox Text="{Binding TotalAmount, StringFormat=N2}"
+                        <TextBox Text="{Binding TotalAmount, UpdateSourceTrigger=PropertyChanged}"
                                  Style="{StaticResource FormControlStyle}"/>
                     </StackPanel>
 
                     <!-- Notes -->
                     <StackPanel Grid.Row="4">
                         <TextBlock Text="Notes" Style="{StaticResource FormLabelStyle}"/>
-                        <TextBox Text="{Binding Notes}"
+                        <TextBox Text="{Binding Notes, UpdateSourceTrigger=PropertyChanged}"
                                  TextWrapping="Wrap"
                                  AcceptsReturn="True"
                                  Height="120"

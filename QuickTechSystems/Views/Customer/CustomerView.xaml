@@ -454,8 +454,8 @@
 
                                         <StackPanel Grid.Column="0" Margin="0,0,8,0">
                                             <TextBlock Text="{DynamicResource Customer_NewBalance}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding NewBalance, UpdateSourceTrigger=PropertyChanged}"
-                                                    Height="36" Padding="8"/>
+                                            <TextBox Text="{Binding NewBalance, UpdateSourceTrigger=LostFocus}"
+            Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
@@ -501,11 +501,10 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
                                             <TextBlock Text="{DynamicResource Customer_PaymentAmount}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=PropertyChanged}"
-                                                    Height="36" Padding="8"/>
+                                            <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=LostFocus}"
+            Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">
@@ -568,8 +567,8 @@
 
                                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
                                             <TextBlock Text="{DynamicResource Customer_AmountRequired}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                            <TextBox Text="{Binding EditingPayment.Amount, UpdateSourceTrigger=PropertyChanged}"
-                                                    Height="36" Padding="8"/>
+                                            <TextBox Text="{Binding EditingPayment.Amount, UpdateSourceTrigger=LostFocus}"
+            Height="36" Padding="8"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,0">

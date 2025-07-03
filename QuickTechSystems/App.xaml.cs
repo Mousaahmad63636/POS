@@ -32,7 +32,7 @@ using QuickTechSystems.ViewModels.Restaurent;
 using QuickTechSystems.ViewModels.Welcome;
 using QuickTechSystems.ViewModels.Transaction;
 using System.Threading;
-
+using QuickTechSystems.WPF.Helpers;
 namespace QuickTechSystems.WPF
 {
     public partial class App : System.Windows.Application
@@ -169,6 +169,54 @@ namespace QuickTechSystems.WPF
             await _initializationLock.WaitAsync();
             try
             {
+                // 🔒 Step 1: Check or Register MAC
+                string currentMac = LicenseValidator.GetCurrentMacAddress();
+                string? savedMac = LicenseValidator.LoadSavedMacAddress();
+
+                if (string.IsNullOrWhiteSpace(savedMac))
+                {
+                    var macDialog = new QuickTechSystems.WPF.Views.MacInputDialog(); // no default mac
+
+                    bool? result = macDialog.ShowDialog();
+
+                    if (result != true)
+                    {
+                        MessageBox.Show("MAC address not provided. Application will exit.", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        Shutdown();
+                        return;
+                    }
+
+                    string inputMac = macDialog.EnteredMacAddress;
+
+
+                    if (string.IsNullOrWhiteSpace(inputMac))
+                    {
+                        MessageBox.Show("Application will exit.", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        Shutdown();
+                        return;
+                    }
+
+                    if (!string.Equals(inputMac, currentMac, StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show("Entered doesn't match. Application will exit.", "Error",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                        Shutdown();
+                        return;
+                    }
+
+                    LicenseValidator.SaveMacAddress(currentMac);
+                }
+                else if (!string.Equals(savedMac, currentMac, StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show("This machine is not licensed to run this application.", "Unauthorized",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    Shutdown();
+                    return;
+                }
+
+                // 👇 Continue normal startup
                 var splashViewModel = _serviceProvider.GetRequiredService<SplashScreenViewModel>();
                 var splashView = _serviceProvider.GetRequiredService<SplashScreenView>();
                 splashView.Show();
@@ -201,7 +249,6 @@ namespace QuickTechSystems.WPF
                 _initializationLock.Release();
             }
         }
-
         private async Task InitializeDatabaseAsync(SplashScreenViewModel splashViewModel)
         {
             using var scope = _serviceProvider.CreateScope();

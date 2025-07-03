@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Threading;
+
 namespace QuickTechSystems.WPF.Views
 {
     public partial class InputDialog : Window

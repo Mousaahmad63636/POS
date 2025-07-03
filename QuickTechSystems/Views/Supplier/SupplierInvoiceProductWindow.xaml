@@ -93,8 +93,8 @@
             </Setter>
         </Style>
 
-        <!-- Modern TextBox Style -->
-        <Style x:Key="ModernTextBox" TargetType="TextBox">
+        <!-- FREE INPUT TextBox Style - No restrictions -->
+        <Style x:Key="FreeInputTextBox" TargetType="TextBox">
             <Setter Property="Background" Value="#F8F9FA"/>
             <Setter Property="BorderThickness" Value="2"/>
             <Setter Property="BorderBrush" Value="#E9ECEF"/>
@@ -281,7 +281,7 @@
                                          Text="{Binding QuickBarcodeSearch, UpdateSourceTrigger=PropertyChanged}"
                                          LostFocus="BarcodeTextBox_LostFocus"
                                          KeyDown="QuickBarcodeTextBox_KeyDown"
-                                         Style="{StaticResource ModernTextBox}"
+                                         Style="{StaticResource FreeInputTextBox}"
                                          Tag="Enter or scan product barcode..."/>
                             </StackPanel>
 
@@ -309,7 +309,7 @@
                                     <TextBox x:Name="ProductNameSearchTextBox"
                                              Text="{Binding ProductNameSearch, UpdateSourceTrigger=PropertyChanged}"
                                              KeyDown="ProductNameSearchTextBox_KeyDown"
-                                             Style="{StaticResource ModernTextBox}"
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="Type product name to search..."/>
 
                                     <!-- Search Results Popup -->
@@ -541,7 +541,7 @@
                                                     Width="130"
                                                     IsReadOnly="True"/>
 
-                                <!-- Editable columns -->
+                                <!-- SIMPLE FREE INPUT COLUMNS - Same as BulkMainStockDialog -->
                                 <DataGridTextColumn Header="Box Barcode" 
                                                     Width="130"
                                                     IsReadOnly="False">
@@ -565,8 +565,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="Quantity" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -584,8 +583,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="PurchasePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -603,8 +601,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="CurrentStock" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -622,8 +619,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="Storehouse" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -636,7 +632,7 @@
                                 </DataGridTextColumn>
 
                                 <DataGridTextColumn Header="Available Boxes" 
-                                                    Binding="{Binding AvailableBoxes, StringFormat=N0}" 
+                                                    Binding="{Binding AvailableBoxes}" 
                                                     Width="120"
                                                     IsReadOnly="True"/>
 
@@ -682,8 +678,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="BoxPurchasePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -706,8 +701,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="SalePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -725,8 +719,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="BoxSalePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -744,8 +737,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="WholesalePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -763,8 +755,7 @@
                                     <DataGridTextColumn.Binding>
                                         <Binding Path="BoxWholesalePrice" 
                                                  Mode="TwoWay" 
-                                                 UpdateSourceTrigger="LostFocus" 
-                                                 StringFormat="N2"/>
+                                                 UpdateSourceTrigger="LostFocus"/>
                                     </DataGridTextColumn.Binding>
                                     <DataGridTextColumn.EditingElementStyle>
                                         <Style TargetType="TextBox">
@@ -943,7 +934,7 @@
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Text="Product Name *" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="Enter product name..."/>
                                 </StackPanel>
 
@@ -958,7 +949,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Style="{StaticResource ModernTextBox}"
+                                                 Style="{StaticResource FreeInputTextBox}"
                                                  Tag="Enter or scan barcode..."
                                                  MaxLength="11"/>
                                         <Button Grid.Column="2"
@@ -999,7 +990,7 @@
                                 <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
                                     <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Height="80"
                                              TextWrapping="Wrap"
                                              AcceptsReturn="True"
@@ -1023,27 +1014,27 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Purchase Price -->
+                                <!-- Purchase Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Sale Price -->
+                                <!-- Sale Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Sale Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Wholesale Price -->
+                                <!-- Wholesale Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
                             </Grid>
@@ -1063,27 +1054,27 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Current Stock -->
+                                <!-- Current Stock - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Current Stock to Add" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Storehouse -->
+                                <!-- Storehouse - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Storehouse to Add" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Minimum Stock -->
+                                <!-- Minimum Stock - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="Minimum Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0"/>
                                 </StackPanel>
                             </Grid>
@@ -1119,7 +1110,7 @@
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
                                                  Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Style="{StaticResource ModernTextBox}"
+                                                 Style="{StaticResource FreeInputTextBox}"
                                                  Tag="Box barcode..."
                                                  MaxLength="11"/>
                                         <Button Grid.Column="2"
@@ -1134,43 +1125,43 @@
                                     </Grid>
                                 </StackPanel>
 
-                                <!-- Items Per Box -->
+                                <!-- Items Per Box - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Row="0" Grid.Column="2">
                                     <TextBlock Text="Items Per Box" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Number of Boxes -->
+                                <!-- Number of Boxes - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Row="0" Grid.Column="4">
                                     <TextBlock Text="Number of Boxes" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0"/>
                                 </StackPanel>
 
-                                <!-- Box Purchase Price -->
+                                <!-- Box Purchase Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Row="2" Grid.Column="0">
                                     <TextBlock Text="Box Purchase Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Box Sale Price -->
+                                <!-- Box Sale Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Row="2" Grid.Column="2">
                                     <TextBlock Text="Box Sale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Box Wholesale Price -->
+                                <!-- Box Wholesale Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Row="2" Grid.Column="4">
                                     <TextBlock Text="Box Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" 
-                                             Style="{StaticResource ModernTextBox}"
+                                    <TextBox Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=LostFocus}" 
+                                             Style="{StaticResource FreeInputTextBox}"
                                              Tag="0.00"/>
                                 </StackPanel>
                             </Grid>
