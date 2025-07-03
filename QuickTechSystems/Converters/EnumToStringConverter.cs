@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Windows.Data;
-using DomainEnums = QuickTechSystems.Domain.Enums;
+using QuickTechSystems.Domain.Enums;
 
 namespace QuickTechSystems.WPF.Converters
 {
@@ -9,31 +9,31 @@ namespace QuickTechSystems.WPF.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is DomainEnums.SortOption sortOption)
+            if (value is SortOption sortOption)
             {
                 return sortOption switch
                 {
-                    DomainEnums.SortOption.Name => "Name",
-                    DomainEnums.SortOption.PurchasePrice => "Purchase Price",
-                    DomainEnums.SortOption.SalePrice => "Sale Price",
-                    DomainEnums.SortOption.StockLevel => "Stock Level",
-                    DomainEnums.SortOption.CreationDate => "Creation Date",
-                    DomainEnums.SortOption.ProfitMargin => "Profit Margin",
-                    DomainEnums.SortOption.TotalValue => "Total Value",
-                    DomainEnums.SortOption.LastUpdated => "Last Updated",
+                    SortOption.Name => "Name",
+                    SortOption.PurchasePrice => "Purchase Price",
+                    SortOption.SalePrice => "Sale Price",
+                    SortOption.StockLevel => "Stock Level",
+                    SortOption.CreationDate => "Creation Date",
+                    SortOption.ProfitMargin => "Profit Margin",
+                    SortOption.TotalValue => "Total Value",
+                    SortOption.LastUpdated => "Last Updated",
                     _ => "Name"
                 };
             }
 
-            if (value is DomainEnums.StockStatus stockStatus)
+            if (value is StockStatus stockStatus)
             {
                 return stockStatus switch
                 {
-                    DomainEnums.StockStatus.All => "All",
-                    DomainEnums.StockStatus.OutOfStock => "Out of Stock",
-                    DomainEnums.StockStatus.LowStock => "Low Stock",
-                    DomainEnums.StockStatus.AdequateStock => "Adequate Stock",
-                    DomainEnums.StockStatus.Overstocked => "Overstocked",
+                    StockStatus.All => "All",
+                    StockStatus.OutOfStock => "Out of Stock",
+                    StockStatus.LowStock => "Low Stock",
+                    StockStatus.AdequateStock => "Adequate Stock",
+                    StockStatus.Overstocked => "Overstocked",
                     _ => "All"
                 };
             }

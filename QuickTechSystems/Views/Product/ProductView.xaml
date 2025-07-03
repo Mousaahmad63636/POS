@@ -6,7 +6,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
              xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
-             xmlns:domainEnums="clr-namespace:QuickTechSystems.Domain.Enums;assembly=QuickTechSystems.Domain"
+             xmlns:enums="clr-namespace:QuickTechSystems.WPF.Enums"
              xmlns:sys="clr-namespace:System;assembly=mscorlib"
              mc:Ignorable="d" 
              d:DesignHeight="1000" d:DesignWidth="1600">
@@ -23,28 +23,9 @@
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
 
-        <!-- Stock Status Values -->
-        <x:Array x:Key="StockStatusValues" Type="domainEnums:StockStatus">
-            <domainEnums:StockStatus>All</domainEnums:StockStatus>
-            <domainEnums:StockStatus>OutOfStock</domainEnums:StockStatus>
-            <domainEnums:StockStatus>LowStock</domainEnums:StockStatus>
-            <domainEnums:StockStatus>AdequateStock</domainEnums:StockStatus>
-            <domainEnums:StockStatus>Overstocked</domainEnums:StockStatus>
-        </x:Array>
+        <ObjectDataProvider x:Key="StockStatusValues" MethodName="GetValues" ObjectType="{x:Type enums:StockStatus}"/>
+        <ObjectDataProvider x:Key="SortOptionValues" MethodName="GetValues" ObjectType="{x:Type enums:SortOption}"/>
 
-        <!-- Sort Option Values -->
-        <x:Array x:Key="SortOptionValues" Type="domainEnums:SortOption">
-            <domainEnums:SortOption>Name</domainEnums:SortOption>
-            <domainEnums:SortOption>PurchasePrice</domainEnums:SortOption>
-            <domainEnums:SortOption>SalePrice</domainEnums:SortOption>
-            <domainEnums:SortOption>StockLevel</domainEnums:SortOption>
-            <domainEnums:SortOption>CreationDate</domainEnums:SortOption>
-            <domainEnums:SortOption>ProfitMargin</domainEnums:SortOption>
-            <domainEnums:SortOption>TotalValue</domainEnums:SortOption>
-            <domainEnums:SortOption>LastUpdated</domainEnums:SortOption>
-        </x:Array>
-
-        <!-- Rest of your styles remain the same -->
         <Style x:Key="TabButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0,0,0,3"/>
@@ -173,7 +154,7 @@
                 </Trigger>
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Opacity" Value="0.5"/>
-                    <Setter Property="Cursor" Value="Arrow"/>
+                    <Setter Property="Cursor" Value="Default"/>
                 </Trigger>
             </Style.Triggers>
         </Style>
