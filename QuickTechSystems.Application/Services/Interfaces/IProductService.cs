@@ -14,5 +14,10 @@ namespace QuickTechSystems.Application.Services.Interfaces
         Task<bool> TransferFromStorehouseAsync(int productId, decimal quantity);
         Task<bool> TransferBoxesFromStorehouseAsync(int productId, int boxQuantity);
         Task<ProductDTO> GenerateBarcodeAsync(ProductDTO product);
+        Task<PagedResultDTO<ProductDTO>> GetPagedProductsAsync(ProductFilterDTO filter);
+        Task<ProductStatisticsDTO> GetProductStatisticsAsync();
+        Task<IEnumerable<ProductDTO>> GetFilteredProductsAsync(ProductFilterDTO filter);
+        Task<byte[]> ExportProductsToExcelAsync(ProductFilterDTO filter);
+        Task<byte[]> ExportProductsToCsvAsync(ProductFilterDTO filter);
     }
 }

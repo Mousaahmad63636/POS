@@ -1,13 +1,17 @@
-﻿using System.Diagnostics;
-using AutoMapper;
+﻿using AutoMapper;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
 using QuickTechSystems.Application.Mappings;
 using QuickTechSystems.Application.Services.Interfaces;
 using QuickTechSystems.Domain.Entities;
+using QuickTechSystems.Domain.Enums;
 using QuickTechSystems.Domain.Interfaces;
-using Microsoft.Data.SqlClient;
+using QuickTechSystems.WPF.Enums;
+using System.Data;
+using System.Diagnostics;
+using System.Text;
 
 namespace QuickTechSystems.Application.Services
 {
@@ -138,6 +142,199 @@ namespace QuickTechSystems.Application.Services
                 }
                 return !await query.AsNoTracking().AnyAsync();
             });
+        }
+
+        public async Task<PagedResultDTO<ProductDTO>> GetPagedProductsAsync(ProductFilterDTO filter)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = BuildFilterQuery(filter);
+
+                var totalCount = await query.CountAsync();
+
+                var products = await query
+                    .Skip((filter.PageNumber - 1) * filter.PageSize)
+                    .Take(filter.PageSize)
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var productDTOs = _mapper.Map<IEnumerable<ProductDTO>>(products);
+
+                return new PagedResultDTO<ProductDTO>
+                {
+                    Items = productDTOs,
+                    TotalCount = totalCount,
+                    PageNumber = filter.PageNumber,
+                    PageSize = filter.PageSize
+                };
+            });
+        }
+
+        public async Task<IEnumerable<ProductDTO>> GetFilteredProductsAsync(ProductFilterDTO filter)
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var query = BuildFilterQuery(filter);
+
+                var products = await query
+                    .Include(p => p.Category)
+                    .Include(p => p.Supplier)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                return _mapper.Map<IEnumerable<ProductDTO>>(products);
+            });
+        }
+
+        public async Task<ProductStatisticsDTO> GetProductStatisticsAsync()
+        {
+            return await _dbContextScopeService.ExecuteInScopeAsync(async context =>
+            {
+                var products = await _repository.Query()
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                var statistics = new ProductStatisticsDTO();
+
+                if (products.Any())
+                {
+                    statistics.TotalProducts = products.Count;
+                    statistics.ActiveProducts = products.Count(p => p.IsActive);
+                    statistics.InactiveProducts = products.Count(p => !p.IsActive);
+
+                    foreach (var product in products)
+                    {
+                        var totalStock = product.CurrentStock + product.Storehouse;
+                        statistics.TotalInventoryValue += totalStock * product.PurchasePrice;
+                        statistics.TotalRetailValue += totalStock * product.SalePrice;
+
+                        if (product.CurrentStock == 0)
+                            statistics.OutOfStockCount++;
+                        else if (product.CurrentStock <= product.MinimumStock)
+                            statistics.LowStockCount++;
+                        else if (product.CurrentStock > product.MinimumStock * 3)
+                            statistics.OverstockedCount++;
+                    }
+
+                    statistics.TotalPotentialProfit = statistics.TotalRetailValue - statistics.TotalInventoryValue;
+                    statistics.AverageStockLevel = products.Average(p => p.CurrentStock);
+
+                    var profitMargins = products.Where(p => p.PurchasePrice > 0)
+                        .Select(p => ((p.SalePrice - p.PurchasePrice) / p.PurchasePrice) * 100);
+                    statistics.AverageProfitMargin = profitMargins.Any() ? profitMargins.Average() : 0;
+                }
+
+                return statistics;
+            });
+        }
+
+        public async Task<byte[]> ExportProductsToExcelAsync(ProductFilterDTO filter)
+        {
+            var products = await GetFilteredProductsAsync(filter);
+
+            var csv = new StringBuilder();
+            csv.AppendLine("Name,Barcode,Category,Supplier,Purchase Price,Sale Price,Current Stock,Storehouse,Minimum Stock,Is Active,Creation Date");
+
+            foreach (var product in products)
+            {
+                csv.AppendLine($"\"{product.Name}\",\"{product.Barcode}\",\"{product.CategoryName}\",\"{product.SupplierName}\"," +
+                             $"{product.PurchasePrice},{product.SalePrice},{product.CurrentStock},{product.Storehouse}," +
+                             $"{product.MinimumStock},{product.IsActive},{product.CreatedAt:yyyy-MM-dd}");
+            }
+
+            return Encoding.UTF8.GetBytes(csv.ToString());
+        }
+
+        public async Task<byte[]> ExportProductsToCsvAsync(ProductFilterDTO filter)
+        {
+            return await ExportProductsToExcelAsync(filter);
+        }
+
+        private IQueryable<Product> BuildFilterQuery(ProductFilterDTO filter)
+        {
+            var query = _repository.Query().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            {
+                var searchTerm = filter.SearchTerm.ToLower();
+                query = query.Where(p =>
+                    p.Name.ToLower().Contains(searchTerm) ||
+                    p.Barcode.ToLower().Contains(searchTerm) ||
+                    p.Category.Name.ToLower().Contains(searchTerm) ||
+                    (p.Supplier != null && p.Supplier.Name.ToLower().Contains(searchTerm)));
+            }
+
+            if (filter.CategoryId.HasValue)
+            {
+                query = query.Where(p => p.CategoryId == filter.CategoryId.Value);
+            }
+
+            if (filter.SupplierId.HasValue)
+            {
+                query = query.Where(p => p.SupplierId == filter.SupplierId.Value);
+            }
+
+            if (filter.IsActive.HasValue)
+            {
+                query = query.Where(p => p.IsActive == filter.IsActive.Value);
+            }
+
+            if (filter.MinPrice.HasValue)
+            {
+                query = query.Where(p => p.SalePrice >= filter.MinPrice.Value);
+            }
+
+            if (filter.MaxPrice.HasValue)
+            {
+                query = query.Where(p => p.SalePrice <= filter.MaxPrice.Value);
+            }
+
+            if (filter.MinStock.HasValue)
+            {
+                query = query.Where(p => p.CurrentStock >= filter.MinStock.Value);
+            }
+
+            if (filter.MaxStock.HasValue)
+            {
+                query = query.Where(p => p.CurrentStock <= filter.MaxStock.Value);
+            }
+
+            switch (filter.StockStatus)
+            {
+                case StockStatus.OutOfStock:
+                    query = query.Where(p => p.CurrentStock == 0);
+                    break;
+                case StockStatus.LowStock:
+                    query = query.Where(p => p.CurrentStock > 0 && p.CurrentStock <= p.MinimumStock);
+                    break;
+                case StockStatus.AdequateStock:
+                    query = query.Where(p => p.CurrentStock > p.MinimumStock && p.CurrentStock <= p.MinimumStock * 3);
+                    break;
+                case StockStatus.Overstocked:
+                    query = query.Where(p => p.CurrentStock > p.MinimumStock * 3);
+                    break;
+            }
+
+            query = filter.SortBy switch
+            {
+                SortOption.Name => filter.SortDescending ? query.OrderByDescending(p => p.Name) : query.OrderBy(p => p.Name),
+                SortOption.PurchasePrice => filter.SortDescending ? query.OrderByDescending(p => p.PurchasePrice) : query.OrderBy(p => p.PurchasePrice),
+                SortOption.SalePrice => filter.SortDescending ? query.OrderByDescending(p => p.SalePrice) : query.OrderBy(p => p.SalePrice),
+                SortOption.StockLevel => filter.SortDescending ? query.OrderByDescending(p => p.CurrentStock) : query.OrderBy(p => p.CurrentStock),
+                SortOption.CreationDate => filter.SortDescending ? query.OrderByDescending(p => p.CreatedAt) : query.OrderBy(p => p.CreatedAt),
+                SortOption.ProfitMargin => filter.SortDescending ?
+                    query.OrderByDescending(p => p.PurchasePrice > 0 ? ((p.SalePrice - p.PurchasePrice) / p.PurchasePrice) * 100 : 0) :
+                    query.OrderBy(p => p.PurchasePrice > 0 ? ((p.SalePrice - p.PurchasePrice) / p.PurchasePrice) * 100 : 0),
+                SortOption.TotalValue => filter.SortDescending ?
+                    query.OrderByDescending(p => (p.CurrentStock + p.Storehouse) * p.PurchasePrice) :
+                    query.OrderBy(p => (p.CurrentStock + p.Storehouse) * p.PurchasePrice),
+                SortOption.LastUpdated => filter.SortDescending ? query.OrderByDescending(p => p.UpdatedAt ?? p.CreatedAt) : query.OrderBy(p => p.UpdatedAt ?? p.CreatedAt),
+                _ => query.OrderBy(p => p.Name)
+            };
+
+            return query;
         }
 
         public async Task<bool> TransferFromStorehouseAsync(int productId, decimal quantity)
