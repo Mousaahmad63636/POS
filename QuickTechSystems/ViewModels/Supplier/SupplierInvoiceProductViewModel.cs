@@ -181,6 +181,7 @@ namespace QuickTechSystems.ViewModels.Supplier
         #region Commands
 
         public ICommand LoadDataCommand { get; }
+        public ICommand EditProductCommand { get; }
         public ICommand SaveChangesCommand { get; }
         public ICommand CancelChangesCommand { get; }
         public ICommand AddRowCommand { get; }
@@ -226,7 +227,11 @@ namespace QuickTechSystems.ViewModels.Supplier
             CancelChangesCommand = new RelayCommand(_ => CancelChanges());
             AddRowCommand = new RelayCommand(_ => AddNewRow());
 
-
+            EditProductCommand = new RelayCommand<object>(param =>
+            {
+                if (param is SupplierInvoiceDetailDTO detail)
+                    _ = Task.Run(async () => await EditProductFromInvoiceAsync(detail));
+            });
             AddProductCommand = new AsyncRelayCommand(async _ => await AddProductAsync());
             RemoveProductCommand = new RelayCommand<object>(param =>
             {
@@ -533,7 +538,97 @@ namespace QuickTechSystems.ViewModels.Supplier
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
+        private async Task EditProductFromInvoiceAsync(SupplierInvoiceDetailDTO invoiceDetail)
+        {
+            try
+            {
+                if (invoiceDetail?.ProductId <= 0)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        System.Windows.MessageBox.Show("Invalid product selected for editing.", "Error",
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    });
+                    return;
+                }
 
+                // Find the product in our collection
+                var product = Products.FirstOrDefault(p => p.ProductId == invoiceDetail.ProductId);
+                if (product == null)
+                {
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        System.Windows.MessageBox.Show("Product not found for editing.", "Error",
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    });
+                    return;
+                }
+
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    // Create NewProductFromInvoice populated with current invoice detail data
+                    NewProductFromInvoice = new NewProductFromInvoiceDTO
+                    {
+                        // Basic product info
+                        Name = product.Name,
+                        Barcode = product.Barcode,
+                        Description = product.Description,
+                        CategoryId = product.CategoryId,
+                        CategoryName = product.CategoryName,
+                        SupplierId = product.SupplierId ?? (Invoice?.SupplierId ?? 0),
+                        SupplierName = product.SupplierName ?? (Invoice?.SupplierName ?? string.Empty),
+
+                        // Use current invoice detail values (these are what's being changed)
+                        PurchasePrice = invoiceDetail.PurchasePrice,
+                        SalePrice = invoiceDetail.SalePrice,
+                        WholesalePrice = invoiceDetail.WholesalePrice,
+                        MinimumStock = invoiceDetail.MinimumStock,
+
+                        // Stock values - show what's being added in this invoice
+                        CurrentStock = invoiceDetail.CurrentStock,
+                        Storehouse = invoiceDetail.Storehouse,
+
+                        // Box information from invoice detail
+                        BoxBarcode = invoiceDetail.BoxBarcode,
+                        NumberOfBoxes = invoiceDetail.NumberOfBoxes,
+                        ItemsPerBox = invoiceDetail.ItemsPerBox,
+                        BoxPurchasePrice = invoiceDetail.BoxPurchasePrice,
+                        BoxSalePrice = invoiceDetail.BoxSalePrice,
+                        BoxWholesalePrice = invoiceDetail.BoxWholesalePrice,
+
+                        // Set the invoice quantity
+                        InvoiceQuantity = invoiceDetail.Quantity,
+
+                        IsActive = product.IsActive,
+                        ImagePath = product.ImagePath
+                    };
+
+                    // Store references for the update logic
+                    _editingExistingProduct = product;
+                    _editingExistingDetail = invoiceDetail;
+
+                    IsNewProductDialogOpen = true;
+
+                    System.Windows.MessageBox.Show(
+                        $"Editing product '{product.Name}' from invoice.\n\n" +
+                        $"Current Product Stock: {product.CurrentStock}\n" +
+                        $"Current Storehouse: {product.Storehouse}\n\n" +
+                        $"You can modify all product details including prices, stock additions, and product information.\n" +
+                        $"Changes will update both the invoice and the product master record.",
+                        "Edit Product",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Information);
+                });
+            }
+            catch (Exception ex)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    System.Windows.MessageBox.Show($"Error opening product for editing: {ex.Message}", "Error",
+                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                });
+            }
+        }
         private void AddNewRow()
         {
             try
@@ -1052,20 +1147,20 @@ namespace QuickTechSystems.ViewModels.Supplier
         {
             try
             {
-                // Store original values for calculation
+                // Store original values for calculation (when editing from DataGrid, use product values)
                 var originalCurrentStock = _editingExistingProduct.CurrentStock;
                 var originalStorehouse = _editingExistingProduct.Storehouse;
 
-                // Update the existing product with new data (ADD stock values, update prices)
+                // Update the existing product with new data
+                _editingExistingProduct.Name = NewProductFromInvoice.Name;
+                _editingExistingProduct.Barcode = NewProductFromInvoice.Barcode;
+                _editingExistingProduct.Description = NewProductFromInvoice.Description;
+                _editingExistingProduct.CategoryId = NewProductFromInvoice.CategoryId;
+                _editingExistingProduct.SupplierId = NewProductFromInvoice.SupplierId;
                 _editingExistingProduct.PurchasePrice = NewProductFromInvoice.PurchasePrice;
                 _editingExistingProduct.SalePrice = NewProductFromInvoice.SalePrice;
-
-                // ADD to existing stock (restocking operation)
-                _editingExistingProduct.CurrentStock = originalCurrentStock + NewProductFromInvoice.CurrentStock;
-                _editingExistingProduct.Storehouse = originalStorehouse + NewProductFromInvoice.Storehouse;
-
-                _editingExistingProduct.MinimumStock = NewProductFromInvoice.MinimumStock;
                 _editingExistingProduct.WholesalePrice = NewProductFromInvoice.WholesalePrice;
+                _editingExistingProduct.MinimumStock = NewProductFromInvoice.MinimumStock;
                 _editingExistingProduct.BoxBarcode = NewProductFromInvoice.BoxBarcode;
                 _editingExistingProduct.NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes;
                 _editingExistingProduct.ItemsPerBox = NewProductFromInvoice.ItemsPerBox;
@@ -1073,18 +1168,34 @@ namespace QuickTechSystems.ViewModels.Supplier
                 _editingExistingProduct.BoxSalePrice = NewProductFromInvoice.BoxSalePrice;
                 _editingExistingProduct.BoxWholesalePrice = NewProductFromInvoice.BoxWholesalePrice;
 
+                // Handle stock - if editing from DataGrid, replace the stock values, don't add
+                if (_editingExistingDetail != null)
+                {
+                    // This is an edit from DataGrid - set stock to the specified values
+                    _editingExistingProduct.CurrentStock = originalCurrentStock - _editingExistingDetail.CurrentStock + NewProductFromInvoice.CurrentStock;
+                    _editingExistingProduct.Storehouse = originalStorehouse - _editingExistingDetail.Storehouse + NewProductFromInvoice.Storehouse;
+                }
+                else
+                {
+                    // This is adding new stock (original behavior)
+                    _editingExistingProduct.CurrentStock = originalCurrentStock + NewProductFromInvoice.CurrentStock;
+                    _editingExistingProduct.Storehouse = originalStorehouse + NewProductFromInvoice.Storehouse;
+                }
+
                 // Update product in database
                 await _productService.UpdateAsync(_editingExistingProduct);
 
-                // Handle invoice detail
+                // Update the invoice detail with all new values
                 if (_editingExistingDetail != null)
                 {
-                    // Update existing detail
+                    // Update the invoice detail
+                    _editingExistingDetail.ProductName = NewProductFromInvoice.Name;
+                    _editingExistingDetail.ProductBarcode = NewProductFromInvoice.Barcode;
                     _editingExistingDetail.Quantity = NewProductFromInvoice.InvoiceQuantity;
                     _editingExistingDetail.PurchasePrice = NewProductFromInvoice.PurchasePrice;
                     _editingExistingDetail.SalePrice = NewProductFromInvoice.SalePrice;
-                    _editingExistingDetail.CurrentStock = NewProductFromInvoice.CurrentStock; // Amount being added
-                    _editingExistingDetail.Storehouse = NewProductFromInvoice.Storehouse;     // Amount being added
+                    _editingExistingDetail.CurrentStock = NewProductFromInvoice.CurrentStock;
+                    _editingExistingDetail.Storehouse = NewProductFromInvoice.Storehouse;
                     _editingExistingDetail.WholesalePrice = NewProductFromInvoice.WholesalePrice;
                     _editingExistingDetail.BoxBarcode = NewProductFromInvoice.BoxBarcode;
                     _editingExistingDetail.NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes;
@@ -1093,22 +1204,30 @@ namespace QuickTechSystems.ViewModels.Supplier
                     _editingExistingDetail.BoxSalePrice = NewProductFromInvoice.BoxSalePrice;
                     _editingExistingDetail.BoxWholesalePrice = NewProductFromInvoice.BoxWholesalePrice;
                     _editingExistingDetail.MinimumStock = NewProductFromInvoice.MinimumStock;
+                    _editingExistingDetail.CategoryName = Categories.FirstOrDefault(c => c.CategoryId == NewProductFromInvoice.CategoryId)?.Name ?? string.Empty;
+                    _editingExistingDetail.SupplierName = Suppliers.FirstOrDefault(s => s.SupplierId == NewProductFromInvoice.SupplierId)?.Name ?? string.Empty;
                     _editingExistingDetail.TotalPrice = _editingExistingDetail.Quantity * _editingExistingDetail.PurchasePrice;
 
+                    // Update the invoice detail in database
                     await _supplierInvoiceService.UpdateInvoiceDetailAsync(_editingExistingDetail);
 
+                    // Mark as changed for UI update
+                    HasChanges = true;
+
                     System.Windows.MessageBox.Show(
-                        $"Product restocked successfully!\n\n" +
-                        $"Stock Changes:\n" +
-                        $"• Current Stock: {originalCurrentStock} + {NewProductFromInvoice.CurrentStock} = {_editingExistingProduct.CurrentStock}\n" +
-                        $"• Storehouse: {originalStorehouse} + {NewProductFromInvoice.Storehouse} = {_editingExistingProduct.Storehouse}",
-                        "Restocking Complete",
+                        $"Product '{NewProductFromInvoice.Name}' updated successfully!\n\n" +
+                        $"Product changes applied:\n" +
+                        $"• All product details updated\n" +
+                        $"• Stock adjusted to: {_editingExistingProduct.CurrentStock}\n" +
+                        $"• Storehouse adjusted to: {_editingExistingProduct.Storehouse}\n\n" +
+                        $"Invoice detail updated with new values.",
+                        "Edit Complete",
                         System.Windows.MessageBoxButton.OK,
                         System.Windows.MessageBoxImage.Information);
                 }
                 else
                 {
-                    // Create new invoice detail for existing product
+                    // This is the original add-new-product-to-invoice logic
                     var newDetail = new SupplierInvoiceDetailDTO
                     {
                         SupplierInvoiceId = Invoice.SupplierInvoiceId,
@@ -1118,8 +1237,8 @@ namespace QuickTechSystems.ViewModels.Supplier
                         Quantity = NewProductFromInvoice.InvoiceQuantity,
                         PurchasePrice = NewProductFromInvoice.PurchasePrice,
                         SalePrice = NewProductFromInvoice.SalePrice,
-                        CurrentStock = NewProductFromInvoice.CurrentStock, // Amount being added
-                        Storehouse = NewProductFromInvoice.Storehouse,     // Amount being added
+                        CurrentStock = NewProductFromInvoice.CurrentStock,
+                        Storehouse = NewProductFromInvoice.Storehouse,
                         WholesalePrice = NewProductFromInvoice.WholesalePrice,
                         BoxBarcode = NewProductFromInvoice.BoxBarcode,
                         NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes,

@@ -40,6 +40,81 @@ namespace QuickTechSystems.WPF.Views
             QuickBarcodeTextBox?.Focus();
         }
 
+        private void GenerateItemBarcode_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_viewModel?.NewProductFromInvoice == null)
+                {
+                    MessageBox.Show("No product data available.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var newBarcode = GenerateUniqueBarcode();
+                _viewModel.NewProductFromInvoice.Barcode = newBarcode;
+
+                // Force UI update
+                if (NewProductBarcodeTextBox != null)
+                {
+                    NewProductBarcodeTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Generated item barcode: {newBarcode}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error generating barcode: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void GenerateBoxBarcode_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (_viewModel?.NewProductFromInvoice == null)
+                {
+                    MessageBox.Show("No product data available.", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var newBarcode = GenerateUniqueBarcode();
+                _viewModel.NewProductFromInvoice.BoxBarcode = newBarcode;
+
+                // Force UI update
+                if (NewProductBoxBarcodeTextBox != null)
+                {
+                    NewProductBoxBarcodeTextBox.GetBindingExpression(TextBox.TextProperty)?.UpdateTarget();
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Generated box barcode: {newBarcode}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error generating box barcode: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string GenerateUniqueBarcode()
+        {
+            // Generate a unique barcode with 5-9 digits
+            var random = new Random();
+
+            // Randomly choose length between 5-9 digits
+            var length = random.Next(5, 10); // 5 to 9 inclusive
+
+            // Generate random number with the chosen length
+            var minValue = (int)Math.Pow(10, length - 1); // e.g., 10000 for 5 digits
+            var maxValue = (int)Math.Pow(10, length) - 1;  // e.g., 99999 for 5 digits
+
+            var barcode = random.Next(minValue, maxValue + 1).ToString();
+
+            return barcode;
+        }
+
         private void DataGrid_BeginningEdit(object sender, DataGridBeginningEditEventArgs e)
         {
             try
@@ -262,6 +337,7 @@ namespace QuickTechSystems.WPF.Views
                 }
             }
         }
+
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             if (_viewModel.HasChanges)

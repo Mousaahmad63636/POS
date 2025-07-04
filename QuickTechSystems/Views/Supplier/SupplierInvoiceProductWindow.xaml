@@ -795,17 +795,29 @@
                                                     Width="110"
                                                     IsReadOnly="True"/>
 
-                                <!-- Action column -->
-                                <DataGridTemplateColumn Header="Actions" Width="120">
+                                <!-- Action column - Updated to include Edit button -->
+                                <DataGridTemplateColumn Header="Actions" Width="180">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Button Content="🗑️ Remove"
-                                                    Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                    CommandParameter="{Binding}"
-                                                    Style="{StaticResource IconButton}"
-                                                    Foreground="#DC3545"
-                                                    FontSize="12"
-                                                    Padding="8,4"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="✏️ Edit"
+                        Command="{Binding DataContext.EditProductCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}"
+                        Style="{StaticResource IconButton}"
+                        Foreground="#007ACC"
+                        FontSize="12"
+                        Padding="8,4"
+                        Margin="0,0,8,0"
+                        ToolTip="Edit product details"/>
+                                                <Button Content="🗑️ Remove"
+                        Command="{Binding DataContext.RemoveProductCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}"
+                        Style="{StaticResource IconButton}"
+                        Foreground="#DC3545"
+                        FontSize="12"
+                        Padding="8,4"
+                        ToolTip="Remove from invoice"/>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
@@ -840,11 +852,11 @@
               Background="#80000000" 
               Visibility="{Binding IsNewProductDialogOpen, Converter={StaticResource BooleanToVisibilityConverter}}">
 
-            <!-- Modal Container -->
+            <!-- Modal Container - Made wider -->
             <Border Background="White" 
                     CornerRadius="16" 
-                    MaxWidth="1000" 
-                    MaxHeight="700"
+                    MaxWidth="1200" 
+                    MaxHeight="800"
                     Margin="50"
                     HorizontalAlignment="Center" 
                     VerticalAlignment="Center">
@@ -933,13 +945,13 @@
                                 <!-- Product Name -->
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Text="Product Name *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
+                                    <TextBox x:Name="NewProductNameTextBox"
+                                             Text="{Binding NewProductFromInvoice.Name, UpdateSourceTrigger=PropertyChanged}" 
                                              Style="{StaticResource FreeInputTextBox}"
                                              Tag="Enter product name..."/>
                                 </StackPanel>
 
-                                <!-- Barcode -->
-                                <!-- Item Barcode - Remove MaxLength restriction -->
+                                <!-- Item Barcode with Generate Button -->
                                 <StackPanel Grid.Row="0" Grid.Column="2">
                                     <TextBlock Text="Barcode *" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <Grid>
@@ -949,18 +961,19 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
-                 Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                 Style="{StaticResource FreeInputTextBox}"
-                 Tag="Enter or scan barcode..."/>
+                                                 x:Name="NewProductBarcodeTextBox"
+                                                 Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
+                                                 Style="{StaticResource FreeInputTextBox}"
+                                                 Tag="Enter or scan barcode..."/>
                                         <Button Grid.Column="2"
-                Content="🎲"
-                Command="{Binding GenerateItemBarcodeCommand}"
-                Style="{StaticResource IconButton}"
-                Background="#28A745"
-                Foreground="White"
-                Width="44"
-                Height="44"
-                ToolTip="Generate unique barcode"/>
+                                                Content="🎲"
+                                                Click="GenerateItemBarcode_Click"
+                                                Style="{StaticResource IconButton}"
+                                                Background="#28A745"
+                                                Foreground="White"
+                                                Width="44"
+                                                Height="44"
+                                                ToolTip="Generate unique barcode"/>
                                     </Grid>
                                 </StackPanel>
 
@@ -985,18 +998,6 @@
                                               Height="44"
                                               FontSize="14"/>
                                 </StackPanel>
-
-                                <!-- Description -->
-                                <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3">
-                                    <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
-                                             Style="{StaticResource FreeInputTextBox}"
-                                             Height="80"
-                                             TextWrapping="Wrap"
-                                             AcceptsReturn="True"
-                                             VerticalScrollBarVisibility="Auto"
-                                             Tag="Enter product description..."/>
-                                </StackPanel>
                             </Grid>
 
                             <!-- Pricing Section -->
@@ -1014,15 +1015,15 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Purchase Price - Simple like BulkMainStockDialog -->
+                                <!-- Purchase Price -->
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=LostFocus, Converter={StaticResource SafeDecimalConverter}}" 
-             Style="{StaticResource FreeInputTextBox}"
-             Tag="0.00"/>
+                                             Style="{StaticResource FreeInputTextBox}"
+                                             Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Sale Price - Simple like BulkMainStockDialog -->
+                                <!-- Sale Price -->
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Sale Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.SalePrice, UpdateSourceTrigger=LostFocus}" 
@@ -1030,7 +1031,7 @@
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Wholesale Price - Simple like BulkMainStockDialog -->
+                                <!-- Wholesale Price -->
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.WholesalePrice, UpdateSourceTrigger=LostFocus}" 
@@ -1054,7 +1055,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Current Stock - Simple like BulkMainStockDialog -->
+                                <!-- Current Stock -->
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Current Stock to Add" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.CurrentStock, UpdateSourceTrigger=LostFocus}" 
@@ -1062,7 +1063,7 @@
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Storehouse - Simple like BulkMainStockDialog -->
+                                <!-- Storehouse -->
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Storehouse to Add" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.Storehouse, UpdateSourceTrigger=LostFocus}" 
@@ -1070,12 +1071,31 @@
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Minimum Stock - Simple like BulkMainStockDialog -->
+                                <!-- Minimum Stock -->
                                 <StackPanel Grid.Column="4">
                                     <TextBlock Text="Minimum Stock" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.MinimumStock, UpdateSourceTrigger=LostFocus}" 
                                              Style="{StaticResource FreeInputTextBox}"
                                              Tag="0"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Description Section - Moved here -->
+                            <TextBlock Text="📝 Description" 
+                                       FontSize="16" 
+                                       FontWeight="SemiBold" 
+                                       Margin="0,0,0,16"/>
+
+                            <Grid Margin="0,0,0,24">
+                                <StackPanel>
+                                    <TextBlock Text="Description" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.Description, UpdateSourceTrigger=PropertyChanged}" 
+                                             Style="{StaticResource FreeInputTextBox}"
+                                             Height="80"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Tag="Enter product description..."/>
                                 </StackPanel>
                             </Grid>
 
@@ -1099,7 +1119,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Box Barcode - Remove MaxLength restriction -->
+                                <!-- Box Barcode with Generate Button -->
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Text="Box Barcode" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <Grid>
@@ -1109,22 +1129,23 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
-                 Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                 Style="{StaticResource FreeInputTextBox}"
-                 Tag="Box barcode..."/>
+                                                 x:Name="NewProductBoxBarcodeTextBox"
+                                                 Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
+                                                 Style="{StaticResource FreeInputTextBox}"
+                                                 Tag="Box barcode..."/>
                                         <Button Grid.Column="2"
-                Content="🎲"
-                Command="{Binding GenerateBoxBarcodeCommand}"
-                Style="{StaticResource IconButton}"
-                Background="#28A745"
-                Foreground="White"
-                Width="44"
-                Height="44"
-                ToolTip="Generate unique box barcode"/>
+                                                Content="🎲"
+                                                Click="GenerateBoxBarcode_Click"
+                                                Style="{StaticResource IconButton}"
+                                                Background="#28A745"
+                                                Foreground="White"
+                                                Width="44"
+                                                Height="44"
+                                                ToolTip="Generate unique box barcode"/>
                                     </Grid>
                                 </StackPanel>
 
-                                <!-- Items Per Box - Simple like BulkMainStockDialog -->
+                                <!-- Items Per Box -->
                                 <StackPanel Grid.Row="0" Grid.Column="2">
                                     <TextBlock Text="Items Per Box" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.ItemsPerBox, UpdateSourceTrigger=LostFocus}" 
@@ -1132,7 +1153,7 @@
                                              Tag="1"/>
                                 </StackPanel>
 
-                                <!-- Number of Boxes - Simple like BulkMainStockDialog -->
+                                <!-- Number of Boxes -->
                                 <StackPanel Grid.Row="0" Grid.Column="4">
                                     <TextBlock Text="Number of Boxes" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.NumberOfBoxes, UpdateSourceTrigger=LostFocus}" 
@@ -1140,7 +1161,7 @@
                                              Tag="0"/>
                                 </StackPanel>
 
-                                <!-- Box Purchase Price - Simple like BulkMainStockDialog -->
+                                <!-- Box Purchase Price -->
                                 <StackPanel Grid.Row="2" Grid.Column="0">
                                     <TextBlock Text="Box Purchase Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.BoxPurchasePrice, UpdateSourceTrigger=LostFocus}" 
@@ -1148,7 +1169,7 @@
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Box Sale Price - Simple like BulkMainStockDialog -->
+                                <!-- Box Sale Price -->
                                 <StackPanel Grid.Row="2" Grid.Column="2">
                                     <TextBlock Text="Box Sale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.BoxSalePrice, UpdateSourceTrigger=LostFocus}" 
@@ -1156,7 +1177,7 @@
                                              Tag="0.00"/>
                                 </StackPanel>
 
-                                <!-- Box Wholesale Price - Simple like BulkMainStockDialog -->
+                                <!-- Box Wholesale Price -->
                                 <StackPanel Grid.Row="2" Grid.Column="4">
                                     <TextBlock Text="Box Wholesale Price" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <TextBox Text="{Binding NewProductFromInvoice.BoxWholesalePrice, UpdateSourceTrigger=LostFocus}" 
