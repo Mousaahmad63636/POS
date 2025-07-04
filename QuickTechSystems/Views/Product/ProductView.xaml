@@ -739,7 +739,7 @@
                                                 <TextBlock Text="Box Wholesale Price" FontWeight="Medium" FontSize="13"
                                                            Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
                                                 <TextBox Text="{Binding SelectedProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
-                                                         Padding="12" Height="36" FontSize="14"/>
+                                                         Padding="12" Height="50" FontSize="15"/>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
@@ -877,13 +877,13 @@
 
                                                             <TextBox Grid.Column="0" 
                                      Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}"
-                                     Padding="12" Height="36" FontSize="14"
+                                     Padding="12" Height="50" FontSize="14"
                                      Margin="0,0,8,0"/>
                                                             <Button Grid.Column="1" 
                                     Content="{Binding TransferButtonText}"
                                     Command="{Binding TransferFromStorehouseCommand}"
                                     Style="{StaticResource PrimaryButtonStyle}"
-                                    Height="36" Padding="16,8" FontSize="13"/>
+                                    Height="50" Padding="16,8" FontSize="13"/>
                                                         </Grid>
 
                                                         <!-- Box Transfer -->
@@ -896,7 +896,7 @@
 
                                                             <StackPanel Grid.Column="0">
                                                                 <TextBox Text="{Binding TransferBoxes, UpdateSourceTrigger=PropertyChanged}"
-                                         Padding="12" Height="36" FontSize="14"
+                                         Padding="12" Height="50" FontSize="14"
                                          Margin="0,0,8,0"/>
                                                                 <TextBlock Text="{Binding BoxTransferSummary}" 
                                            FontSize="12" 

@@ -1112,6 +1112,13 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                 ClearNewProductValidationMessage();
 
+                // CALCULATE TOTAL ITEMS FROM BOXES - ONLY ADD TO CURRENTSTOCK
+                var totalItemsFromBoxes = CalculateTotalItemsFromBoxes(NewProductFromInvoice.NumberOfBoxes, NewProductFromInvoice.ItemsPerBox);
+
+                // Update ONLY currentstock to include calculated items from boxes
+                NewProductFromInvoice.CurrentStock += totalItemsFromBoxes;
+                // Storehouse stays as entered by user (no box calculation added)
+
                 // Check if we're editing an existing product
                 if (_editingExistingProduct != null)
                 {
@@ -1125,8 +1132,19 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                     if (createdProduct != null)
                     {
-                        System.Windows.MessageBox.Show("New product created and added to invoice successfully!", "Success",
-                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                        var boxMessage = totalItemsFromBoxes > 0
+                            ? $"\n• Box calculation: {NewProductFromInvoice.NumberOfBoxes} boxes × {NewProductFromInvoice.ItemsPerBox} items = {totalItemsFromBoxes} items added to current stock"
+                            : "";
+
+                        System.Windows.MessageBox.Show(
+                            $"New product created and added to invoice successfully!" +
+                            $"\n• Individual items added to current stock: {NewProductFromInvoice.CurrentStock - totalItemsFromBoxes}" +
+                            boxMessage +
+                            $"\n• Total current stock: {NewProductFromInvoice.CurrentStock}" +
+                            $"\n• Storehouse: {NewProductFromInvoice.Storehouse}",
+                            "Success",
+                            System.Windows.MessageBoxButton.OK,
+                            System.Windows.MessageBoxImage.Information);
                     }
                 }
 
@@ -1147,9 +1165,12 @@ namespace QuickTechSystems.ViewModels.Supplier
         {
             try
             {
-                // Store original values for calculation (when editing from DataGrid, use product values)
+                // Store original values for calculation
                 var originalCurrentStock = _editingExistingProduct.CurrentStock;
                 var originalStorehouse = _editingExistingProduct.Storehouse;
+
+                // CALCULATE TOTAL ITEMS FROM BOXES - ONLY FOR CURRENTSTOCK
+                var totalItemsFromBoxes = CalculateTotalItemsFromBoxes(NewProductFromInvoice.NumberOfBoxes, NewProductFromInvoice.ItemsPerBox);
 
                 // Update the existing product with new data
                 _editingExistingProduct.Name = NewProductFromInvoice.Name;
@@ -1168,24 +1189,27 @@ namespace QuickTechSystems.ViewModels.Supplier
                 _editingExistingProduct.BoxSalePrice = NewProductFromInvoice.BoxSalePrice;
                 _editingExistingProduct.BoxWholesalePrice = NewProductFromInvoice.BoxWholesalePrice;
 
-                // Handle stock - if editing from DataGrid, replace the stock values, don't add
+                // Handle stock calculation - ADD TOTAL CALCULATED ITEMS ONLY TO CURRENTSTOCK
                 if (_editingExistingDetail != null)
                 {
-                    // This is an edit from DataGrid - set stock to the specified values
-                    _editingExistingProduct.CurrentStock = originalCurrentStock - _editingExistingDetail.CurrentStock + NewProductFromInvoice.CurrentStock;
-                    _editingExistingProduct.Storehouse = originalStorehouse - _editingExistingDetail.Storehouse + NewProductFromInvoice.Storehouse;
+                    // This is an edit from DataGrid - adjust stock based on new values
+                    var previousTotalItems = CalculateTotalItemsFromBoxes(_editingExistingDetail.NumberOfBoxes, _editingExistingDetail.ItemsPerBox);
+                    var newCurrentStockTotal = NewProductFromInvoice.CurrentStock + totalItemsFromBoxes;
+
+                    _editingExistingProduct.CurrentStock = originalCurrentStock - _editingExistingDetail.CurrentStock + newCurrentStockTotal;
+                    _editingExistingProduct.Storehouse = originalStorehouse - _editingExistingDetail.Storehouse + NewProductFromInvoice.Storehouse; // NO box calculation here
                 }
                 else
                 {
-                    // This is adding new stock (original behavior)
-                    _editingExistingProduct.CurrentStock = originalCurrentStock + NewProductFromInvoice.CurrentStock;
-                    _editingExistingProduct.Storehouse = originalStorehouse + NewProductFromInvoice.Storehouse;
+                    // This is adding new stock - ADD to existing
+                    _editingExistingProduct.CurrentStock = originalCurrentStock + NewProductFromInvoice.CurrentStock + totalItemsFromBoxes; // Box items added here
+                    _editingExistingProduct.Storehouse = originalStorehouse + NewProductFromInvoice.Storehouse; // NO box calculation here
                 }
 
                 // Update product in database
                 await _productService.UpdateAsync(_editingExistingProduct);
 
-                // Update the invoice detail with all new values
+                // Update the invoice detail with calculated values
                 if (_editingExistingDetail != null)
                 {
                     // Update the invoice detail
@@ -1194,12 +1218,12 @@ namespace QuickTechSystems.ViewModels.Supplier
                     _editingExistingDetail.Quantity = NewProductFromInvoice.InvoiceQuantity;
                     _editingExistingDetail.PurchasePrice = NewProductFromInvoice.PurchasePrice;
                     _editingExistingDetail.SalePrice = NewProductFromInvoice.SalePrice;
-                    _editingExistingDetail.CurrentStock = NewProductFromInvoice.CurrentStock;
-                    _editingExistingDetail.Storehouse = NewProductFromInvoice.Storehouse;
+                    _editingExistingDetail.CurrentStock = NewProductFromInvoice.CurrentStock + totalItemsFromBoxes; // Store calculated total for current stock
+                    _editingExistingDetail.Storehouse = NewProductFromInvoice.Storehouse; // Store as entered (no box calculation)
                     _editingExistingDetail.WholesalePrice = NewProductFromInvoice.WholesalePrice;
                     _editingExistingDetail.BoxBarcode = NewProductFromInvoice.BoxBarcode;
-                    _editingExistingDetail.NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes;
-                    _editingExistingDetail.ItemsPerBox = NewProductFromInvoice.ItemsPerBox;
+                    _editingExistingDetail.NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes; // Keep for UI reference
+                    _editingExistingDetail.ItemsPerBox = NewProductFromInvoice.ItemsPerBox; // Keep for UI reference
                     _editingExistingDetail.BoxPurchasePrice = NewProductFromInvoice.BoxPurchasePrice;
                     _editingExistingDetail.BoxSalePrice = NewProductFromInvoice.BoxSalePrice;
                     _editingExistingDetail.BoxWholesalePrice = NewProductFromInvoice.BoxWholesalePrice;
@@ -1214,13 +1238,19 @@ namespace QuickTechSystems.ViewModels.Supplier
                     // Mark as changed for UI update
                     HasChanges = true;
 
+                    var boxMessage = totalItemsFromBoxes > 0
+                        ? $"\n• Box calculation: {NewProductFromInvoice.NumberOfBoxes} boxes × {NewProductFromInvoice.ItemsPerBox} items = {totalItemsFromBoxes} items added to current stock only"
+                        : "";
+
                     System.Windows.MessageBox.Show(
                         $"Product '{NewProductFromInvoice.Name}' updated successfully!\n\n" +
                         $"Product changes applied:\n" +
                         $"• All product details updated\n" +
-                        $"• Stock adjusted to: {_editingExistingProduct.CurrentStock}\n" +
-                        $"• Storehouse adjusted to: {_editingExistingProduct.Storehouse}\n\n" +
-                        $"Invoice detail updated with new values.",
+                        $"• Individual items to current stock: {NewProductFromInvoice.CurrentStock - totalItemsFromBoxes}" +
+                        boxMessage +
+                        $"\n• Total current stock now: {_editingExistingProduct.CurrentStock}\n" +
+                        $"• Storehouse now: {_editingExistingProduct.Storehouse} (no box calculation)\n\n" +
+                        $"Invoice detail updated with calculated totals.",
                         "Edit Complete",
                         System.Windows.MessageBoxButton.OK,
                         System.Windows.MessageBoxImage.Information);
@@ -1228,6 +1258,8 @@ namespace QuickTechSystems.ViewModels.Supplier
                 else
                 {
                     // This is the original add-new-product-to-invoice logic
+                    var calculatedCurrentStock = NewProductFromInvoice.CurrentStock + totalItemsFromBoxes;
+
                     var newDetail = new SupplierInvoiceDetailDTO
                     {
                         SupplierInvoiceId = Invoice.SupplierInvoiceId,
@@ -1237,12 +1269,12 @@ namespace QuickTechSystems.ViewModels.Supplier
                         Quantity = NewProductFromInvoice.InvoiceQuantity,
                         PurchasePrice = NewProductFromInvoice.PurchasePrice,
                         SalePrice = NewProductFromInvoice.SalePrice,
-                        CurrentStock = NewProductFromInvoice.CurrentStock,
-                        Storehouse = NewProductFromInvoice.Storehouse,
+                        CurrentStock = calculatedCurrentStock, // Store calculated total for current stock
+                        Storehouse = NewProductFromInvoice.Storehouse, // Store as entered (no box calculation)
                         WholesalePrice = NewProductFromInvoice.WholesalePrice,
                         BoxBarcode = NewProductFromInvoice.BoxBarcode,
-                        NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes,
-                        ItemsPerBox = NewProductFromInvoice.ItemsPerBox,
+                        NumberOfBoxes = NewProductFromInvoice.NumberOfBoxes, // Keep for UI reference
+                        ItemsPerBox = NewProductFromInvoice.ItemsPerBox, // Keep for UI reference
                         BoxPurchasePrice = NewProductFromInvoice.BoxPurchasePrice,
                         BoxSalePrice = NewProductFromInvoice.BoxSalePrice,
                         BoxWholesalePrice = NewProductFromInvoice.BoxWholesalePrice,
@@ -1254,10 +1286,17 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                     await _supplierInvoiceService.AddExistingProductToInvoiceAsync(newDetail);
 
+                    var boxMessage = totalItemsFromBoxes > 0
+                        ? $"\n• Box calculation: {NewProductFromInvoice.NumberOfBoxes} boxes × {NewProductFromInvoice.ItemsPerBox} items = {totalItemsFromBoxes} items added to current stock only"
+                        : "";
+
                     System.Windows.MessageBox.Show(
                         $"Product restocked and added to invoice successfully!\n\n" +
                         $"Stock Changes:\n" +
-                        $"• Current Stock: {originalCurrentStock} + {NewProductFromInvoice.CurrentStock} = {_editingExistingProduct.CurrentStock}\n" +
+                        $"• Individual items to current stock: {NewProductFromInvoice.CurrentStock}\n" +
+                        $"• Individual items to storehouse: {NewProductFromInvoice.Storehouse}" +
+                        boxMessage +
+                        $"\n• Current Stock: {originalCurrentStock} + {calculatedCurrentStock} = {_editingExistingProduct.CurrentStock}\n" +
                         $"• Storehouse: {originalStorehouse} + {NewProductFromInvoice.Storehouse} = {_editingExistingProduct.Storehouse}",
                         "Restocking Complete",
                         System.Windows.MessageBoxButton.OK,
@@ -1521,15 +1560,21 @@ namespace QuickTechSystems.ViewModels.Supplier
 
                 System.Diagnostics.Debug.WriteLine($"[UpdateExistingProduct] Updating product: {existingProduct.Name}");
 
+                // CALCULATE TOTAL ITEMS FROM BOXES IN THE DETAIL
+                var totalItemsFromBoxes = CalculateTotalItemsFromBoxes(detail.NumberOfBoxes, detail.ItemsPerBox);
+
+                // The detail.CurrentStock and detail.Storehouse should already include the calculated totals
+                // but we need to make sure the product gets the right values
+
                 // Update product data from invoice detail
                 existingProduct.PurchasePrice = detail.PurchasePrice;
                 existingProduct.SalePrice = detail.SalePrice;
-                existingProduct.CurrentStock = detail.CurrentStock;
-                existingProduct.Storehouse = detail.Storehouse;
+                existingProduct.CurrentStock = detail.CurrentStock; // This should already be the calculated total
+                existingProduct.Storehouse = detail.Storehouse; // This should already be the calculated total
                 existingProduct.WholesalePrice = detail.WholesalePrice;
                 existingProduct.MinimumStock = detail.MinimumStock;
 
-                // Update box-related fields
+                // Update box-related fields (keep for reference)
                 existingProduct.BoxBarcode = detail.BoxBarcode ?? string.Empty;
                 existingProduct.NumberOfBoxes = detail.NumberOfBoxes;
                 existingProduct.ItemsPerBox = detail.ItemsPerBox;
@@ -1541,12 +1586,24 @@ namespace QuickTechSystems.ViewModels.Supplier
                 await _productService.UpdateAsync(existingProduct);
 
                 System.Diagnostics.Debug.WriteLine($"[UpdateExistingProduct] Successfully updated product: {existingProduct.Name}");
+                System.Diagnostics.Debug.WriteLine($"[UpdateExistingProduct] Box calculation: {detail.NumberOfBoxes} boxes × {detail.ItemsPerBox} items = {totalItemsFromBoxes} items from boxes");
+                System.Diagnostics.Debug.WriteLine($"[UpdateExistingProduct] Total stock: {existingProduct.CurrentStock}, Total storehouse: {existingProduct.Storehouse}");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[UpdateExistingProduct] ERROR: {ex}");
                 throw new Exception($"Failed to update product data: {ex.Message}", ex);
             }
+        }
+
+        private decimal CalculateTotalItemsFromBoxes(int numberOfBoxes, int itemsPerBox)
+        {
+            if (numberOfBoxes <= 0 || itemsPerBox <= 0)
+                return 0;
+
+            var total = numberOfBoxes * itemsPerBox;
+            System.Diagnostics.Debug.WriteLine($"[CalculateTotalItems] {numberOfBoxes} boxes × {itemsPerBox} items = {total} total items");
+            return total;
         }
         private void SetupInvoiceDetailsPropertyChanges()
         {
