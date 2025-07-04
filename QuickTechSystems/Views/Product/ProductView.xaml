@@ -21,6 +21,15 @@
         <converters:EnumToStringConverter x:Key="EnumToStringConverter"/>
         <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter"/>
+        <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
+
+        <!-- Additional Brushes -->
+        <SolidColorBrush x:Key="ErrorBrush" Color="#DC2626"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#059669"/>
+        <SolidColorBrush x:Key="ErrorLightBrush" Color="#FEF2F2"/>
+        <SolidColorBrush x:Key="ErrorBorderBrush" Color="#FECACA"/>
+        <SolidColorBrush x:Key="ErrorTextBrush" Color="#991B1B"/>
 
         <Style x:Key="TabButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
@@ -31,7 +40,7 @@
             <Setter Property="Foreground" Value="{StaticResource TextTertiaryBrush}"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="FontSize" Value="15"/>
-            <Setter Property="MinWidth" Value="140"/>
+            <Setter Property="MinWidth" Value="110"/>
             <Setter Property="Height" Value="55"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -159,7 +168,6 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -172,13 +180,6 @@
                 </StackPanel>
 
                 <Button Grid.Column="1" 
-                        Content="{DynamicResource Product_AddProduct}" 
-                        Command="{Binding AddProductCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        Height="40" 
-                        Margin="0,0,12,0"/>
-
-                <Button Grid.Column="2" 
                         Content="{DynamicResource Product_RefreshButton}" 
                         Command="{Binding RefreshCommand}"
                         Style="{StaticResource SecondaryButtonStyle}"
@@ -240,14 +241,6 @@
                                 <ComboBox ItemsSource="{Binding Categories}"
                                           SelectedValuePath="CategoryId" DisplayMemberPath="Name"
                                           SelectedValue="{Binding SelectedCategoryId}"
-                                          Style="{StaticResource FilterControlStyle}"/>
-                            </StackPanel>
-
-                            <StackPanel Style="{StaticResource FilterGroupStyle}">
-                                <TextBlock Text="Supplier" Style="{StaticResource FilterLabelStyle}"/>
-                                <ComboBox ItemsSource="{Binding Suppliers}"
-                                          SelectedValuePath="SupplierId" DisplayMemberPath="Name"
-                                          SelectedValue="{Binding SelectedSupplierId}"
                                           Style="{StaticResource FilterControlStyle}"/>
                             </StackPanel>
 
@@ -489,14 +482,14 @@
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="14" 
-           Foreground="{StaticResource TextTertiaryBrush}">
-    <Run Text="Page"/>
-    <Run Text="{Binding CurrentPage, Mode=OneWay}" FontWeight="Medium"/>
-    <Run Text="of"/>
-    <Run Text="{Binding PagedResult.TotalPages, Mode=OneWay}" FontWeight="Medium"/>
-    <Run Text="•"/>
-    <Run Text="{Binding PagedResult.TotalCount, Mode=OneWay}" FontWeight="Medium"/>
-    <Run Text="items"/>
+                                   Foreground="{StaticResource TextTertiaryBrush}">
+                            <Run Text="Page"/>
+                            <Run Text="{Binding CurrentPage, Mode=OneWay}" FontWeight="Medium"/>
+                            <Run Text="of"/>
+                            <Run Text="{Binding PagedResult.TotalPages, Mode=OneWay}" FontWeight="Medium"/>
+                            <Run Text="•"/>
+                            <Run Text="{Binding PagedResult.TotalCount, Mode=OneWay}" FontWeight="Medium"/>
+                            <Run Text="items"/>
                         </TextBlock>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -544,7 +537,7 @@
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" 
-                                       Text="{Binding SelectedProduct.ProductId, Converter={StaticResource ProductIdToTitleConverter}}" 
+                                       Text="Edit Product" 
                                        FontWeight="SemiBold" 
                                        FontSize="18"
                                        Foreground="{StaticResource TextPrimaryBrush}"
@@ -567,7 +560,7 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   Padding="20">
-                        <Grid>
+                        <Grid Visibility="{Binding HasSelectedProduct, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
@@ -605,9 +598,6 @@
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -629,10 +619,6 @@
                                                 <TextBox Text="{Binding SelectedProduct.Barcode, UpdateSourceTrigger=PropertyChanged}"
                                                          Padding="16" Height="55" FontSize="15"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0">
-                                                    <Button Content="🔍" 
-                                                            Command="{Binding SearchMatchingProductsCommand}"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            Height="32" Width="32" Padding="0" FontSize="14" Margin="0,0,4,0"/>
                                                     <Button Content="📋" 
                                                             Command="{Binding GenerateBarcodeCommand}"
                                                             Style="{StaticResource SecondaryButtonStyle}"
@@ -641,69 +627,7 @@
                                             </Grid>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28"
-                                                    Visibility="{Binding ShowMatchingProducts, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                            <Border Background="{StaticResource ErrorLightBrush}" 
-                                                    BorderBrush="{StaticResource ErrorBorderBrush}" 
-                                                    BorderThickness="1" 
-                                                    CornerRadius="6" 
-                                                    Padding="16">
-                                                <StackPanel>
-                                                    <TextBlock Text="{DynamicResource Product_UpdatingExisting}" 
-                                                               FontWeight="Medium" FontSize="15" 
-                                                               Foreground="{StaticResource ErrorTextBrush}" 
-                                                               Margin="0,0,0,12"/>
-
-                                                    <ItemsControl ItemsSource="{Binding MatchingProducts}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate>
-                                                                <Border Background="{StaticResource SurfaceBrush}" 
-                                                                        BorderBrush="{StaticResource BorderBrush}" 
-                                                                        BorderThickness="1" 
-                                                                        CornerRadius="6" 
-                                                                        Padding="12" 
-                                                                        Margin="0,0,0,8" 
-                                                                        Cursor="Hand">
-                                                                    <Border.InputBindings>
-                                                                        <MouseBinding MouseAction="LeftClick" 
-                                                                                      Command="{Binding DataContext.SelectMatchingProductCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                                                      CommandParameter="{Binding}"/>
-                                                                    </Border.InputBindings>
-                                                                    <Border.Style>
-                                                                        <Style TargetType="Border">
-                                                                            <Style.Triggers>
-                                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
-                                                                                </Trigger>
-                                                                            </Style.Triggers>
-                                                                        </Style>
-                                                                    </Border.Style>
-                                                                    <StackPanel>
-                                                                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="14"/>
-                                                                        <TextBlock Text="{Binding Barcode}" FontSize="12" 
-                                                                                   Foreground="{StaticResource TextTertiaryBrush}" 
-                                                                                   FontFamily="Consolas"/>
-                                                                        <StackPanel Orientation="Horizontal">
-                                                                            <TextBlock Text="{DynamicResource Product_StockLevel}" FontSize="12" 
-                                                                                       Foreground="{StaticResource TextTertiaryBrush}"/>
-                                                                            <TextBlock Text="{Binding CurrentStock}" FontSize="12" FontWeight="Medium" 
-                                                                                       Foreground="{StaticResource TextPrimaryBrush}" Margin="4,0,0,0"/>
-                                                                        </StackPanel>
-                                                                    </StackPanel>
-                                                                </Border>
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-
-                                                    <Button Content="Clear Selection" 
-                                                            Command="{Binding ClearMatchingProductsCommand}"
-                                                            Style="{StaticResource SecondaryButtonStyle}"
-                                                            Height="32" Padding="12,4" FontSize="12" HorizontalAlignment="Right"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,28">
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,28">
                                             <TextBlock Text="Category" FontWeight="Medium" FontSize="15"
                                                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <ComboBox ItemsSource="{Binding Categories}"
@@ -712,29 +636,11 @@
                                                       Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="2" Grid.Column="2" Margin="0,0,0,28">
-                                            <TextBlock Text="Supplier" FontWeight="Medium" FontSize="15"
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
-                                            <ComboBox ItemsSource="{Binding Suppliers}"
-                                                      SelectedValuePath="SupplierId" DisplayMemberPath="Name"
-                                                      SelectedValue="{Binding SelectedProduct.SupplierId}"
-                                                      Padding="16" Height="55" FontSize="15"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
-                                            <TextBlock Text="{DynamicResource Product_SupplierInvoice}" FontWeight="Medium" FontSize="15"
-                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
-                                            <ComboBox ItemsSource="{Binding SupplierInvoices}"
-                                                      SelectedItem="{Binding SelectedSupplierInvoice}"
-                                                      DisplayMemberPath="InvoiceNumber"
-                                                      Padding="16" Height="55" FontSize="15"/>
-                                        </StackPanel>
-
-                                        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,28">
                                             <TextBlock Text="{DynamicResource Product_DescriptionLabel}" FontWeight="Medium" FontSize="15"
                                                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.Description, UpdateSourceTrigger=PropertyChanged}"
-                                                     Padding="16" Height="120" FontSize="15" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                                     Padding="16" Height="60" FontSize="15" TextWrapping="Wrap" AcceptsReturn="True"/>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
@@ -754,58 +660,96 @@
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,28">
+                                        <!-- Individual Item Pricing -->
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" 
+                                                   Text="Individual Item Pricing" FontWeight="SemiBold" FontSize="16"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,28">
                                             <TextBlock Text="Purchase Price *" FontWeight="Medium" FontSize="15"
                                                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.PurchasePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="0" Grid.Column="2" Margin="0,0,0,28">
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,28">
                                             <TextBlock Text="Sale Price *" FontWeight="Medium" FontSize="15"
                                                        Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
                                             <TextBox Text="{Binding SelectedProduct.SalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
-                                            <Border Background="{StaticResource HoverBrush}" 
-                                                    BorderBrush="{StaticResource BorderBrush}" 
-                                                    BorderThickness="1" 
-                                                    CornerRadius="6" 
-                                                    Padding="16">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,0,28">
+                                            <TextBlock Text="Wholesale Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+                                            <TextBox Text="{Binding SelectedProduct.WholesalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                     Padding="16" Height="55" FontSize="15"/>
+                                        </StackPanel>
 
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="Profit Margin" FontWeight="Medium" FontSize="13"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                        <TextBlock Text="{Binding SelectedProduct.ProfitMargin, StringFormat='{}{0:F1}%'}" 
-                                                                   FontSize="18" FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource SuccessBrush}"/>
-                                                    </StackPanel>
+                                        <!-- Box Pricing Section -->
+                                        <TextBlock Grid.Row="2" Grid.Column="2" 
+                                                   Text="Box Pricing" FontWeight="SemiBold" FontSize="16"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,16"/>
 
-                                                    <StackPanel Grid.Column="1">
-                                                        <TextBlock Text="Profit Amount" FontWeight="Medium" FontSize="13"
-                                                                   Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
-                                                        <TextBlock Text="{Binding SelectedProduct.ProfitAmount, StringFormat='${0:F2}'}" 
-                                                                   FontSize="18" FontWeight="SemiBold"
-                                                                   Foreground="{StaticResource SuccessBrush}"/>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Margin="0,0,0,28">
+                                            <TextBlock Text="Box Purchase Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+                                            <TextBox Text="{Binding SelectedProduct.BoxPurchasePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                     Padding="16" Height="55" FontSize="15"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="3" Grid.Column="2" Margin="0,0,0,28">
+                                            <TextBlock Text="Box Sale Price" FontWeight="Medium" FontSize="15"
+                                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
+                                            <TextBox Text="{Binding SelectedProduct.BoxSalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                     Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
                                     </Grid>
+
+                                    <!-- Profit Analysis -->
+                                    <Border Background="{StaticResource HoverBrush}" 
+                                            BorderBrush="{StaticResource BorderBrush}" 
+                                            BorderThickness="1" 
+                                            CornerRadius="6" 
+                                            Padding="16" Margin="0,0,0,28">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Profit Margin" FontWeight="Medium" FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding SelectedProduct.ProfitMargin, StringFormat='{}{0:F1}%'}" 
+                                                           FontSize="18" FontWeight="SemiBold"
+                                                           Foreground="Green"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Profit Amount" FontWeight="Medium" FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding SelectedProduct.ProfitAmount, StringFormat='${0:F2}'}" 
+                                                           FontSize="18" FontWeight="SemiBold"
+                                                           Foreground="Green"/>
+                                            </StackPanel>
+
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Box Wholesale Price" FontWeight="Medium" FontSize="13"
+                                                           Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                                                <TextBox Text="{Binding SelectedProduct.BoxWholesalePrice, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DecimalConverter}}"
+                                                         Padding="12" Height="36" FontSize="14"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
                                 </StackPanel>
 
                                 <!-- Inventory Tab -->
                                 <StackPanel x:Name="InventoryContent" Visibility="Collapsed">
                                     <Grid>
                                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
@@ -844,17 +788,140 @@
                                                      Padding="16" Height="55" FontSize="15"/>
                                         </StackPanel>
 
-                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3">
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,0,0,28">
                                             <CheckBox Content="{DynamicResource Product_ActiveProduct}" 
                                                       IsChecked="{Binding SelectedProduct.IsActive}"
                                                       FontWeight="Medium" FontSize="15"
                                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- Transfer from Storehouse Section -->
+                                        <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" 
+                                                    Visibility="{Binding HasSelectedProduct, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Border Background="{StaticResource HoverBrush}" 
+                                                    BorderBrush="{StaticResource BorderBrush}" 
+                                                    BorderThickness="1" 
+                                                    CornerRadius="6" 
+                                                    Padding="16">
+                                                <StackPanel>
+                                                    <TextBlock Text="Transfer from Storehouse" FontWeight="Medium" FontSize="15"
+                                                               Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16"/>
+
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+
+                                                        <!-- Transfer Type Selection -->
+                                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                                                            <RadioButton Content="Individual Items" 
+                                                                         IsChecked="{Binding IsIndividualTransfer}"
+                                                                         FontSize="14" Margin="0,0,20,0"/>
+                                                            <RadioButton Content="Boxes" 
+                                                                         IsChecked="{Binding IsBoxTransfer}"
+                                                                         FontSize="14"/>
+                                                        </StackPanel>
+
+                                                        <!-- Individual Items Transfer -->
+                                                        <Grid Grid.Row="1" Margin="0,0,0,16"
+                                                              Visibility="{Binding IsIndividualTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <TextBox Grid.Column="0" 
+                                                                     Text="{Binding TransferQuantity, UpdateSourceTrigger=PropertyChanged}"
+                                                                     Padding="12" Height="36" FontSize="14"
+                                                                     Margin="0,0,8,0"/>
+                                                            <Button Grid.Column="1" 
+                                                                    Content="{Binding TransferButtonText}"
+                                                                    Command="{Binding TransferFromStorehouseCommand}"
+                                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                                    Height="36" Padding="16,8" FontSize="13"/>
+                                                        </Grid>
+
+                                                        <!-- Box Transfer -->
+                                                        <Grid Grid.Row="1" Margin="0,0,0,16"
+                                                              Visibility="{Binding IsBoxTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <StackPanel Grid.Column="0">
+                                                                <TextBox Text="{Binding TransferBoxes, UpdateSourceTrigger=PropertyChanged}"
+                                                                         Padding="12" Height="36" FontSize="14"
+                                                                         Margin="0,0,8,0"/>
+                                                                <TextBlock Text="{Binding BoxTransferSummary}" 
+                                                                           FontSize="12" 
+                                                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                                                           Margin="0,4,0,0"/>
+                                                            </StackPanel>
+                                                            <Button Grid.Column="1" 
+                                                                    Content="{Binding TransferButtonText}"
+                                                                    Command="{Binding TransferFromStorehouseCommand}"
+                                                                    Style="{StaticResource PrimaryButtonStyle}"
+                                                                    Height="36" Padding="16,8" FontSize="13"/>
+                                                        </Grid>
+
+                                                        <!-- Transfer Info & Validation -->
+                                                        <StackPanel Grid.Row="2">
+                                                            <TextBlock Text="{Binding TransferValidationMessage}" 
+                                                                       Foreground="Red"
+                                                                       FontSize="12" Margin="0,0,0,8"
+                                                                       Visibility="{Binding HasTransferValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <StackPanel Grid.Column="0">
+                                                                    <TextBlock Text="Available in Storehouse:" FontSize="12"
+                                                                               Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                                    <TextBlock Text="{Binding SelectedProduct.Storehouse, StringFormat='{}{0} items'}" 
+                                                                               FontSize="12" FontWeight="Medium"/>
+                                                                </StackPanel>
+
+                                                                <StackPanel Grid.Column="1" 
+                                                                            Visibility="{Binding IsBoxTransfer, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                    <TextBlock Text="Complete Boxes Available:" FontSize="12"
+                                                                               Foreground="{StaticResource TextTertiaryBrush}"/>
+                                                                    <TextBlock Text="{Binding AvailableBoxes, StringFormat='{}{0} boxes'}" 
+                                                                               FontSize="12" FontWeight="Medium"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
                             </Grid>
                         </Grid>
                     </ScrollViewer>
+
+                    <!-- Empty State -->
+                    <Grid Grid.Row="1" 
+                          Visibility="{Binding HasSelectedProduct, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="📦" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,16"/>
+                            <TextBlock Text="Select a product to edit" 
+                                       FontSize="18" FontWeight="Medium"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="Choose a product from the list to view and edit its details" 
+                                       FontSize="14" 
+                                       Foreground="{StaticResource TextTertiaryBrush}"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </Border>
         </Grid>
