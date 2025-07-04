@@ -11,11 +11,11 @@
              d:DesignHeight="1000" d:DesignWidth="1600">
 
     <UserControl.Resources>
-        <local:LowStockConverter x:Key="LowStockConverter"/>
-        <local:ProductIdToTitleConverter x:Key="ProductIdToTitleConverter"/>
-        <local:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
-        <local:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
-        <local:DecimalConverter x:Key="DecimalConverter"/>
+        <converters:LowStockConverter x:Key="LowStockConverter"/>
+        <converters:ProductIdToTitleConverter x:Key="ProductIdToTitleConverter"/>
+        <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter"/>
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+        <converters:DecimalConverter x:Key="DecimalConverter"/>
         <converters:StockStatusConverter x:Key="StockStatusConverter"/>
         <converters:StockStatusToColorConverter x:Key="StockStatusToColorConverter"/>
         <converters:EnumToStringConverter x:Key="EnumToStringConverter"/>
@@ -123,34 +123,25 @@
             </Setter>
         </Style>
 
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
+        <Style x:Key="PaginationButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="Padding" Value="20,10"/>
-            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="2,0"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinWidth" Value="36"/>
+            <Setter Property="Height" Value="36"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="6" 
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" 
-                                              VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
@@ -553,7 +544,7 @@
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" 
-                                       Text="{Binding SelectedProduct, Converter={StaticResource ProductIdToTitleConverter}}" 
+                                       Text="{Binding SelectedProduct.ProductId, Converter={StaticResource ProductIdToTitleConverter}}" 
                                        FontWeight="SemiBold" 
                                        FontSize="18"
                                        Foreground="{StaticResource TextPrimaryBrush}"

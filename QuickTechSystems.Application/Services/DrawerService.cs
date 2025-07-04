@@ -21,6 +21,7 @@ namespace QuickTechSystems.Application.Services
         private new readonly IMapper _mapper;
         private new readonly IEventAggregator _eventAggregator;
         private new readonly IDbContextScopeService _dbContextScopeService;
+        private readonly IGenericRepository<DrawerTransaction> _drawerTransactionRepository; // Add this line
 
         private static readonly Dictionary<string, (bool IsIncoming, bool UpdatesSales, bool UpdatesExpenses)> TransactionTypeConfig = new()
         {
@@ -50,7 +51,6 @@ namespace QuickTechSystems.Application.Services
             _dbContextScopeService = dbContextScopeService;
             _drawerTransactionRepository = _unitOfWork.GetRepository<DrawerTransaction>();
         }
-
         public async Task<DrawerDTO?> GetCurrentDrawerAsync()
         {
             return await ExecuteServiceOperationAsync(async () =>
