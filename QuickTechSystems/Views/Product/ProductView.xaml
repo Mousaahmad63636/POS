@@ -489,14 +489,14 @@
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Grid.Column="0" VerticalAlignment="Center" FontSize="14" 
-                                   Foreground="{StaticResource TextTertiaryBrush}">
-                            <Run Text="Page"/>
-                            <Run Text="{Binding CurrentPage}" FontWeight="Medium"/>
-                            <Run Text="of"/>
-                            <Run Text="{Binding PagedResult.TotalPages}" FontWeight="Medium"/>
-                            <Run Text="•"/>
-                            <Run Text="{Binding PagedResult.TotalCount}" FontWeight="Medium"/>
-                            <Run Text="items"/>
+           Foreground="{StaticResource TextTertiaryBrush}">
+    <Run Text="Page"/>
+    <Run Text="{Binding CurrentPage, Mode=OneWay}" FontWeight="Medium"/>
+    <Run Text="of"/>
+    <Run Text="{Binding PagedResult.TotalPages, Mode=OneWay}" FontWeight="Medium"/>
+    <Run Text="•"/>
+    <Run Text="{Binding PagedResult.TotalCount, Mode=OneWay}" FontWeight="Medium"/>
+    <Run Text="items"/>
                         </TextBlock>
 
                         <StackPanel Grid.Column="2" Orientation="Horizontal">

@@ -301,8 +301,8 @@ namespace QuickTechSystems.ViewModels.Supplier
                 var newBarcode = GenerateUniqueBarcode();
                 NewProductFromInvoice.Barcode = newBarcode;
 
-                System.Windows.MessageBox.Show($"Generated barcode: {newBarcode}", "Barcode Generated",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                // No popup needed - barcode is automatically set in the field
+                System.Diagnostics.Debug.WriteLine($"Generated item barcode: {newBarcode}");
             }
             catch (Exception ex)
             {
@@ -310,6 +310,7 @@ namespace QuickTechSystems.ViewModels.Supplier
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
             }
         }
+
         private void CleanupPropertyChangeEvents()
         {
             if (InvoiceDetails != null)
@@ -339,8 +340,8 @@ namespace QuickTechSystems.ViewModels.Supplier
                 var newBarcode = GenerateUniqueBarcode();
                 NewProductFromInvoice.BoxBarcode = newBarcode;
 
-                System.Windows.MessageBox.Show($"Generated box barcode: {newBarcode}", "Box Barcode Generated",
-                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+                // No popup needed - barcode is automatically set in the field
+                System.Diagnostics.Debug.WriteLine($"Generated box barcode: {newBarcode}");
             }
             catch (Exception ex)
             {
@@ -351,19 +352,17 @@ namespace QuickTechSystems.ViewModels.Supplier
 
         private string GenerateUniqueBarcode()
         {
-            // Generate a unique barcode with max 11 digits
-            // Format: timestamp (8 digits) + random (3 digits)
-            var timestamp = DateTime.Now.ToString("yyyyMMdd");
+            // Generate a unique barcode with 5-9 digits
             var random = new Random();
-            var randomPart = random.Next(100, 999).ToString();
 
-            var barcode = timestamp + randomPart;
+            // Randomly choose length between 5-9 digits
+            var length = random.Next(5, 10); // 5 to 9 inclusive
 
-            // Ensure it's exactly 11 digits by taking the last 11 characters
-            if (barcode.Length > 11)
-            {
-                barcode = barcode.Substring(barcode.Length - 11);
-            }
+            // Generate random number with the chosen length
+            var minValue = (int)Math.Pow(10, length - 1); // e.g., 10000 for 5 digits
+            var maxValue = (int)Math.Pow(10, length) - 1;  // e.g., 99999 for 5 digits
+
+            var barcode = random.Next(minValue, maxValue + 1).ToString();
 
             return barcode;
         }

@@ -939,6 +939,7 @@
                                 </StackPanel>
 
                                 <!-- Barcode -->
+                                <!-- Item Barcode - Remove MaxLength restriction -->
                                 <StackPanel Grid.Row="0" Grid.Column="2">
                                     <TextBlock Text="Barcode *" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <Grid>
@@ -948,19 +949,18 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
-                                                 Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Style="{StaticResource FreeInputTextBox}"
-                                                 Tag="Enter or scan barcode..."
-                                                 MaxLength="11"/>
+                 Text="{Binding NewProductFromInvoice.Barcode, UpdateSourceTrigger=PropertyChanged}" 
+                 Style="{StaticResource FreeInputTextBox}"
+                 Tag="Enter or scan barcode..."/>
                                         <Button Grid.Column="2"
-                                                Content="🎲"
-                                                Command="{Binding GenerateItemBarcodeCommand}"
-                                                Style="{StaticResource IconButton}"
-                                                Background="#28A745"
-                                                Foreground="White"
-                                                Width="44"
-                                                Height="44"
-                                                ToolTip="Generate unique barcode"/>
+                Content="🎲"
+                Command="{Binding GenerateItemBarcodeCommand}"
+                Style="{StaticResource IconButton}"
+                Background="#28A745"
+                Foreground="White"
+                Width="44"
+                Height="44"
+                ToolTip="Generate unique barcode"/>
                                     </Grid>
                                 </StackPanel>
 
@@ -1099,7 +1099,7 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
-                                <!-- Box Barcode -->
+                                <!-- Box Barcode - Remove MaxLength restriction -->
                                 <StackPanel Grid.Row="0" Grid.Column="0">
                                     <TextBlock Text="Box Barcode" FontWeight="SemiBold" Margin="0,0,0,4"/>
                                     <Grid>
@@ -1109,19 +1109,18 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBox Grid.Column="0"
-                                                 Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
-                                                 Style="{StaticResource FreeInputTextBox}"
-                                                 Tag="Box barcode..."
-                                                 MaxLength="11"/>
+                 Text="{Binding NewProductFromInvoice.BoxBarcode, UpdateSourceTrigger=PropertyChanged}" 
+                 Style="{StaticResource FreeInputTextBox}"
+                 Tag="Box barcode..."/>
                                         <Button Grid.Column="2"
-                                                Content="🎲"
-                                                Command="{Binding GenerateBoxBarcodeCommand}"
-                                                Style="{StaticResource IconButton}"
-                                                Background="#28A745"
-                                                Foreground="White"
-                                                Width="44"
-                                                Height="44"
-                                                ToolTip="Generate unique box barcode"/>
+                Content="🎲"
+                Command="{Binding GenerateBoxBarcodeCommand}"
+                Style="{StaticResource IconButton}"
+                Background="#28A745"
+                Foreground="White"
+                Width="44"
+                Height="44"
+                ToolTip="Generate unique box barcode"/>
                                     </Grid>
                                 </StackPanel>
 
