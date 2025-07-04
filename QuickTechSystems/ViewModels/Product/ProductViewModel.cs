@@ -517,6 +517,7 @@ namespace QuickTechSystems.ViewModels.Product
         }
 
         public ICommand AddProductCommand { get; private set; }
+        public ICommand SearchMatchingProductsCommand { get; private set; }
         public ICommand SaveProductCommand { get; private set; }
         public ICommand DeleteProductCommand { get; private set; }
         public ICommand TransferFromStorehouseCommand { get; private set; }
@@ -586,6 +587,7 @@ namespace QuickTechSystems.ViewModels.Product
             ExportToCsvCommand = new AsyncRelayCommand(async _ => await ExportToCsvAsync());
             ExportToExcelCommand = new AsyncRelayCommand(async _ => await ExportToExcelAsync());
             GoToPageCommand = new RelayCommand(GoToPage);
+            SearchMatchingProductsCommand = new AsyncRelayCommand(async _ => await SearchMatchingProductsAsync()); // Add this line
         }
 
         protected override void SubscribeToEvents()
@@ -597,7 +599,13 @@ namespace QuickTechSystems.ViewModels.Product
         {
             _eventAggregator.Unsubscribe(_productChangedHandler);
         }
-
+        private async Task SearchMatchingProductsAsync()
+        {
+            if (SelectedProduct?.Name?.Length >= 3)
+            {
+                await SearchMatchingProductsByName(SelectedProduct.Name);
+            }
+        }
         private async void HandleProductChanged(EntityChangedEvent<ProductDTO> evt)
         {
             await LoadDataAsync();

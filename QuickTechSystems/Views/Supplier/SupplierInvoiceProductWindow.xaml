@@ -12,7 +12,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <local:InvoiceDetailsTotalConverter x:Key="InvoiceDetailsTotalConverter" xmlns:local="clr-namespace:QuickTechSystems.WPF.Converters"/>
-
+        <local:SafeDecimalConverter x:Key="SafeDecimalConverter" xmlns:local="clr-namespace:QuickTechSystems.WPF.Converters"/>
         <!-- Modern Card Style -->
         <Style x:Key="ModernCard" TargetType="Border">
             <Setter Property="Background" Value="White"/>
@@ -1017,9 +1017,9 @@
                                 <!-- Purchase Price - Simple like BulkMainStockDialog -->
                                 <StackPanel Grid.Column="0">
                                     <TextBlock Text="Purchase Price *" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=LostFocus}" 
-                                             Style="{StaticResource FreeInputTextBox}"
-                                             Tag="0.00"/>
+                                    <TextBox Text="{Binding NewProductFromInvoice.PurchasePrice, UpdateSourceTrigger=LostFocus, Converter={StaticResource SafeDecimalConverter}}" 
+             Style="{StaticResource FreeInputTextBox}"
+             Tag="0.00"/>
                                 </StackPanel>
 
                                 <!-- Sale Price - Simple like BulkMainStockDialog -->

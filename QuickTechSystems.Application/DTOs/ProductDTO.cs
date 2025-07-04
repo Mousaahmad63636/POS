@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using QuickTechSystems.Domain.Enums;
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
 namespace QuickTechSystems.Application.DTOs
@@ -275,7 +276,36 @@ namespace QuickTechSystems.Application.DTOs
                 OnPropertyChanged();
             }
         }
+        // Add these properties to the existing ProductDTO class
 
+        public StockStatus StockStatus
+        {
+            get
+            {
+                if (CurrentStock == 0)
+                    return StockStatus.OutOfStock;
+                else if (CurrentStock <= MinimumStock)
+                    return StockStatus.LowStock;
+                else if (CurrentStock > MinimumStock * 3)
+                    return StockStatus.Overstocked;
+                else
+                    return StockStatus.AdequateStock;
+            }
+        }
+
+        public decimal ProfitMargin
+        {
+            get
+            {
+                if (PurchasePrice == 0) return 0;
+                return ((SalePrice - PurchasePrice) / PurchasePrice) * 100;
+            }
+        }
+
+        public decimal ProfitAmount
+        {
+            get => SalePrice - PurchasePrice;
+        }
         public int ItemsPerBox
         {
             get => _itemsPerBox;
