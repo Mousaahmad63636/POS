@@ -750,7 +750,6 @@ namespace QuickTechSystems.ViewModels.Supplier
             }
         }
 
-        // FIXED: Enhanced barcode scanning to handle existing products properly
         private async Task OnBarcodeChanged(object param)
         {
             if (param is string barcode && !string.IsNullOrWhiteSpace(barcode))
@@ -758,58 +757,71 @@ namespace QuickTechSystems.ViewModels.Supplier
                 try
                 {
                     var product = await _productService.GetByBarcodeAsync(barcode);
-                    if (product != null)
-                    {
-                        // FIXED: Instead of just calling OnProductSelected, show user options
-                        var result = System.Windows.MessageBox.Show(
-                            $"Found existing product: '{product.Name}' (Current Stock: {product.CurrentStock + product.Storehouse})\n\n" +
-                            $"Would you like to:\n" +
-                            $"• Click 'Yes' to add this existing product to restock\n" +
-                            $"• Click 'No' to clear the barcode field",
-                            "Existing Product Found",
-                            System.Windows.MessageBoxButton.YesNo,
-                            System.Windows.MessageBoxImage.Question);
 
-                        if (result == System.Windows.MessageBoxResult.Yes)
+                    // Ensure UI operations run on UI thread
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(async () =>
+                    {
+                        if (product != null)
                         {
-                            OnProductSelected(product);
-                            System.Windows.MessageBox.Show(
-                                $"Product '{product.Name}' has been loaded. Please enter the quantity and purchase price for this restock.",
-                                "Product Loaded",
-                                System.Windows.MessageBoxButton.OK,
-                                System.Windows.MessageBoxImage.Information);
+                            var result = System.Windows.MessageBox.Show(
+                                $"Found existing product: '{product.Name}' (Current Stock: {product.CurrentStock + product.Storehouse})\n\n" +
+                                $"Would you like to:\n" +
+                                $"• Click 'Yes' to add this existing product to restock\n" +
+                                $"• Click 'No' to clear the barcode field",
+                                "Existing Product Found",
+                                System.Windows.MessageBoxButton.YesNo,
+                                System.Windows.MessageBoxImage.Question);
+
+                            if (result == System.Windows.MessageBoxResult.Yes)
+                            {
+                                OnProductSelected(product);
+                                System.Windows.MessageBox.Show(
+                                    $"Product '{product.Name}' has been loaded. Please enter the quantity and purchase price for this restock.",
+                                    "Product Loaded",
+                                    System.Windows.MessageBoxButton.OK,
+                                    System.Windows.MessageBoxImage.Information);
+                            }
+                            else
+                            {
+                                // Clear the barcode field
+                                if (NewProductRow != null)
+                                {
+                                    NewProductRow.ProductBarcode = string.Empty;
+                                }
+                                QuickBarcodeSearch = string.Empty;
+                            }
                         }
                         else
                         {
-                            // Clear the barcode field
-                            if (NewProductRow != null)
-                            {
-                                NewProductRow.ProductBarcode = string.Empty;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        var result = System.Windows.MessageBox.Show(
-                            $"Product with barcode '{barcode}' not found. Would you like to create a new product?",
-                            "Product Not Found",
-                            System.Windows.MessageBoxButton.YesNo,
-                            System.Windows.MessageBoxImage.Question);
+                            var result = System.Windows.MessageBox.Show(
+                                $"Product with barcode '{barcode}' not found. Would you like to create a new product?",
+                                "Product Not Found",
+                                System.Windows.MessageBoxButton.YesNo,
+                                System.Windows.MessageBoxImage.Question);
 
-                        if (result == System.Windows.MessageBoxResult.Yes)
-                        {
-                            await OpenNewProductDialogAsync();
-                            if (NewProductFromInvoice != null)
+                            if (result == System.Windows.MessageBoxResult.Yes)
                             {
-                                NewProductFromInvoice.Barcode = barcode;
+                                await OpenNewProductDialogAsync();
+                                if (NewProductFromInvoice != null)
+                                {
+                                    NewProductFromInvoice.Barcode = barcode;
+                                }
+                            }
+                            else
+                            {
+                                // Clear the barcode field
+                                QuickBarcodeSearch = string.Empty;
                             }
                         }
-                    }
+                    });
                 }
                 catch (Exception ex)
                 {
-                    System.Windows.MessageBox.Show($"Error finding product by barcode: {ex.Message}", "Error",
-                        System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        System.Windows.MessageBox.Show($"Error finding product by barcode: {ex.Message}", "Error",
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+                    });
                 }
             }
         }

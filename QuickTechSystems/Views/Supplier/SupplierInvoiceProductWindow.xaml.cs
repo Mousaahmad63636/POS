@@ -257,12 +257,11 @@ namespace QuickTechSystems.WPF.Views
             {
                 if (_viewModel.BarcodeChangedCommand.CanExecute(textBox.Text))
                 {
-                    await System.Threading.Tasks.Task.Run(() =>
-                        _viewModel.BarcodeChangedCommand.Execute(textBox.Text));
+                    // Remove Task.Run - execute directly on UI thread
+                    _viewModel.BarcodeChangedCommand.Execute(textBox.Text);
                 }
             }
         }
-
         private void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             if (_viewModel.HasChanges)
@@ -348,7 +347,7 @@ namespace QuickTechSystems.WPF.Views
             }
         }
 
-        private void QuickBarcodeTextBox_KeyDown(object sender, KeyEventArgs e)
+        private async void QuickBarcodeTextBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
@@ -356,7 +355,11 @@ namespace QuickTechSystems.WPF.Views
                 var textBox = sender as TextBox;
                 if (textBox != null && !string.IsNullOrWhiteSpace(textBox.Text))
                 {
-                    BarcodeTextBox_LostFocus(sender, e);
+                    if (_viewModel.BarcodeChangedCommand.CanExecute(textBox.Text))
+                    {
+                        // Remove Task.Run - execute directly on UI thread
+                        _viewModel.BarcodeChangedCommand.Execute(textBox.Text);
+                    }
                 }
                 e.Handled = true;
             }

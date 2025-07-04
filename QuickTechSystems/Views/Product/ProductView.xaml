@@ -220,13 +220,13 @@
                                     <Grid>
                                         <TextBlock Text="🔍" 
                                                    VerticalAlignment="Center" 
-                                                   Margin="12,0,0,0" 
+                                                   Margin="10,0,0,0" 
                                                    FontSize="14" 
                                                    Foreground="{StaticResource TextTertiaryBrush}"/>
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                                  Background="Transparent" BorderThickness="0" 
                                                  Margin="36,0,12,0" VerticalAlignment="Center" FontSize="14"/>
-                                        <TextBlock Text="Search by name, barcode, category, supplier..." 
+                                        <TextBlock Text="Search" 
                                                    Margin="36,0,12,0" VerticalAlignment="Center"
                                                    Foreground="{StaticResource TextTertiaryBrush}" FontSize="14"
                                                    IsHitTestVisible="False"
@@ -558,15 +558,6 @@
                                         Padding="16,8" 
                                         FontSize="13"
                                         Margin="0,0,8,0"/>
-
-                                <Button Content="{DynamicResource Product_DeleteButton}" 
-                                        Command="{Binding DeleteProductCommand}"
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Height="36" 
-                                        Padding="16,8" 
-                                        FontSize="13"
-                                        Foreground="#DC2626"
-                                        BorderBrush="#DC2626"/>
                             </StackPanel>
                         </Grid>
                     </Border>
