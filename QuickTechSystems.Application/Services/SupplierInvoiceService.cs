@@ -978,6 +978,16 @@ namespace QuickTechSystems.Application.Services
                     using var transaction = await _unitOfWork.BeginTransactionAsync();
                     try
                     {
+                        // Debug: Log the incoming box data
+                        Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] DEBUG - Incoming box data:");
+                        Debug.WriteLine($"  BoxBarcode: '{newProductDto.BoxBarcode}'");
+                        Debug.WriteLine($"  NumberOfBoxes: {newProductDto.NumberOfBoxes}");
+                        Debug.WriteLine($"  ItemsPerBox: {newProductDto.ItemsPerBox}");
+                        Debug.WriteLine($"  BoxPurchasePrice: {newProductDto.BoxPurchasePrice}");
+                        Debug.WriteLine($"  BoxSalePrice: {newProductDto.BoxSalePrice}");
+                        Debug.WriteLine($"  BoxWholesalePrice: {newProductDto.BoxWholesalePrice}");
+                        Debug.WriteLine($"  MinimumBoxStock: {newProductDto.MinimumBoxStock}");
+
                         var invoice = await _unitOfWork.SupplierInvoices.Query()
                             .Where(i => i.SupplierInvoiceId == invoiceId)
                             .Select(i => new { i.Status, i.SupplierId })
@@ -1031,7 +1041,8 @@ namespace QuickTechSystems.Application.Services
                             UpdatedAt = DateTime.Now,
                             ImagePath = newProductDto.ImagePath,
                             BarcodeImage = null,
-                            BoxBarcode = newProductDto.BoxBarcode,
+                            // Box-related fields - ensure they're properly set
+                            BoxBarcode = newProductDto.BoxBarcode ?? string.Empty,
                             NumberOfBoxes = newProductDto.NumberOfBoxes,
                             ItemsPerBox = newProductDto.ItemsPerBox,
                             BoxPurchasePrice = newProductDto.BoxPurchasePrice,
@@ -1041,10 +1052,37 @@ namespace QuickTechSystems.Application.Services
                             BoxWholesalePrice = newProductDto.BoxWholesalePrice
                         };
 
+                        // Debug: Log the product entity before saving
+                        Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] DEBUG - Product entity before save:");
+                        Debug.WriteLine($"  BoxBarcode: '{product.BoxBarcode}'");
+                        Debug.WriteLine($"  NumberOfBoxes: {product.NumberOfBoxes}");
+                        Debug.WriteLine($"  ItemsPerBox: {product.ItemsPerBox}");
+                        Debug.WriteLine($"  BoxPurchasePrice: {product.BoxPurchasePrice}");
+                        Debug.WriteLine($"  BoxSalePrice: {product.BoxSalePrice}");
+                        Debug.WriteLine($"  BoxWholesalePrice: {product.BoxWholesalePrice}");
+                        Debug.WriteLine($"  MinimumBoxStock: {product.MinimumBoxStock}");
+
                         await _unitOfWork.Products.AddAsync(product);
                         await _unitOfWork.SaveChangesAsync();
 
                         Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] Product created with ID: {product.ProductId}");
+
+                        // Debug: Verify the saved product by reloading it
+                        var savedProduct = await _unitOfWork.Products.Query()
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.ProductId == product.ProductId);
+
+                        if (savedProduct != null)
+                        {
+                            Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] DEBUG - Product entity after save (reloaded):");
+                            Debug.WriteLine($"  BoxBarcode: '{savedProduct.BoxBarcode}'");
+                            Debug.WriteLine($"  NumberOfBoxes: {savedProduct.NumberOfBoxes}");
+                            Debug.WriteLine($"  ItemsPerBox: {savedProduct.ItemsPerBox}");
+                            Debug.WriteLine($"  BoxPurchasePrice: {savedProduct.BoxPurchasePrice}");
+                            Debug.WriteLine($"  BoxSalePrice: {savedProduct.BoxSalePrice}");
+                            Debug.WriteLine($"  BoxWholesalePrice: {savedProduct.BoxWholesalePrice}");
+                            Debug.WriteLine($"  MinimumBoxStock: {savedProduct.MinimumBoxStock}");
+                        }
 
                         var totalStock = newProductDto.CurrentStock + newProductDto.Storehouse;
                         if (totalStock > 0)
@@ -1069,7 +1107,7 @@ namespace QuickTechSystems.Application.Services
                             Quantity = newProductDto.InvoiceQuantity,
                             PurchasePrice = newProductDto.PurchasePrice,
                             TotalPrice = newProductDto.InvoiceTotalPrice,
-                            BoxBarcode = newProductDto.BoxBarcode,
+                            BoxBarcode = newProductDto.BoxBarcode ?? string.Empty,
                             NumberOfBoxes = newProductDto.NumberOfBoxes,
                             ItemsPerBox = newProductDto.ItemsPerBox,
                             BoxPurchasePrice = newProductDto.BoxPurchasePrice,
@@ -1092,35 +1130,48 @@ namespace QuickTechSystems.Application.Services
                         await transaction.CommitAsync();
                         Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] Transaction committed successfully");
 
+                        // Use the saved product data for the DTO to ensure accuracy
+                        var finalProduct = savedProduct ?? product;
+
                         var productDto = new ProductDTO
                         {
-                            ProductId = product.ProductId,
-                            Barcode = product.Barcode,
-                            Name = product.Name,
-                            Description = product.Description,
-                            CategoryId = product.CategoryId,
+                            ProductId = finalProduct.ProductId,
+                            Barcode = finalProduct.Barcode,
+                            Name = finalProduct.Name,
+                            Description = finalProduct.Description,
+                            CategoryId = finalProduct.CategoryId,
                             CategoryName = category.Name,
-                            PurchasePrice = product.PurchasePrice,
-                            SalePrice = product.SalePrice,
-                            CurrentStock = product.CurrentStock,
-                            Storehouse = product.Storehouse,
-                            MinimumStock = product.MinimumStock,
-                            SupplierId = product.SupplierId,
+                            PurchasePrice = finalProduct.PurchasePrice,
+                            SalePrice = finalProduct.SalePrice,
+                            CurrentStock = finalProduct.CurrentStock,
+                            Storehouse = finalProduct.Storehouse,
+                            MinimumStock = finalProduct.MinimumStock,
+                            SupplierId = finalProduct.SupplierId,
                             SupplierName = supplier.Name,
-                            IsActive = product.IsActive,
-                            CreatedAt = product.CreatedAt,
-                            UpdatedAt = product.UpdatedAt,
-                            ImagePath = product.ImagePath,
-                            BarcodeImage = product.BarcodeImage,
-                            BoxBarcode = product.BoxBarcode,
-                            NumberOfBoxes = product.NumberOfBoxes,
-                            ItemsPerBox = product.ItemsPerBox,
-                            BoxPurchasePrice = product.BoxPurchasePrice,
-                            BoxSalePrice = product.BoxSalePrice,
-                            MinimumBoxStock = product.MinimumBoxStock,
-                            WholesalePrice = product.WholesalePrice,
-                            BoxWholesalePrice = product.BoxWholesalePrice
+                            IsActive = finalProduct.IsActive,
+                            CreatedAt = finalProduct.CreatedAt,
+                            UpdatedAt = finalProduct.UpdatedAt,
+                            ImagePath = finalProduct.ImagePath,
+                            BarcodeImage = finalProduct.BarcodeImage,
+                            BoxBarcode = finalProduct.BoxBarcode,
+                            NumberOfBoxes = finalProduct.NumberOfBoxes,
+                            ItemsPerBox = finalProduct.ItemsPerBox,
+                            BoxPurchasePrice = finalProduct.BoxPurchasePrice,
+                            BoxSalePrice = finalProduct.BoxSalePrice,
+                            MinimumBoxStock = finalProduct.MinimumBoxStock,
+                            WholesalePrice = finalProduct.WholesalePrice,
+                            BoxWholesalePrice = finalProduct.BoxWholesalePrice
                         };
+
+                        // Debug: Log the final DTO
+                        Debug.WriteLine($"[CreateNewProductAndAddToInvoiceAsync] DEBUG - Final ProductDTO:");
+                        Debug.WriteLine($"  BoxBarcode: '{productDto.BoxBarcode}'");
+                        Debug.WriteLine($"  NumberOfBoxes: {productDto.NumberOfBoxes}");
+                        Debug.WriteLine($"  ItemsPerBox: {productDto.ItemsPerBox}");
+                        Debug.WriteLine($"  BoxPurchasePrice: {productDto.BoxPurchasePrice}");
+                        Debug.WriteLine($"  BoxSalePrice: {productDto.BoxSalePrice}");
+                        Debug.WriteLine($"  BoxWholesalePrice: {productDto.BoxWholesalePrice}");
+                        Debug.WriteLine($"  MinimumBoxStock: {productDto.MinimumBoxStock}");
 
                         _eventAggregator.Publish(new EntityChangedEvent<ProductDTO>("Create", productDto));
 
