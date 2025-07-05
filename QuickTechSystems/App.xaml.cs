@@ -169,28 +169,27 @@ namespace QuickTechSystems.WPF
             await _initializationLock.WaitAsync();
             try
             {
-                // 🔒 Step 1: Check or Register MAC
-                string currentMac = LicenseValidator.GetCurrentMacAddress();
-                string? savedMac = LicenseValidator.LoadSavedMacAddress();
+                // 🔒 Step 1: Check or Register Machine GUID
+                string currentMachineGuid = LicenseValidator.GetCurrentMachineGuid();
+                string? savedMachineGuid = LicenseValidator.LoadSavedMachineGuid();
 
-                if (string.IsNullOrWhiteSpace(savedMac))
+                if (string.IsNullOrWhiteSpace(savedMachineGuid))
                 {
-                    var macDialog = new QuickTechSystems.WPF.Views.MacInputDialog(); // no default mac
+                    var machineGuidDialog = new QuickTechSystems.WPF.Views.MachineGuidInputDialog();
 
-                    bool? result = macDialog.ShowDialog();
+                    bool? result = machineGuidDialog.ShowDialog();
 
                     if (result != true)
                     {
-                        MessageBox.Show("MAC address not provided. Application will exit.", "Error",
+                        MessageBox.Show("Machine GUID not provided. Application will exit.", "Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
                         Shutdown();
                         return;
                     }
 
-                    string inputMac = macDialog.EnteredMacAddress;
+                    string inputMachineGuid = machineGuidDialog.EnteredMachineGuid;
 
-
-                    if (string.IsNullOrWhiteSpace(inputMac))
+                    if (string.IsNullOrWhiteSpace(inputMachineGuid))
                     {
                         MessageBox.Show("Application will exit.", "Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
@@ -198,17 +197,29 @@ namespace QuickTechSystems.WPF
                         return;
                     }
 
-                    if (!string.Equals(inputMac, currentMac, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(inputMachineGuid, currentMachineGuid, StringComparison.OrdinalIgnoreCase))
                     {
-                        MessageBox.Show("Entered doesn't match. Application will exit.", "Error",
+                        MessageBox.Show("Entered Machine GUID doesn't match this machine. Application will exit.", "Error",
                             MessageBoxButton.OK, MessageBoxImage.Error);
                         Shutdown();
                         return;
                     }
 
-                    LicenseValidator.SaveMacAddress(currentMac);
+                    try
+                    {
+                        LicenseValidator.SaveMachineGuid(currentMachineGuid);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Show detailed error information
+                        var diagnostics = LicenseValidator.GetDiagnosticInfo();
+                        MessageBox.Show($"License Error Details:\n\n{ex.Message}\n\nDiagnostic Info:\n{diagnostics}",
+                            "License Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        Shutdown();
+                        return;
+                    }
                 }
-                else if (!string.Equals(savedMac, currentMac, StringComparison.OrdinalIgnoreCase))
+                else if (!string.Equals(savedMachineGuid, currentMachineGuid, StringComparison.OrdinalIgnoreCase))
                 {
                     MessageBox.Show("This machine is not licensed to run this application.", "Unauthorized",
                         MessageBoxButton.OK, MessageBoxImage.Error);
