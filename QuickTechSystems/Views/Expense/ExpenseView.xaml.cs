@@ -25,9 +25,9 @@ namespace QuickTechSystems.WPF.Views
         {
             if (value is int expenseId)
             {
-                return expenseId == 0 ? "Add New Expense" : "Edit Expense";
+                return expenseId == 0 ? "💸 Add New Expense" : "✏️ Edit Expense";
             }
-            return "Expense Details";
+            return "📝 Expense Details";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

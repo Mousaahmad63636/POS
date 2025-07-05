@@ -4,273 +4,628 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:QuickTechSystems.WPF.Views"
+             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              mc:Ignorable="d">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-
-        <!-- Expense ID to Title Converter -->
+        <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <local:ExpenseIdToTitleConverter x:Key="ExpenseIdToTitleConverter"/>
+
+        <!-- Chart Colors -->
+        <SolidColorBrush x:Key="Chart1" Color="#6787D8"/>
+        <SolidColorBrush x:Key="Chart2" Color="#E53E3E"/>
+        <SolidColorBrush x:Key="Chart3" Color="#48BB78"/>
+        <SolidColorBrush x:Key="Chart4" Color="#ED8936"/>
+        <SolidColorBrush x:Key="Chart5" Color="#9F7AEA"/>
+
+        <Style x:Key="ReportCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="24"/>
+            <Setter Property="Margin" Value="0,0,12,12"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" Direction="270" ShadowDepth="3" 
+                                      Color="{StaticResource ShadowColor}" Opacity="0.12"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style x:Key="StatCardStyle" TargetType="Border">
             <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="20"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="20,16"/>
             <Setter Property="Margin" Value="0,0,16,0"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="4" Direction="270" ShadowDepth="2" 
-                                      Color="{StaticResource ShadowColor}" Opacity="0.1"/>
+                    <DropShadowEffect BlurRadius="6" Direction="270" ShadowDepth="2" 
+                                      Color="{StaticResource ShadowColor}" Opacity="0.08"/>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Search TextBox Style -->
-        <Style x:Key="SearchTextBoxStyle" TargetType="TextBox">
+        <Style x:Key="ModernButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="MinWidth" Value="120"/>
+        </Style>
+
+        <Style x:Key="ReportButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
             <Setter Property="Padding" Value="12,8"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
         </Style>
     </UserControl.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,20">
-            <Grid>
+            <!-- Header Section -->
+            <Border Grid.Row="0" Style="{StaticResource ReportCardStyle}" Margin="0,0,0,24">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="💸 Expense Management &amp; Reports" 
+                                   FontSize="28" FontWeight="Bold" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" 
+                                   Margin="0,0,0,8"/>
+                        <TextBlock Text="Track, analyze, and generate comprehensive expense reports" 
+                                   FontSize="16" 
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="📊 Reports" 
+                                Command="{Binding ToggleReportsCommand}"
+                                Style="{StaticResource ReportButtonStyle}"
+                                Background="{StaticResource AccentBrush}"
+                                Foreground="White"/>
+                        <Button Content="➕ New Expense" 
+                                Command="{Binding AddCommand}"
+                                Style="{StaticResource ModernButtonStyle}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Reports Panel -->
+            <Border Grid.Row="1" 
+                    Style="{StaticResource ReportCardStyle}" 
+                    Margin="0,0,0,20"
+                    Visibility="{Binding ShowReports, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Report Header -->
+                    <Grid Grid.Row="0" Margin="0,0,0,20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" 
+                                   Text="📈 Expense Reports &amp; Analytics" 
+                                   FontSize="20" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+
+                        <Button Grid.Column="1" 
+                                Content="✖️"
+                                Command="{Binding ToggleReportsCommand}"
+                                Style="{StaticResource LightIconButtonStyle}"
+                                FontSize="16" Width="32" Height="32"/>
+                    </Grid>
+
+                    <!-- Date Range Selection -->
+                    <Border Grid.Row="1" 
+                            Background="#F8FAFC" 
+                            BorderBrush="{StaticResource BorderBrush}"
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="16" 
+                            Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" 
+                                       Text="Report Period:" 
+                                       FontWeight="SemiBold" 
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
+
+                            <DatePicker Grid.Column="1" 
+                                        SelectedDate="{Binding ReportStartDate}" 
+                                        FontSize="14"/>
+
+                            <TextBlock Grid.Column="3" 
+                                       Text="to" 
+                                       VerticalAlignment="Center" 
+                                       Margin="0,0,12,0"/>
+
+                            <DatePicker Grid.Column="4" 
+                                        SelectedDate="{Binding ReportEndDate}" 
+                                        FontSize="14"/>
+
+                            <StackPanel Grid.Column="6" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button Content="This Month" 
+                                        Command="{Binding SetCurrentMonthCommand}"
+                                        Style="{StaticResource LightIconButtonStyle}" 
+                                        Margin="4,0"/>
+                                <Button Content="Last Month" 
+                                        Command="{Binding SetLastMonthCommand}"
+                                        Style="{StaticResource LightIconButtonStyle}" 
+                                        Margin="4,0"/>
+                                <Button Content="This Year" 
+                                        Command="{Binding SetCurrentYearCommand}"
+                                        Style="{StaticResource LightIconButtonStyle}" 
+                                        Margin="4,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Report Actions -->
+                    <WrapPanel Grid.Row="2" Orientation="Horizontal">
+                        <Button Content="📋 Summary Report" 
+                                Command="{Binding PrintSummaryReportCommand}"
+                                Style="{StaticResource ReportButtonStyle}"/>
+                        <Button Content="📄 Detailed Report" 
+                                Command="{Binding PrintDetailedReportCommand}"
+                                Style="{StaticResource ReportButtonStyle}"/>
+                        <Button Content="📊 Category Analysis" 
+                                Command="{Binding PrintCategoryReportCommand}"
+                                Style="{StaticResource ReportButtonStyle}"/>
+                        <Button Content="📈 Monthly Trends" 
+                                Command="{Binding PrintTrendReportCommand}"
+                                Style="{StaticResource ReportButtonStyle}"/>
+                        <Button Content="📑 Export to Excel" 
+                                Command="{Binding ExportToExcelCommand}"
+                                Style="{StaticResource ReportButtonStyle}"/>
+                    </WrapPanel>
+                </Grid>
+            </Border>
+
+            <!-- Statistics Dashboard -->
+            <Border Grid.Row="2" Style="{StaticResource ReportCardStyle}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="📊 Current Period Overview" 
+                               FontSize="18" FontWeight="SemiBold" 
+                               Foreground="{StaticResource TextPrimaryBrush}" 
+                               Margin="0,0,0,16"/>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Total Expenses -->
+                        <Border Grid.Column="0" Style="{StaticResource StatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="💰" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Total Expenses" 
+                                           FontSize="12" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding TotalAmount, StringFormat=C2}" 
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="#E53E3E" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Count -->
+                        <Border Grid.Column="1" Style="{StaticResource StatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="🔢" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Total Count" 
+                                           FontSize="12" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding TotalCount}" 
+                                           FontSize="20" FontWeight="Bold"
+                                           Foreground="{StaticResource AccentBrush}" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Average -->
+                        <Border Grid.Column="2" Style="{StaticResource StatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="📊" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Average Amount" 
+                                           FontSize="12" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding AverageAmount, StringFormat=C2}" 
+                                           FontSize="20" FontWeight="Bold" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Top Category -->
+                        <Border Grid.Column="3" Style="{StaticResource StatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="🏆" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="Top Category" 
+                                           FontSize="12" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding TopCategory}" 
+                                           FontSize="14" FontWeight="Bold"
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
+                                           HorizontalAlignment="Center"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Monthly Growth -->
+                        <Border Grid.Column="4" Style="{StaticResource StatCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="📈" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock Text="vs Last Month" 
+                                           FontSize="12" FontWeight="SemiBold" 
+                                           Foreground="{StaticResource TextTertiaryBrush}" 
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <TextBlock Text="{Binding MonthlyGrowth, StringFormat='+0.0%;-0.0%;0%'}" 
+                                           FontSize="18" FontWeight="Bold"
+                                           HorizontalAlignment="Center">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding MonthlyGrowthPositive}" Value="True">
+                                                    <Setter Property="Foreground" Value="#E53E3E"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding MonthlyGrowthPositive}" Value="False">
+                                                    <Setter Property="Foreground" Value="#48BB78"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Filters Section -->
+            <Border Grid.Row="3" Style="{StaticResource ReportCardStyle}" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" 
+                               Text="🔍 Filters &amp; Search" 
+                               FontSize="16" FontWeight="SemiBold" 
+                               Foreground="{StaticResource TextPrimaryBrush}" 
+                               Margin="0,0,0,12"/>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="200"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Search Box -->
+                        <Border Grid.Column="0" 
+                                BorderBrush="{StaticResource BorderBrush}" 
+                                BorderThickness="1" 
+                                CornerRadius="6" 
+                                Background="White">
+                            <Grid>
+                                <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                         BorderThickness="0" 
+                                         Background="Transparent"
+                                         Padding="12,10" 
+                                         FontSize="14" 
+                                         x:Name="SearchTextBox"/>
+                                <StackPanel Orientation="Horizontal" 
+                                            Margin="16,0,0,0" 
+                                            VerticalAlignment="Center"
+                                            IsHitTestVisible="False">
+                                    <TextBlock Text="🔍" FontSize="14" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Search expenses by reason, category, or notes..." 
+                                               Foreground="{StaticResource TextTertiaryBrush}"
+                                               FontSize="14">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Category Filter -->
+                        <ComboBox Grid.Column="2" 
+                                  ItemsSource="{Binding Categories}" 
+                                  SelectedItem="{Binding SelectedCategory}" 
+                                  FontSize="14" Padding="12,8"
+                                  BorderBrush="{StaticResource BorderBrush}"/>
+
+                        <!-- Date Range -->
+                        <DatePicker Grid.Column="4" 
+                                    SelectedDate="{Binding StartDate}" 
+                                    FontSize="14" Padding="8"
+                                    BorderBrush="{StaticResource BorderBrush}"/>
+
+                        <DatePicker Grid.Column="6" 
+                                    SelectedDate="{Binding EndDate}" 
+                                    FontSize="14" Padding="8"
+                                    BorderBrush="{StaticResource BorderBrush}"/>
+
+                        <!-- Actions -->
+                        <StackPanel Grid.Column="8" Orientation="Horizontal">
+                            <Button Content="🔄" 
+                                    Command="{Binding RefreshCommand}"
+                                    Style="{StaticResource LightIconButtonStyle}" 
+                                    ToolTip="Refresh Data"
+                                    FontSize="16" Margin="0,0,4,0"/>
+                            <Button Content="🗑️" 
+                                    Command="{Binding ClearFiltersCommand}"
+                                    Style="{StaticResource LightIconButtonStyle}" 
+                                    ToolTip="Clear Filters"
+                                    FontSize="16"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Main Content Area -->
+            <Grid Grid.Row="4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="Expense Management" FontSize="24" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8"/>
-                    <TextBlock Text="Track and manage business expenses" FontSize="14" 
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-
-                <Button Grid.Column="1" Content="➕ New Expense" Command="{Binding AddCommand}"
-                        Style="{StaticResource PrimaryButtonStyle}" Padding="16,10" FontWeight="SemiBold"/>
-            </Grid>
-        </Border>
-
-        <!-- Statistics Cards -->
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,20">
-            <Border Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Total Expenses" FontSize="12" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding TotalAmount, StringFormat=C2}" FontSize="24" FontWeight="Bold"
-                               Foreground="#E53E3E"/>
-                </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Total Count" FontSize="12" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding TotalCount}" FontSize="24" FontWeight="Bold"
-                               Foreground="{StaticResource AccentBrush}"/>
-                </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Average Amount" FontSize="12" FontWeight="SemiBold" 
-                               Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,4"/>
-                    <TextBlock Text="{Binding AverageAmount, StringFormat=C2}" FontSize="24" FontWeight="Bold" 
-                               Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <!-- Filters -->
-        <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,20">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="140"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="140"/>
-                    <ColumnDefinition Width="20"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Search TextBox with Watermark -->
-                <Grid Grid.Column="0">
-                    <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource SearchTextBoxStyle}" x:Name="SearchTextBox"/>
-                    <TextBlock Text="🔍 Search expenses..." 
-                               Foreground="{StaticResource TextTertiaryBrush}"
-                               Margin="16,0,0,0" VerticalAlignment="Center"
-                               IsHitTestVisible="False">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
+                    <ColumnDefinition Width="20">
+                        <ColumnDefinition.Style>
+                            <Style TargetType="ColumnDefinition">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Text, ElementName=SearchTextBox}" Value="">
-                                        <Setter Property="Visibility" Value="Visible"/>
+                                    <DataTrigger Binding="{Binding IsEditMode}" Value="False">
+                                        <Setter Property="Width" Value="0"/>
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Grid>
+                        </ColumnDefinition.Style>
+                    </ColumnDefinition>
+                    <ColumnDefinition Width="420" x:Name="EditPanelColumn">
+                        <ColumnDefinition.Style>
+                            <Style TargetType="ColumnDefinition">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditMode}" Value="False">
+                                        <Setter Property="Width" Value="0"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ColumnDefinition.Style>
+                    </ColumnDefinition>
+                </Grid.ColumnDefinitions>
 
-                <ComboBox Grid.Column="2" ItemsSource="{Binding Categories}" 
-                          SelectedItem="{Binding SelectedCategory}" FontSize="14" Padding="8"/>
+                <!-- Expenses DataGrid -->
+                <Border Grid.Column="0" Style="{StaticResource ReportCardStyle}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
 
-                <DatePicker Grid.Column="4" SelectedDate="{Binding StartDate}" FontSize="14" Padding="8"/>
-                <DatePicker Grid.Column="6" SelectedDate="{Binding EndDate}" FontSize="14" Padding="8"/>
+                        <TextBlock Grid.Row="0" 
+                                   Text="📋 Expense Records" 
+                                   FontSize="16" FontWeight="SemiBold" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" 
+                                   Margin="0,0,0,12"/>
 
-                <Button Grid.Column="8" Content="🔄 Refresh" Command="{Binding RefreshCommand}"
-                        Style="{StaticResource SecondaryButtonStyle}" Padding="12,8"/>
-            </Grid>
-        </Border>
+                        <DataGrid Grid.Row="1" 
+                                  ItemsSource="{Binding Expenses}" 
+                                  SelectedItem="{Binding SelectedExpense}"
+                                  AutoGenerateColumns="False" 
+                                  CanUserAddRows="False" 
+                                  CanUserDeleteRows="False"
+                                  Style="{StaticResource ModernDataGridStyle}"
+                                  GridLinesVisibility="Horizontal"
+                                  HeadersVisibility="Column">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="📅 Date" 
+                                                    Binding="{Binding Date, StringFormat='MMM dd, yyyy'}" 
+                                                    Width="110" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="📝 Reason" 
+                                                    Binding="{Binding Reason}" 
+                                                    Width="*" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="🏷️ Category" 
+                                                    Binding="{Binding Category}" 
+                                                    Width="120" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="💰 Amount" 
+                                                    Binding="{Binding Amount, StringFormat=C2}" 
+                                                    Width="100" IsReadOnly="True">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                            <Setter Property="Foreground" Value="#E53E3E"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTemplateColumn Header="⚡ Actions" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="✏️" 
+                                                        Command="{Binding DataContext.EditCommand, 
+                                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}" 
+                                                        ToolTip="Edit Expense"
+                                                        Style="{StaticResource LightIconButtonStyle}" 
+                                                        FontSize="14" Margin="2"/>
+                                                <Button Content="🗑️" 
+                                                        Command="{Binding DataContext.DeleteCommand, 
+                                                                RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}" 
+                                                        ToolTip="Delete Expense"
+                                                        Style="{StaticResource LightIconButtonStyle}" 
+                                                        FontSize="14" Margin="2"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </Border>
 
-        <!-- Main Content -->
-        <Grid Grid.Row="3">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="20">
-                    <ColumnDefinition.Style>
-                        <Style TargetType="ColumnDefinition">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsEditMode}" Value="False">
-                                    <Setter Property="Width" Value="0"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ColumnDefinition.Style>
-                </ColumnDefinition>
-                <ColumnDefinition Width="400" x:Name="EditPanelColumn">
-                    <ColumnDefinition.Style>
-                        <Style TargetType="ColumnDefinition">
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsEditMode}" Value="False">
-                                    <Setter Property="Width" Value="0"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ColumnDefinition.Style>
-                </ColumnDefinition>
-            </Grid.ColumnDefinitions>
+                <!-- Edit Panel -->
+                <Border Grid.Column="2" 
+                        Style="{StaticResource ReportCardStyle}"
+                        Visibility="{Binding IsEditMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Text="{Binding CurrentExpense.ExpenseId, Converter={StaticResource ExpenseIdToTitleConverter}}"
+                                       FontSize="20" FontWeight="Bold" Margin="0,0,0,20"
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
 
-            <!-- Expenses List -->
-            <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
-                <DataGrid ItemsSource="{Binding Expenses}" SelectedItem="{Binding SelectedExpense}"
-                          AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                          Style="{StaticResource ModernDataGridStyle}">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Date" Binding="{Binding Date, StringFormat='MMM dd, yyyy'}" 
-                                            Width="100" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" 
-                                            Width="*" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" 
-                                            Width="120" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat=C2}" 
-                                            Width="100" IsReadOnly="True">
-                            <DataGridTextColumn.ElementStyle>
-                                <Style TargetType="TextBlock">
-                                    <Setter Property="HorizontalAlignment" Value="Right"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="Foreground" Value="#E53E3E"/>
-                                </Style>
-                            </DataGridTextColumn.ElementStyle>
-                        </DataGridTextColumn>
-                        <DataGridTemplateColumn Header="Actions" Width="120">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                        <Button Content="✏️" Command="{Binding DataContext.EditCommand, 
-                                                        RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}" ToolTip="Edit"
-                                                Style="{StaticResource LightIconButtonStyle}" Margin="2"/>
-                                        <Button Content="🗑️" Command="{Binding DataContext.DeleteCommand, 
-                                                        RelativeSource={RelativeSource AncestorType=DataGrid}}"
-                                                CommandParameter="{Binding}" ToolTip="Delete"
-                                                Style="{StaticResource LightIconButtonStyle}" Margin="2"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Border>
+                            <!-- Reason Field -->
+                            <TextBlock Text="Expense Reason *" 
+                                       FontWeight="SemiBold" Margin="0,0,0,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBox Text="{Binding CurrentExpense.Reason, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,0,16" Padding="12,10" FontSize="14"
+                                     BorderBrush="{StaticResource BorderBrush}"/>
 
-            <!-- Edit Panel -->
-            <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}"
-                    Visibility="{Binding IsEditMode, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock Text="{Binding CurrentExpense.ExpenseId, Converter={StaticResource ExpenseIdToTitleConverter}}"
-                                   FontSize="18" FontWeight="SemiBold" Margin="0,0,0,20"
-                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                            <!-- Amount Field -->
+                            <TextBlock Text="Amount (USD) *" 
+                                       FontWeight="SemiBold" Margin="0,0,0,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBox Text="{Binding CurrentExpense.Amount, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,0,0,16" Padding="12,10" FontSize="14"
+                                     BorderBrush="{StaticResource BorderBrush}"/>
 
-                        <TextBlock Text="Reason *" FontWeight="SemiBold" Margin="0,0,0,5"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding CurrentExpense.Reason, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,15" Padding="8" FontSize="14"/>
+                            <!-- Category Field -->
+                            <TextBlock Text="Category *" 
+                                       FontWeight="SemiBold" Margin="0,0,0,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <ComboBox ItemsSource="{Binding Categories}" 
+                                      SelectedItem="{Binding CurrentExpense.Category}"
+                                      Margin="0,0,0,16" Padding="12,10" FontSize="14"
+                                      BorderBrush="{StaticResource BorderBrush}"/>
 
-                        <TextBlock Text="Amount *" FontWeight="SemiBold" Margin="0,0,0,5"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding CurrentExpense.Amount, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,0,15" Padding="8" FontSize="14"/>
+                            <!-- Date Field -->
+                            <TextBlock Text="Date *" 
+                                       FontWeight="SemiBold" Margin="0,0,0,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <DatePicker SelectedDate="{Binding CurrentExpense.Date}"
+                                        Margin="0,0,0,16" Padding="12,10" FontSize="14"
+                                        BorderBrush="{StaticResource BorderBrush}"/>
 
-                        <TextBlock Text="Category *" FontWeight="SemiBold" Margin="0,0,0,5"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <ComboBox ItemsSource="{Binding Categories}" 
-                                  SelectedItem="{Binding CurrentExpense.Category}"
-                                  Margin="0,0,0,15" Padding="8" FontSize="14"/>
+                            <!-- Notes Field -->
+                            <TextBlock Text="Notes &amp; Details" 
+                                       FontWeight="SemiBold" Margin="0,0,0,6"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBox Text="{Binding CurrentExpense.Notes, UpdateSourceTrigger=PropertyChanged}"
+                                     TextWrapping="Wrap" AcceptsReturn="True" Height="90"
+                                     Margin="0,0,0,16" Padding="12,10" FontSize="14"
+                                     VerticalScrollBarVisibility="Auto"
+                                     BorderBrush="{StaticResource BorderBrush}"/>
 
-                        <TextBlock Text="Date *" FontWeight="SemiBold" Margin="0,0,0,5"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <DatePicker SelectedDate="{Binding CurrentExpense.Date}"
-                                    Margin="0,0,0,15" Padding="8" FontSize="14"/>
+                            <!-- Recurring Checkbox -->
+                            <CheckBox Content="🔄 Recurring Expense" 
+                                      IsChecked="{Binding CurrentExpense.IsRecurring}"
+                                      Margin="0,0,0,24" FontSize="14" FontWeight="SemiBold"/>
 
-                        <TextBlock Text="Notes" FontWeight="SemiBold" Margin="0,0,0,5"
-                                   Foreground="{StaticResource TextSecondaryBrush}"/>
-                        <TextBox Text="{Binding CurrentExpense.Notes, UpdateSourceTrigger=PropertyChanged}"
-                                 TextWrapping="Wrap" AcceptsReturn="True" Height="80"
-                                 Margin="0,0,0,15" Padding="8" FontSize="14"
-                                 VerticalScrollBarVisibility="Auto"/>
-
-                        <CheckBox Content="Recurring Expense" IsChecked="{Binding CurrentExpense.IsRecurring}"
-                                  Margin="0,0,0,20" FontSize="14"/>
-
-                        <StackPanel Orientation="Horizontal">
-                            <Button Content="💾 Save" Command="{Binding SaveCommand}"
-                                    Style="{StaticResource PrimaryButtonStyle}" Margin="0,0,10,0"/>
-                            <Button Content="❌ Cancel" Command="{Binding CancelCommand}"
-                                    Style="{StaticResource SecondaryButtonStyle}"/>
+                            <!-- Action Buttons -->
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="💾 Save Changes" 
+                                        Command="{Binding SaveCommand}"
+                                        Style="{StaticResource ModernButtonStyle}" 
+                                        Margin="0,0,12,0"/>
+                                <Button Content="❌ Cancel" 
+                                        Command="{Binding CancelCommand}"
+                                        Style="{StaticResource SecondaryButtonStyle}"
+                                        Padding="16,10" FontWeight="SemiBold"/>
+                            </StackPanel>
                         </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </Grid>
+
+            <!-- Loading Overlay -->
+            <Border Grid.Row="0" Grid.RowSpan="5" 
+                    Background="#90FFFFFF"
+                    Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Panel.ZIndex="999">
+                <Border Background="{StaticResource SurfaceBrush}"
+                        BorderBrush="{StaticResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="32,24"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="10" Direction="270" ShadowDepth="4" 
+                                          Color="{StaticResource ShadowColor}" Opacity="0.2"/>
+                    </Border.Effect>
+                    <StackPanel>
+                        <ProgressBar IsIndeterminate="True" 
+                                     Width="280" Height="6" 
+                                     Margin="0,0,0,16"
+                                     Background="#E2E8F0"
+                                     Foreground="{StaticResource AccentBrush}"/>
+                        <TextBlock Text="{Binding LoadingMessage, FallbackValue='Loading expenses...'}"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextAlignment="Center"/>
                     </StackPanel>
-                </ScrollViewer>
+                </Border>
             </Border>
         </Grid>
-
-        <!-- Loading Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="4" Background="#80FFFFFF"
-                Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="200" Height="4" Margin="0,0,0,16"/>
-                <TextBlock Text="Loading..." FontSize="16" Foreground="{StaticResource TextSecondaryBrush}"/>
-            </StackPanel>
-        </Border>
-    </Grid>
+    </ScrollViewer>
 </UserControl>
