@@ -3,35 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:converters="clr-namespace:QuickTechSystems.WPF.Converters"
              mc:Ignorable="d"
              x:Name="ExpenseViewRoot">
 
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
-        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-        <converters:DecimalConverter x:Key="DecimalConverter"/>
-        <converters:BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
 
         <!-- Card Style -->
         <Style x:Key="StatCardStyle" TargetType="Border">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="20"/>
             <Setter Property="Margin" Value="8"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="Gray" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.1"/>
+                    <DropShadowEffect Color="{StaticResource ShadowColor}" Direction="270" ShadowDepth="2" BlurRadius="8" Opacity="0.1"/>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <!-- Filter Button Style -->
         <Style x:Key="FilterButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#F3F4F6"/>
-            <Setter Property="BorderBrush" Value="#D1D5DB"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Margin" Value="4,0"/>
@@ -49,80 +45,23 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E5E7EB"/>
+                                <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
                             </Trigger>
-                            <DataTrigger Binding="{Binding SelectedQuickFilter}" Value="{Binding Content, RelativeSource={RelativeSource Self}}">
-                                <Setter Property="Background" Value="#3B82F6"/>
-                                <Setter Property="Foreground" Value="White"/>
-                                <Setter Property="BorderBrush" Value="#3B82F6"/>
-                            </DataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
-        <!-- Primary Button Style -->
-        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#3B82F6"/>
+        <!-- Active Filter Button Style -->
+        <Style x:Key="ActiveFilterButtonStyle" TargetType="Button" BasedOn="{StaticResource FilterButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="6"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#2563EB"/>
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#1D4ED8"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- Secondary Button Style -->
-        <Style x:Key="SecondaryButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="#374151"/>
-            <Setter Property="BorderBrush" Value="#D1D5DB"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#F9FAFB"/>
-                                <Setter Property="BorderBrush" Value="#9CA3AF"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
         </Style>
     </UserControl.Resources>
 
-    <Grid Background="#F9FAFB">
+    <Grid Background="{StaticResource PrimaryBackgroundBrush}">
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <Grid Margin="24">
                 <Grid.RowDefinitions>
@@ -141,14 +80,14 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel>
-                        <TextBlock Text="Expense Management" 
+                        <TextBlock Text="{DynamicResource Expense_Title}" 
                                    FontSize="28" 
                                    FontWeight="Bold" 
-                                   Foreground="#111827" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" 
                                    Margin="0,0,0,8"/>
-                        <TextBlock Text="Track and manage all your business expenses" 
+                        <TextBlock Text="{DynamicResource Expense_Subtitle}" 
                                    FontSize="16" 
-                                   Foreground="#6B7280"/>
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
@@ -162,7 +101,7 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Margin="0,0,12,0"
                                 Height="36"/>
-                        <Button Content="Add New Expense" 
+                        <Button Content="{DynamicResource Expense_AddNew}" 
                                 Command="{Binding ClearCommand}"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Height="36"/>
@@ -183,15 +122,15 @@
                         <StackPanel>
                             <TextBlock Text="Total Expenses" 
                                        FontSize="14" 
-                                       Foreground="#6B7280" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,0,0,8"/>
                             <TextBlock Text="{Binding TotalExpenseAmount, StringFormat=C2}" 
                                        FontSize="24" 
                                        FontWeight="Bold" 
-                                       Foreground="#111827"/>
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text="{Binding TotalExpenseCount, StringFormat='{}{0} transactions'}" 
                                        FontSize="12" 
-                                       Foreground="#9CA3AF" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
@@ -201,15 +140,15 @@
                         <StackPanel>
                             <TextBlock Text="Average Expense" 
                                        FontSize="14" 
-                                       Foreground="#6B7280" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,0,0,8"/>
                             <TextBlock Text="{Binding AverageExpenseAmount, StringFormat=C2}" 
                                        FontSize="24" 
                                        FontWeight="Bold" 
-                                       Foreground="#111827"/>
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text="per transaction" 
                                        FontSize="12" 
-                                       Foreground="#9CA3AF" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
@@ -219,15 +158,15 @@
                         <StackPanel>
                             <TextBlock Text="This Month" 
                                        FontSize="14" 
-                                       Foreground="#6B7280" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,0,0,8"/>
                             <TextBlock Text="{Binding ThisMonthExpenses, StringFormat=C2}" 
                                        FontSize="24" 
                                        FontWeight="Bold" 
-                                       Foreground="#DC2626"/>
+                                       Foreground="{StaticResource ErrorTextBrush}"/>
                             <TextBlock Text="monthly spending" 
                                        FontSize="12" 
-                                       Foreground="#9CA3AF" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
@@ -237,33 +176,27 @@
                         <StackPanel>
                             <TextBlock Text="Top Category" 
                                        FontSize="14" 
-                                       Foreground="#6B7280" 
+                                       Foreground="{StaticResource TextTertiaryBrush}" 
                                        Margin="0,0,0,8"/>
                             <TextBlock Text="{Binding TopCategory}" 
                                        FontSize="16" 
                                        FontWeight="SemiBold" 
-                                       Foreground="#111827"/>
+                                       Foreground="{StaticResource TextPrimaryBrush}"/>
                             <TextBlock Text="{Binding TopCategoryAmount, StringFormat=C2}" 
                                        FontSize="14" 
-                                       Foreground="#059669" 
+                                       Foreground="{StaticResource SuccessBrush}" 
                                        Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
                 <!-- Quick Filters -->
-                <Border Grid.Row="2" 
-                        Background="White" 
-                        BorderBrush="#E5E7EB" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="20" 
-                        Margin="0,0,0,24">
+                <Border Grid.Row="2" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,24">
                     <StackPanel>
                         <TextBlock Text="Quick Filters" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 
-                                   Foreground="#111827" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" 
                                    Margin="0,0,0,16"/>
                         <WrapPanel Orientation="Horizontal">
                             <Button Content="Today" 
@@ -307,13 +240,7 @@
                 </Border>
 
                 <!-- Advanced Filters -->
-                <Border Grid.Row="3" 
-                        Background="White" 
-                        BorderBrush="#E5E7EB" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="20" 
-                        Margin="0,0,0,24">
+                <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Margin="0,0,0,24">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -325,7 +252,7 @@
                                    Text="Advanced Filters" 
                                    FontSize="16" 
                                    FontWeight="SemiBold" 
-                                   Foreground="#111827" 
+                                   Foreground="{StaticResource TextPrimaryBrush}" 
                                    Margin="0,0,0,16"/>
 
                         <!-- Search and Category Row -->
@@ -341,48 +268,48 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Search" 
                                            FontSize="14" 
-                                           Foreground="#374151" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
                                            Margin="0,0,0,6"/>
                                 <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" 
                                          Height="36"
                                          Padding="12,8"
-                                         BorderBrush="#D1D5DB"
-                                         Background="White"
+                                         BorderBrush="{StaticResource BorderBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          FontSize="14"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Category" 
+                                <TextBlock Text="{DynamicResource Expense_CategoryHeader}" 
                                            FontSize="14" 
-                                           Foreground="#374151" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
                                            Margin="0,0,0,6"/>
                                 <ComboBox ItemsSource="{Binding Categories}"
                                          SelectedItem="{Binding SelectedCategory}"
                                          Height="36"
                                          Padding="12,8"
-                                         BorderBrush="#D1D5DB"
-                                         Background="White"
+                                         BorderBrush="{StaticResource BorderBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          FontSize="14"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="4">
                                 <TextBlock Text="Sort By" 
                                            FontSize="14" 
-                                           Foreground="#374151" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
                                            Margin="0,0,0,6"/>
                                 <ComboBox ItemsSource="{Binding SortOptions}"
                                          SelectedItem="{Binding SortBy}"
                                          Height="36"
                                          Padding="12,8"
-                                         BorderBrush="#D1D5DB"
-                                         Background="White"
+                                         BorderBrush="{StaticResource BorderBrush}"
+                                         Background="{StaticResource SurfaceBrush}"
                                          FontSize="14"/>
                             </StackPanel>
                         </Grid>
 
                         <!-- Date Range Row -->
                         <Grid Grid.Row="2" 
-                              Visibility="{Binding IsCustomDateRange, Converter={StaticResource BoolToVisConverter}}">
+                              Visibility="{Binding IsCustomDateRange, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="20"/>
@@ -394,28 +321,28 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="From Date" 
+                                <TextBlock Text="{DynamicResource Expense_FromDate}" 
                                            FontSize="14" 
-                                           Foreground="#374151" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
                                            Margin="0,0,0,6"/>
                                 <DatePicker SelectedDate="{Binding FilterStartDate}"
                                            Height="36"
                                            Padding="12,8"
-                                           BorderBrush="#D1D5DB"
-                                           Background="White"
+                                           BorderBrush="{StaticResource BorderBrush}"
+                                           Background="{StaticResource SurfaceBrush}"
                                            FontSize="14"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="To Date" 
                                            FontSize="14" 
-                                           Foreground="#374151" 
+                                           Foreground="{StaticResource TextSecondaryBrush}" 
                                            Margin="0,0,0,6"/>
                                 <DatePicker SelectedDate="{Binding FilterEndDate}"
                                            Height="36"
                                            Padding="12,8"
-                                           BorderBrush="#D1D5DB"
-                                           Background="White"
+                                           BorderBrush="{StaticResource BorderBrush}"
+                                           Background="{StaticResource SurfaceBrush}"
                                            FontSize="14"/>
                             </StackPanel>
 
@@ -427,7 +354,7 @@
                                       FontSize="14"/>
 
                             <Button Grid.Column="6"
-                                    Content="Apply Filters"
+                                    Content="{DynamicResource Expense_ApplyFilter}"
                                     Command="{Binding ApplyFilterCommand}"
                                     Style="{StaticResource PrimaryButtonStyle}"
                                     VerticalAlignment="Bottom"
@@ -437,12 +364,7 @@
                 </Border>
 
                 <!-- Data Grid -->
-                <Border Grid.Row="4" 
-                        Background="White" 
-                        BorderBrush="#E5E7EB" 
-                        BorderThickness="1" 
-                        CornerRadius="8" 
-                        Padding="0">
+                <Border Grid.Row="4" Style="{StaticResource CardBorderStyle}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -451,8 +373,8 @@
 
                         <!-- Grid Header -->
                         <Border Grid.Row="0" 
-                                Background="#F9FAFB" 
-                                BorderBrush="#E5E7EB" 
+                                Background="{StaticResource PrimaryBackgroundBrush}" 
+                                BorderBrush="{StaticResource BorderBrush}" 
                                 BorderThickness="0,0,0,1" 
                                 Padding="20,16">
                             <Grid>
@@ -461,15 +383,15 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Text="{Binding TotalExpenseCount, StringFormat='Showing {0} expenses'}" 
+                                <TextBlock Text="{Binding TotalExpenseCount, StringFormat='{}{0} expenses shown'}" 
                                            FontSize="14" 
-                                           Foreground="#6B7280"/>
+                                           Foreground="{StaticResource TextTertiaryBrush}"/>
 
                                 <TextBlock Grid.Column="1" 
                                            Text="{Binding TotalExpenseAmount, StringFormat='Total: {0:C2}'}" 
                                            FontSize="14" 
                                            FontWeight="SemiBold" 
-                                           Foreground="#111827"/>
+                                           Foreground="{StaticResource TextPrimaryBrush}"/>
                             </Grid>
                         </Border>
 
@@ -477,100 +399,58 @@
                         <DataGrid Grid.Row="1"
                                   ItemsSource="{Binding FilteredExpenses}"
                                   SelectedItem="{Binding SelectedExpense}"
+                                  Style="{StaticResource ModernDataGridStyle}"
                                   AutoGenerateColumns="False"
-                                  HeadersVisibility="Column"
-                                  GridLinesVisibility="None"
-                                  Background="White"
-                                  BorderThickness="0"
-                                  RowBackground="White"
-                                  AlternatingRowBackground="#FAFAFA"
-                                  FontSize="14"
-                                  RowHeight="48"
                                   MouseDoubleClick="DataGrid_MouseDoubleClick">
 
-                            <DataGrid.ColumnHeaderStyle>
-                                <Style TargetType="DataGridColumnHeader">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="Foreground" Value="#374151"/>
-                                    <Setter Property="FontWeight" Value="SemiBold"/>
-                                    <Setter Property="FontSize" Value="13"/>
-                                    <Setter Property="Padding" Value="16,12"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
-                                </Style>
-                            </DataGrid.ColumnHeaderStyle>
-
-                            <DataGrid.CellStyle>
-                                <Style TargetType="DataGridCell">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Setter Property="Padding" Value="16,12"/>
-                                    <Setter Property="Template">
-                                        <Setter.Value>
-                                            <ControlTemplate TargetType="DataGridCell">
-                                                <Border Background="{TemplateBinding Background}" 
-                                                        Padding="{TemplateBinding Padding}">
-                                                    <ContentPresenter VerticalAlignment="Center"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </Setter.Value>
-                                    </Setter>
-                                </Style>
-                            </DataGrid.CellStyle>
-
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Date" 
+                                <DataGridTextColumn Header="{DynamicResource Expense_DateHeader}" 
                                                     Binding="{Binding Date, StringFormat=dd/MM/yyyy}" 
                                                     Width="100"/>
 
-                                <DataGridTextColumn Header="Description" 
+                                <DataGridTextColumn Header="{DynamicResource Expense_ReasonHeader}" 
                                                     Binding="{Binding Reason}" 
-                                                    Width="*">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#111827"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                                    Width="*"/>
 
-                                <DataGridTextColumn Header="Category" 
+                                <DataGridTextColumn Header="{DynamicResource Expense_CategoryHeader}" 
                                                     Binding="{Binding Category}" 
-                                                    Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Background" Value="#EFF6FF"/>
-                                            <Setter Property="Foreground" Value="#1E40AF"/>
-                                            <Setter Property="Padding" Value="8,4"/>
-                                            <Setter Property="TextAlignment" Value="Center"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                                    Width="120"/>
 
-                                <DataGridTextColumn Header="Amount" 
+                                <DataGridTextColumn Header="{DynamicResource Expense_AmountHeader}" 
                                                     Binding="{Binding Amount, StringFormat=C2}" 
-                                                    Width="120">
-                                    <DataGridTextColumn.ElementStyle>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="FontWeight" Value="SemiBold"/>
-                                            <Setter Property="Foreground" Value="#DC2626"/>
-                                            <Setter Property="TextAlignment" Value="Right"/>
-                                        </Style>
-                                    </DataGridTextColumn.ElementStyle>
-                                </DataGridTextColumn>
+                                                    Width="120"/>
 
-                                <DataGridTemplateColumn Header="Recurring" Width="80">
+                                <DataGridTemplateColumn Header="{DynamicResource Expense_RecurringHeader}" Width="80">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
-                                            <Border Background="{Binding IsRecurring, Converter={StaticResource BooleanToBrushConverter}}"
-                                                    CornerRadius="12"
+                                            <Border CornerRadius="12"
                                                     Padding="8,4"
                                                     HorizontalAlignment="Center">
-                                                <TextBlock Text="{Binding IsRecurring, Converter={StaticResource BoolToTextConverter}, ConverterParameter='Yes|No'}"
-                                                           Foreground="White"
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="{StaticResource TextTertiaryBrush}"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRecurring}" Value="True">
+                                                                <Setter Property="Background" Value="{StaticResource SuccessBrush}"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <TextBlock Foreground="White"
                                                            FontSize="11"
                                                            FontWeight="SemiBold"
-                                                           TextAlignment="Center"/>
+                                                           TextAlignment="Center">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Text" Value="No"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsRecurring}" Value="True">
+                                                                    <Setter Property="Text" Value="Yes"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
                                             </Border>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -580,23 +460,23 @@
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Button Content="Edit"
+                                                <Button Content="{DynamicResource Expense_Edit}"
                                                         Command="{Binding DataContext.EditCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
-                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Style="{StaticResource LightIconButtonStyle}"
                                                         Width="50"
                                                         Height="28"
                                                         FontSize="11"
                                                         Margin="2"/>
-                                                <Button Content="Delete"
+                                                <Button Content="{DynamicResource Expense_Delete}"
                                                         Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
-                                                        Style="{StaticResource SecondaryButtonStyle}"
+                                                        Style="{StaticResource LightIconButtonStyle}"
                                                         Width="50"
                                                         Height="28"
                                                         FontSize="11"
                                                         Margin="2"
-                                                        Foreground="#DC2626"/>
+                                                        Foreground="{StaticResource ErrorTextBrush}"/>
                                             </StackPanel>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
@@ -605,17 +485,9 @@
 
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
-                                    <MenuItem Header="Edit Expense" Click="EditMenuItem_Click">
-                                        <MenuItem.Icon>
-                                            <TextBlock Text="✏️" FontSize="12"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    <MenuItem Header="{DynamicResource Expense_Edit}" Click="EditMenuItem_Click"/>
                                     <Separator/>
-                                    <MenuItem Header="Delete Expense" Click="DeleteMenuItem_Click">
-                                        <MenuItem.Icon>
-                                            <TextBlock Text="🗑️" FontSize="12"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    <MenuItem Header="{DynamicResource Expense_Delete}" Click="DeleteMenuItem_Click"/>
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                         </DataGrid>
@@ -630,7 +502,7 @@
                         CornerRadius="8">
                     <StackPanel HorizontalAlignment="Center" 
                                 VerticalAlignment="Center">
-                        <Border Background="White" 
+                        <Border Background="{StaticResource SurfaceBrush}" 
                                 CornerRadius="8" 
                                 Padding="40,30">
                             <StackPanel HorizontalAlignment="Center">
@@ -641,7 +513,7 @@
                                 <TextBlock Text="Processing..." 
                                            FontSize="16" 
                                            FontWeight="SemiBold" 
-                                           Foreground="#374151"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
                                            HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>

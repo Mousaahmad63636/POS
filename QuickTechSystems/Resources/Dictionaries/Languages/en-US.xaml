@@ -740,6 +740,30 @@
     <system:String x:Key="Drawer_TransactionAmountHeader">Transaction Amount</system:String>
     <system:String x:Key="Drawer_ResultingBalanceHeader">Resulting Balance</system:String>
 
+    <!-- Expense Management Resources -->
+  
+    <system:String x:Key="Expense_Export">Export</system:String>
+    <system:String x:Key="Expense_Refresh">Refresh</system:String>
+    <system:String x:Key="Expense_TotalExpenses">Total Expenses</system:String>
+    <system:String x:Key="Expense_AverageExpense">Average Expense</system:String>
+    <system:String x:Key="Expense_PerTransaction">per transaction</system:String>
+    <system:String x:Key="Expense_MonthlySpending">monthly spending</system:String>
+    <system:String x:Key="Expense_TopCategory">Top Category</system:String>
+    <system:String x:Key="Expense_QuickFilters">Quick Filters</system:String>
+    <system:String x:Key="Expense_Today">Today</system:String>
+    <system:String x:Key="Expense_Yesterday">Yesterday</system:String>
+    <system:String x:Key="Expense_ThisWeek">This Week</system:String>
+    <system:String x:Key="Expense_LastWeek">Last Week</system:String>
+    <system:String x:Key="Expense_LastMonth">Last Month</system:String>
+    <system:String x:Key="Expense_ThisQuarter">This Quarter</system:String>
+    <system:String x:Key="Expense_ThisYear">This Year</system:String>
+    <system:String x:Key="Expense_Custom">Custom</system:String>
+    <system:String x:Key="Expense_AdvancedFilters">Advanced Filters</system:String>
+    <system:String x:Key="Expense_Search">Search</system:String>
+    <system:String x:Key="Expense_SortBy">Sort By</system:String>
+    <system:String x:Key="Expense_ToDate">To Date</system:String>
+    <system:String x:Key="Expense_Descending">Descending</system:String>
+    <system:String x:Key="Expense_Actions">Actions</system:String>
 
     <!-- Add Cash Popup -->
     <system:String x:Key="Drawer_AddCashTitle">Add Cash</system:String>

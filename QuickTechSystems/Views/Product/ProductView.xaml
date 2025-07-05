@@ -1,4 +1,4 @@
-﻿  <UserControl x:Class="QuickTechSystems.WPF.Views.ProductView"
+﻿<UserControl x:Class="QuickTechSystems.WPF.Views.ProductView"
              x:Name="ProductViewControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -173,7 +173,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
-                    
+
                 </Grid.RowDefinitions>
 
                 <!-- Filters -->
@@ -207,8 +207,13 @@
                                         <TextBlock Text="Search" 
                                    Margin="36,0,12,0" VerticalAlignment="Center"
                                    Foreground="{StaticResource TextTertiaryBrush}" FontSize="14"
-                                   IsHitTestVisible="False"
-                                   Visibility="{Binding SearchText, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=Inverse}"/>
+                                   IsHitTestVisible="False">
+                                            <TextBlock.Visibility>
+                                                <MultiBinding Converter="{StaticResource StringToVisibilityConverter}" ConverterParameter="Inverse">
+                                                    <Binding Path="SearchText"/>
+                                                </MultiBinding>
+                                            </TextBlock.Visibility>
+                                        </TextBlock>
                                     </Grid>
                                 </Border>
                             </StackPanel>

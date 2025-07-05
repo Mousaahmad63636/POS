@@ -15,7 +15,7 @@
              xmlns:welcomeVm="clr-namespace:QuickTechSystems.ViewModels.Welcome"
              xmlns:transactionVm="clr-namespace:QuickTechSystems.ViewModels.Transaction"
              xmlns:views="clr-namespace:QuickTechSystems.WPF.Views">
-    
+
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
