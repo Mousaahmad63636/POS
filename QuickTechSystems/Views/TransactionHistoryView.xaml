@@ -255,51 +255,6 @@
             </Grid>
         </Border>
 
-        <!-- Pagination Info -->
-        <Border Grid.Row="3" Style="{StaticResource PaginationCardStyle}">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Page Information -->
-                <TextBlock Grid.Column="0" 
-                           Text="{Binding PageInfo, Mode=OneWay}" 
-                           FontSize="14" 
-                           Foreground="{StaticResource TextSecondaryBrush}" 
-                           VerticalAlignment="Center"/>
-
-                <!-- Pagination Controls -->
-                <StackPanel Grid.Column="1" 
-                            Orientation="Horizontal" 
-                            VerticalAlignment="Center">
-                    <Button Content="{DynamicResource TransactionHistory_First}" 
-                            Command="{Binding FirstPageCommand}" 
-                            Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="{DynamicResource TransactionHistory_Previous}" 
-                            Command="{Binding PreviousPageCommand}" 
-                            Style="{StaticResource PaginationButtonStyle}"/>
-
-                    <!-- Current Page Display -->
-                    <Border Background="{StaticResource AccentBrush}" 
-                            CornerRadius="4" 
-                            Padding="12,6" 
-                            Margin="5,2">
-                        <TextBlock Text="{Binding CurrentPage, Mode=OneWay}" 
-                                   Foreground="White" 
-                                   FontWeight="Bold"/>
-                    </Border>
-
-                    <Button Content="{DynamicResource TransactionHistory_Next}" 
-                            Command="{Binding NextPageCommand}" 
-                            Style="{StaticResource PaginationButtonStyle}"/>
-                    <Button Content="{DynamicResource TransactionHistory_Last}" 
-                            Command="{Binding LastPageCommand}" 
-                            Style="{StaticResource PaginationButtonStyle}"/>
-                </StackPanel>
-            </Grid>
-        </Border>
 
         <!-- Transaction List Section -->
         <ScrollViewer Grid.Row="4" 
