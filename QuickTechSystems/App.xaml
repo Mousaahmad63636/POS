@@ -55,13 +55,13 @@
             <converters:IntZeroToBoolConverter x:Key="IntZeroToBoolConverter"/>
             <converters:InverseNullToVisibilityConverter x:Key="InverseNullToVisibilityConverter"/>
             <converters:FilePathToImageConverter x:Key="FilePathToImageConverter"/>
-            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+      
             <converters:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
             <converters:ByteArrayToImageConverter x:Key="ByteArrayToImageConverter"/>
             <converters:LessThanZeroConverter x:Key="LessThanZeroConverter"/>
             <converters:NegativeValueConverter x:Key="NegativeValueConverter"/>
             <converters:CategoryHighlightConverter x:Key="CategoryHighlightConverter"/>
-            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+           
             <converters:BoolToTextConverter x:Key="BoolToTextConverter"/>
             <converters:CollectionSumConverter x:Key="CollectionSumConverter"/>
             <converters:BooleanToBrushConverter x:Key="BooleanToBrushConverter"/>
@@ -70,7 +70,9 @@
             <converters:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
             <converters:MultiValueStockToBoxesConverter x:Key="MultiValueStockToBoxesConverter"/>
             <converters:StatusToColorConverter x:Key="StatusToColorConverter"/>
-
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <converters:BooleanToGridLengthConverter x:Key="BooleanToGridLengthConverter"/>
             <Style x:Key="CardBorderStyle" TargetType="Border">
                 <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
                 <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
@@ -86,7 +88,14 @@
                     </Setter.Value>
                 </Setter>
             </Style>
-
+            <Style x:Key="EditPanelColumnStyle" TargetType="ColumnDefinition">
+                <Setter Property="Width" Value="400"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsEditMode}" Value="False">
+                        <Setter Property="Width" Value="0"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
             <Style x:Key="LightIconButtonStyle" TargetType="Button">
                 <Setter Property="Background" Value="Transparent"/>
                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using AutoMapper;
+﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using QuickTechSystems.Application.DTOs;
 using QuickTechSystems.Application.Events;
@@ -13,10 +12,6 @@ namespace QuickTechSystems.Application.Services
     public class ExpenseService : BaseService<Expense, ExpenseDTO>, IExpenseService
     {
         private readonly IDrawerService _drawerService;
-        private readonly Dictionary<int, DateTime> _operationTimestamps;
-        private readonly HashSet<int> _activeOperations;
-        private readonly Dictionary<string, SemaphoreSlim> _operationLocks;
-        private readonly object _operationManager = new object();
 
         public ExpenseService(
             IUnitOfWork unitOfWork,
@@ -27,9 +22,6 @@ namespace QuickTechSystems.Application.Services
             : base(unitOfWork, mapper, eventAggregator, dbContextScopeService)
         {
             _drawerService = drawerService;
-            _operationTimestamps = new Dictionary<int, DateTime>();
-            _activeOperations = new HashSet<int>();
-            _operationLocks = new Dictionary<string, SemaphoreSlim>();
         }
 
         public async Task<decimal> GetTotalExpensesAsync(DateTime startDate, DateTime endDate)
@@ -102,24 +94,11 @@ namespace QuickTechSystems.Application.Services
         {
             return await ExecuteServiceOperationAsync(async () =>
             {
-                if (string.IsNullOrWhiteSpace(dto.Reason))
-                    throw new InvalidOperationException("Expense reason is required");
-
-                if (dto.Amount <= 0)
-                    throw new InvalidOperationException("Amount must be greater than zero");
-
-                var drawer = await _drawerService.GetCurrentDrawerAsync();
-                if (drawer == null)
-                    throw new InvalidOperationException("No active drawer found");
-
-                if (dto.Amount > drawer.CurrentBalance)
-                    throw new InvalidOperationException("Insufficient funds in drawer");
+                ValidateExpense(dto);
 
                 using var transaction = await _unitOfWork.BeginTransactionAsync();
                 try
                 {
-                    _unitOfWork.DetachAllEntities();
-
                     var entity = new Expense
                     {
                         Reason = dto.Reason,
@@ -142,24 +121,14 @@ namespace QuickTechSystems.Application.Services
 
                     await transaction.CommitAsync();
 
-                    _unitOfWork.DetachAllEntities();
-
                     var resultDto = _mapper.Map<ExpenseDTO>(result);
-
                     _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Create", resultDto));
-                    _eventAggregator.Publish(new DrawerUpdateEvent(
-                        "Expense",
-                        -dto.Amount,
-                        $"Expense: {dto.Category} - {dto.Reason}"
-                    ));
 
                     return resultDto;
                 }
-                catch (Exception ex)
+                catch
                 {
                     await transaction.RollbackAsync();
-                    _unitOfWork.DetachAllEntities();
-                    Debug.WriteLine($"Error creating expense: {ex.Message}");
                     throw;
                 }
             }, "CreateExpense");
@@ -167,124 +136,77 @@ namespace QuickTechSystems.Application.Services
 
         public override async Task UpdateAsync(ExpenseDTO dto)
         {
-            if (!await AcquireEntityLock(dto.ExpenseId, "Update"))
-                throw new InvalidOperationException("Operation already in progress for this expense");
-
-            try
+            await ExecuteServiceOperationAsync(async () =>
             {
-                await ExecuteServiceOperationAsync(async () =>
+                ValidateExpense(dto);
+
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
                 {
-                    using var transaction = await _unitOfWork.BeginTransactionAsync();
-                    try
+                    var existingExpense = await _repository.GetByIdAsync(dto.ExpenseId);
+                    if (existingExpense == null)
+                        throw new InvalidOperationException($"Expense with ID {dto.ExpenseId} not found");
+
+                    decimal amountDifference = dto.Amount - existingExpense.Amount;
+
+                    existingExpense.Reason = dto.Reason;
+                    existingExpense.Amount = dto.Amount;
+                    existingExpense.Date = dto.Date;
+                    existingExpense.Notes = dto.Notes;
+                    existingExpense.Category = dto.Category;
+                    existingExpense.IsRecurring = dto.IsRecurring;
+                    existingExpense.UpdatedAt = DateTime.Now;
+
+                    await _repository.UpdateAsync(existingExpense);
+
+                    if (amountDifference != 0)
                     {
-                        _unitOfWork.DetachAllEntities();
-
-                        var existingExpense = await _repository.GetByIdAsync(dto.ExpenseId);
-                        if (existingExpense == null)
-                        {
-                            throw new InvalidOperationException($"Expense with ID {dto.ExpenseId} not found");
-                        }
-
-                        decimal amountDifference = dto.Amount - existingExpense.Amount;
-
-                        if (amountDifference > 0)
-                        {
-                            var drawerValid = await _drawerService.ValidateTransactionAsync(amountDifference, true);
-                            if (!drawerValid)
-                            {
-                                throw new InvalidOperationException("Insufficient funds in cash drawer for expense increase");
-                            }
-                        }
-
-                        _unitOfWork.DetachEntity(existingExpense);
-
-                        var entityToUpdate = new Expense
-                        {
-                            ExpenseId = dto.ExpenseId,
-                            Reason = dto.Reason,
-                            Amount = dto.Amount,
-                            Date = dto.Date,
-                            Notes = dto.Notes,
-                            Category = dto.Category,
-                            IsRecurring = dto.IsRecurring,
-                            CreatedAt = existingExpense.CreatedAt,
-                            UpdatedAt = DateTime.Now
-                        };
-
-                        await _repository.UpdateAsync(entityToUpdate);
-
-                        if (amountDifference != 0)
-                        {
-                            await _drawerService.ProcessExpenseAsync(
-                                amountDifference,
-                                dto.Category,
-                                $"Expense adjustment: {dto.Reason}"
-                            );
-                        }
-
-                        await _unitOfWork.SaveChangesAsync();
-                        await transaction.CommitAsync();
-
-                        _unitOfWork.DetachAllEntities();
-
-                        _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Update", dto));
+                        await _drawerService.ProcessExpenseAsync(
+                            amountDifference,
+                            dto.Category,
+                            $"Expense adjustment: {dto.Reason}"
+                        );
                     }
-                    catch (Exception)
-                    {
-                        await transaction.RollbackAsync();
-                        _unitOfWork.DetachAllEntities();
-                        throw;
-                    }
-                }, $"UpdateExpense_{dto.ExpenseId}");
-            }
-            finally
-            {
-                ReleaseEntityLock(dto.ExpenseId, "Update");
-            }
+
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Update", dto));
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }, "UpdateExpense");
         }
 
         public override async Task DeleteAsync(int id)
         {
-            if (!await AcquireEntityLock(id, "Delete"))
-                throw new InvalidOperationException("Operation already in progress for this expense");
-
-            try
+            await ExecuteServiceOperationAsync(async () =>
             {
-                await ExecuteServiceOperationAsync(async () =>
+                using var transaction = await _unitOfWork.BeginTransactionAsync();
+                try
                 {
-                    using var transaction = await _unitOfWork.BeginTransactionAsync();
-                    try
-                    {
-                        _unitOfWork.DetachAllEntities();
+                    var expense = await _repository.GetByIdAsync(id);
+                    if (expense == null)
+                        throw new InvalidOperationException($"Expense with ID {id} not found");
 
-                        var expense = await _repository.GetByIdAsync(id);
-                        if (expense == null)
-                            throw new InvalidOperationException($"Expense with ID {id} not found");
+                    var expenseDto = _mapper.Map<ExpenseDTO>(expense);
 
-                        var expenseDto = _mapper.Map<ExpenseDTO>(expense);
+                    await _drawerService.AddCashTransactionAsync(expense.Amount, true);
+                    await _repository.DeleteAsync(expense);
+                    await _unitOfWork.SaveChangesAsync();
+                    await transaction.CommitAsync();
 
-                        await _drawerService.AddCashTransactionAsync(expense.Amount, true);
-
-                        await _repository.DeleteAsync(expense);
-                        await _unitOfWork.SaveChangesAsync();
-                        await transaction.CommitAsync();
-
-                        _unitOfWork.DetachAllEntities();
-
-                        _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Delete", expenseDto));
-                    }
-                    catch (Exception)
-                    {
-                        await transaction.RollbackAsync();
-                        _unitOfWork.DetachAllEntities();
-                        throw;
-                    }
-                }, $"DeleteExpense_{id}");
-            }
-            finally
-            {
-                ReleaseEntityLock(id, "Delete");
-            }
+                    _eventAggregator.Publish(new EntityChangedEvent<ExpenseDTO>("Delete", expenseDto));
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+            }, "DeleteExpense");
         }
 
         public async Task<IEnumerable<ExpenseDTO>> GetByCategoryAsync(string category)
@@ -319,57 +241,16 @@ namespace QuickTechSystems.Application.Services
             return await _drawerService.ValidateTransactionAsync(amount, true);
         }
 
-        private async Task<bool> AcquireEntityLock(int entityId, string operationType)
+        private static void ValidateExpense(ExpenseDTO dto)
         {
-            var lockKey = $"{operationType}_{entityId}";
+            if (string.IsNullOrWhiteSpace(dto.Reason))
+                throw new ArgumentException("Expense reason is required");
 
-            lock (_operationManager)
-            {
-                if (_activeOperations.Contains(entityId))
-                    return false;
+            if (dto.Amount <= 0)
+                throw new ArgumentException("Amount must be greater than zero");
 
-                _activeOperations.Add(entityId);
-                _operationTimestamps[entityId] = DateTime.Now;
-
-                if (!_operationLocks.ContainsKey(lockKey))
-                    _operationLocks[lockKey] = new SemaphoreSlim(1, 1);
-            }
-
-            return await _operationLocks[lockKey].WaitAsync(1000);
-        }
-
-        private void ReleaseEntityLock(int entityId, string operationType)
-        {
-            var lockKey = $"{operationType}_{entityId}";
-
-            lock (_operationManager)
-            {
-                _activeOperations.Remove(entityId);
-                _operationTimestamps.Remove(entityId);
-
-                if (_operationLocks.ContainsKey(lockKey))
-                {
-                    _operationLocks[lockKey].Release();
-                }
-            }
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                lock (_operationManager)
-                {
-                    foreach (var lockPair in _operationLocks)
-                    {
-                        lockPair.Value?.Dispose();
-                    }
-                    _operationLocks.Clear();
-                    _activeOperations.Clear();
-                    _operationTimestamps.Clear();
-                }
-            }
-            base.Dispose(disposing);
+            if (string.IsNullOrWhiteSpace(dto.Category))
+                throw new ArgumentException("Category is required");
         }
     }
 }
